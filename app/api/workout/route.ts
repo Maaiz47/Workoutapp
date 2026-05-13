@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     for (const log of logs) {
       if (!grouped[log.dayId]) grouped[log.dayId] = [];
       grouped[log.dayId].push({
+        id: log.id,
         date: log.date.toISOString().slice(0, 10),
         time: log.date.toISOString().slice(11, 19),
         duration: log.duration,
@@ -45,6 +46,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, id: log.id });
   } catch (e) {
     console.error("Workout POST error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const uid = req.cookies.get("ironlog-uid")?.value;
+    if (!uid) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { id } = await req.json();
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+    // Only delete if it belongs to this user
+    const log = await prisma.workoutLog.findUnique({ where: { id } });
+    if (!log || log.userId !== uid) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    await prisma.workoutLog.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    console.error("Workout DELETE error:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
