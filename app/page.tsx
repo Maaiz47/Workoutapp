@@ -128,6 +128,11 @@ export default function HomePage() {
       if (sk.startsWith(eid + "-") && s.sets[sk].weight > 0) return s.sets[sk].weight;
     return "";
   };
+  const lastReps = (eid: string): string | number => {
+    for (const dk in history) for (const s of (history[dk] || [])) for (const sk in s.sets)
+      if (sk.startsWith(eid + "-") && s.sets[sk].reps > 0) return s.sets[sk].reps;
+    return "";
+  };
 
   const bc: Record<string, string> = { compound: "#2ecc71", isolation: "#74b9ff", cardio: "#FF6B6B" };
 
@@ -285,10 +290,11 @@ export default function HomePage() {
               const ns = nextSetNum(ex.id, ex.sets);
               const isExp = expanded === ex.id;
               const lw = lastWeight(ex.id);
+              const lr = lastReps(ex.id);
 
               return (
                 <div key={ex.id} className="fade-in">
-                  <div onClick={() => { if (!trackable || allDone) return; setExpanded(isExp ? null : ex.id); setWInput(lw !== "" ? String(lw) : ""); setRInput(""); }}
+                  <div onClick={() => { if (!trackable || allDone) return; setExpanded(isExp ? null : ex.id); setWInput(lw !== "" ? String(lw) : ""); setRInput(lr !== "" ? String(lr) : ""); }}
                     style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: allDone ? 0.3 : 1, cursor: trackable ? "pointer" : "default", transition: "opacity 0.3s" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -345,7 +351,7 @@ export default function HomePage() {
                             style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 20, fontFamily: "'Space Mono', monospace", padding: "12px", textAlign: "center", outline: "none" }} />
                         </div>
                       </div>
-                      <button onClick={() => { logSet(ex.id, ns, wInput, rInput); if (ns + 1 > ex.sets) setExpanded(null); if (ex.rest) rest.start(ex.rest); setRInput(""); }}
+                      <button onClick={() => { logSet(ex.id, ns, wInput, rInput); if (ns + 1 > ex.sets) setExpanded(null); if (ex.rest) rest.start(ex.rest); }}
                         style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: (!wInput && !rInput) ? 0.4 : 1 }}>
                         LOG SET {ns}
                       </button>
