@@ -28,11 +28,45 @@ function useCountdown() {
 }
 
 function useTimer() {
+  const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const ref = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startT = useCallback(() => { setElapsed(0); ref.current = setInterval(() => setElapsed(p => p + 1), 1000); }, []);
-  const stopT = useCallback(() => { if (ref.current) clearInterval(ref.current); }, []);
-  useEffect(() => () => { if (ref.current) clearInterval(ref.current); }, []);
+
+  const tick = useCallback(() => {
+    if (startTime) setElapsed(Math.floor((Date.now() - startTime) / 1000));
+  }, [startTime]);
+
+  const startT = useCallback(() => {
+    const now = Date.now();
+    setStartTime(now);
+    setElapsed(0);
+  }, []);
+
+  const stopT = useCallback(() => {
+    if (ref.current) clearInterval(ref.current);
+    setStartTime(null);
+  }, []);
+
+  // Update every second, and also on visibility change (when user comes back to tab)
+  useEffect(() => {
+    if (!startTime) return;
+    ref.current = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && startTime) {
+        setElapsed(Math.floor((Date.now() - startTime) / 1000));
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      if (ref.current) clearInterval(ref.current);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [startTime]);
+
   const fmt = `${String(Math.floor(elapsed / 3600)).padStart(2, "0")}:${String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
   return { elapsed, startT, stopT, fmt };
 }
@@ -256,6 +290,14 @@ export default function HomePage() {
   const begin = () => { setStarted(true); timer.startT(); };
 
   const finish = async () => {
+    const setCount = Object.keys(log).length;
+    if (setCount === 0) {
+      if (!confirm("No sets logged. Quit without saving?")) return;
+      timer.stopT();
+      setView("home"); setActiveDay(null); setLog({});
+      return;
+    }
+    if (!confirm(`Save workout with ${setCount} set${setCount !== 1 ? "s" : ""} logged?`)) return;
     timer.stopT();
     if (Object.keys(log).length > 0 && activeDay) {
       try {
