@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { WORKOUT_DATA, WorkoutDay } from "@/lib/workouts";
+import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 
 // ─── HOOKS ──────────────────────────────────────────────────────────────
 function useCountdown() {
