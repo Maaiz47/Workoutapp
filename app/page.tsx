@@ -125,14 +125,12 @@ function getOverallStats(history: Record<string, any[]>) {
   }
   const avgMinutes = durationCount > 0 ? Math.round(totalMinutes / durationCount) : 0;
 
-  // Last 28 days activity (for calendar view) - aligned to weekday columns
-  const calendarDays: { active: boolean; isToday: boolean; dayOfWeek: number }[] = [];
-  // Find the start: go back 27 days from today
-  const startDate = new Date(now);
-  startDate.setDate(startDate.getDate() - 27);
-  // Add empty padding cells so first date lands on correct weekday column
-  const startDow = startDate.getDay(); // 0=Sun
-  const padding = startDow; // empty cells before first date
+  // Last 28 days activity (for calendar view)
+  // Today is always the last cell. We show 28 days ending today.
+  // The grid is 7 columns (S M T W T F S). 
+  // We need to figure out which column today falls in, then pad the first row
+  // so that 28 days ago lands on its correct weekday.
+  const calendarDays: { active: boolean; isToday: boolean }[] = [];
   for (let i = 27; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
@@ -140,11 +138,14 @@ function getOverallStats(history: Record<string, any[]>) {
     calendarDays.push({
       active: allSessions.some(s => s.date === dateStr),
       isToday: i === 0,
-      dayOfWeek: d.getDay(),
     });
   }
+  // 28 days ago - what day of week was it?
+  const firstDate = new Date(now);
+  firstDate.setDate(firstDate.getDate() - 27);
+  const calendarPadding = firstDate.getDay(); // 0=Sun, pad that many empty cells before
 
-  return { totalSessions, exercisePRs, thisWeek, streak, avgMinutes, calendarDays, calendarPadding: padding };
+  return { totalSessions, exercisePRs, thisWeek, streak, avgMinutes, calendarDays, calendarPadding };
 }
 
 // Mini bar chart component
@@ -431,38 +432,50 @@ export default function HomePage() {
             </div>
 
             {/* 28-Day Activity Calendar */}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>LAST 4 WEEKS</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>
-                  {overall.calendarDays.filter(d => d.active).length} days trained
-                </div>
-              </div>
-              {/* Day of week headers */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
-                {dayLabels.map((l, i) => (
-                  <div key={i} style={{ textAlign: "center", fontSize: 8, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{l}</div>
-                ))}
-              </div>
-              {/* Calendar grid with padding for alignment */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
-                {/* Empty padding cells */}
-                {Array.from({ length: overall.calendarPadding }, (_, i) => (
-                  <div key={`pad-${i}`} style={{ aspectRatio: "1" }} />
-                ))}
-                {/* Actual days */}
-                {overall.calendarDays.map((day, i) => (
-                  <div key={i} style={{
-                    aspectRatio: "1", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center",
-                    background: day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
-                    border: day.isToday ? "1px solid rgba(255,255,255,0.3)" : "1px solid transparent",
-                    opacity: day.active ? 1 : 0.4,
-                  }}>
-                    {day.active && <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#fff" }} />}
+            {(() => {
+              // Pre-compute date numbers for each cell
+              const dateNums: number[] = [];
+              for (let i = 27; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                dateNums.push(d.getDate());
+              }
+              return (
+                <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>LAST 4 WEEKS</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>
+                      {overall.calendarDays.filter(d => d.active).length} days trained
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+                    {dayLabels.map((l, i) => (
+                      <div key={i} style={{ textAlign: "center", fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>{l}</div>
+                    ))}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+                    {Array.from({ length: overall.calendarPadding }, (_, i) => (
+                      <div key={`pad-${i}`} style={{ aspectRatio: "1" }} />
+                    ))}
+                    {overall.calendarDays.map((day, i) => (
+                      <div key={i} style={{
+                        aspectRatio: "1", borderRadius: 6, display: "flex", flexDirection: "column",
+                        alignItems: "center", justifyContent: "center",
+                        background: day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
+                        border: day.isToday ? "1px solid rgba(255,255,255,0.4)" : "1px solid transparent",
+                        opacity: day.active || day.isToday ? 1 : 0.35,
+                      }}>
+                        <div style={{
+                          fontSize: 10, fontWeight: day.isToday ? 700 : 500,
+                          fontFamily: "'Space Mono', monospace",
+                          color: day.active ? "#fff" : day.isToday ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)",
+                        }}>{dateNums[i]}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Personal Records */}
             {prList.length > 0 && (
