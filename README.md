@@ -3,7 +3,7 @@
 ## Deploy to Vercel (3 steps)
 
 ### 1. Push to GitHub
-```bash
+```bash 
 unzip ironlog-project.zip
 cd ironlog
 git init && git add . && git commit -m "init"
