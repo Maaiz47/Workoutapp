@@ -272,6 +272,12 @@ export default function HomePage() {
     setView("home"); setActiveDay(null); setLog({});
   };
 
+  const abandonWorkout = () => {
+    if (!confirm("Quit workout? Your progress will NOT be saved.")) return;
+    timer.stopT();
+    setView("home"); setActiveDay(null); setLog({});
+  };
+
   const deleteSession = async (sessionId: string) => {
     if (!confirm("Delete this session? This can't be undone.")) return;
     try {
@@ -653,7 +659,7 @@ export default function HomePage() {
           </div>
         )}
         <div style={{ padding: "20px 20px 16px", background: `linear-gradient(180deg, ${activeDay.color}10, transparent)`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-          <button onClick={finish} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← End & Save</button>
+          <button onClick={abandonWorkout} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.6)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Quit</button>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginTop: 8 }}>{activeDay.title}</div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>{activeDay.focus}</div>
         </div>
@@ -746,7 +752,7 @@ export default function HomePage() {
         ))}
 
         <div style={{ padding: 20 }}>
-          <button onClick={finish} style={{ width: "100%", padding: "16px", background: "rgba(255,107,107,0.15)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12, color: "#FF6B6B", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>FINISH WORKOUT</button>
+          <button onClick={finish} style={{ width: "100%", padding: "16px", background: "rgba(46,204,113,0.15)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 12, color: "#2ecc71", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>FINISH & SAVE</button>
         </div>
       </div>
     );
