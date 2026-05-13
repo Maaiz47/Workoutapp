@@ -1,0 +1,17 @@
+{
+  "name": "IRONLOG",
+  "short_name": "IRONLOG",
+  "description": "Gym Workout Tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0C0C0F",
+  "theme_color": "#0C0C0F",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
