@@ -125,16 +125,26 @@ function getOverallStats(history: Record<string, any[]>) {
   }
   const avgMinutes = durationCount > 0 ? Math.round(totalMinutes / durationCount) : 0;
 
-  // Last 28 days activity (for calendar view)
-  const last28: boolean[] = [];
+  // Last 28 days activity (for calendar view) - aligned to weekday columns
+  const calendarDays: { active: boolean; isToday: boolean; dayOfWeek: number }[] = [];
+  // Find the start: go back 27 days from today
+  const startDate = new Date(now);
+  startDate.setDate(startDate.getDate() - 27);
+  // Add empty padding cells so first date lands on correct weekday column
+  const startDow = startDate.getDay(); // 0=Sun
+  const padding = startDow; // empty cells before first date
   for (let i = 27; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().slice(0, 10);
-    last28.push(allSessions.some(s => s.date === dateStr));
+    calendarDays.push({
+      active: allSessions.some(s => s.date === dateStr),
+      isToday: i === 0,
+      dayOfWeek: d.getDay(),
+    });
   }
 
-  return { totalSessions, exercisePRs, thisWeek, streak, avgMinutes, last28 };
+  return { totalSessions, exercisePRs, thisWeek, streak, avgMinutes, calendarDays, calendarPadding: padding };
 }
 
 // Mini bar chart component
@@ -259,6 +269,20 @@ export default function HomePage() {
       } catch {}
     }
     setView("home"); setActiveDay(null); setLog({});
+  };
+
+  const deleteSession = async (sessionId: string) => {
+    if (!confirm("Delete this session? This can't be undone.")) return;
+    try {
+      await fetch("/api/workout", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: sessionId }),
+      });
+      const res = await fetch("/api/workout");
+      const data = await res.json();
+      if (!data.error) setHistory(data);
+    } catch {}
   };
 
   const logSet = (eid: string, sn: number, w: string, r: string) =>
@@ -411,7 +435,7 @@ export default function HomePage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>LAST 4 WEEKS</div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>
-                  {overall.last28.filter(Boolean).length} days trained
+                  {overall.calendarDays.filter(d => d.active).length} days trained
                 </div>
               </div>
               {/* Day of week headers */}
@@ -420,21 +444,23 @@ export default function HomePage() {
                   <div key={i} style={{ textAlign: "center", fontSize: 8, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{l}</div>
                 ))}
               </div>
-              {/* Calendar grid */}
+              {/* Calendar grid with padding for alignment */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
-                {overall.last28.map((active, i) => {
-                  const isToday = i === 27;
-                  return (
-                    <div key={i} style={{
-                      aspectRatio: "1", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center",
-                      background: active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
-                      border: isToday ? "1px solid rgba(255,255,255,0.3)" : "1px solid transparent",
-                      opacity: active ? 1 : 0.4,
-                    }}>
-                      {active && <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#fff" }} />}
-                    </div>
-                  );
-                })}
+                {/* Empty padding cells */}
+                {Array.from({ length: overall.calendarPadding }, (_, i) => (
+                  <div key={`pad-${i}`} style={{ aspectRatio: "1" }} />
+                ))}
+                {/* Actual days */}
+                {overall.calendarDays.map((day, i) => (
+                  <div key={i} style={{
+                    aspectRatio: "1", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center",
+                    background: day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
+                    border: day.isToday ? "1px solid rgba(255,255,255,0.3)" : "1px solid transparent",
+                    opacity: day.active ? 1 : 0.4,
+                  }}>
+                    {day.active && <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#fff" }} />}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -551,8 +577,15 @@ export default function HomePage() {
                 {openHist === d.id && history[d.id]?.map((s: any, si: number) => (
                   <div key={si} className="fade-in" style={{ background: "rgba(255,255,255,0.02)", borderRadius: 10, padding: "14px 16px", margin: "4px 0", borderLeft: `3px solid ${d.color}30` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{s.date}</div>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", background: "rgba(255,255,255,0.04)", padding: "2px 8px", borderRadius: 4 }}>{s.duration}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{s.date}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", background: "rgba(255,255,255,0.04)", padding: "2px 8px", borderRadius: 4 }}>{s.duration}</div>
+                      </div>
+                      {s.id && <button onClick={() => deleteSession(s.id)} style={{
+                        background: "none", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6,
+                        color: "rgba(255,107,107,0.5)", fontSize: 9, padding: "3px 8px", cursor: "pointer",
+                        fontFamily: "'Space Mono', monospace", letterSpacing: 1,
+                      }}>DELETE</button>}
                     </div>
                     <div>
                       {Object.entries(s.sets as Record<string, { weight: number; reps: number }>).map(([k, v]) => {
