@@ -12,10 +12,15 @@ function useCountdown() {
   const audioCtx = useRef<AudioContext | null>(null);
   const notifiedRef = useRef(false);
 
-  // Request notification permission on first use
-  const requestNotifPermission = useCallback(() => {
+  // Request notification permission and register service worker
+  const requestNotifPermission = useCallback(async () => {
     if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
+      await Notification.requestPermission();
+    }
+    if ("serviceWorker" in navigator) {
+      try {
+        await navigator.serviceWorker.register("/sw.js");
+      } catch {}
     }
   }, []);
 
@@ -23,12 +28,10 @@ function useCountdown() {
     try {
       if (!audioCtx.current) audioCtx.current = new AudioContext();
       const ctx = audioCtx.current;
-      // Resume context if suspended (mobile browsers)
       if (ctx.state === "suspended") ctx.resume();
       const o = ctx.createOscillator(), g = ctx.createGain();
       o.connect(g); g.connect(ctx.destination);
       o.frequency.value = 880; g.gain.value = 0.3; o.start(); o.stop(ctx.currentTime + 0.2);
-      // Second beep after short delay
       setTimeout(() => {
         try {
           const o2 = ctx.createOscillator(), g2 = ctx.createGain();
@@ -37,20 +40,26 @@ function useCountdown() {
         } catch {}
       }, 250);
     } catch {}
-    // Vibrate if available
     try { navigator.vibrate?.([200, 100, 200]); } catch {}
   }, []);
 
-  const sendNotification = useCallback(() => {
+  const sendNotification = useCallback(async () => {
     if (notifiedRef.current) return;
     notifiedRef.current = true;
+    // Use service worker for reliable background notifications
+    if ("serviceWorker" in navigator && Notification.permission === "granted") {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        reg.active?.postMessage({ type: "REST_DONE" });
+        return;
+      } catch {}
+    }
+    // Fallback to regular notification
     if ("Notification" in window && Notification.permission === "granted") {
       try {
         new Notification("IRONLOG", {
           body: "Rest over — time for your next set 💪",
-          icon: "/favicon.ico",
           tag: "ironlog-rest",
-          requireInteraction: false,
         });
       } catch {}
     }
@@ -161,6 +170,7 @@ function useTimer() {
 function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: string) {
   const sessions = history[dayId] || [];
   const dataPoints: { date: string; avgWeight: number; maxWeight: number; totalVolume: number; avgReps: number; setCount: number }[] = [];
+  let pbWeight = 0, pbReps = 0, pbDate = "";
 
   for (const s of sessions) {
     const sets = s.sets as Record<string, { weight: number; reps: number }>;
@@ -171,6 +181,12 @@ function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: s
         reps.push(sets[k].reps);
         volume += sets[k].weight * sets[k].reps;
         count++;
+        // Track PB: highest weight, and if tied, most reps at that weight
+        if (sets[k].weight > pbWeight || (sets[k].weight === pbWeight && sets[k].reps > pbReps)) {
+          pbWeight = sets[k].weight;
+          pbReps = sets[k].reps;
+          pbDate = s.date;
+        }
       }
     }
     if (count > 0) {
@@ -184,7 +200,7 @@ function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: s
       });
     }
   }
-  return dataPoints.reverse(); // chronological
+  return { dataPoints: dataPoints.reverse(), pb: { weight: pbWeight, reps: pbReps, date: pbDate } };
 }
 
 function getOverallStats(history: Record<string, any[]>) {
@@ -661,7 +677,7 @@ export default function HomePage() {
                 </div>
 
                 {selectedExDay === d.id && d.sections.map(sec => sec.exercises.filter(ex => ex.trackable !== false).map(ex => {
-                  const stats = getExerciseStats(history, d.id, ex.id);
+                  const { dataPoints: stats, pb } = getExerciseStats(history, d.id, ex.id);
                   if (stats.length === 0) return (
                     <div key={ex.id} className="fade-in" style={{ padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 8, margin: "4px 0" }}>
                       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{ex.name}</div>
@@ -679,26 +695,27 @@ export default function HomePage() {
                     }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 4 }}>{ex.name}</div>
 
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 10 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 10 }}>
                         <div>
                           <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>AVG WEIGHT</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>{latest.avgWeight.toFixed(1)}<span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>kg</span></div>
-                          {prev && <Trend current={latest.avgWeight} previous={prev.avgWeight} />}
+                          {prev && <div style={{ marginTop: 4 }}><Trend current={latest.avgWeight} previous={prev.avgWeight} /></div>}
                         </div>
                         <div>
                           <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>AVG REPS</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>{latest.avgReps.toFixed(1)}</div>
-                          {prev && <Trend current={latest.avgReps} previous={prev.avgReps} unit="" />}
+                          {prev && <div style={{ marginTop: 4 }}><Trend current={latest.avgReps} previous={prev.avgReps} unit="" /></div>}
                         </div>
                         <div>
-                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>VOLUME</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>{latest.totalVolume > 999 ? `${(latest.totalVolume / 1000).toFixed(1)}k` : latest.totalVolume}</div>
-                          {prev && <Trend current={latest.totalVolume} previous={prev.totalVolume} unit="" />}
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>PB</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>
+                            {pb.weight}<span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>kg</span>
+                          </div>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", marginTop: 4 }}>× {pb.reps} · {pb.date}</div>
                         </div>
                       </div>
 
                       <MiniChart data={stats.map(s => s.avgWeight)} color={d.color} label="WEIGHT TREND" />
-                      <MiniChart data={stats.map(s => s.totalVolume)} color="#A29BFE" label="VOLUME TREND" />
                     </div>
                   );
                 }))}
@@ -823,6 +840,11 @@ export default function HomePage() {
                       {trackable ? `${ex.sets} × ${ex.reps}` : ex.reps}{ex.rest ? ` · ${ex.rest}s rest` : ""}
                     </div>
                     {ex.note && <div style={{ fontSize: 11, color: "#f0c040", marginTop: 5, fontStyle: "italic", opacity: 0.8 }}>{ex.note}</div>}
+                    {trackable && lw && (
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace" }}>
+                        Last: {lw}kg × {lr || "?"}
+                      </div>
+                    )}
                     {trackable && (
                       <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
                         {Array.from({ length: ex.sets }, (_, i) => {
@@ -843,13 +865,19 @@ export default function HomePage() {
                     <div className="fade-in" style={{ padding: "18px 20px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 14, fontWeight: 500 }}>
                         Set {ns} of {ex.sets}
-                        {lw && <span style={{ color: "rgba(255,255,255,0.3)", marginLeft: 8 }}>Last: {lw}kg</span>}
+                        {(lw || lr) && <span style={{ color: "rgba(255,255,255,0.3)", marginLeft: 8 }}>Last: {lw}kg × {lr}</span>}
                       </div>
                       <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>WEIGHT (kg/side)</div>
-                          <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0"
-                            style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 20, fontFamily: "'Space Mono', monospace", padding: "12px", textAlign: "center", outline: "none" }} />
+                          <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                            <button onClick={() => { const v = Math.max(0, (parseFloat(wInput) || 0) - 1.25); setWInput(String(v)); }}
+                              style={{ width: 40, height: 48, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 18, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                            <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0"
+                              style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 20, fontFamily: "'Space Mono', monospace", padding: "10px 4px", textAlign: "center", outline: "none" }} />
+                            <button onClick={() => { const v = (parseFloat(wInput) || 0) + 1.25; setWInput(String(v)); }}
+                              style={{ width: 40, height: 48, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 18, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                          </div>
                           {(() => {
                             const cur = parseFloat(wInput), prev = parseFloat(String(lw));
                             if (!cur || !prev || cur === prev) return null;
@@ -863,8 +891,24 @@ export default function HomePage() {
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>REPS DONE</div>
-                          <input type="number" inputMode="numeric" value={rInput} onChange={e => setRInput(e.target.value)} placeholder="0"
-                            style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 20, fontFamily: "'Space Mono', monospace", padding: "12px", textAlign: "center", outline: "none" }} />
+                          <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                            <button onClick={() => { const v = Math.max(0, (parseInt(rInput) || 0) - 1); setRInput(String(v)); }}
+                              style={{ width: 40, height: 48, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 18, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                            <input type="number" inputMode="numeric" value={rInput} onChange={e => setRInput(e.target.value)} placeholder="0"
+                              style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 20, fontFamily: "'Space Mono', monospace", padding: "10px 4px", textAlign: "center", outline: "none" }} />
+                            <button onClick={() => { const v = (parseInt(rInput) || 0) + 1; setRInput(String(v)); }}
+                              style={{ width: 40, height: 48, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 18, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                          </div>
+                          {(() => {
+                            const cur = parseInt(rInput), prev = parseInt(String(lr));
+                            if (!cur || !prev || cur === prev) return null;
+                            const diff = cur - prev, up = diff > 0;
+                            return <div style={{ marginTop: 8, textAlign: "center" }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: up ? "#2ecc71" : "#FF6B6B", background: up ? "#2ecc7118" : "#FF6B6B18", padding: "4px 10px", borderRadius: 6 }}>
+                                {up ? "▲" : "▼"} {up ? "+" : ""}{diff} rep{Math.abs(diff) !== 1 ? "s" : ""}
+                              </span>
+                            </div>;
+                          })()}
                         </div>
                       </div>
                       <button onClick={() => { logSet(ex.id, ns, wInput, rInput); if (ns + 1 > ex.sets) setExpanded(null); if (ex.rest) rest.start(ex.rest); }}
