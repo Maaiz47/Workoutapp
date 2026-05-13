@@ -7,23 +7,109 @@ import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 function useCountdown() {
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
+  const endTimeRef = useRef<number | null>(null);
   const ref = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioCtx = useRef<AudioContext | null>(null);
+  const notifiedRef = useRef(false);
+
+  // Request notification permission on first use
+  const requestNotifPermission = useCallback(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
   const beep = useCallback(() => {
     try {
       if (!audioCtx.current) audioCtx.current = new AudioContext();
-      const o = audioCtx.current.createOscillator(), g = audioCtx.current.createGain();
-      o.connect(g); g.connect(audioCtx.current.destination);
-      o.frequency.value = 880; g.gain.value = 0.3; o.start(); o.stop(audioCtx.current.currentTime + 0.15);
+      const ctx = audioCtx.current;
+      // Resume context if suspended (mobile browsers)
+      if (ctx.state === "suspended") ctx.resume();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = 880; g.gain.value = 0.3; o.start(); o.stop(ctx.currentTime + 0.2);
+      // Second beep after short delay
+      setTimeout(() => {
+        try {
+          const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+          o2.connect(g2); g2.connect(ctx.destination);
+          o2.frequency.value = 1100; g2.gain.value = 0.3; o2.start(); o2.stop(ctx.currentTime + 0.15);
+        } catch {}
+      }, 250);
     } catch {}
+    // Vibrate if available
+    try { navigator.vibrate?.([200, 100, 200]); } catch {}
   }, []);
-  const start = useCallback((s: number) => {
+
+  const sendNotification = useCallback(() => {
+    if (notifiedRef.current) return;
+    notifiedRef.current = true;
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification("IRONLOG", {
+          body: "Rest over — time for your next set 💪",
+          icon: "/favicon.ico",
+          tag: "ironlog-rest",
+          requireInteraction: false,
+        });
+      } catch {}
+    }
+  }, []);
+
+  const finish = useCallback(() => {
     if (ref.current) clearInterval(ref.current);
-    setSeconds(s); setRunning(true);
-    ref.current = setInterval(() => setSeconds(p => { if (p <= 1) { clearInterval(ref.current!); setRunning(false); beep(); return 0; } return p - 1; }), 1000);
-  }, [beep]);
-  const stop = useCallback(() => { if (ref.current) clearInterval(ref.current); setRunning(false); setSeconds(0); }, []);
-  useEffect(() => () => { if (ref.current) clearInterval(ref.current); }, []);
+    setRunning(false);
+    setSeconds(0);
+    endTimeRef.current = null;
+    beep();
+    sendNotification();
+  }, [beep, sendNotification]);
+
+  const start = useCallback((secs: number) => {
+    requestNotifPermission();
+    if (ref.current) clearInterval(ref.current);
+    notifiedRef.current = false;
+    const endTime = Date.now() + secs * 1000;
+    endTimeRef.current = endTime;
+    setSeconds(secs);
+    setRunning(true);
+
+    ref.current = setInterval(() => {
+      const remaining = Math.ceil((endTimeRef.current! - Date.now()) / 1000);
+      if (remaining <= 0) {
+        finish();
+      } else {
+        setSeconds(remaining);
+      }
+    }, 250); // Check 4x per second for accuracy after background
+  }, [finish, requestNotifPermission]);
+
+  const stop = useCallback(() => {
+    if (ref.current) clearInterval(ref.current);
+    setRunning(false);
+    setSeconds(0);
+    endTimeRef.current = null;
+  }, []);
+
+  // Handle coming back from background — check if timer expired while away
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && endTimeRef.current) {
+        const remaining = Math.ceil((endTimeRef.current - Date.now()) / 1000);
+        if (remaining <= 0) {
+          finish();
+        } else {
+          setSeconds(remaining);
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (ref.current) clearInterval(ref.current);
+    };
+  }, [finish]);
+
   return { seconds, running, start, stop };
 }
 
