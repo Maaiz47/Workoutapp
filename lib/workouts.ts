@@ -13,8 +13,8 @@ export type WorkoutDay = {
 
 export const WORKOUT_DATA: WorkoutDay[] = [
   {
-    id: "push1", day: 1, label: "01", title: "Chest & Triceps",
-    focus: "Chest · Triceps · Side Delts", color: "#FF6B6B", gradient: "linear-gradient(135deg, #FF6B6B, #ee5a24)",
+    id: "push1", day: 1, label: "01", title: "Push Day — Heavy",
+    focus: "Flat Bench · Incline · Triceps · Lateral Raises", color: "#FF6B6B", gradient: "linear-gradient(135deg, #FF6B6B, #ee5a24)",
     sections: [
       { name: "Warm-Up", exercises: [{ id: "w1", name: "Incline Treadmill Walk", sets: 1, reps: "5 min", type: "cardio", trackable: false }] },
       { name: "Chest", exercises: [
@@ -33,8 +33,8 @@ export const WORKOUT_DATA: WorkoutDay[] = [
     ],
   },
   {
-    id: "pull1", day: 2, label: "02", title: "Back & Biceps",
-    focus: "Back · Biceps · Rear Delts", color: "#4ECDC4", gradient: "linear-gradient(135deg, #4ECDC4, #44b09e)",
+    id: "pull1", day: 2, label: "02", title: "Pull Day — Width",
+    focus: "Rows · Pulldowns · Curls · Face Pulls", color: "#4ECDC4", gradient: "linear-gradient(135deg, #4ECDC4, #44b09e)",
     sections: [
       { name: "Warm-Up", exercises: [{ id: "w2", name: "Rowing Machine", sets: 1, reps: "5 min", type: "cardio", trackable: false }] },
       { name: "Back", exercises: [
@@ -54,8 +54,8 @@ export const WORKOUT_DATA: WorkoutDay[] = [
     ],
   },
   {
-    id: "legs", day: 3, label: "03", title: "Legs",
-    focus: "Quads · Hamstrings · Glutes · Calves", color: "#A29BFE", gradient: "linear-gradient(135deg, #A29BFE, #6c5ce7)",
+    id: "legs", day: 3, label: "03", title: "Leg Day — Foundation",
+    focus: "Squats · RDLs · Split Squats · Calves", color: "#A29BFE", gradient: "linear-gradient(135deg, #A29BFE, #6c5ce7)",
     sections: [
       { name: "Warm-Up", exercises: [{ id: "w3", name: "Bike / Light Cardio", sets: 1, reps: "5 min", type: "cardio", trackable: false }] },
       { name: "Main Lifts", exercises: [
@@ -72,8 +72,8 @@ export const WORKOUT_DATA: WorkoutDay[] = [
     ],
   },
   {
-    id: "push2", day: 4, label: "04", title: "Chest & Triceps",
-    focus: "Chest · Triceps · Side Delts", color: "#FF6B6B", gradient: "linear-gradient(135deg, #fd9644, #e17055)",
+    id: "push2", day: 4, label: "04", title: "Push Day — Volume",
+    focus: "Incline Bench · Flyes · Dips · Lateral Raises", color: "#FF6B6B", gradient: "linear-gradient(135deg, #fd9644, #e17055)",
     sections: [
       { name: "Warm-Up", exercises: [{ id: "w4", name: "Incline Treadmill Walk", sets: 1, reps: "5 min", type: "cardio", trackable: false }] },
       { name: "Chest", exercises: [
@@ -92,8 +92,8 @@ export const WORKOUT_DATA: WorkoutDay[] = [
     ],
   },
   {
-    id: "pull2", day: 5, label: "05", title: "Back & Biceps",
-    focus: "Back · Biceps · Rear Delts", color: "#74b9ff", gradient: "linear-gradient(135deg, #74b9ff, #0984e3)",
+    id: "pull2", day: 5, label: "05", title: "Pull Day — Thickness",
+    focus: "Pull-Ups · T-Bar Rows · EZ Curls · Face Pulls", color: "#74b9ff", gradient: "linear-gradient(135deg, #74b9ff, #0984e3)",
     sections: [
       { name: "Warm-Up", exercises: [{ id: "w5", name: "Rowing Machine", sets: 1, reps: "5 min", type: "cardio", trackable: false }] },
       { name: "Back", exercises: [
