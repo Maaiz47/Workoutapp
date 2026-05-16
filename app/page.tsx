@@ -416,15 +416,20 @@ export default function HomePage() {
   };
 
   const doCheckUsername = async () => {
-    const username = nameInput.trim().toLowerCase();
-    if (!username) return;
+    const input = nameInput.trim().toLowerCase();
+    if (!input) return;
     setAuthError("");
     try {
-      const data = await authPost({ action: "check", username });
+      const data = await authPost({ action: "check", username: input });
       if (data.error) { setAuthError(data.error); return; }
-      if (data.state === "new") setAuthStep("register");
-      else if (data.state === "needs-setup") setAuthStep("setup");
-      else setAuthStep("password");
+      if (data.state === "new") {
+        if (data.isEmail) { setAuthError("No account found with that email. Please use your username to register."); return; }
+        setAuthStep("register");
+      } else {
+        if (data.username) setNameInput(data.username);
+        if (data.state === "needs-setup") setAuthStep("setup");
+        else setAuthStep("password");
+      }
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -610,7 +615,8 @@ export default function HomePage() {
 
   // ─── LOGIN ──────────────────────────────────────────────────────────
   if (!user) {
-    const inputStyle: React.CSSProperties = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", padding: "14px 20px", width: "100%", maxWidth: 300, textAlign: "center" as const, outline: "none", display: "block", boxSizing: "border-box" as const };
+    const inputStyle: React.CSSProperties = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", padding: "14px 20px", width: "100%", maxWidth: 300, textAlign: "left" as const, outline: "none", display: "block", boxSizing: "border-box" as const };
+    const inputStyleCenter: React.CSSProperties = { ...inputStyle, textAlign: "center" as const };
     const btnPrimary: React.CSSProperties = { display: "block", width: "100%", maxWidth: 300, margin: "16px auto 0", padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
     const btnBack: React.CSSProperties = { background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 16 };
 
@@ -624,14 +630,15 @@ export default function HomePage() {
 
           {/* ── Step: username ── */}
           {authStep === "username" && (<>
-            <input value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username" autoFocus style={inputStyle} />
+            <input value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={inputStyleCenter} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             <button onClick={doCheckUsername} style={btnPrimary}>CONTINUE</button>
           </>)}
 
           {/* ── Step: register (new user) ── */}
           {authStep === "register" && (<>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>Create your account</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Create your account</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 20, letterSpacing: 1 }}>{nameInput}</div>
             <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Email" type="email" style={{ ...inputStyle, marginBottom: 8 }} />
             <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" type="password" style={{ ...inputStyle, marginBottom: 8 }} />
             <input value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doRegister()} placeholder="Confirm password" type="password" style={inputStyle} />
@@ -655,7 +662,7 @@ export default function HomePage() {
           {/* ── Step: password (login) ── */}
           {authStep === "password" && (<>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>Welcome back, <strong style={{ color: "#fff" }}>{nameInput}</strong></div>
-            <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doLogin()} placeholder="Password" type="password" autoFocus style={inputStyle} />
+            <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doLogin()} placeholder="Password" type="password" autoFocus style={{ ...inputStyle, marginBottom: 4 }} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             <button onClick={doLogin} style={btnPrimary}>LOG IN</button>
             <button onClick={() => { setAuthStep("forgot"); setEmailInput(""); setAuthError(""); setForgotSent(false); }} style={{ ...btnBack, display: "block", width: "100%" }}>Forgot password?</button>

@@ -29,15 +29,18 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
 
-  // ── CHECK: does this username exist and what state is it in? ──────────
+  // ── CHECK: does this username/email exist and what state is it in? ────
   if (action === "check") {
-    const username = body.username?.trim().toLowerCase();
-    if (!username || username.length < 2)
+    const input = body.username?.trim().toLowerCase();
+    if (!input || input.length < 2)
       return jsonRes({ error: "Username must be at least 2 characters" }, 400);
-    const user = await prisma.user.findUnique({ where: { username } });
-    if (!user) return jsonRes({ state: "new" });
-    if (!user.passwordHash) return jsonRes({ state: "needs-setup" });
-    return jsonRes({ state: "has-password" });
+    const isEmail = input.includes("@");
+    const user = isEmail
+      ? await prisma.user.findUnique({ where: { email: input } })
+      : await prisma.user.findUnique({ where: { username: input } });
+    if (!user) return jsonRes({ state: "new", isEmail });
+    if (!user.passwordHash) return jsonRes({ state: "needs-setup", username: user.username });
+    return jsonRes({ state: "has-password", username: user.username });
   }
 
   // ── REGISTER: new user ───────────────────────────────────────────────
@@ -95,15 +98,18 @@ export async function POST(req: NextRequest) {
     return res;
   }
 
-  // ── LOGIN: existing user with password ───────────────────────────────
+  // ── LOGIN: existing user with password (username or email) ───────────
   if (action === "login") {
-    const username = body.username?.trim().toLowerCase();
+    const input = body.username?.trim().toLowerCase();
     const { password } = body;
 
-    if (!username || !password)
+    if (!input || !password)
       return jsonRes({ error: "Username and password required" }, 400);
 
-    const user = await prisma.user.findUnique({ where: { username } });
+    const isEmail = input.includes("@");
+    const user = isEmail
+      ? await prisma.user.findUnique({ where: { email: input } })
+      : await prisma.user.findUnique({ where: { username: input } });
     if (!user || !user.passwordHash)
       return jsonRes({ error: "Invalid username or password" }, 401);
 
