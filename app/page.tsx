@@ -385,6 +385,7 @@ export default function HomePage() {
   const [trainerResults, setTrainerResults] = useState<any[]>([]);
   const [trainerSearching, setTrainerSearching] = useState(false);
   const [trainerHasSearched, setTrainerHasSearched] = useState(false);
+  const [trainerSearchError, setTrainerSearchError] = useState<string | null>(null);
   const [trainerRequests, setTrainerRequests] = useState<any[]>([]);
   const [sendingRequest, setSendingRequest] = useState<string | null>(null);
 
@@ -573,14 +574,22 @@ export default function HomePage() {
 
   const doTrainerSearch = async (q?: string) => {
     const term = (q ?? trainerSearch).trim();
-    if (term.length < 1) { setTrainerResults([]); setTrainerHasSearched(false); return; }
+    if (term.length < 1) { setTrainerResults([]); setTrainerHasSearched(false); setTrainerSearchError(null); return; }
     setTrainerSearching(true);
     setTrainerHasSearched(true);
+    setTrainerSearchError(null);
     try {
       const res = await fetch(`/api/trainer/search?q=${encodeURIComponent(term)}`);
       const data = await res.json();
-      setTrainerResults(data.results ?? []);
-    } catch {}
+      if (!res.ok) {
+        setTrainerSearchError(`API error ${res.status}: ${data.error ?? "unknown"}`);
+        setTrainerResults([]);
+      } else {
+        setTrainerResults(data.results ?? []);
+      }
+    } catch (e: any) {
+      setTrainerSearchError(`Network error: ${e?.message ?? "unknown"}`);
+    }
     setTrainerSearching(false);
   };
 
@@ -1272,7 +1281,10 @@ export default function HomePage() {
               </div>
             );
           })}
-          {trainerHasSearched && !trainerSearching && trainerResults.length === 0 && (
+          {trainerSearchError && (
+            <div style={{ fontSize: 12, color: "#ff6b6b", textAlign: "center", padding: "12px 0", fontFamily: "'Space Mono', monospace" }}>{trainerSearchError}</div>
+          )}
+          {trainerHasSearched && !trainerSearching && !trainerSearchError && trainerResults.length === 0 && (
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>No users found matching "{trainerSearch}"</div>
           )}
         </div>
