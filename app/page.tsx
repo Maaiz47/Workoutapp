@@ -384,6 +384,7 @@ export default function HomePage() {
   const [trainerSearch, setTrainerSearch] = useState("");
   const [trainerResults, setTrainerResults] = useState<any[]>([]);
   const [trainerSearching, setTrainerSearching] = useState(false);
+  const [trainerHasSearched, setTrainerHasSearched] = useState(false);
   const [trainerRequests, setTrainerRequests] = useState<any[]>([]);
   const [sendingRequest, setSendingRequest] = useState<string | null>(null);
 
@@ -572,8 +573,9 @@ export default function HomePage() {
 
   const doTrainerSearch = async (q?: string) => {
     const term = (q ?? trainerSearch).trim();
-    if (term.length < 1) { setTrainerResults([]); return; }
+    if (term.length < 1) { setTrainerResults([]); setTrainerHasSearched(false); return; }
     setTrainerSearching(true);
+    setTrainerHasSearched(true);
     try {
       const res = await fetch(`/api/trainer/search?q=${encodeURIComponent(term)}`);
       const data = await res.json();
@@ -1238,7 +1240,7 @@ export default function HomePage() {
           <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
             <input
               value={trainerSearch}
-              onChange={e => { setTrainerSearch(e.target.value); if (!e.target.value.trim()) setTrainerResults([]); }}
+              onChange={e => { setTrainerSearch(e.target.value); if (!e.target.value.trim()) { setTrainerResults([]); setTrainerHasSearched(false); } }}
               onKeyDown={e => { if (e.key === "Enter") doTrainerSearch(); }}
               placeholder="Enter exact username…"
               style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "13px 16px", flex: 1, outline: "none", boxSizing: "border-box" }}
@@ -1268,7 +1270,7 @@ export default function HomePage() {
               </div>
             );
           })}
-          {trainerSearch.trim().length >= 1 && !trainerSearching && trainerResults.length === 0 && (
+          {trainerHasSearched && !trainerSearching && trainerResults.length === 0 && (
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>No users found matching "{trainerSearch}"</div>
           )}
         </div>
