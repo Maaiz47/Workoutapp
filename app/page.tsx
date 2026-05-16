@@ -4,6 +4,34 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 import { EXERCISES } from "../lib/exercises";
 
+const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from(Array.from(raw).map(c => c.charCodeAt(0)));
+}
+
+async function subscribeToPush() {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    const sub = existing ?? await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription: sub.toJSON() }),
+    });
+  } catch {}
+}
+
 // ─── HOOKS ──────────────────────────────────────────────────────────────
 function useCountdown() {
   const [seconds, setSeconds] = useState(0);
@@ -419,6 +447,7 @@ export default function HomePage() {
       if (data.user) {
         setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user" });
         if (data.user.mustReset) setMustResetPassword(true);
+        subscribeToPush();
       }
       setAuthLoading(false);
     }).catch(() => setAuthLoading(false));
@@ -565,7 +594,7 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "register", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush();
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -575,7 +604,7 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "setup", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush();
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -584,7 +613,7 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "login", username: nameInput.trim().toLowerCase(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush();
       if (data.mustReset) setMustResetPassword(true);
     } catch { setAuthError("Something went wrong"); }
   };

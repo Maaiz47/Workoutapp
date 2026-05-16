@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { sendPushToUser } from "../../../lib/push";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
@@ -50,6 +51,17 @@ export async function POST(req: NextRequest) {
       data: { fromId: uid, toId, body: body.trim(), type, requestId: requestId ?? null },
       include: { from: { select: { id: true, username: true } } },
     });
+
+    // Send push notification to recipient (non-blocking)
+    const notifBody = type === "adoption_request"
+      ? `@${message.from.username} wants to add you as their client`
+      : body.trim().substring(0, 100);
+
+    sendPushToUser(toId, {
+      title: `@${message.from.username}`,
+      body: notifBody,
+      url: "/",
+    }).catch(() => {});
 
     return json({ message });
   } catch (e: any) {

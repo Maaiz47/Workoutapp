@@ -24,6 +24,7 @@ model User {
   clientOf          TrainerClient?   @relation("ClientOf")
   sentMessages      Message[]        @relation("SentMessages")
   receivedMessages  Message[]        @relation("ReceivedMessages")
+  pushSubscriptions PushSubscription[]
 }
 
 model TrainerRequest {
@@ -106,6 +107,18 @@ model PlanExercise {
   day        PlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
 
   @@index([dayId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Message {

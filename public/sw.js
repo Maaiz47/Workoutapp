@@ -3,6 +3,21 @@
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
+// Handle incoming push notifications
+self.addEventListener("push", (event) => {
+  const data = event.data?.json() ?? {};
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? "IRONLOG", {
+      body: data.body ?? "New message",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: "ironlog-message",
+      renotify: true,
+      data: { url: data.url ?? "/" },
+    })
+  );
+});
+
 // Listen for messages from the app to show notifications
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "REST_DONE") {
@@ -20,6 +35,7 @@ self.addEventListener("message", (event) => {
 // Handle notification click — focus the app
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const url = event.notification.data?.url ?? "/";
   event.waitUntil(
     self.clients.matchAll({ type: "window" }).then((clients) => {
       for (const client of clients) {
@@ -27,7 +43,7 @@ self.addEventListener("notificationclick", (event) => {
           return client.focus();
         }
       }
-      return self.clients.openWindow("/");
+      return self.clients.openWindow(url);
     })
   );
 });
