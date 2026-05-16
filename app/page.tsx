@@ -426,6 +426,11 @@ export default function HomePage() {
   const [sendingRequest, setSendingRequest] = useState<string | null>(null);
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [respondingRequest, setRespondingRequest] = useState<string | null>(null);
+  const [clients, setClients] = useState<any[]>([]);
+  const [activeClient, setActiveClient] = useState<{ id: string; username: string } | null>(null);
+  const [clientData, setClientData] = useState<{ profile: any; history: Record<string, any[]>; plan: any } | null>(null);
+  const [clientDataLoading, setClientDataLoading] = useState(false);
+  const [clientDetailTab, setClientDetailTab] = useState<"split" | "history" | "profile">("split");
   const [conversations, setConversations] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeConversation, setActiveConversation] = useState<{ id: string; username: string } | null>(null);
@@ -489,6 +494,9 @@ export default function HomePage() {
     if (user?.role === "trainer") {
       fetch("/api/trainer/request").then(r => r.json()).then(data => {
         if (data.requests) setTrainerRequests(data.requests);
+      }).catch(() => {});
+      fetch("/api/trainer/clients").then(r => r.json()).then(data => {
+        if (data.clients) setClients(data.clients);
       }).catch(() => {});
     }
     if (user?.role === "user") {
@@ -704,6 +712,20 @@ export default function HomePage() {
       setTrainerSearchError(`Network error: ${e?.message ?? "unknown"}`);
     }
     setTrainerSearching(false);
+  };
+
+  const openClientDetail = async (c: { id: string; username: string }) => {
+    setActiveClient(c);
+    setClientDetailTab("split");
+    setClientData(null);
+    setClientDataLoading(true);
+    setView("clientDetail");
+    try {
+      const res = await fetch(`/api/trainer/clients/${c.id}`);
+      const data = await res.json();
+      if (data.username) setClientData({ profile: data.profile, history: data.history, plan: data.plan });
+    } catch {}
+    setClientDataLoading(false);
   };
 
   const sendAdoptionRequest = async (targetUserId: string) => {
@@ -1462,6 +1484,23 @@ export default function HomePage() {
           )}
         </div>
       )}
+      {user.role === "trainer" && clients.length > 0 && (
+        <div style={{ padding: "24px 20px 0" }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>MY CLIENTS</div>
+          {clients.map(c => (
+            <div key={c.id} className="card-hover" onClick={() => openClientDetail(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+                  {c.logCount} workout{c.logCount !== 1 ? "s" : ""}
+                  {c.lastWorkout ? ` · last ${new Date(c.lastWorkout.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : " · no sessions yet"}
+                </div>
+              </div>
+              <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 18 }}>›</span>
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{ padding: "12px 20px 0", display: "flex", flexDirection: "column", gap: 8 }}>
         <button className="card-hover" onClick={() => setView("messages")} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxSizing: "border-box" }}>
           MESSAGES
@@ -1471,6 +1510,194 @@ export default function HomePage() {
       </div>
     </div>
   );
+
+  // ─── CLIENT DETAIL ──────────────────────────────────────────────────
+  if (view === "clientDetail" && activeClient) {
+    const COLORS = ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD"];
+    const GRADIENTS = [
+      "linear-gradient(135deg,#FF6B6B,#ee5a24)",
+      "linear-gradient(135deg,#4ECDC4,#44a08d)",
+      "linear-gradient(135deg,#45B7D1,#2980b9)",
+      "linear-gradient(135deg,#96CEB4,#6aab8e)",
+      "linear-gradient(135deg,#f7d794,#e17055)",
+      "linear-gradient(135deg,#DDA0DD,#9b59b6)",
+    ];
+
+    const splitDays: Array<{ id: string; label: string; title: string; focus: string; color: string; gradient: string; exercises: any[] }> = clientData?.plan
+      ? clientData.plan.days.map((d: any, i: number) => ({
+          id: d.id,
+          label: `DAY ${i + 1}`,
+          title: d.title,
+          focus: d.focus,
+          color: COLORS[i % 6],
+          gradient: GRADIENTS[i % 6],
+          exercises: d.exercises,
+        }))
+      : WORKOUT_DATA.map((d, i) => ({
+          id: d.id,
+          label: d.label,
+          title: d.title,
+          focus: d.focus,
+          color: d.color,
+          gradient: d.gradient,
+          exercises: d.sections.flatMap(s => s.exercises).map(ex => ({
+            name: ex.name, sets: ex.sets, reps: ex.reps,
+          })),
+        }));
+
+    const getDayName = (dayId: string) => {
+      if (clientData?.plan) {
+        const pd = clientData.plan.days.find((d: any) => d.id === dayId);
+        if (pd) return pd.title;
+      }
+      for (const d of WORKOUT_DATA) if (d.id === dayId) return d.title;
+      return "Workout";
+    };
+
+    const flatHistory = clientData
+      ? Object.entries(clientData.history)
+          .flatMap(([dayId, sessions]) => (sessions as any[]).map(s => ({ ...s, dayId, dayName: getDayName(dayId) })))
+          .sort((a, b) => b.date.localeCompare(a.date))
+      : [];
+
+    return (
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
+        <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+        </div>
+        <div style={{ padding: "0 20px 0" }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>@{activeClient.username}</div>
+          {clientData?.profile && (
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
+              {clientData.profile.goal?.replace(/_/g, " ")} · {clientData.profile.fitnessLevel}
+            </div>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: 0, padding: "16px 20px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          {(["split", "history", "profile"] as const).map(tab => (
+            <button key={tab} onClick={() => setClientDetailTab(tab)} style={{
+              flex: 1, padding: "10px 0", background: "none", border: "none",
+              borderBottom: clientDetailTab === tab ? "2px solid #4ECDC4" : "2px solid transparent",
+              color: clientDetailTab === tab ? "#fff" : "rgba(255,255,255,0.3)",
+              fontSize: 11, fontWeight: 600, letterSpacing: 2, cursor: "pointer",
+              fontFamily: "'Space Mono', monospace", textTransform: "uppercase",
+              transition: "all 0.2s",
+            }}>{tab}</button>
+          ))}
+        </div>
+
+        {clientDataLoading && (
+          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "48px 0" }}>Loading…</div>
+        )}
+
+        {/* ─── SPLIT TAB ─── */}
+        {!clientDataLoading && clientDetailTab === "split" && (
+          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
+            {!clientData?.plan && (
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 14, fontStyle: "italic" }}>Using default 5-day split</div>
+            )}
+            {splitDays.map(d => (
+              <div key={d.id} style={{ marginBottom: 8 }}>
+                <div style={{
+                  background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 14, padding: "16px", position: "relative", overflow: "hidden",
+                }}>
+                  <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: d.gradient, borderRadius: "14px 0 0 14px" }} />
+                  <div style={{ paddingLeft: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: d.color, fontWeight: 700, opacity: 0.8 }}>{d.label}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>{d.title}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 5, fontWeight: 300 }}>{d.focus}</div>
+                    <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+                      {d.exercises.map((ex: any, i: number) => (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{ex.name}</div>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{ex.sets}×{ex.reps}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ─── HISTORY TAB ─── */}
+        {!clientDataLoading && clientDetailTab === "history" && (
+          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
+            {flatHistory.length === 0 && (
+              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "48px 0" }}>No workouts logged yet</div>
+            )}
+            {flatHistory.map((s: any, i: number) => {
+              const setCount = typeof s.sets === "object" ? Object.keys(s.sets).length : 0;
+              return (
+                <div key={`${s.id}-${i}`} style={{
+                  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)",
+                  borderRadius: 12, padding: "14px 16px", marginBottom: 8,
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{s.dayName}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+                      {s.date} · {s.duration}{setCount > 0 ? ` · ${setCount} set${setCount !== 1 ? "s" : ""}` : ""}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ─── PROFILE TAB ─── */}
+        {!clientDataLoading && clientDetailTab === "profile" && (
+          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
+            {!clientData?.profile ? (
+              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "48px 0" }}>No profile set up yet</div>
+            ) : (() => {
+              const p = clientData.profile;
+              const age = p.dob ? Math.floor((Date.now() - new Date(p.dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25)) : null;
+              const stats = [
+                { label: "AGE", value: age ? `${age}y` : "—" },
+                { label: "WEIGHT", value: `${p.weightKg}kg` },
+                { label: "HEIGHT", value: `${p.heightCm}cm` },
+                { label: "BODY FAT", value: p.bodyFatPct ? `${p.bodyFatPct}%` : "—" },
+                { label: "DAYS/WK", value: `${p.daysPerWeek}` },
+                { label: "GENDER", value: p.gender || "—" },
+              ];
+              return (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+                    {stats.map((s, i) => (
+                      <div key={i} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 10px", textAlign: "center" }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{s.value}</div>
+                        <div style={{ fontSize: 8, color: "#4ECDC4", letterSpacing: 2, marginTop: 4, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {[
+                    { label: "GOAL", value: p.goal?.replace(/_/g, " ") },
+                    { label: "FITNESS LEVEL", value: p.fitnessLevel },
+                    { label: "LOCATION", value: p.location },
+                    { label: "EQUIPMENT", value: (p.equipment as string[])?.join(", ") || "—" },
+                    { label: "TARGET AREA", value: p.targetArea && p.targetArea !== "none" ? p.targetArea : "—" },
+                  ].map((row, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>{row.label}</div>
+                      <div style={{ fontSize: 13, color: "#fff", textTransform: "capitalize" }}>{row.value || "—"}</div>
+                    </div>
+                  ))}
+                </>
+              );
+            })()}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // ─── MESSAGES LIST ──────────────────────────────────────────────────
   if (view === "messages") return (
