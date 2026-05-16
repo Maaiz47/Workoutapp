@@ -13,23 +13,28 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from(Array.from(raw).map(c => c.charCodeAt(0)));
 }
 
-async function subscribeToPush() {
+async function subscribeToPush(): Promise<"granted" | "denied" | "unsupported" | "error"> {
   try {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") return;
+    if (permission !== "granted") return "denied";
+    // Ensure SW is registered (safe to call if already registered)
+    await navigator.serviceWorker.register("/sw.js");
     const reg = await navigator.serviceWorker.ready;
     const existing = await reg.pushManager.getSubscription();
     const sub = existing ?? await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
-    await fetch("/api/push/subscribe", {
+    const res = await fetch("/api/push/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ subscription: sub.toJSON() }),
     });
-  } catch {}
+    return res.ok ? "granted" : "error";
+  } catch {
+    return "error";
+  }
 }
 
 // ─── HOOKS ──────────────────────────────────────────────────────────────
@@ -407,6 +412,7 @@ export default function HomePage() {
   const [confirmUpgrade, setConfirmUpgrade] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [upgradeError, setUpgradeError] = useState("");
+  const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "unsupported" | "error" | "requesting">("idle");
 
   // ── Trainer search ──
   const [trainerSearch, setTrainerSearch] = useState("");
@@ -442,12 +448,20 @@ export default function HomePage() {
   const rest = useCountdown();
   const timer = useTimer();
 
+  // Seed notif status from current browser permission
+  useEffect(() => {
+    if (!("Notification" in window)) { setNotifStatus("unsupported"); return; }
+    if (!("PushManager" in window)) { setNotifStatus("unsupported"); return; }
+    if (Notification.permission === "granted") setNotifStatus("granted");
+    else if (Notification.permission === "denied") setNotifStatus("denied");
+  }, []);
+
   useEffect(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
       if (data.user) {
         setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user" });
         if (data.user.mustReset) setMustResetPassword(true);
-        subscribeToPush();
+        subscribeToPush().then(s => setNotifStatus(s));
       }
       setAuthLoading(false);
     }).catch(() => setAuthLoading(false));
@@ -594,7 +608,7 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "register", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush();
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush().then(s => setNotifStatus(s));
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -604,7 +618,7 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "setup", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush();
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush().then(s => setNotifStatus(s));
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -613,7 +627,7 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "login", username: nameInput.trim().toLowerCase(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush();
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush().then(s => setNotifStatus(s));
       if (data.mustReset) setMustResetPassword(true);
     } catch { setAuthError("Something went wrong"); }
   };
@@ -1582,6 +1596,29 @@ export default function HomePage() {
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>Client search and adoption requests are coming in the next update. Your own training plan and history are fully intact.</div>
             </div>
           )}
+
+          {/* Notifications */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>NOTIFICATIONS</div>
+            {notifStatus === "granted" ? (
+              <div style={{ fontSize: 13, color: "#4ECDC4", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>✓ ENABLED</div>
+            ) : notifStatus === "denied" ? (
+              <>
+                <div style={{ fontSize: 13, color: "rgba(255,107,107,0.8)", marginBottom: 8 }}>Blocked — enable notifications in your browser/device settings, then tap below.</div>
+                <button onClick={() => { setNotifStatus("requesting"); subscribeToPush().then(s => setNotifStatus(s)); }} style={{ width: "100%", padding: "12px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 10, color: "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>RETRY</button>
+              </>
+            ) : notifStatus === "unsupported" ? (
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Not supported on this browser. On iOS, add IRONLOG to your home screen first.</div>
+            ) : notifStatus === "error" ? (
+              <div style={{ fontSize: 13, color: "rgba(255,107,107,0.7)", marginBottom: 8 }}>
+                Something went wrong registering. Check that VAPID env vars are set on Vercel.
+              </div>
+            ) : (
+              <button onClick={() => { setNotifStatus("requesting"); subscribeToPush().then(s => setNotifStatus(s)); }} style={{ width: "100%", padding: "12px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 10, color: "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                {notifStatus === "requesting" ? "ENABLING…" : "ENABLE PUSH NOTIFICATIONS"}
+              </button>
+            )}
+          </div>
 
           {/* Log out */}
           <button onClick={doLogout} style={{ width: "100%", marginTop: 8, padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.35)", fontSize: 12, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>LOG OUT</button>
