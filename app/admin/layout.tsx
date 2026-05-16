@@ -10,5 +10,10 @@ export const metadata: Metadata = {
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <meta name="apple-mobile-web-app-title" content="IL Admin" />
+      {children}
+    </>
+  );
 }
