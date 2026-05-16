@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { hashPassword, verifyPassword } from "../../../lib/crypto";
+import { sendWelcomeEmail } from "../../../lib/email";
 
 const COOKIE = "ironlog-uid";
 const MIN_PW = 6;
@@ -66,6 +67,7 @@ export async function POST(req: NextRequest) {
 
     const hash = await hashPassword(password);
     const user = await prisma.user.create({ data: { username, email, passwordHash: hash } });
+    sendWelcomeEmail(email, username).catch(() => {});
     const res = jsonRes({ id: user.id, username: user.username });
     res.cookies.set(COOKIE, user.id, cookieOpts(req));
     return res;
