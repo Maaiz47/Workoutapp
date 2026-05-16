@@ -339,7 +339,7 @@ function Trend({ current, previous, unit = "kg" }: { current: number; previous: 
 
 // ─── MAIN ───────────────────────────────────────────────────────────────
 export default function HomePage() {
-  const [user, setUser] = useState<{ id: string; username: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; username: string; role: string } | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
@@ -392,7 +392,7 @@ export default function HomePage() {
   useEffect(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
       if (data.user) {
-        setUser({ id: data.user.id, username: data.user.username });
+        setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user" });
         if (data.user.mustReset) setMustResetPassword(true);
       }
       setAuthLoading(false);
@@ -486,7 +486,7 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "register", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username });
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -496,7 +496,7 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "setup", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username });
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -505,7 +505,7 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "login", username: nameInput.trim().toLowerCase(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username });
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
       if (data.mustReset) setMustResetPassword(true);
     } catch { setAuthError("Something went wrong"); }
   };
@@ -1147,10 +1147,13 @@ export default function HomePage() {
   if (view === "home") return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px 20px 0" }}>
-        <div>
+        <button onClick={() => setView("settings")} style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0 }}>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 300 }}>Welcome back</div>
-          <div style={{ fontSize: 20, fontWeight: 600, color: "#fff", marginTop: 2 }}>{user.username}</div>
-        </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: "#fff" }}>{user.username}</div>
+            {user.role === "trainer" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 4, padding: "2px 6px" }}>TRAINER</span>}
+          </div>
+        </button>
         <button onClick={doLogout} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 14px", color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", letterSpacing: 1 }}>LOG OUT</button>
       </div>
       <div style={{ padding: "28px 20px 0" }}>
@@ -1190,11 +1193,104 @@ export default function HomePage() {
           }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1, padding: "10px 0" }}>← revert to original 5-day split</button>
         </div>
       )}
+      {user.role === "trainer" && (
+        <div style={{ padding: "24px 20px 0" }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>YOUR CLIENTS</div>
+          <div style={{ background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.12)", borderRadius: 16, padding: "24px 20px", textAlign: "center" }}>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", lineHeight: 1.7 }}>Client management is coming in the next update.</div>
+            <div style={{ fontSize: 12, color: "rgba(78,205,196,0.5)", marginTop: 8 }}>You can search for users and send adoption requests soon.</div>
+          </div>
+        </div>
+      )}
       <div style={{ padding: "12px 20px 0" }}>
         <button className="card-hover" onClick={() => { setView("progress"); setProgressTab("dashboard"); }} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>VIEW PROGRESS →</button>
       </div>
     </div>
   );
+
+  // ─── SETTINGS ───────────────────────────────────────────────────────
+  if (view === "settings") {
+    const isTrainer = user.role === "trainer";
+    const [confirmUpgrade, setConfirmUpgrade] = (useState as any)(false);
+    const [upgrading, setUpgrading] = (useState as any)(false);
+    const [upgradeError, setUpgradeError] = (useState as any)("");
+
+    const doUpgrade = async () => {
+      setUpgrading(true);
+      setUpgradeError("");
+      try {
+        const res = await fetch("/api/auth", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "upgrade-trainer" }) });
+        const data = await res.json();
+        if (data.error) { setUpgradeError(data.error); setUpgrading(false); return; }
+        setUser(u => u ? { ...u, role: "trainer" } : u);
+        setConfirmUpgrade(false);
+      } catch { setUpgradeError("Something went wrong"); }
+      setUpgrading(false);
+    };
+
+    return (
+      <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "0 0 80px" }}>
+        <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
+          <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>ACCOUNT</div>
+        </div>
+
+        <div style={{ padding: "0 20px" }}>
+          {/* Profile card */}
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 12 }}>PROFILE</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Member since registration</div>
+              </div>
+              {isTrainer
+                ? <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 6, padding: "4px 10px" }}>TRAINER</span>
+                : <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 10px" }}>USER</span>
+              }
+            </div>
+          </div>
+
+          {/* Trainer upgrade */}
+          {!isTrainer && !confirmUpgrade && (
+            <div style={{ background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "rgba(78,205,196,0.6)", letterSpacing: 3, marginBottom: 10 }}>BECOME A TRAINER</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 16 }}>Upgrade your account to trainer mode. You'll be able to search for users, send adoption requests, and monitor your clients' progress and stats.</div>
+              <button onClick={() => setConfirmUpgrade(true)} style={{ background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 10, padding: "12px 20px", color: "#4ECDC4", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Upgrade to Trainer →</button>
+            </div>
+          )}
+
+          {!isTrainer && confirmUpgrade && (
+            <div style={{ background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 16, padding: "24px 20px", marginBottom: 12 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Confirm upgrade</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.8, marginBottom: 8 }}>
+                As a trainer you'll be able to:<br />
+                · Search for users by username<br />
+                · Send them an adoption request<br />
+                · View their full workout history and stats once accepted
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 20, lineHeight: 1.6 }}>This is a permanent upgrade — your own training plan and history are not affected.</div>
+              {upgradeError && <div style={{ fontSize: 13, color: "#FF6B6B", marginBottom: 12 }}>{upgradeError}</div>}
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={doUpgrade} disabled={upgrading} style={{ flex: 1, padding: "13px", background: "linear-gradient(135deg, #4ECDC4, #44a08d)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: upgrading ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", opacity: upgrading ? 0.6 : 1 }}>{upgrading ? "UPGRADING…" : "CONFIRM UPGRADE"}</button>
+                <button onClick={() => { setConfirmUpgrade(false); setUpgradeError(""); }} style={{ padding: "13px 18px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {isTrainer && (
+            <div style={{ background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "rgba(78,205,196,0.6)", letterSpacing: 3, marginBottom: 8 }}>TRAINER MODE ACTIVE</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>Client search and adoption requests are coming in the next update. Your own training plan and history are fully intact.</div>
+            </div>
+          )}
+
+          {/* Log out */}
+          <button onClick={doLogout} style={{ width: "100%", marginTop: 8, padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.35)", fontSize: 12, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>LOG OUT</button>
+        </div>
+      </div>
+    );
+  }
 
   // ─── PROGRESS DASHBOARD ─────────────────────────────────────────────
   if (view === "progress") {

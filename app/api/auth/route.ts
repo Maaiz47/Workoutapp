@@ -138,7 +138,24 @@ export async function GET(req: NextRequest) {
     res.cookies.delete(COOKIE);
     return res;
   }
-  return jsonRes({ user: { id: user.id, username: user.username, mustReset: user.mustResetPassword } });
+  return jsonRes({ user: { id: user.id, username: user.username, role: user.role, mustReset: user.mustResetPassword } });
+}
+
+// ── PATCH: upgrade to trainer ──────────────────────────────────────────
+export async function PATCH(req: NextRequest) {
+  const uid = req.cookies.get(COOKIE)?.value;
+  if (!uid) return jsonRes({ error: "Unauthorized" }, 401);
+
+  const { action } = await req.json();
+  if (action === "upgrade-trainer") {
+    const existing = await prisma.user.findUnique({ where: { id: uid } });
+    if (!existing) return jsonRes({ error: "User not found" }, 404);
+    if (existing.role !== "user") return jsonRes({ error: "Already a trainer or admin" }, 400);
+    const updated = await prisma.user.update({ where: { id: uid }, data: { role: "trainer" } });
+    return jsonRes({ user: { id: updated.id, username: updated.username, role: updated.role } });
+  }
+
+  return jsonRes({ error: "Invalid action" }, 400);
 }
 
 // ── PUT: set new password (mustReset flow) ─────────────────────────────
