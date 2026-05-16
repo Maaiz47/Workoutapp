@@ -342,6 +342,14 @@ export default function HomePage() {
   const [nameInput, setNameInput] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
+  const [authStep, setAuthStep] = useState<"username" | "register" | "setup" | "password" | "forgot">("username");
+  const [emailInput, setEmailInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [confirmInput, setConfirmInput] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [mustResetPassword, setMustResetPassword] = useState(false);
+  const [newPasswordInput, setNewPasswordInput] = useState("");
+  const [newConfirmInput, setNewConfirmInput] = useState("");
 
   const [view, setView] = useState("home");
   const [activeDay, setActiveDay] = useState<WorkoutDay | null>(null);
@@ -365,7 +373,10 @@ export default function HomePage() {
 
   useEffect(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
-      if (data.user) setUser(data.user);
+      if (data.user) {
+        setUser({ id: data.user.id, username: data.user.username });
+        if (data.user.mustReset) setMustResetPassword(true);
+      }
       setAuthLoading(false);
     }).catch(() => setAuthLoading(false));
   }, []);
@@ -401,24 +412,80 @@ export default function HomePage() {
     } catch { try { localStorage.removeItem("ironlog-session"); } catch {} }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const doLogin = async () => {
-    if (!nameInput.trim()) return;
+  const authPost = async (body: object) => {
+    const res = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    return res.json();
+  };
+
+  const doCheckUsername = async () => {
+    const username = nameInput.trim().toLowerCase();
+    if (!username) return;
     setAuthError("");
     try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: nameInput.trim() }),
-      });
+      const data = await authPost({ action: "check", username });
+      if (data.error) { setAuthError(data.error); return; }
+      if (data.state === "new") setAuthStep("register");
+      else if (data.state === "needs-setup") setAuthStep("setup");
+      else setAuthStep("password");
+    } catch { setAuthError("Something went wrong"); }
+  };
+
+  const doRegister = async () => {
+    if (passwordInput !== confirmInput) { setAuthError("Passwords don't match"); return; }
+    setAuthError("");
+    try {
+      const data = await authPost({ action: "register", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
+      if (data.error) { setAuthError(data.error); return; }
+      setUser({ id: data.id, username: data.username });
+    } catch { setAuthError("Something went wrong"); }
+  };
+
+  const doSetup = async () => {
+    if (passwordInput !== confirmInput) { setAuthError("Passwords don't match"); return; }
+    setAuthError("");
+    try {
+      const data = await authPost({ action: "setup", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
+      if (data.error) { setAuthError(data.error); return; }
+      setUser({ id: data.id, username: data.username });
+    } catch { setAuthError("Something went wrong"); }
+  };
+
+  const doLogin = async () => {
+    setAuthError("");
+    try {
+      const data = await authPost({ action: "login", username: nameInput.trim().toLowerCase(), password: passwordInput });
+      if (data.error) { setAuthError(data.error); return; }
+      setUser({ id: data.id, username: data.username });
+      if (data.mustReset) setMustResetPassword(true);
+    } catch { setAuthError("Something went wrong"); }
+  };
+
+  const doForgot = async () => {
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth/forgot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: emailInput.trim() }) });
       const data = await res.json();
       if (data.error) { setAuthError(data.error); return; }
-      setUser(data);
+      setForgotSent(true);
+    } catch { setAuthError("Something went wrong"); }
+  };
+
+  const doResetPassword = async () => {
+    if (newPasswordInput !== newConfirmInput) { setAuthError("Passwords don't match"); return; }
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newPassword: newPasswordInput }) });
+      const data = await res.json();
+      if (data.error) { setAuthError(data.error); return; }
+      setMustResetPassword(false);
+      setNewPasswordInput(""); setNewConfirmInput("");
     } catch { setAuthError("Something went wrong"); }
   };
 
   const doLogout = async () => {
     await fetch("/api/auth", { method: "DELETE" });
     setUser(null); setView("home"); setActiveDay(null); timer.stopT();
+    setAuthStep("username"); setPasswordInput(""); setEmailInput("");
   };
 
   const openDay = (d: WorkoutDay) => { setActiveDay(d); setView("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); };
@@ -544,26 +611,100 @@ export default function HomePage() {
   );
 
   // ─── LOGIN ──────────────────────────────────────────────────────────
-  if (!user) return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 32, position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div className="slide-up" style={{ textAlign: "center", zIndex: 1 }}>
-        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 42, fontWeight: 700, letterSpacing: 8, color: "#fff", marginBottom: 4 }}>
-          IRON<span style={{ color: "#FF6B6B" }}>LOG</span>
+  if (!user) {
+    const inputStyle: React.CSSProperties = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", padding: "14px 20px", width: "100%", maxWidth: 300, textAlign: "center" as const, outline: "none", display: "block", boxSizing: "border-box" as const };
+    const btnPrimary: React.CSSProperties = { display: "block", width: "100%", maxWidth: 300, margin: "16px auto 0", padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
+    const btnBack: React.CSSProperties = { background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 16 };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 32, position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, color: "#fff", marginBottom: 4 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>TRACK · LIFT · PROGRESS</div>
+
+          {/* ── Step: username ── */}
+          {authStep === "username" && (<>
+            <input value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username" autoFocus style={inputStyle} />
+            {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
+            <button onClick={doCheckUsername} style={btnPrimary}>CONTINUE</button>
+          </>)}
+
+          {/* ── Step: register (new user) ── */}
+          {authStep === "register" && (<>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>Create your account</div>
+            <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Email" type="email" style={{ ...inputStyle, marginBottom: 8 }} />
+            <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" type="password" style={{ ...inputStyle, marginBottom: 8 }} />
+            <input value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doRegister()} placeholder="Confirm password" type="password" style={inputStyle} />
+            {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
+            <button onClick={doRegister} style={btnPrimary}>CREATE ACCOUNT</button>
+            <button onClick={() => { setAuthStep("username"); setAuthError(""); }} style={btnBack}>← Back</button>
+          </>)}
+
+          {/* ── Step: setup (existing user, no password yet) ── */}
+          {authStep === "setup" && (<>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Welcome back, <strong style={{ color: "#fff" }}>{nameInput}</strong></div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 20 }}>Set up a password to secure your account</div>
+            <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Your email" type="email" style={{ ...inputStyle, marginBottom: 8 }} />
+            <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="New password" type="password" style={{ ...inputStyle, marginBottom: 8 }} />
+            <input value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doSetup()} placeholder="Confirm password" type="password" style={inputStyle} />
+            {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
+            <button onClick={doSetup} style={btnPrimary}>SET PASSWORD</button>
+            <button onClick={() => { setAuthStep("username"); setAuthError(""); }} style={btnBack}>← Back</button>
+          </>)}
+
+          {/* ── Step: password (login) ── */}
+          {authStep === "password" && (<>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>Welcome back, <strong style={{ color: "#fff" }}>{nameInput}</strong></div>
+            <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doLogin()} placeholder="Password" type="password" autoFocus style={inputStyle} />
+            {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
+            <button onClick={doLogin} style={btnPrimary}>LOG IN</button>
+            <button onClick={() => { setAuthStep("forgot"); setEmailInput(""); setAuthError(""); setForgotSent(false); }} style={{ ...btnBack, display: "block", width: "100%" }}>Forgot password?</button>
+            <button onClick={() => { setAuthStep("username"); setAuthError(""); setPasswordInput(""); }} style={btnBack}>← Back</button>
+          </>)}
+
+          {/* ── Step: forgot password ── */}
+          {authStep === "forgot" && (<>
+            {!forgotSent ? (<>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>Enter your email to receive a temporary password</div>
+              <input value={emailInput} onChange={e => setEmailInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doForgot()} placeholder="Your email" type="email" autoFocus style={inputStyle} />
+              {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
+              <button onClick={doForgot} style={btnPrimary}>SEND RESET EMAIL</button>
+            </>) : (
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
+                Check your email for a temporary password, then log in to set a new one.
+              </div>
+            )}
+            <button onClick={() => { setAuthStep("password"); setForgotSent(false); setAuthError(""); }} style={btnBack}>← Back to login</button>
+          </>)}
         </div>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", letterSpacing: 6, fontWeight: 300, marginBottom: 56 }}>TRACK · LIFT · PROGRESS</div>
-        <input value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doLogin()} placeholder="Enter your name" autoFocus
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 16, fontFamily: "'DM Sans', sans-serif", padding: "16px 24px", width: "100%", maxWidth: 300, textAlign: "center", outline: "none" }} />
-        {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 12 }}>{authError}</div>}
-        <button onClick={doLogin} style={{
-          display: "block", width: "100%", maxWidth: 300, margin: "20px auto 0", padding: "16px",
-          background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12,
-          color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
-        }}>GET STARTED</button>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // ─── MUST RESET PASSWORD ────────────────────────────────────────────
+  if (user && mustResetPassword) {
+    const inputStyle: React.CSSProperties = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", padding: "14px 20px", width: "100%", maxWidth: 300, textAlign: "center" as const, outline: "none", display: "block", boxSizing: "border-box" as const };
+    const btnPrimary: React.CSSProperties = { display: "block", width: "100%", maxWidth: 300, margin: "16px auto 0", padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 32, position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, color: "#fff", marginBottom: 4 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>TRACK · LIFT · PROGRESS</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Welcome, <strong style={{ color: "#fff" }}>{user.username}</strong></div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 24 }}>Set a new password to continue</div>
+          <input value={newPasswordInput} onChange={e => setNewPasswordInput(e.target.value)} placeholder="New password" type="password" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
+          <input value={newConfirmInput} onChange={e => setNewConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doResetPassword()} placeholder="Confirm password" type="password" style={inputStyle} />
+          {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
+          <button onClick={doResetPassword} style={btnPrimary}>SET PASSWORD</button>
+          <button onClick={doLogout} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 16 }}>Log out</button>
+        </div>
+      </div>
+    );
+  }
 
   // ─── HOME ───────────────────────────────────────────────────────────
   if (view === "home") return (
@@ -1005,7 +1146,7 @@ export default function HomePage() {
                     {ex.note && <div style={{ fontSize: 11, color: "#f0c040", marginTop: 5, fontStyle: "italic", opacity: 0.8 }}>{ex.note}</div>}
                     {trackable && lw > 0 && (
                       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace" }}>
-                        Last best: {lw}kg × {lr || "?"}
+                        Last session: {lw}kg × {lr || "?"}
                       </div>
                     )}
                     {trackable && (
@@ -1043,8 +1184,8 @@ export default function HomePage() {
                       if (lw > 0) {
                         const d = +(cur - lw).toFixed(2);
                         tags.push(d === 0
-                          ? <span key="last" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= last best</span>
-                          : <span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)}kg vs last</span>
+                          ? <span key="last" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= last session</span>
+                          : <span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)}kg vs last session</span>
                         );
                       }
                       return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
@@ -1063,8 +1204,8 @@ export default function HomePage() {
                       if (lr > 0) {
                         const d = cur - lr;
                         tags.push(d === 0
-                          ? <span key="last" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= last best</span>
-                          : <span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs last</span>
+                          ? <span key="last" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= last session</span>
+                          : <span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs last session</span>
                         );
                       }
                       return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
@@ -1074,7 +1215,7 @@ export default function HomePage() {
                       <div className="fade-in" style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 12, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span>Set {ns} of {ex.sets}</span>
-                          {lw > 0 && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>Last best: {lw}kg × {lr}</span>}
+                          {lw > 0 && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>Last session: {lw}kg × {lr}</span>}
                         </div>
                         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>

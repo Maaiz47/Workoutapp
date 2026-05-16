@@ -2,6 +2,43 @@
 
 ---
 
+## Patch 3 · 2026-05-16
+**Full Password Auth System + Label Clarity**
+
+### Password authentication
+- New users must now register with an email and password — username alone no longer grants access
+- Auth flow is multi-step: enter username → then register / set up / log in depending on account state
+  - `new` → register screen (email + password + confirm)
+  - `needs-setup` → setup screen (existing user with no password yet — email + new password + confirm)
+  - `has-password` → login screen (password entry + forgot password link)
+- Passwords hashed with `scrypt` via Node built-in `crypto` (no external package) — `lib/crypto.ts`
+
+### Forgot password flow
+- "Forgot password?" link on the login step sends a temporary password to the user's registered email
+- Temp password is generated randomly, hashed and stored, and `mustResetPassword` flag is set
+- Email sent via Nodemailer (SMTP config via env vars); if SMTP not configured, temp password is logged to server console
+- Email not found → still returns success to prevent email enumeration
+- New API route: `app/api/auth/forgot/route.ts`
+
+### Must-reset password screen
+- After logging in with a temp password, the user is shown a full-screen "Set a new password" prompt before accessing the app
+- Enforced client-side via `mustResetPassword` state; once reset, the flag is cleared in the database
+- Reset via `PUT /api/auth` (requires active session cookie)
+
+### Schema changes
+- `prisma/schema.prisma`: added `email String? @unique`, `passwordHash String?`, `mustResetPassword Boolean @default(false)` to `User` model
+- Run `prisma db push` to apply to existing database
+
+### Label clarity — "vs last session"
+- All comparison tags and reference labels updated to say "vs last session" / "Last session:" / "= last session" instead of "vs last" / "Last best:" / "= last best"
+- Makes it immediately clear the reference is from the previous time that day was trained, not the current session
+
+### Dependencies
+- Added `nodemailer ^6.9.0` to `package.json`; run `npm install` to pick it up
+- `lib/email.ts`: graceful fallback if `nodemailer` not installed or SMTP not configured
+
+---
+
 ## Patch 2 · 2026-05-16
 **Session Persistence, Finish Review & Edit Sets**
 

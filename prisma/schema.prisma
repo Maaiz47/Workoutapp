@@ -8,10 +8,13 @@ datasource db {
 }
 
 model User {
-  id          String       @id @default(cuid())
-  username    String       @unique
-  createdAt   DateTime     @default(now())
-  workoutLogs WorkoutLog[]
+  id                String       @id @default(cuid())
+  username          String       @unique
+  email             String?      @unique
+  passwordHash      String?
+  mustResetPassword Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  workoutLogs       WorkoutLog[]
 }
 
 model WorkoutLog {
