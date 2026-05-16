@@ -22,12 +22,12 @@ export async function GET(req: NextRequest) {
       username: { equals: q, mode: "insensitive" },
       role: "user",
       id: { not: uid },
-      clientOf: { is: null },
     },
     select: {
       id: true,
       username: true,
       createdAt: true,
+      clientOf: { select: { trainerId: true } },
       _count: { select: { workoutLogs: true } },
     },
     orderBy: { username: "asc" },
@@ -40,6 +40,8 @@ export async function GET(req: NextRequest) {
       username: u.username,
       joinedAt: u.createdAt,
       logCount: u._count.workoutLogs,
+      hasTrainer: !!u.clientOf,
+      isMyClient: u.clientOf?.trainerId === uid,
     })),
   });
 }

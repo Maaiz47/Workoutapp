@@ -1259,12 +1259,14 @@ export default function HomePage() {
                     {u.logCount} workout{u.logCount !== 1 ? "s" : ""} · joined {new Date(u.joinedAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
                   </div>
                 </div>
-                {status === "pending" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>PENDING</span>}
-                {status === "accepted" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>ACCEPTED</span>}
-                {status === "declined" && (
+                {u.isMyClient && <span style={{ fontSize: 10, letterSpacing: 1, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>MY CLIENT</span>}
+                {!u.isMyClient && u.hasTrainer && <span style={{ fontSize: 10, letterSpacing: 1, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>HAS TRAINER</span>}
+                {!u.hasTrainer && status === "pending" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>PENDING</span>}
+                {!u.hasTrainer && status === "accepted" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>ACCEPTED</span>}
+                {!u.hasTrainer && status === "declined" && (
                   <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "6px 12px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.7)", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>RE-SEND</button>
                 )}
-                {!status && (
+                {!u.hasTrainer && !status && (
                   <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "6px 12px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, color: "#4ECDC4", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>{sendingRequest === u.id ? "…" : "SEND REQUEST"}</button>
                 )}
               </div>
