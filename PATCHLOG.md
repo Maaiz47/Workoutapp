@@ -2,6 +2,80 @@
 
 ---
 
+## Patch 6-prep · 2026-05-16
+**Admin Panel — User Management**
+
+### Admin panel at `/admin`
+- Password-protected admin interface accessible by navigating to `/admin` in the browser
+- Login requires the `ADMIN_SECRET` environment variable value — no link from the app (security by obscurity)
+- Key is sent as `x-admin-key` header on all admin API calls; unauthenticated requests return 401
+
+### User management features
+- **User list** — shows all accounts with username, email, role badge, workout log count, and join date
+- **Delete user** — removes the user and all associated data (profile, plan, logs) via database cascade; requires confirmation dialog
+- **Role selector** — inline dropdown to change any user's role (`user` / `trainer` / `admin`); updates instantly
+- **Stats row** — total user count, total workout logs, trainer count
+
+### New API: `app/api/admin/route.ts`
+- `GET /api/admin` — returns full user list with log counts
+- `DELETE /api/admin` — deletes a user by `userId`
+- `PATCH /api/admin` — updates a user's `role` field
+
+### Schema change
+- Added `role String @default("user")` to `User` model (`user` / `trainer` / `admin`)
+- Migration applied via `npx prisma@5 db push`
+- `role` field is the foundation for the Patch 6 trainer system (trainer ↔ user relationships, progress access, messaging)
+
+---
+
+## Patch 5 · 2026-05-16
+**Split Customisation — Add / Remove / Reorder Exercises**
+
+### Per-day exercise editor
+- New CUSTOMISE button on the home screen opens a plan overview showing all days
+- Tapping a day opens a full exercise editor with drag-to-reorder (up/down arrows), remove buttons, and an exercise browser
+- Changes are saved to the database via `PUT /api/plan` and reflected immediately in the workout view
+
+### Exercise browser
+- Searchable list of all exercises in the database (110+), filterable live by name
+- Selecting an exercise adds it to the bottom of the day's list
+
+### Plan adapter
+- `planDayToWorkoutDay()` converts database `PlanDay` records into the `WorkoutDay` type used by the workout view, so customised plans render identically to the defaults
+
+### API: `PUT /api/plan`
+- Accepts `{ dayId, exercises[] }`, atomically deletes and recreates all `PlanExercise` rows for that day in the new order
+
+---
+
+## Patch 4 · 2026-05-16
+**Onboarding Questionnaire + Personalised Plan Generation**
+
+### 8-step onboarding questionnaire
+- New users (no workout history) are shown a questionnaire before accessing the app
+- Steps: days per week → goal → fitness level → training location → equipment → gender → date of birth → body metrics (height, weight, optional body fat %)
+- Existing users (have at least one log) skip the questionnaire and see their prior plan unchanged
+
+### Rule-based plan generator (`lib/planGenerator.ts`)
+- Generates a custom workout plan from the user's profile without requiring an AI API call
+- Split logic: 2d → Full Body, 3d → PPL or Full Body ×3, 4d → Upper/Lower, 5d → PPL, 6d → PPL ×2
+- Pulls exercises from the 110+ exercise database (`lib/exercises.ts`) filtered by location, equipment, and goal
+- Adjusts sets, reps, and rest periods per goal (strength / hypertrophy / fat loss / endurance / general fitness) and fitness level
+- Architecture matches the planned Claude API output format so the swap is a drop-in replacement when API credits are available
+
+### Exercise database (`lib/exercises.ts`)
+- 110+ exercises tagged with primary/secondary muscles, equipment, location (gym/home/both), difficulty, type, and applicable goals
+- `filterExercises()` helper for querying by any combination of tags
+
+### Schema additions
+- `UserProfile` — stores dob, gender, height, weight, body fat %, goal, fitness level, location, equipment[], days per week
+- `WorkoutPlan` — one per user, contains ordered `PlanDay` records
+- `PlanDay` — day index, title, subtitle, focus string, links to `PlanExercise` records
+- `PlanExercise` — exercise name, sets, reps, rest, notes, order index
+- New API routes: `GET/POST /api/profile`, `GET/POST/PUT /api/plan`
+
+---
+
 ## Patch 3 · 2026-05-16
 **Full Password Auth System + Label Clarity**
 

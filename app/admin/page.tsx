@@ -86,6 +86,19 @@ export default function AdminPage() {
     }
   }
 
+  function badgeStyle(role: string): React.CSSProperties {
+    return {
+      display: "inline-block",
+      padding: "2px 10px",
+      borderRadius: 20,
+      fontSize: 11,
+      fontWeight: 700,
+      background: role === "admin" ? "#2a1a4a" : role === "trainer" ? "#1a2a1a" : "#1a1a1a",
+      color: role === "admin" ? "#a29bfe" : role === "trainer" ? "#55efc4" : "#888",
+      border: `1px solid ${role === "admin" ? "#4a2a8a" : role === "trainer" ? "#2a5a2a" : "#333"}`,
+    };
+  }
+
   const s: Record<string, React.CSSProperties> = {
     page: {
       minHeight: "100vh",
@@ -175,16 +188,6 @@ export default function AdminPage() {
       fontSize: 13,
       cursor: "pointer",
     },
-    badge: (role: string): React.CSSProperties => ({
-      display: "inline-block",
-      padding: "2px 10px",
-      borderRadius: 20,
-      fontSize: 11,
-      fontWeight: 700,
-      background: role === "admin" ? "#2a1a4a" : role === "trainer" ? "#1a2a1a" : "#1a1a1a",
-      color: role === "admin" ? "#a29bfe" : role === "trainer" ? "#55efc4" : "#888",
-      border: `1px solid ${role === "admin" ? "#4a2a8a" : role === "trainer" ? "#2a5a2a" : "#333"}`,
-    }),
     errMsg: {
       color: "#ff6b6b",
       fontSize: 13,
@@ -285,7 +288,7 @@ export default function AdminPage() {
                   </td>
                   <td style={{ ...s.td, color: "#666" }}>{u.email ?? "—"}</td>
                   <td style={s.td}>
-                    <span style={s.badge(u.role)}>{u.role}</span>
+                    <span style={badgeStyle(u.role)}>{u.role}</span>
                   </td>
                   <td style={{ ...s.td, color: "#888" }}>{u._count.workoutLogs}</td>
                   <td style={{ ...s.td, color: "#555" }}>
