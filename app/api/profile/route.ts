@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { dob, gender, heightCm, weightKg, bodyFatPct, goal, fitnessLevel, location, equipment, daysPerWeek } = body;
+    const { dob, gender, heightCm, weightKg, bodyFatPct, goal, fitnessLevel, location, equipment, daysPerWeek, targetArea } = body;
 
     if (!dob || !gender || !heightCm || !weightKg || !goal || !fitnessLevel || !location || !daysPerWeek)
       return json({ error: "Missing required fields" }, 400);
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
         location,
         equipment: equipment || [],
         daysPerWeek: parseInt(daysPerWeek),
+        targetArea: targetArea || "none",
       },
       update: {
         heightCm: parseFloat(heightCm),
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
         location,
         equipment: equipment || [],
         daysPerWeek: parseInt(daysPerWeek),
+        targetArea: targetArea || "none",
       },
     });
 

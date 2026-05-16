@@ -157,6 +157,16 @@ export const EXERCISES: Exercise[] = [
   { id: "v-ups", name: "V-Ups", primaryMuscles: ["core"], secondaryMuscles: [], equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "isolation", goals: ["fitness", "fat_loss"] },
   { id: "toe-touches", name: "Toe Touches", primaryMuscles: ["core"], secondaryMuscles: [], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness", "fat_loss"] },
 
+  // ── REHAB / CORRECTIVE ─────────────────────────────────────────────────
+
+  { id: "bird-dog", name: "Bird Dog", primaryMuscles: ["core"], secondaryMuscles: ["back", "glutes"], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "isometric", goals: ["fitness"] },
+  { id: "clamshell", name: "Clamshell", primaryMuscles: ["glutes"], secondaryMuscles: [], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness"] },
+  { id: "resistance-band-hip-abduction", name: "Resistance Band Hip Abduction", primaryMuscles: ["glutes"], secondaryMuscles: [], equipment: ["resistance_band", "bodyweight"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness"] },
+  { id: "shoulder-external-rotation", name: "Shoulder External Rotation", primaryMuscles: ["shoulders"], secondaryMuscles: [], equipment: ["resistance_band", "dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness"] },
+  { id: "wall-slide", name: "Wall Slide", primaryMuscles: ["shoulders"], secondaryMuscles: ["back"], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness"] },
+  { id: "straight-leg-raise", name: "Straight Leg Raise", primaryMuscles: ["quads", "core"], secondaryMuscles: [], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness"] },
+  { id: "terminal-knee-extension", name: "Terminal Knee Extension", primaryMuscles: ["quads"], secondaryMuscles: [], equipment: ["resistance_band", "bodyweight"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness"] },
+
   // ── CARDIO / CONDITIONING ──────────────────────────────────────────────
 
   { id: "burpees", name: "Burpees", primaryMuscles: ["cardio"], secondaryMuscles: ["chest", "core", "quads"], equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"] },

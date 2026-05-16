@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
       weightKg: profile.weightKg,
       heightCm: profile.heightCm,
       ageYears,
+      targetArea: profile.targetArea ?? "none",
     };
 
     const generated = generatePlan(input);
@@ -127,6 +128,14 @@ export async function POST(req: NextRequest) {
     console.error("Plan error:", e);
     return json({ error: "Failed" }, 500);
   }
+}
+
+// ── Revert to default (delete custom plan) ────────────────────────────────
+export async function DELETE(req: NextRequest) {
+  const uid = req.cookies.get(COOKIE)?.value;
+  if (!uid) return json({ error: "Unauthorized" }, 401);
+  await prisma.workoutPlan.deleteMany({ where: { userId: uid } });
+  return json({ ok: true });
 }
 
 // ── Update a day's exercises (reorder / add / remove) ──────────────────────
