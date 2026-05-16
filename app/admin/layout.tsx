@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   manifest: "/admin-manifest.json",
   icons: {
     icon: "/admin-favicon.svg",
-    apple: "/admin-icon.svg",
+    apple: "/apple-touch-icon-admin.png",
   },
 };
 

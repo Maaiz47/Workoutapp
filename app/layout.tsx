@@ -5,7 +5,10 @@ export const metadata: Metadata = {
   title: "IRONLOG — Track. Lift. Progress.",
   description: "Gym workout tracker with set logging, rest timers, and progress history.",
   manifest: "/manifest.json",
-  icons: { icon: "/favicon.svg" },
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
