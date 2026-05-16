@@ -388,6 +388,8 @@ export default function HomePage() {
   const [trainerSearchError, setTrainerSearchError] = useState<string | null>(null);
   const [trainerRequests, setTrainerRequests] = useState<any[]>([]);
   const [sendingRequest, setSendingRequest] = useState<string | null>(null);
+  const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
+  const [respondingRequest, setRespondingRequest] = useState<string | null>(null);
 
   // ── Onboarding + custom plan ──
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -425,6 +427,11 @@ export default function HomePage() {
     if (user?.role === "trainer") {
       fetch("/api/trainer/request").then(r => r.json()).then(data => {
         if (data.requests) setTrainerRequests(data.requests);
+      }).catch(() => {});
+    }
+    if (user?.role === "user") {
+      fetch("/api/trainer/request/incoming").then(r => r.json()).then(data => {
+        if (data.requests) setIncomingRequests(data.requests);
       }).catch(() => {});
     }
   }, [user]);
@@ -599,8 +606,19 @@ export default function HomePage() {
       const res = await fetch("/api/trainer/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetUserId }) });
       const data = await res.json();
       if (data.request) setTrainerRequests(prev => [data.request, ...prev.filter(r => r.userId !== targetUserId)]);
+      else if (data.error) setTrainerSearchError(data.error);
     } catch {}
     setSendingRequest(null);
+  };
+
+  const respondToRequest = async (requestId: string, action: "accept" | "decline") => {
+    setRespondingRequest(requestId);
+    try {
+      const res = await fetch("/api/trainer/request", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestId, action }) });
+      const data = await res.json();
+      if (data.ok) setIncomingRequests(prev => prev.filter(r => r.id !== requestId));
+    } catch {}
+    setRespondingRequest(null);
   };
 
   const openCustomise = async () => {
@@ -1206,6 +1224,29 @@ export default function HomePage() {
         </button>
         <button onClick={doLogout} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 14px", color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", letterSpacing: 1 }}>LOG OUT</button>
       </div>
+      {incomingRequests.length > 0 && (
+        <div style={{ padding: "16px 20px 0" }}>
+          {incomingRequests.map(req => (
+            <div key={req.id} style={{ background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 14, padding: "14px 16px", marginBottom: 10 }}>
+              <div style={{ fontSize: 11, color: "#4ECDC4", letterSpacing: 3, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>TRAINER REQUEST</div>
+              <div style={{ fontSize: 14, color: "#fff", fontWeight: 600, marginBottom: 4 }}>@{req.trainer.username}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>wants to add you as a client</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => respondToRequest(req.id, "accept")}
+                  disabled={respondingRequest === req.id}
+                  style={{ flex: 1, padding: "10px", background: "#4ECDC4", border: "none", borderRadius: 10, color: "#000", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                >{respondingRequest === req.id ? "…" : "ACCEPT"}</button>
+                <button
+                  onClick={() => respondToRequest(req.id, "decline")}
+                  disabled={respondingRequest === req.id}
+                  style={{ flex: 1, padding: "10px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 10, color: "rgba(255,107,107,0.8)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                >{respondingRequest === req.id ? "…" : "DECLINE"}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{ padding: "28px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
