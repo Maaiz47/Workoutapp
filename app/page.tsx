@@ -162,8 +162,13 @@ function useTimer() {
     };
   }, [startTime]);
 
+  const resumeT = useCallback((savedStart: number) => {
+    setStartTime(savedStart);
+    setElapsed(Math.floor((Date.now() - savedStart) / 1000));
+  }, []);
+
   const fmt = `${String(Math.floor(elapsed / 3600)).padStart(2, "0")}:${String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
-  return { elapsed, startT, stopT, fmt };
+  return { elapsed, startT, resumeT, stopT, fmt };
 }
 
 // ─── ANALYTICS HELPERS ──────────────────────────────────────────────────
@@ -348,6 +353,10 @@ export default function HomePage() {
   const [history, setHistory] = useState<Record<string, any[]>>({});
   const [openHist, setOpenHist] = useState<string | null>(null);
   const [warmupDone, setWarmupDone] = useState<Record<string, boolean>>({});
+  const [editEx, setEditEx] = useState<string | null>(null);
+  const [editSets, setEditSets] = useState<Record<string, { weight: number; reps: number }>>({});
+  const [showFinishPrompt, setShowFinishPrompt] = useState(false);
+  const [adjustedDuration, setAdjustedDuration] = useState("");
   const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history">("dashboard");
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
 
@@ -368,6 +377,29 @@ export default function HomePage() {
       }).catch(() => {});
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const saved = localStorage.getItem("ironlog-session");
+      if (!saved) return;
+      const session = JSON.parse(saved);
+      if (session.userId !== user.id) { localStorage.removeItem("ironlog-session"); return; }
+      const day = WORKOUT_DATA.find(d => d.id === session.dayId);
+      if (!day) { localStorage.removeItem("ironlog-session"); return; }
+      const ageMin = Math.round((Date.now() - session.startTime) / 60000);
+      const ageStr = ageMin < 60 ? `${ageMin}m ago` : `${Math.round(ageMin / 60)}h ago`;
+      if (confirm(`Resume ${day.title} session started ${ageStr}?`)) {
+        setActiveDay(day);
+        setLog(session.log || {});
+        setStarted(true);
+        setView("workout");
+        timer.resumeT(session.startTime);
+      } else {
+        localStorage.removeItem("ironlog-session");
+      }
+    } catch { try { localStorage.removeItem("ironlog-session"); } catch {} }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doLogin = async () => {
     if (!nameInput.trim()) return;
@@ -390,36 +422,69 @@ export default function HomePage() {
   };
 
   const openDay = (d: WorkoutDay) => { setActiveDay(d); setView("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); };
-  const begin = () => { setStarted(true); timer.startT(); };
+  const begin = () => {
+    setStarted(true);
+    timer.startT();
+    if (user && activeDay) {
+      try { localStorage.setItem("ironlog-session", JSON.stringify({ userId: user.id, dayId: activeDay.id, startTime: Date.now(), log: {} })); } catch {}
+    }
+  };
 
-  const finish = async () => {
+  const finish = () => {
     const setCount = Object.keys(log).length;
     if (setCount === 0) {
       if (!confirm("No sets logged. Quit without saving?")) return;
       timer.stopT();
+      try { localStorage.removeItem("ironlog-session"); } catch {}
       setView("home"); setActiveDay(null); setLog({});
       return;
     }
-    if (!confirm(`Save workout with ${setCount} set${setCount !== 1 ? "s" : ""} logged?`)) return;
+    setAdjustedDuration(timer.fmt);
+    setShowFinishPrompt(true);
+  };
+
+  const doSaveWorkout = async () => {
+    setShowFinishPrompt(false);
     timer.stopT();
-    if (Object.keys(log).length > 0 && activeDay) {
+    if (activeDay) {
       try {
         await fetch("/api/workout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dayId: activeDay.id, duration: timer.fmt, sets: log }),
+          body: JSON.stringify({ dayId: activeDay.id, duration: adjustedDuration, sets: log }),
         });
         const res = await fetch("/api/workout");
         const data = await res.json();
         if (!data.error) setHistory(data);
       } catch {}
     }
+    try { localStorage.removeItem("ironlog-session"); } catch {}
     setView("home"); setActiveDay(null); setLog({});
+  };
+
+  const openEditModal = (eid: string) => {
+    const sets: Record<string, { weight: number; reps: number }> = {};
+    for (const [k, v] of Object.entries(log)) {
+      if (k.startsWith(eid + "-")) sets[k] = { ...v };
+    }
+    setEditSets(sets);
+    setEditEx(eid);
+  };
+
+  const saveEditSets = () => {
+    const newLog = { ...log, ...editSets };
+    setLog(newLog);
+    try {
+      const saved = localStorage.getItem("ironlog-session");
+      if (saved) { const s = JSON.parse(saved); s.log = newLog; localStorage.setItem("ironlog-session", JSON.stringify(s)); }
+    } catch {}
+    setEditEx(null);
   };
 
   const abandonWorkout = () => {
     if (!confirm("Quit workout? Your progress will NOT be saved.")) return;
     timer.stopT();
+    try { localStorage.removeItem("ironlog-session"); } catch {}
     setView("home"); setActiveDay(null); setLog({});
   };
 
@@ -437,8 +502,14 @@ export default function HomePage() {
     } catch {}
   };
 
-  const logSet = (eid: string, sn: number, w: string, r: string) =>
-    setLog({ ...log, [`${eid}-${sn}`]: { weight: parseFloat(w) || 0, reps: parseInt(r) || 0 } });
+  const logSet = (eid: string, sn: number, w: string, r: string) => {
+    const newLog = { ...log, [`${eid}-${sn}`]: { weight: parseFloat(w) || 0, reps: parseInt(r) || 0 } };
+    setLog(newLog);
+    try {
+      const saved = localStorage.getItem("ironlog-session");
+      if (saved) { const s = JSON.parse(saved); s.log = newLog; localStorage.setItem("ironlog-session", JSON.stringify(s)); }
+    } catch {}
+  };
 
   const doneCount = (eid: string, total: number) => {
     let c = 0; for (let i = 1; i <= total; i++) if (log[`${eid}-${i}`]) c++; return c;
@@ -802,6 +873,78 @@ export default function HomePage() {
 
     return (
       <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
+        {showFinishPrompt && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 32 }}>
+            <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 32, fontFamily: "'Space Mono', monospace" }}>SAVE WORKOUT</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 10, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>DURATION</div>
+            <input value={adjustedDuration} onChange={e => setAdjustedDuration(e.target.value)}
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12, color: "#fff", fontSize: 30, fontFamily: "'Space Mono', monospace", padding: "14px 20px", textAlign: "center", outline: "none", letterSpacing: 4, width: "100%", maxWidth: 280 }} />
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 8, fontFamily: "'DM Sans', sans-serif" }}>Edit if session was paused or left open</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginTop: 28, fontFamily: "'Space Mono', monospace" }}>{Object.keys(log).length} sets logged</div>
+            <button onClick={doSaveWorkout}
+              style={{ marginTop: 32, width: "100%", maxWidth: 280, padding: "16px", background: "linear-gradient(135deg, #2ecc71, #27ae60)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              SAVE
+            </button>
+            <button onClick={() => setShowFinishPrompt(false)}
+              style={{ marginTop: 12, background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: "12px" }}>
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {editEx && (() => {
+          const exName = activeDay!.sections.flatMap(s => s.exercises).find(e => e.id === editEx)?.name || editEx;
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", display: "flex", flexDirection: "column", zIndex: 300, padding: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>EDIT SETS</div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: "#fff", marginTop: 4 }}>{exName}</div>
+                </div>
+                <button onClick={() => setEditEx(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                {Object.entries(editSets).sort(([a], [b]) => parseInt(a.split("-").pop()!) - parseInt(b.split("-").pop()!)).map(([k, v]) => {
+                  const sn = k.split("-").pop();
+                  return (
+                    <div key={k} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px", marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 12, fontFamily: "'Space Mono', monospace" }}>SET {sn}</div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>WEIGHT (kg)</div>
+                          <div style={{ display: "flex", alignItems: "center" }}>
+                            <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], weight: +Math.max(0, prev[k].weight - 1.25).toFixed(2) } }))}
+                              style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                            <input type="number" inputMode="decimal" value={v.weight || ""} onChange={e => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], weight: parseFloat(e.target.value) || 0 } }))}
+                              style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                            <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], weight: +(prev[k].weight + 1.25).toFixed(2) } }))}
+                              style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                          </div>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>REPS</div>
+                          <div style={{ display: "flex", alignItems: "center" }}>
+                            <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], reps: Math.max(0, prev[k].reps - 1) } }))}
+                              style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                            <input type="number" inputMode="numeric" value={v.reps || ""} onChange={e => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], reps: parseInt(e.target.value) || 0 } }))}
+                              style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                            <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], reps: prev[k].reps + 1 } }))}
+                              style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={saveEditSets}
+                style={{ width: "100%", padding: "16px", background: activeDay!.gradient, border: "none", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 16 }}>
+                SAVE CHANGES
+              </button>
+            </div>
+          );
+        })()}
+
         {rest.running && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(20px)" }}>
             <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>REST</div>
@@ -847,8 +990,14 @@ export default function HomePage() {
                         <span style={{ fontSize: 14, fontWeight: 500, color: "#fff" }}>{ex.name}</span>
                         <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1 }}>{ex.type.toUpperCase()}</span>
                       </div>
-                      {(allDone || wuDone) && <span style={{ fontSize: 16, color: "#2ecc71" }}>✓</span>}
-                      {!trackable && !wuDone && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>TAP TO MARK DONE</span>}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {trackable && done > 0 && (
+                          <button onClick={(e) => { e.stopPropagation(); openEditModal(ex.id); }}
+                            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>EDIT</button>
+                        )}
+                        {(allDone || wuDone) && <span style={{ fontSize: 16, color: "#2ecc71" }}>✓</span>}
+                        {!trackable && !wuDone && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>TAP TO MARK DONE</span>}
+                      </div>
                     </div>
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>
                       {trackable ? `${ex.sets} × ${ex.reps}` : ex.reps}{ex.rest ? ` · ${ex.rest}s rest` : ""}
