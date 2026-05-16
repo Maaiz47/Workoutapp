@@ -347,6 +347,7 @@ export default function HomePage() {
   const [rInput, setRInput] = useState("");
   const [history, setHistory] = useState<Record<string, any[]>>({});
   const [openHist, setOpenHist] = useState<string | null>(null);
+  const [warmupDone, setWarmupDone] = useState<Record<string, boolean>>({});
   const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history">("dashboard");
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
 
@@ -388,7 +389,7 @@ export default function HomePage() {
     setUser(null); setView("home"); setActiveDay(null); timer.stopT();
   };
 
-  const openDay = (d: WorkoutDay) => { setActiveDay(d); setView("workout"); setLog({}); setExpanded(null); setStarted(false); };
+  const openDay = (d: WorkoutDay) => { setActiveDay(d); setView("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); };
   const begin = () => { setStarted(true); timer.startT(); };
 
   const finish = async () => {
@@ -445,15 +446,20 @@ export default function HomePage() {
   const nextSetNum = (eid: string, total: number) => {
     for (let i = 1; i <= total; i++) if (!log[`${eid}-${i}`]) return i; return null;
   };
-  const lastWeight = (eid: string): string | number => {
-    for (const dk in history) for (const s of (history[dk] || [])) for (const sk in s.sets)
-      if (sk.startsWith(eid + "-") && s.sets[sk].weight > 0) return s.sets[sk].weight;
-    return "";
-  };
-  const lastReps = (eid: string): string | number => {
-    for (const dk in history) for (const s of (history[dk] || [])) for (const sk in s.sets)
-      if (sk.startsWith(eid + "-") && s.sets[sk].reps > 0) return s.sets[sk].reps;
-    return "";
+  const lastSessionBest = (eid: string) => {
+    if (!activeDay) return { weight: 0, reps: 0 };
+    const sessions = history[activeDay.id] || [];
+    if (!sessions.length) return { weight: 0, reps: 0 };
+    const recent = sessions[0];
+    let w = 0, r = 0;
+    const sets = recent.sets as Record<string, { weight: number; reps: number }>;
+    for (const sk in sets) {
+      if (sk.startsWith(eid + "-")) {
+        if (sets[sk].weight > w) w = sets[sk].weight;
+        if (sets[sk].reps > r) r = sets[sk].reps;
+      }
+    }
+    return { weight: w, reps: r };
   };
 
   const overall = useMemo(() => getOverallStats(history), [history]);
@@ -813,6 +819,7 @@ export default function HomePage() {
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>SESSION</div>
         </div>
 
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", textAlign: "center", padding: "10px 20px 2px", fontFamily: "'DM Sans', sans-serif", fontStyle: "italic" }}>Tap an exercise to log a set</div>
         {activeDay.sections.map((sec, si) => (
           <div key={si}>
             <div style={{ fontSize: 10, letterSpacing: 4, color: "rgba(255,255,255,0.3)", padding: "22px 20px 10px", fontWeight: 600, fontFamily: "'Space Mono', monospace" }}>{sec.name.toUpperCase()}</div>
@@ -822,27 +829,34 @@ export default function HomePage() {
               const allDone = done >= ex.sets;
               const ns = nextSetNum(ex.id, ex.sets);
               const isExp = expanded === ex.id;
-              const lw = lastWeight(ex.id);
-              const lr = lastReps(ex.id);
+              const { weight: lw, reps: lr } = lastSessionBest(ex.id);
+              const wuDone = !trackable && warmupDone[ex.id];
 
               return (
                 <div key={ex.id} className="fade-in">
-                  <div onClick={() => { if (!trackable || allDone) return; setExpanded(isExp ? null : ex.id); setWInput(lw !== "" ? String(lw) : ""); setRInput(lr !== "" ? String(lr) : ""); }}
-                    style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: allDone ? 0.3 : 1, cursor: trackable ? "pointer" : "default", transition: "opacity 0.3s" }}>
+                  <div onClick={() => {
+                    if (!trackable) { setWarmupDone(prev => ({ ...prev, [ex.id]: !prev[ex.id] })); return; }
+                    if (allDone) return;
+                    setExpanded(isExp ? null : ex.id);
+                    setWInput(lw ? String(lw) : "");
+                    setRInput(lr ? String(lr) : "");
+                  }}
+                    style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: (allDone || wuDone) ? 0.3 : 1, cursor: "pointer", transition: "opacity 0.3s" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 14, fontWeight: 500, color: "#fff" }}>{ex.name}</span>
                         <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1 }}>{ex.type.toUpperCase()}</span>
                       </div>
-                      {allDone && <span style={{ fontSize: 16, color: "#2ecc71" }}>✓</span>}
+                      {(allDone || wuDone) && <span style={{ fontSize: 16, color: "#2ecc71" }}>✓</span>}
+                      {!trackable && !wuDone && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>TAP TO MARK DONE</span>}
                     </div>
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>
                       {trackable ? `${ex.sets} × ${ex.reps}` : ex.reps}{ex.rest ? ` · ${ex.rest}s rest` : ""}
                     </div>
                     {ex.note && <div style={{ fontSize: 11, color: "#f0c040", marginTop: 5, fontStyle: "italic", opacity: 0.8 }}>{ex.note}</div>}
-                    {trackable && lw && (
+                    {trackable && lw > 0 && (
                       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace" }}>
-                        Last: {lw}kg × {lr || "?"}
+                        Last best: {lw}kg × {lr || "?"}
                       </div>
                     )}
                     {trackable && (
@@ -861,62 +875,73 @@ export default function HomePage() {
                     )}
                   </div>
 
-                  {isExp && trackable && ns && (
-                    <div className="fade-in" style={{ padding: "18px 20px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 14, fontWeight: 500 }}>
-                        Set {ns} of {ex.sets}
-                        {(lw || lr) && <span style={{ color: "rgba(255,255,255,0.3)", marginLeft: 8 }}>Last: {lw}kg × {lr}</span>}
-                      </div>
-                      <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>WEIGHT (kg/side)</div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                            <button onClick={() => { const v = Math.max(0, (parseFloat(wInput) || 0) - 1.25); setWInput(String(v)); }}
-                              style={{ width: 40, height: 48, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 18, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                            <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0"
-                              style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 20, fontFamily: "'Space Mono', monospace", padding: "10px 4px", textAlign: "center", outline: "none" }} />
-                            <button onClick={() => { const v = (parseFloat(wInput) || 0) + 1.25; setWInput(String(v)); }}
-                              style={{ width: 40, height: 48, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 18, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                          </div>
-                          {(() => {
-                            const cur = parseFloat(wInput), prev = parseFloat(String(lw));
-                            if (!cur || !prev || cur === prev) return null;
-                            const diff = cur - prev, pct = ((diff / prev) * 100).toFixed(1), up = diff > 0;
-                            return <div style={{ marginTop: 8, textAlign: "center" }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: up ? "#2ecc71" : "#FF6B6B", background: up ? "#2ecc7118" : "#FF6B6B18", padding: "4px 10px", borderRadius: 6 }}>
-                                {up ? "▲" : "▼"} {up ? "+" : ""}{diff}kg ({up ? "+" : ""}{pct}%)
-                              </span>
-                            </div>;
-                          })()}
+                  {isExp && trackable && ns && (() => {
+                    const prevSet = ns > 1 ? log[`${ex.id}-${ns - 1}`] : null;
+                    return (
+                      <div className="fade-in" style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 12, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span>Set {ns} of {ex.sets}</span>
+                          {lw > 0 && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>Last best: {lw}kg × {lr}</span>}
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>REPS DONE</div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                            <button onClick={() => { const v = Math.max(0, (parseInt(rInput) || 0) - 1); setRInput(String(v)); }}
-                              style={{ width: 40, height: 48, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 18, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                            <input type="number" inputMode="numeric" value={rInput} onChange={e => setRInput(e.target.value)} placeholder="0"
-                              style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 20, fontFamily: "'Space Mono', monospace", padding: "10px 4px", textAlign: "center", outline: "none" }} />
-                            <button onClick={() => { const v = (parseInt(rInput) || 0) + 1; setRInput(String(v)); }}
-                              style={{ width: 40, height: 48, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 18, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>WEIGHT (kg)</div>
+                            <div style={{ display: "flex", alignItems: "center" }}>
+                              <button onClick={() => setWInput(String(Math.max(0, (parseFloat(wInput) || 0) - 1.25)))}
+                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                              <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0"
+                                style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                              <button onClick={() => setWInput(String((parseFloat(wInput) || 0) + 1.25))}
+                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                            </div>
+                            {(() => {
+                              const cur = parseFloat(wInput);
+                              if (!cur) return null;
+                              const tags: React.ReactNode[] = [];
+                              if (prevSet && prevSet.weight && cur !== prevSet.weight) {
+                                const d = +(cur - prevSet.weight).toFixed(2), up = d > 0;
+                                tags.push(<span key="prev" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: up ? "#2ecc71" : "#FF6B6B", background: up ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{up ? "▲" : "▼"} {Math.abs(d)}kg vs S{ns - 1}</span>);
+                              }
+                              if (lw > 0 && cur !== lw) {
+                                const d = +(cur - lw).toFixed(2), up = d > 0;
+                                tags.push(<span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: up ? "#2ecc71" : "#FF6B6B", background: up ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{up ? "▲" : "▼"} {Math.abs(d)}kg vs last</span>);
+                              }
+                              return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
+                            })()}
                           </div>
-                          {(() => {
-                            const cur = parseInt(rInput), prev = parseInt(String(lr));
-                            if (!cur || !prev || cur === prev) return null;
-                            const diff = cur - prev, up = diff > 0;
-                            return <div style={{ marginTop: 8, textAlign: "center" }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: up ? "#2ecc71" : "#FF6B6B", background: up ? "#2ecc7118" : "#FF6B6B18", padding: "4px 10px", borderRadius: 6 }}>
-                                {up ? "▲" : "▼"} {up ? "+" : ""}{diff} rep{Math.abs(diff) !== 1 ? "s" : ""}
-                              </span>
-                            </div>;
-                          })()}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>REPS DONE</div>
+                            <div style={{ display: "flex", alignItems: "center" }}>
+                              <button onClick={() => setRInput(String(Math.max(0, (parseInt(rInput) || 0) - 1)))}
+                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                              <input type="number" inputMode="numeric" value={rInput} onChange={e => setRInput(e.target.value)} placeholder="0"
+                                style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                              <button onClick={() => setRInput(String((parseInt(rInput) || 0) + 1))}
+                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                            </div>
+                            {(() => {
+                              const cur = parseInt(rInput);
+                              if (!cur) return null;
+                              const tags: React.ReactNode[] = [];
+                              if (prevSet && prevSet.reps && cur !== prevSet.reps) {
+                                const d = cur - prevSet.reps, up = d > 0;
+                                tags.push(<span key="prev" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: up ? "#2ecc71" : "#FF6B6B", background: up ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{up ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs S{ns - 1}</span>);
+                              }
+                              if (lr > 0 && cur !== lr) {
+                                const d = cur - lr, up = d > 0;
+                                tags.push(<span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: up ? "#2ecc71" : "#FF6B6B", background: up ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{up ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs last</span>);
+                              }
+                              return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
+                            })()}
+                          </div>
                         </div>
+                        <button onClick={() => { logSet(ex.id, ns, wInput, rInput); if (ns + 1 > ex.sets) setExpanded(null); if (ex.rest) rest.start(ex.rest); }}
+                          style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: (!wInput && !rInput) ? 0.4 : 1 }}>
+                          LOG SET {ns}
+                        </button>
                       </div>
-                      <button onClick={() => { logSet(ex.id, ns, wInput, rInput); if (ns + 1 > ex.sets) setExpanded(null); if (ex.rest) rest.start(ex.rest); }}
-                        style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: (!wInput && !rInput) ? 0.4 : 1 }}>
-                        LOG SET {ns}
-                      </button>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               );
             })}
