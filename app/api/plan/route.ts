@@ -130,6 +130,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// ── Revert to default (delete custom plan) ────────────────────────────────
+export async function DELETE(req: NextRequest) {
+  const uid = req.cookies.get(COOKIE)?.value;
+  if (!uid) return json({ error: "Unauthorized" }, 401);
+  await prisma.workoutPlan.deleteMany({ where: { userId: uid } });
+  return json({ ok: true });
+}
+
 // ── Update a day's exercises (reorder / add / remove) ──────────────────────
 export async function PUT(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;

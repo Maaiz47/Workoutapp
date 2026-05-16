@@ -1156,9 +1156,7 @@ export default function HomePage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            {customPlan && (
-              <button onClick={() => { setOnboardingStep(0); setShowOnboarding(true); }} style={{ background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, padding: "6px 12px", color: "rgba(255,107,107,0.7)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>↺ REBUILD PLAN</button>
-            )}
+            <button onClick={() => { setOnboardingStep(0); setShowOnboarding(true); }} style={{ background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, padding: "6px 12px", color: "rgba(255,107,107,0.7)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>{customPlan ? "↺ REBUILD PLAN" : "BUILD MY PLAN"}</button>
             <button onClick={openCustomise} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>CUSTOMISE</button>
           </div>
         </div>
@@ -1182,6 +1180,16 @@ export default function HomePage() {
           </div>
         ))}
       </div>
+      {customPlan && (
+        <div style={{ padding: "4px 20px 0", textAlign: "center" }}>
+          <button onClick={async () => {
+            if (!confirm("Revert to the original 5-day split? Your custom plan will be removed, but your workout history is kept.")) return;
+            await fetch("/api/plan", { method: "DELETE" });
+            setCustomPlan(null);
+            setPlanNote("");
+          }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1, padding: "10px 0" }}>← revert to original 5-day split</button>
+        </div>
+      )}
       <div style={{ padding: "12px 20px 0" }}>
         <button className="card-hover" onClick={() => { setView("progress"); setProgressTab("dashboard"); }} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>VIEW PROGRESS →</button>
       </div>
