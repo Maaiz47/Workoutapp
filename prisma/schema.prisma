@@ -8,16 +8,46 @@ datasource db {
 }
 
 model User {
-  id                String       @id @default(cuid())
-  username          String       @unique
-  email             String?      @unique
+  id                String           @id @default(cuid())
+  username          String           @unique
+  email             String?          @unique
   passwordHash      String?
-  mustResetPassword Boolean      @default(false)
-  role              String       @default("user")
-  createdAt         DateTime     @default(now())
+  mustResetPassword Boolean          @default(false)
+  role              String           @default("user")
+  createdAt         DateTime         @default(now())
   workoutLogs       WorkoutLog[]
   profile           UserProfile?
   workoutPlan       WorkoutPlan?
+  sentRequests      TrainerRequest[] @relation("SentRequests")
+  receivedRequests  TrainerRequest[] @relation("ReceivedRequests")
+  trainerClients    TrainerClient[]  @relation("TrainerClients")
+  clientOf          TrainerClient?   @relation("ClientOf")
+}
+
+model TrainerRequest {
+  id        String   @id @default(cuid())
+  trainerId String
+  userId    String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  trainer   User     @relation("SentRequests",     fields: [trainerId], references: [id], onDelete: Cascade)
+  user      User     @relation("ReceivedRequests", fields: [userId],    references: [id], onDelete: Cascade)
+
+  @@unique([trainerId, userId])
+  @@index([userId])
+  @@index([trainerId])
+}
+
+model TrainerClient {
+  id        String   @id @default(cuid())
+  trainerId String
+  clientId  String   @unique
+  createdAt DateTime @default(now())
+  trainer   User     @relation("TrainerClients", fields: [trainerId], references: [id], onDelete: Cascade)
+  client    User     @relation("ClientOf",       fields: [clientId],  references: [id], onDelete: Cascade)
+
+  @@index([trainerId])
 }
 
 model UserProfile {

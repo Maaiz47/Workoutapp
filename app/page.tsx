@@ -375,6 +375,18 @@ export default function HomePage() {
   const [exSearch, setExSearch] = useState("");
   const [showExBrowser, setShowExBrowser] = useState(false);
 
+  // ── Settings / trainer upgrade ──
+  const [confirmUpgrade, setConfirmUpgrade] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
+  const [upgradeError, setUpgradeError] = useState("");
+
+  // ── Trainer search ──
+  const [trainerSearch, setTrainerSearch] = useState("");
+  const [trainerResults, setTrainerResults] = useState<any[]>([]);
+  const [trainerSearching, setTrainerSearching] = useState(false);
+  const [trainerRequests, setTrainerRequests] = useState<any[]>([]);
+  const [sendingRequest, setSendingRequest] = useState<string | null>(null);
+
   // ── Onboarding + custom plan ──
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -403,6 +415,14 @@ export default function HomePage() {
     if (user) {
       fetch("/api/workout").then(r => r.json()).then(data => {
         if (!data.error) setHistory(data);
+      }).catch(() => {});
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.role === "trainer") {
+      fetch("/api/trainer/request").then(r => r.json()).then(data => {
+        if (data.requests) setTrainerRequests(data.requests);
       }).catch(() => {});
     }
   }, [user]);
@@ -552,6 +572,28 @@ export default function HomePage() {
       return { id: ex.exerciseId, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest, note: ex.notes ?? undefined, type: meta?.type ?? "compound" };
     }) }],
   });
+
+  const doTrainerSearch = async (q: string) => {
+    setTrainerSearch(q);
+    if (q.trim().length < 2) { setTrainerResults([]); return; }
+    setTrainerSearching(true);
+    try {
+      const res = await fetch(`/api/trainer/search?q=${encodeURIComponent(q.trim())}`);
+      const data = await res.json();
+      setTrainerResults(data.results ?? []);
+    } catch {}
+    setTrainerSearching(false);
+  };
+
+  const sendAdoptionRequest = async (targetUserId: string) => {
+    setSendingRequest(targetUserId);
+    try {
+      const res = await fetch("/api/trainer/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetUserId }) });
+      const data = await res.json();
+      if (data.request) setTrainerRequests(prev => [data.request, ...prev.filter(r => r.userId !== targetUserId)]);
+    } catch {}
+    setSendingRequest(null);
+  };
 
   const openCustomise = async () => {
     if (!customPlan) {
@@ -1195,11 +1237,39 @@ export default function HomePage() {
       )}
       {user.role === "trainer" && (
         <div style={{ padding: "24px 20px 0" }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>YOUR CLIENTS</div>
-          <div style={{ background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.12)", borderRadius: 16, padding: "24px 20px", textAlign: "center" }}>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", lineHeight: 1.7 }}>Client management is coming in the next update.</div>
-            <div style={{ fontSize: 12, color: "rgba(78,205,196,0.5)", marginTop: 8 }}>You can search for users and send adoption requests soon.</div>
-          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>FIND CLIENTS</div>
+          <input
+            value={trainerSearch}
+            onChange={e => doTrainerSearch(e.target.value)}
+            placeholder="Search by username…"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "13px 16px", width: "100%", outline: "none", boxSizing: "border-box", marginBottom: 10 }}
+          />
+          {trainerSearching && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>Searching…</div>}
+          {trainerResults.map(u => {
+            const req = trainerRequests.find(r => r.userId === u.id);
+            const status = req?.status ?? null;
+            return (
+              <div key={u.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>@{u.username}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+                    {u.logCount} workout{u.logCount !== 1 ? "s" : ""} · joined {new Date(u.joinedAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
+                  </div>
+                </div>
+                {status === "pending" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>PENDING</span>}
+                {status === "accepted" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>ACCEPTED</span>}
+                {status === "declined" && (
+                  <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "6px 12px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.7)", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>RE-SEND</button>
+                )}
+                {!status && (
+                  <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "6px 12px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, color: "#4ECDC4", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>{sendingRequest === u.id ? "…" : "SEND REQUEST"}</button>
+                )}
+              </div>
+            );
+          })}
+          {trainerSearch.length >= 2 && !trainerSearching && trainerResults.length === 0 && (
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>No users found matching "{trainerSearch}"</div>
+          )}
         </div>
       )}
       <div style={{ padding: "12px 20px 0" }}>
@@ -1211,9 +1281,6 @@ export default function HomePage() {
   // ─── SETTINGS ───────────────────────────────────────────────────────
   if (view === "settings") {
     const isTrainer = user.role === "trainer";
-    const [confirmUpgrade, setConfirmUpgrade] = (useState as any)(false);
-    const [upgrading, setUpgrading] = (useState as any)(false);
-    const [upgradeError, setUpgradeError] = (useState as any)("");
 
     const doUpgrade = async () => {
       setUpgrading(true);
