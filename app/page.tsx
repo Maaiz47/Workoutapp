@@ -413,6 +413,7 @@ export default function HomePage() {
   const [upgrading, setUpgrading] = useState(false);
   const [upgradeError, setUpgradeError] = useState("");
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "unsupported" | "error" | "requesting">("idle");
+  const [testingNotif, setTestingNotif] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   // ── Trainer search ──
   const [trainerSearch, setTrainerSearch] = useState("");
@@ -448,12 +449,16 @@ export default function HomePage() {
   const rest = useCountdown();
   const timer = useTimer();
 
-  // Seed notif status from current browser permission
+  // On mount: check browser permission; if already granted, re-register subscription
   useEffect(() => {
-    if (!("Notification" in window)) { setNotifStatus("unsupported"); return; }
-    if (!("PushManager" in window)) { setNotifStatus("unsupported"); return; }
-    if (Notification.permission === "granted") setNotifStatus("granted");
-    else if (Notification.permission === "denied") setNotifStatus("denied");
+    if (!("Notification" in window) || !("PushManager" in window)) {
+      setNotifStatus("unsupported"); return;
+    }
+    if (Notification.permission === "denied") { setNotifStatus("denied"); return; }
+    if (Notification.permission === "granted") {
+      // Re-save subscription in case it wasn't stored yet (e.g. first deploy with push)
+      subscribeToPush().then(s => setNotifStatus(s));
+    }
   }, []);
 
   useEffect(() => {
@@ -1601,7 +1606,21 @@ export default function HomePage() {
           <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>NOTIFICATIONS</div>
             {notifStatus === "granted" ? (
-              <div style={{ fontSize: 13, color: "#4ECDC4", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>✓ ENABLED</div>
+              <div>
+                <div style={{ fontSize: 13, color: "#4ECDC4", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginBottom: 12 }}>✓ ENABLED</div>
+                <button
+                  onClick={async () => {
+                    setTestingNotif("sending");
+                    const res = await fetch("/api/push/test", { method: "POST" }).catch(() => null);
+                    setTestingNotif(res?.ok ? "sent" : "error");
+                    setTimeout(() => setTestingNotif("idle"), 4000);
+                  }}
+                  disabled={testingNotif === "sending"}
+                  style={{ width: "100%", padding: "10px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 10, color: testingNotif === "sent" ? "#4ECDC4" : testingNotif === "error" ? "rgba(255,107,107,0.8)" : "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                >
+                  {testingNotif === "sending" ? "SENDING…" : testingNotif === "sent" ? "✓ CHECK YOUR NOTIFICATIONS" : testingNotif === "error" ? "FAILED — CHECK ENV VARS" : "SEND TEST NOTIFICATION"}
+                </button>
+              </div>
             ) : notifStatus === "denied" ? (
               <>
                 <div style={{ fontSize: 13, color: "rgba(255,107,107,0.8)", marginBottom: 8 }}>Blocked — enable notifications in your browser/device settings, then tap below.</div>
