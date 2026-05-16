@@ -1025,7 +1025,51 @@ export default function HomePage() {
                   </div>
 
                   {isExp && trackable && ns && (() => {
-                    const prevSet = ns > 1 ? log[`${ex.id}-${ns - 1}`] : null;
+                    // Find the highest-numbered set that's actually been logged
+                    let lastSetN = 0;
+                    for (let i = ex.sets; i >= 1; i--) { if (log[`${ex.id}-${i}`]) { lastSetN = i; break; } }
+                    const lastLogged = lastSetN > 0 ? log[`${ex.id}-${lastSetN}`] : null;
+
+                    const wDiff = (cur: number) => {
+                      const tags: React.ReactNode[] = [];
+                      if (!cur) return null;
+                      if (lastLogged) {
+                        const d = +(cur - lastLogged.weight).toFixed(2);
+                        tags.push(d === 0
+                          ? <span key="prev" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= S{lastSetN}</span>
+                          : <span key="prev" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)}kg vs S{lastSetN}</span>
+                        );
+                      }
+                      if (lw > 0) {
+                        const d = +(cur - lw).toFixed(2);
+                        tags.push(d === 0
+                          ? <span key="last" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= last best</span>
+                          : <span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)}kg vs last</span>
+                        );
+                      }
+                      return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
+                    };
+
+                    const rDiff = (cur: number) => {
+                      const tags: React.ReactNode[] = [];
+                      if (!cur) return null;
+                      if (lastLogged) {
+                        const d = cur - lastLogged.reps;
+                        tags.push(d === 0
+                          ? <span key="prev" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= S{lastSetN}</span>
+                          : <span key="prev" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs S{lastSetN}</span>
+                        );
+                      }
+                      if (lr > 0) {
+                        const d = cur - lr;
+                        tags.push(d === 0
+                          ? <span key="last" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= last best</span>
+                          : <span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs last</span>
+                        );
+                      }
+                      return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
+                    };
+
                     return (
                       <div className="fade-in" style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 12, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1043,20 +1087,7 @@ export default function HomePage() {
                               <button onClick={() => setWInput(String((parseFloat(wInput) || 0) + 1.25))}
                                 style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                             </div>
-                            {(() => {
-                              const cur = parseFloat(wInput);
-                              if (!cur) return null;
-                              const tags: React.ReactNode[] = [];
-                              if (prevSet && prevSet.weight && cur !== prevSet.weight) {
-                                const d = +(cur - prevSet.weight).toFixed(2), up = d > 0;
-                                tags.push(<span key="prev" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: up ? "#2ecc71" : "#FF6B6B", background: up ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{up ? "▲" : "▼"} {Math.abs(d)}kg vs S{ns - 1}</span>);
-                              }
-                              if (lw > 0 && cur !== lw) {
-                                const d = +(cur - lw).toFixed(2), up = d > 0;
-                                tags.push(<span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: up ? "#2ecc71" : "#FF6B6B", background: up ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{up ? "▲" : "▼"} {Math.abs(d)}kg vs last</span>);
-                              }
-                              return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
-                            })()}
+                            {wDiff(parseFloat(wInput))}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>REPS DONE</div>
@@ -1068,20 +1099,7 @@ export default function HomePage() {
                               <button onClick={() => setRInput(String((parseInt(rInput) || 0) + 1))}
                                 style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                             </div>
-                            {(() => {
-                              const cur = parseInt(rInput);
-                              if (!cur) return null;
-                              const tags: React.ReactNode[] = [];
-                              if (prevSet && prevSet.reps && cur !== prevSet.reps) {
-                                const d = cur - prevSet.reps, up = d > 0;
-                                tags.push(<span key="prev" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: up ? "#2ecc71" : "#FF6B6B", background: up ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{up ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs S{ns - 1}</span>);
-                              }
-                              if (lr > 0 && cur !== lr) {
-                                const d = cur - lr, up = d > 0;
-                                tags.push(<span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: up ? "#2ecc71" : "#FF6B6B", background: up ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{up ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs last</span>);
-                              }
-                              return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
-                            })()}
+                            {rDiff(parseInt(rInput))}
                           </div>
                         </div>
                         <button onClick={() => { logSet(ex.id, ns, wInput, rInput); if (ns + 1 > ex.sets) setExpanded(null); if (ex.rest) rest.start(ex.rest); }}
