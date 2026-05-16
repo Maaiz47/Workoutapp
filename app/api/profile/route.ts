@@ -11,8 +11,13 @@ export async function GET(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
 
-  const profile = await prisma.userProfile.findUnique({ where: { userId: uid } });
-  return json({ profile: profile ?? null });
+  try {
+    const profile = await prisma.userProfile.findUnique({ where: { userId: uid } });
+    return json({ profile: profile ?? null });
+  } catch (e) {
+    console.error("Profile GET error:", e);
+    return json({ profile: null });
+  }
 }
 
 export async function POST(req: NextRequest) {
