@@ -10,6 +10,7 @@ export interface UserProfileInput {
   weightKg: number;
   heightCm: number;
   ageYears: number;
+  targetArea?: string;
 }
 
 export interface GeneratedExercise {
@@ -375,6 +376,111 @@ function decideDays(profile: UserProfileInput): number {
   return Math.max(2, Math.min(6, days));
 }
 
+// ── Target area post-processing ─────────────────────────────────────────────
+
+function applyTargetArea(days: GeneratedDay[], profile: UserProfileInput): GeneratedDay[] {
+  const ta = profile.targetArea;
+  if (!ta || ta === "none") return days;
+
+  const { goal, fitnessLevel: level } = profile;
+
+  return days.map(day => {
+    const used = new Set(day.exercises.map(e => e.exerciseId));
+    const extras: GeneratedExercise[] = [];
+
+    const inFocus = (patterns: string[]) => patterns.some(p => day.focus.includes(p));
+
+    if (ta === "glutes" && inFocus(["glutes", "quads", "full body"])) {
+      const id = pickExercise("glutes", profile, ["hip-thrust-barbell", "hip-thrust-db", "clamshell", "resistance-band-hip-abduction", "glute-bridge", "glute-kickback", "donkey-kick"], used);
+      if (id) { const ex = makeEx(id, goal, level, { notes: "Glute focus — hold the squeeze at the top" }); if (ex) { extras.push(ex); used.add(id); } }
+    }
+
+    if (ta === "shoulders" && inFocus(["chest", "shoulders", "triceps", "full body"])) {
+      const id = pickExercise("shoulders", profile, ["lateral-raise", "cable-lateral-raise", "front-raise", "rear-delt-fly", "resistance-band-lateral-raise", "upright-row"], used);
+      if (id) { const ex = makeEx(id, goal, level, { notes: "Shoulder focus — slow eccentric, controlled" }); if (ex) { extras.push(ex); used.add(id); } }
+    }
+
+    if (ta === "back" && inFocus(["back", "biceps", "full body"])) {
+      const id = pickExercise("back", profile, ["straight-arm-pulldown", "dumbbell-shrugs", "barbell-shrugs", "hyperextension", "face-pull", "superman"], used);
+      if (id) { const ex = makeEx(id, goal, level, { notes: "Back focus — mind-muscle connection on each rep" }); if (ex) { extras.push(ex); used.add(id); } }
+    }
+
+    if (ta === "chest" && inFocus(["chest", "full body"])) {
+      const id = pickExercise("chest", profile, ["cable-crossover", "pec-deck", "dumbbell-flyes", "incline-dumbbell-flyes", "wide-pushups"], used);
+      if (id) { const ex = makeEx(id, goal, level, { notes: "Chest focus — full stretch at the bottom" }); if (ex) { extras.push(ex); used.add(id); } }
+    }
+
+    if (ta === "arms" && inFocus(["back", "biceps", "full body"])) {
+      const id = pickExercise("biceps", profile, ["concentration-curl", "incline-dumbbell-curl", "preacher-curl", "hammer-curl", "ez-bar-curl"], used);
+      if (id) { const ex = makeEx(id, goal, level, { notes: "Arms focus" }); if (ex) { extras.push(ex); used.add(id); } }
+    }
+
+    if (ta === "arms" && inFocus(["chest", "shoulders", "triceps", "full body"])) {
+      const id = pickExercise("triceps", profile, ["overhead-tricep-extension", "skull-crushers", "tricep-kickback", "diamond-pushups"], used);
+      if (id) { const ex = makeEx(id, goal, level, { notes: "Arms focus" }); if (ex) { extras.push(ex); used.add(id); } }
+    }
+
+    if (ta === "core") {
+      const id = pickExercise("core", profile, ["hanging-leg-raise", "bicycle-crunch", "v-ups", "ab-rollout", "cable-crunch", "leg-raises", "side-plank", "dead-bug", "bird-dog"], used);
+      if (id) { const ex = makeEx(id, goal, level, { sets: 3, reps: "12–15", rest: 45, notes: "Core focus" }); if (ex) { extras.push(ex); used.add(id); } }
+    }
+
+    if (ta === "legs" && inFocus(["quads", "hamstrings", "full body"])) {
+      const id = pickExercise("quads", profile, ["leg-extension", "lunges", "step-ups", "wall-sit", "straight-leg-raise"], used);
+      if (id) { const ex = makeEx(id, goal, level, { notes: "Legs focus — full range of motion" }); if (ex) { extras.push(ex); used.add(id); } }
+    }
+
+    if (ta === "rehab_knee") {
+      const modifiedExercises = day.exercises.map(ex => {
+        const risky = ["barbell-squat", "front-squat", "jump-squat", "box-jumps", "bulgarian-split-squat"];
+        return risky.includes(ex.exerciseId) ? { ...ex, notes: (ex.notes ? ex.notes + " · " : "") + "Rehab: reduce load, controlled tempo, stop if pain" } : ex;
+      });
+      if (inFocus(["quads", "hamstrings", "glutes", "full body"])) {
+        const id = pickExercise("quads", profile, ["straight-leg-raise", "terminal-knee-extension", "wall-sit"], used);
+        if (id) { const ex = makeEx(id, goal, level, { sets: 3, reps: "15–20", rest: 45, notes: "Knee rehab: light resistance, controlled movement" }); if (ex) { extras.push(ex); } }
+      }
+      return { ...day, exercises: [...modifiedExercises, ...extras] };
+    }
+
+    if (ta === "rehab_shoulder") {
+      const modifiedExercises = day.exercises.map(ex => {
+        const risky = ["overhead-press", "barbell-bench-press", "incline-barbell-press", "upright-row"];
+        return risky.includes(ex.exerciseId) ? { ...ex, notes: (ex.notes ? ex.notes + " · " : "") + "Rehab: switch to dumbbell variation, lighter weight" } : ex;
+      });
+      if (inFocus(["chest", "shoulders", "triceps", "full body"])) {
+        const id = pickExercise("shoulders", profile, ["shoulder-external-rotation", "wall-slide", "face-pull", "rear-delt-fly"], used);
+        if (id) { const ex = makeEx(id, goal, level, { sets: 3, reps: "15–20", rest: 45, notes: "Shoulder rehab: very light, pain-free range only" }); if (ex) { extras.push(ex); } }
+      }
+      return { ...day, exercises: [...modifiedExercises, ...extras] };
+    }
+
+    if (ta === "rehab_lower_back") {
+      const modifiedExercises = day.exercises.map(ex => {
+        const risky = ["barbell-deadlift", "good-morning", "barbell-row", "t-bar-row"];
+        return risky.includes(ex.exerciseId) ? { ...ex, notes: (ex.notes ? ex.notes + " · " : "") + "Rehab: brace core, lighter load, no rounding" } : ex;
+      });
+      const id = pickExercise("core", profile, ["bird-dog", "dead-bug", "plank", "superman"], used);
+      if (id) { const ex = makeEx(id, goal, level, { sets: 3, reps: "30–45 sec", rest: 45, notes: "Lower back rehab: core stability work" }); if (ex) { extras.push(ex); } }
+      return { ...day, exercises: [...modifiedExercises, ...extras] };
+    }
+
+    return { ...day, exercises: [...day.exercises, ...extras] };
+  });
+}
+
+const TARGET_AREA_LABELS: Record<string, string> = {
+  shoulders: "shoulder development",
+  glutes: "glute growth",
+  back: "back width and thickness",
+  chest: "chest development",
+  arms: "arm size",
+  core: "core strength",
+  legs: "leg development",
+  rehab_knee: "knee rehabilitation",
+  rehab_shoulder: "shoulder rehabilitation",
+  rehab_lower_back: "lower back rehabilitation",
+};
+
 export function generatePlan(profile: UserProfileInput): GeneratedPlan {
   const days = decideDays(profile);
   const planDays: GeneratedDay[] = [];
@@ -431,5 +537,12 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
     planDays.push(buildCardioDay(profile, new Set()));
   }
 
-  return { days: planDays, planNote };
+  const finalDays = applyTargetArea(planDays, profile);
+
+  if (profile.targetArea && profile.targetArea !== "none") {
+    const label = TARGET_AREA_LABELS[profile.targetArea] ?? profile.targetArea;
+    planNote += ` Extra work added for ${label}.`;
+  }
+
+  return { days: finalDays, planNote };
 }

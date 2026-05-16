@@ -383,7 +383,7 @@ export default function HomePage() {
   const [customPlan, setCustomPlan] = useState<any[] | null>(null);
   const [ob, setOb] = useState({
     dob: "", gender: "", heightCm: "", weightKg: "", bodyFatPct: "",
-    goal: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
+    goal: "", targetArea: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
   });
 
   const rest = useCountdown();
@@ -411,6 +411,20 @@ export default function HomePage() {
     if (!user) return;
     fetch("/api/profile").then(r => r.json()).then(profileData => {
       if (profileData.profile) {
+        const p = profileData.profile;
+        setOb({
+          dob: p.dob ? p.dob.substring(0, 10) : "",
+          gender: p.gender || "",
+          heightCm: p.heightCm?.toString() || "",
+          weightKg: p.weightKg?.toString() || "",
+          bodyFatPct: p.bodyFatPct?.toString() || "",
+          goal: p.goal || "",
+          targetArea: p.targetArea || "none",
+          fitnessLevel: p.fitnessLevel || "",
+          location: p.location || "",
+          equipment: p.equipment || [],
+          daysPerWeek: p.daysPerWeek || 4,
+        });
         fetch("/api/plan").then(r => r.json()).then(planData => {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
         });
@@ -801,7 +815,7 @@ export default function HomePage() {
 
   // ─── ONBOARDING ─────────────────────────────────────────────────────
   if (showOnboarding) {
-    const STEPS = 7;
+    const STEPS = 8;
     const progress = Math.round((onboardingStep / STEPS) * 100);
     const obInput: React.CSSProperties = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", padding: "14px 20px", width: "100%", outline: "none", boxSizing: "border-box" as const };
     const obBtn: React.CSSProperties = { display: "block", width: "100%", marginTop: 24, padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
@@ -822,8 +836,9 @@ export default function HomePage() {
       if (onboardingStep === 1) return !!ob.dob && !!ob.gender;
       if (onboardingStep === 2) return !!ob.heightCm && !!ob.weightKg;
       if (onboardingStep === 3) return !!ob.goal;
-      if (onboardingStep === 4) return !!ob.fitnessLevel;
-      if (onboardingStep === 5) return !!ob.location;
+      if (onboardingStep === 4) return !!ob.targetArea;
+      if (onboardingStep === 5) return !!ob.fitnessLevel;
+      if (onboardingStep === 6) return !!ob.location;
       return true;
     };
 
@@ -907,8 +922,49 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Step 4: Experience */}
+        {/* Step 4: Target Area */}
         {onboardingStep === 4 && (
+          <div className="slide-up">
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>FOCUS</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>Any specific focus area?</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>We'll add extra work for your priority muscle group, or adjust the plan for rehabilitation.</div>
+
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: 3, marginBottom: 10 }}>MUSCLE FOCUS</div>
+            {[
+              { id: "none",      label: "Balanced",  desc: "No specific focus — well-rounded programme" },
+              { id: "shoulders", label: "Shoulders", desc: "Build wider, rounder shoulders — extra OHP and lateral work" },
+              { id: "glutes",    label: "Glutes",    desc: "Grow a bigger, stronger butt — hip thrust and glute priority" },
+              { id: "back",      label: "Back",      desc: "Wider, thicker back — extra pull volume" },
+              { id: "chest",     label: "Chest",     desc: "Build a bigger chest — extra pressing and isolation" },
+              { id: "arms",      label: "Arms",      desc: "Bigger biceps and triceps — extra curl and extension work" },
+              { id: "core",      label: "Core",      desc: "Stronger core and abs — extra core finishers on every day" },
+              { id: "legs",      label: "Legs",      desc: "Bigger quads and hamstrings — extra leg volume" },
+            ].map(t => (
+              <div key={t.id} style={selCard(ob.targetArea === t.id)} onClick={() => setOb(o => ({ ...o, targetArea: t.id }))}>
+                <div style={{ color: ob.targetArea === t.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{t.label}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t.desc}</div>
+              </div>
+            ))}
+
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: 3, marginBottom: 10, marginTop: 20 }}>REHABILITATION</div>
+            {[
+              { id: "rehab_knee",        label: "Rehab — Knee",        desc: "Low-impact, knee-friendly movements with controlled loading" },
+              { id: "rehab_shoulder",    label: "Rehab — Shoulder",    desc: "Shoulder-safe modifications, rotator cuff and mobility work" },
+              { id: "rehab_lower_back",  label: "Rehab — Lower Back",  desc: "Protect the spine — avoid heavy loading, core stability focus" },
+            ].map(t => (
+              <div key={t.id} style={selCard(ob.targetArea === t.id)} onClick={() => setOb(o => ({ ...o, targetArea: t.id }))}>
+                <div style={{ color: ob.targetArea === t.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{t.label}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t.desc}</div>
+              </div>
+            ))}
+
+            <button onClick={() => setOnboardingStep(5)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(3)} style={obSkip}>← Back</button>
+          </div>
+        )}
+
+        {/* Step 5: Experience */}
+        {onboardingStep === 5 && (
           <div className="slide-up">
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>EXPERIENCE</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>How long have you been training?</div>
@@ -923,13 +979,13 @@ export default function HomePage() {
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{l.desc}</div>
               </div>
             ))}
-            <button onClick={() => setOnboardingStep(5)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
-            <button onClick={() => setOnboardingStep(3)} style={obSkip}>← Back</button>
+            <button onClick={() => setOnboardingStep(6)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(4)} style={obSkip}>← Back</button>
           </div>
         )}
 
-        {/* Step 5: Location */}
-        {onboardingStep === 5 && (
+        {/* Step 6: Location */}
+        {onboardingStep === 6 && (
           <div className="slide-up">
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>SETUP</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>Where do you train?</div>
@@ -943,13 +999,13 @@ export default function HomePage() {
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{l.desc}</div>
               </div>
             ))}
-            <button onClick={() => setOnboardingStep(ob.location === "gym" ? 7 : 6)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
-            <button onClick={() => setOnboardingStep(4)} style={obSkip}>← Back</button>
+            <button onClick={() => setOnboardingStep(ob.location === "gym" ? 8 : 7)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(5)} style={obSkip}>← Back</button>
           </div>
         )}
 
-        {/* Step 6: Equipment (home/both only) */}
-        {onboardingStep === 6 && (
+        {/* Step 7: Equipment (home/both only) */}
+        {onboardingStep === 7 && (
           <div className="slide-up">
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>EQUIPMENT</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>What do you have available?</div>
@@ -962,13 +1018,13 @@ export default function HomePage() {
                 </div>
               </div>
             ))}
-            <button onClick={() => setOnboardingStep(7)} style={obBtn}>CONTINUE</button>
-            <button onClick={() => setOnboardingStep(5)} style={obSkip}>← Back</button>
+            <button onClick={() => setOnboardingStep(8)} style={obBtn}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(6)} style={obSkip}>← Back</button>
           </div>
         )}
 
-        {/* Step 7: Days per week */}
-        {onboardingStep === 7 && (
+        {/* Step 8: Days per week */}
+        {onboardingStep === 8 && (
           <div className="slide-up">
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>SCHEDULE</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>How many days per week?</div>
@@ -982,7 +1038,7 @@ export default function HomePage() {
             </div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", marginBottom: 8 }}>days per week</div>
             <button onClick={submitOnboarding} style={obBtn}>BUILD MY PLAN</button>
-            <button onClick={() => setOnboardingStep(ob.location === "gym" ? 5 : 6)} style={obSkip}>← Back</button>
+            <button onClick={() => setOnboardingStep(ob.location === "gym" ? 6 : 7)} style={obSkip}>← Back</button>
           </div>
         )}
       </div>
@@ -1096,8 +1152,10 @@ export default function HomePage() {
       <div style={{ padding: "28px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
-          <div style={{ display: "flex", gap: 12 }}>
-            {customPlan && <button onClick={() => setShowOnboarding(true)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>REGENERATE</button>}
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            {customPlan && (
+              <button onClick={() => { setOnboardingStep(0); setShowOnboarding(true); }} style={{ background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, padding: "6px 12px", color: "rgba(255,107,107,0.7)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>↺ REBUILD PLAN</button>
+            )}
             <button onClick={openCustomise} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>CUSTOMISE</button>
           </div>
         </div>

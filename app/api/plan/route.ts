@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
       weightKg: profile.weightKg,
       heightCm: profile.heightCm,
       ageYears,
+      targetArea: profile.targetArea ?? "none",
     };
 
     const generated = generatePlan(input);

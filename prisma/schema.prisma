@@ -33,6 +33,7 @@ model UserProfile {
   location     String
   equipment    String[]
   daysPerWeek  Int
+  targetArea   String?  @default("none")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
