@@ -533,7 +533,7 @@ export default function HomePage() {
     color: ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD"][day.dayIndex % 6] || "#FF6B6B",
     gradient: ["linear-gradient(135deg,#FF6B6B,#ee5a24)","linear-gradient(135deg,#4ECDC4,#44a08d)","linear-gradient(135deg,#45B7D1,#2980b9)","linear-gradient(135deg,#96CEB4,#6aab8e)","linear-gradient(135deg,#f7d794,#e17055)","linear-gradient(135deg,#DDA0DD,#9b59b6)"][day.dayIndex % 6] || "linear-gradient(135deg,#FF6B6B,#ee5a24)",
     focus: day.focus,
-    sections: [{ type: "main" as const, exercises: day.exercises.map((ex: any) => ({ id: ex.exerciseId, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest, info: ex.notes })) }],
+    sections: [{ name: "Main", type: "main" as const, exercises: day.exercises.map((ex: any) => ({ id: ex.exerciseId, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest, info: ex.notes })) }],
   });
 
   const openCustomise = async () => {
