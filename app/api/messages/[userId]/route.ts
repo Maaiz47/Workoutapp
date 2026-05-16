@@ -21,7 +21,10 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
         ],
         ...(since ? { createdAt: { gt: new Date(since) } } : {}),
       },
-      include: { from: { select: { id: true, username: true } } },
+      include: {
+        from: { select: { id: true, username: true } },
+        proposal: { select: { id: true, status: true, planJson: true } },
+      },
       orderBy: { createdAt: "asc" },
       take: since ? 50 : 100,
     });

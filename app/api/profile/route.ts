@@ -20,6 +20,25 @@ export async function GET(req: NextRequest) {
   }
 }
 
+export async function PATCH(req: NextRequest) {
+  const uid = req.cookies.get(COOKIE)?.value;
+  if (!uid) return json({ error: "Unauthorized" }, 401);
+
+  try {
+    const { targetWeightKg, targetBodyFatPct } = await req.json();
+    const profile = await prisma.userProfile.update({
+      where: { userId: uid },
+      data: {
+        targetWeightKg: targetWeightKg !== undefined ? (targetWeightKg ? parseFloat(targetWeightKg) : null) : undefined,
+        targetBodyFatPct: targetBodyFatPct !== undefined ? (targetBodyFatPct ? parseFloat(targetBodyFatPct) : null) : undefined,
+      },
+    });
+    return json({ profile });
+  } catch (e) {
+    return json({ error: "Failed to update goals" }, 500);
+  }
+}
+
 export async function POST(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);

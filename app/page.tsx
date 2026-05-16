@@ -400,7 +400,7 @@ export default function HomePage() {
   const [showFinishPrompt, setShowFinishPrompt] = useState(false);
   const [adjustedDuration, setAdjustedDuration] = useState("");
   const [resumeOverlay, setResumeOverlay] = useState<{ title: string; ageStr: string } | null>(null);
-  const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history">("dashboard");
+  const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history" | "body">("dashboard");
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
 
   // ── Customise ──
@@ -431,6 +431,21 @@ export default function HomePage() {
   const [clientData, setClientData] = useState<{ profile: any; history: Record<string, any[]>; plan: any } | null>(null);
   const [clientDataLoading, setClientDataLoading] = useState(false);
   const [clientDetailTab, setClientDetailTab] = useState<"split" | "history" | "profile">("split");
+  const [editingPlan, setEditingPlan] = useState(false);
+  const [editedPlanDays, setEditedPlanDays] = useState<any[] | null>(null);
+  const [proposingPlan, setProposingPlan] = useState(false);
+  const [proposalSent, setProposalSent] = useState(false);
+
+  // ── Body metrics ──
+  const [bodyMetrics, setBodyMetrics] = useState<any[]>([]);
+  const [bodyMetricsLoaded, setBodyMetricsLoaded] = useState(false);
+  const [metricWeight, setMetricWeight] = useState("");
+  const [metricBf, setMetricBf] = useState("");
+  const [loggingMetric, setLoggingMetric] = useState(false);
+  const [goalWeight, setGoalWeight] = useState("");
+  const [goalBf, setGoalBf] = useState("");
+  const [editingGoals, setEditingGoals] = useState(false);
+  const [savingGoals, setSavingGoals] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeConversation, setActiveConversation] = useState<{ id: string; username: string } | null>(null);
@@ -568,6 +583,8 @@ export default function HomePage() {
           equipment: p.equipment || [],
           daysPerWeek: p.daysPerWeek || 4,
         });
+        if (p.targetWeightKg) setGoalWeight(p.targetWeightKg.toString());
+        if (p.targetBodyFatPct) setGoalBf(p.targetBodyFatPct.toString());
         fetch("/api/plan").then(r => r.json()).then(planData => {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
         });
@@ -726,6 +743,124 @@ export default function HomePage() {
       if (data.username) setClientData({ profile: data.profile, history: data.history, plan: data.plan });
     } catch {}
     setClientDataLoading(false);
+  };
+
+  const startEditPlan = () => {
+    if (!clientData) return;
+    const days = clientData.plan
+      ? clientData.plan.days.map((d: any) => ({
+          dayIndex: d.dayIndex,
+          title: d.title,
+          subtitle: d.subtitle ?? d.focus,
+          focus: d.focus,
+          exercises: d.exercises.map((ex: any) => ({
+            exerciseId: ex.exerciseId,
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            rest: ex.rest,
+            notes: ex.notes ?? null,
+            order: ex.order,
+          })),
+        }))
+      : WORKOUT_DATA.map((d, i) => ({
+          dayIndex: i,
+          title: d.title,
+          subtitle: d.focus,
+          focus: d.focus,
+          exercises: d.sections.flatMap(s => s.exercises).filter(e => e.trackable !== false).map((ex, j) => ({
+            exerciseId: ex.id,
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            rest: ex.rest ?? 60,
+            notes: ex.note ?? null,
+            order: j,
+          })),
+        }));
+    setEditedPlanDays(days);
+    setEditingPlan(true);
+    setProposalSent(false);
+  };
+
+  const proposePlan = async () => {
+    if (!activeClient || !editedPlanDays) return;
+    setProposingPlan(true);
+    try {
+      const res = await fetch(`/api/trainer/clients/${activeClient.id}/proposal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: editedPlanDays }),
+      });
+      if (res.ok) {
+        setProposalSent(true);
+        setEditingPlan(false);
+        setEditedPlanDays(null);
+      }
+    } catch {}
+    setProposingPlan(false);
+  };
+
+  const respondToProposal = async (proposalId: string, action: "accept" | "decline") => {
+    try {
+      const res = await fetch(`/api/plan-proposals/${proposalId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        setConversationMessages(prev => prev.map(m =>
+          m.proposalId === proposalId
+            ? { ...m, proposal: { ...m.proposal, status: action === "accept" ? "accepted" : "declined" } }
+            : m
+        ));
+        if (action === "accept") {
+          // Reload custom plan
+          fetch("/api/plan").then(r => r.json()).then(d => {
+            if (d.plan) setCustomPlan(d.plan.days);
+          }).catch(() => {});
+        }
+      }
+    } catch {}
+  };
+
+  const logBodyMetric = async () => {
+    if (!metricWeight && !metricBf) return;
+    setLoggingMetric(true);
+    try {
+      const res = await fetch("/api/metrics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weightKg: metricWeight || undefined, bodyFatPct: metricBf || undefined }),
+      });
+      const data = await res.json();
+      if (data.metric) {
+        setBodyMetrics(prev => [data.metric, ...prev]);
+        setMetricWeight("");
+        setMetricBf("");
+      }
+    } catch {}
+    setLoggingMetric(false);
+  };
+
+  const deleteBodyMetric = async (id: string) => {
+    try {
+      await fetch(`/api/metrics/${id}`, { method: "DELETE" });
+      setBodyMetrics(prev => prev.filter(m => m.id !== id));
+    } catch {}
+  };
+
+  const saveGoals = async () => {
+    setSavingGoals(true);
+    try {
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetWeightKg: goalWeight || null, targetBodyFatPct: goalBf || null }),
+      });
+      setEditingGoals(false);
+    } catch {}
+    setSavingGoals(false);
   };
 
   const sendAdoptionRequest = async (targetUserId: string) => {
@@ -1595,34 +1730,113 @@ export default function HomePage() {
         {/* ─── SPLIT TAB ─── */}
         {!clientDataLoading && clientDetailTab === "split" && (
           <div className="fade-in" style={{ padding: "16px 20px 0" }}>
-            {!clientData?.plan && (
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 14, fontStyle: "italic" }}>Using default 5-day split</div>
+            {proposalSent && (
+              <div style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 12, padding: "12px 16px", marginBottom: 14, fontSize: 13, color: "#4ECDC4", textAlign: "center" }}>
+                Proposal sent — waiting for client to accept
+              </div>
             )}
-            {splitDays.map(d => (
-              <div key={d.id} style={{ marginBottom: 8 }}>
-                <div style={{
-                  background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 14, padding: "16px", position: "relative", overflow: "hidden",
-                }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: d.gradient, borderRadius: "14px 0 0 14px" }} />
-                  <div style={{ paddingLeft: 10 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: d.color, fontWeight: 700, opacity: 0.8 }}>{d.label}</span>
-                      <span style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>{d.title}</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 5, fontWeight: 300 }}>{d.focus}</div>
-                    <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
-                      {d.exercises.map((ex: any, i: number) => (
-                        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{ex.name}</div>
-                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{ex.sets}×{ex.reps}</div>
+            {!editingPlan ? (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                  {!clientData?.plan
+                    ? <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontStyle: "italic" }}>Using default 5-day split</div>
+                    : <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>Custom plan</div>
+                  }
+                  <button onClick={startEditPlan} style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, padding: "6px 14px", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>EDIT PLAN</button>
+                </div>
+                {splitDays.map(d => (
+                  <div key={d.id} style={{ marginBottom: 8 }}>
+                    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", position: "relative", overflow: "hidden" }}>
+                      <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: d.gradient, borderRadius: "14px 0 0 14px" }} />
+                      <div style={{ paddingLeft: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: d.color, fontWeight: 700, opacity: 0.8 }}>{d.label}</span>
+                          <span style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>{d.title}</span>
                         </div>
-                      ))}
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 5, fontWeight: 300 }}>{d.focus}</div>
+                        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+                          {d.exercises.map((ex: any, i: number) => (
+                            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{ex.name}</div>
+                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{ex.sets}×{ex.reps}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </>
+            ) : (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>Editing plan</div>
+                  <button onClick={() => { setEditingPlan(false); setEditedPlanDays(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
                 </div>
-              </div>
-            ))}
+                {(editedPlanDays ?? []).map((d: any, di: number) => {
+                  const color = ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD"][di % 6];
+                  const gradient = ["linear-gradient(135deg,#FF6B6B,#ee5a24)","linear-gradient(135deg,#4ECDC4,#44a08d)","linear-gradient(135deg,#45B7D1,#2980b9)","linear-gradient(135deg,#96CEB4,#6aab8e)","linear-gradient(135deg,#f7d794,#e17055)","linear-gradient(135deg,#DDA0DD,#9b59b6)"][di % 6];
+                  return (
+                    <div key={di} style={{ marginBottom: 12 }}>
+                      <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "14px 16px", position: "relative", overflow: "hidden" }}>
+                        <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: gradient, borderRadius: "14px 0 0 14px" }} />
+                        <div style={{ paddingLeft: 10 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color, fontWeight: 700, opacity: 0.8 }}>DAY {di + 1}</span>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{d.title}</span>
+                          </div>
+                          {d.exercises.map((ex: any, ei: number) => (
+                            <div key={ei} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 12px" }}>
+                              <div style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{ex.name}</div>
+                              <input
+                                type="number"
+                                value={ex.sets}
+                                min={1} max={20}
+                                onChange={e => {
+                                  const val = parseInt(e.target.value) || 1;
+                                  setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
+                                    ...day,
+                                    exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, sets: val }),
+                                  }));
+                                }}
+                                style={{ width: 40, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#fff", fontSize: 12, textAlign: "center", padding: "4px", fontFamily: "'Space Mono', monospace" }}
+                              />
+                              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>×</span>
+                              <input
+                                type="text"
+                                value={ex.reps}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
+                                    ...day,
+                                    exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, reps: val }),
+                                  }));
+                                }}
+                                style={{ width: 52, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#fff", fontSize: 12, textAlign: "center", padding: "4px", fontFamily: "'Space Mono', monospace" }}
+                              />
+                              <button onClick={() => {
+                                setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
+                                  ...day,
+                                  exercises: day.exercises.filter((_: any, ej: number) => ej !== ei),
+                                }));
+                              }} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.5)", fontSize: 14, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>×</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={proposePlan}
+                  disabled={proposingPlan}
+                  style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg,#4ECDC4,#44a08d)", border: "none", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: 2, cursor: proposingPlan ? "not-allowed" : "pointer", fontFamily: "'Space Mono', monospace", opacity: proposingPlan ? 0.6 : 1, marginBottom: 8 }}
+                >
+                  {proposingPlan ? "SENDING…" : "PROPOSE TO CLIENT"}
+                </button>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", textAlign: "center", marginBottom: 8 }}>Client will receive a message to accept or decline these changes</div>
+              </>
+            )}
           </div>
         )}
 
@@ -1715,7 +1929,7 @@ export default function HomePage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 4 }}>@{c.partner.username}</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {c.latestMessage.type === "adoption_request" ? "Trainer request" : c.latestMessage.body}
+                {c.latestMessage.type === "adoption_request" ? "Trainer request" : c.latestMessage.type === "plan_proposal" ? "Plan update proposed" : c.latestMessage.body}
               </div>
             </div>
             {c.unreadCount > 0 && (
@@ -1753,6 +1967,42 @@ export default function HomePage() {
                   </div>
                 )}
                 {!isPending && !isMine && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4, fontFamily: "'Space Mono', monospace" }}>RESOLVED</div>}
+              </div>
+            );
+          }
+          if (msg.type === "plan_proposal" && msg.proposal) {
+            const p = msg.proposal;
+            const isPending = p.status === "pending" && !isMine;
+            const planDays: any[] = (p.planJson as any)?.days ?? [];
+            return (
+              <div key={msg.id} style={{ background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 14, padding: "14px 16px", maxWidth: "92%", alignSelf: "flex-start" }}>
+                <div style={{ fontSize: 10, color: "#4ECDC4", letterSpacing: 3, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>PLAN UPDATE</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>{msg.body}</div>
+                {planDays.map((d: any, di: number) => {
+                  const color = ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD"][di % 6];
+                  return (
+                    <div key={di} style={{ marginBottom: 8, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 12px" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>DAY {di + 1} — {d.title}</div>
+                      {(d.exercises ?? []).map((ex: any, ei: number) => (
+                        <div key={ei} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.8 }}>
+                          <span>{ex.name}</span>
+                          <span style={{ fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)" }}>{ex.sets}×{ex.reps}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+                {isPending && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button onClick={() => respondToProposal(p.id, "accept")} style={{ flex: 1, padding: "9px", background: "#4ECDC4", border: "none", borderRadius: 8, color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>ACCEPT PLAN</button>
+                    <button onClick={() => respondToProposal(p.id, "decline")} style={{ flex: 1, padding: "9px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.8)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>DECLINE</button>
+                  </div>
+                )}
+                {!isPending && (
+                  <div style={{ fontSize: 11, color: p.status === "accepted" ? "#4ECDC4" : "rgba(255,107,107,0.6)", marginTop: 8, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                    {p.status === "accepted" ? "✓ ACCEPTED" : p.status === "declined" ? "✗ DECLINED" : "PENDING"}
+                  </div>
+                )}
               </div>
             );
           }
@@ -1898,6 +2148,14 @@ export default function HomePage() {
 
   // ─── PROGRESS DASHBOARD ─────────────────────────────────────────────
   if (view === "progress") {
+    // Lazy-load body metrics on first visit to body tab
+    if (progressTab === "body" && !bodyMetricsLoaded) {
+      fetch("/api/metrics").then(r => r.json()).then(d => {
+        if (d.metrics) setBodyMetrics(d.metrics);
+        setBodyMetricsLoaded(true);
+      }).catch(() => setBodyMetricsLoaded(true));
+    }
+
     const findExName = (eid: string) => {
       for (const d of WORKOUT_DATA) for (const s of d.sections) for (const e of s.exercises) if (e.id === eid) return e.name;
       return eid;
@@ -1920,12 +2178,12 @@ export default function HomePage() {
 
         {/* Tabs */}
         <div style={{ display: "flex", gap: 0, padding: "16px 20px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          {(["dashboard", "exercises", "history"] as const).map(tab => (
+          {(["dashboard", "exercises", "history", "body"] as const).map(tab => (
             <button key={tab} onClick={() => setProgressTab(tab)} style={{
               flex: 1, padding: "10px 0", background: "none", border: "none",
               borderBottom: progressTab === tab ? "2px solid #FF6B6B" : "2px solid transparent",
               color: progressTab === tab ? "#fff" : "rgba(255,255,255,0.3)",
-              fontSize: 11, fontWeight: 600, letterSpacing: 2, cursor: "pointer",
+              fontSize: 10, fontWeight: 600, letterSpacing: 1, cursor: "pointer",
               fontFamily: "'Space Mono', monospace", textTransform: "uppercase",
               transition: "all 0.2s",
             }}>{tab}</button>
@@ -2135,6 +2393,164 @@ export default function HomePage() {
                 ))}
               </div>
             ))}
+          </div>
+        )}
+        {/* ─── BODY TAB ──────────────────────────────────────────────── */}
+        {progressTab === "body" && (
+          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
+
+            {/* Goals section */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>GOALS</div>
+                {!editingGoals && <button onClick={() => setEditingGoals(true)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>EDIT</button>}
+              </div>
+              {editingGoals ? (
+                <div>
+                  <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>TARGET WEIGHT (kg)</div>
+                      <input type="number" value={goalWeight} onChange={e => setGoalWeight(e.target.value)} placeholder="e.g. 75"
+                        style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, padding: "10px 12px", outline: "none", boxSizing: "border-box", fontFamily: "'Space Mono', monospace" }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>TARGET BODY FAT (%)</div>
+                      <input type="number" value={goalBf} onChange={e => setGoalBf(e.target.value)} placeholder="e.g. 15"
+                        style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, padding: "10px 12px", outline: "none", boxSizing: "border-box", fontFamily: "'Space Mono', monospace" }} />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={saveGoals} disabled={savingGoals} style={{ flex: 1, padding: "10px", background: "#4ECDC4", border: "none", borderRadius: 10, color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{savingGoals ? "SAVING…" : "SAVE GOALS"}</button>
+                    <button onClick={() => setEditingGoals(false)} style={{ padding: "10px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer" }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 10 }}>
+                  {[{ label: "WEIGHT", value: goalWeight ? `${goalWeight}kg` : "—", color: "#4ECDC4" }, { label: "BODY FAT", value: goalBf ? `${goalBf}%` : "—", color: "#A29BFE" }].map((g, i) => (
+                    <div key={i} style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "12px", textAlign: "center" }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{g.value}</div>
+                      <div style={{ fontSize: 8, color: g.color, letterSpacing: 2, marginTop: 4, fontFamily: "'Space Mono', monospace" }}>{g.label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Log today */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 12 }}>LOG TODAY</div>
+              <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 1, marginBottom: 6 }}>WEIGHT (kg)</div>
+                  <input type="number" value={metricWeight} onChange={e => setMetricWeight(e.target.value)} placeholder="e.g. 80.5"
+                    style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 15, padding: "11px 12px", outline: "none", boxSizing: "border-box", fontFamily: "'Space Mono', monospace" }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 1, marginBottom: 6 }}>BODY FAT (%)</div>
+                  <input type="number" value={metricBf} onChange={e => setMetricBf(e.target.value)} placeholder="e.g. 18.5"
+                    style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 15, padding: "11px 12px", outline: "none", boxSizing: "border-box", fontFamily: "'Space Mono', monospace" }} />
+                </div>
+              </div>
+              <button onClick={logBodyMetric} disabled={loggingMetric || (!metricWeight && !metricBf)} style={{ width: "100%", padding: "12px", background: metricWeight || metricBf ? "#4ECDC4" : "rgba(255,255,255,0.05)", border: "none", borderRadius: 10, color: metricWeight || metricBf ? "#000" : "rgba(255,255,255,0.2)", fontSize: 11, fontWeight: 700, letterSpacing: 2, cursor: metricWeight || metricBf ? "pointer" : "default", fontFamily: "'Space Mono', monospace", transition: "all 0.15s" }}>
+                {loggingMetric ? "LOGGING…" : "LOG NOW"}
+              </button>
+            </div>
+
+            {/* Trend + progress (if data exists) */}
+            {bodyMetrics.length > 0 && (() => {
+              const latest = bodyMetrics[0];
+              const weightData = bodyMetrics.filter(m => m.weightKg != null).map(m => m.weightKg).reverse();
+              const bfData = bodyMetrics.filter(m => m.bodyFatPct != null).map(m => m.bodyFatPct).reverse();
+              const targetW = goalWeight ? parseFloat(goalWeight) : null;
+              const targetBf = goalBf ? parseFloat(goalBf) : null;
+
+              return (
+                <>
+                  {/* Progress vs goals */}
+                  {(targetW || targetBf) && (
+                    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 14 }}>PROGRESS TO GOAL</div>
+                      {targetW && latest.weightKg != null && (() => {
+                        const diff = latest.weightKg - targetW;
+                        const pct = Math.min(100, Math.max(0, diff > 0
+                          ? Math.max(0, 100 - (diff / Math.abs(latest.weightKg - targetW + 0.001)) * 100)
+                          : 100));
+                        return (
+                          <div style={{ marginBottom: 14 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Weight</div>
+                              <div style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", color: Math.abs(diff) < 0.5 ? "#4ECDC4" : "rgba(255,255,255,0.5)" }}>
+                                {latest.weightKg}kg → {targetW}kg <span style={{ color: diff > 0 ? "#FF6B6B" : "#4ECDC4" }}>({diff > 0 ? "+" : ""}{diff.toFixed(1)}kg)</span>
+                              </div>
+                            </div>
+                            <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3 }}>
+                              <div style={{ height: "100%", background: "linear-gradient(90deg,#4ECDC4,#44a08d)", borderRadius: 3, width: `${100 - Math.min(100, Math.abs(diff / ((weightData[0] ?? targetW) - targetW + 0.001)) * 100)}%`, transition: "width 0.5s", minWidth: diff === 0 ? "100%" : "4px" }} />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {targetBf && latest.bodyFatPct != null && (() => {
+                        const diff = latest.bodyFatPct - targetBf;
+                        return (
+                          <div>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Body fat</div>
+                              <div style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", color: Math.abs(diff) < 0.5 ? "#4ECDC4" : "rgba(255,255,255,0.5)" }}>
+                                {latest.bodyFatPct}% → {targetBf}% <span style={{ color: diff > 0 ? "#FF6B6B" : "#4ECDC4" }}>({diff > 0 ? "+" : ""}{diff.toFixed(1)}%)</span>
+                              </div>
+                            </div>
+                            <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3 }}>
+                              <div style={{ height: "100%", background: "linear-gradient(90deg,#A29BFE,#9b59b6)", borderRadius: 3, width: `${100 - Math.min(100, Math.abs(diff / ((bfData[0] ?? targetBf) - targetBf + 0.001)) * 100)}%`, transition: "width 0.5s", minWidth: diff === 0 ? "100%" : "4px" }} />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Trend charts */}
+                  {weightData.length >= 2 && (
+                    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 8 }}>WEIGHT TREND</div>
+                      <MiniChart data={weightData} color="#4ECDC4" label={`${weightData[weightData.length - 1]}kg`} />
+                    </div>
+                  )}
+                  {bfData.length >= 2 && (
+                    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 8 }}>BODY FAT TREND</div>
+                      <MiniChart data={bfData} color="#A29BFE" label={`${bfData[bfData.length - 1]}%`} />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* History */}
+            {bodyMetrics.length > 0 && (
+              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 12 }}>HISTORY</div>
+                {bodyMetrics.slice(0, 30).map(m => (
+                  <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{new Date(m.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
+                      <div style={{ fontSize: 13, color: "#fff", marginTop: 2, fontWeight: 500 }}>
+                        {m.weightKg != null ? `${m.weightKg}kg` : ""}
+                        {m.weightKg != null && m.bodyFatPct != null ? " · " : ""}
+                        {m.bodyFatPct != null ? `${m.bodyFatPct}% bf` : ""}
+                      </div>
+                    </div>
+                    <button onClick={() => deleteBodyMetric(m.id)} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.4)", fontSize: 16, cursor: "pointer", padding: "4px 8px" }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!bodyMetricsLoaded && (
+              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "24px 0" }}>Loading…</div>
+            )}
+            {bodyMetricsLoaded && bodyMetrics.length === 0 && (
+              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "24px 0" }}>Log your first measurement above to start tracking</div>
+            )}
           </div>
         )}
       </div>

@@ -25,6 +25,9 @@ model User {
   sentMessages      Message[]        @relation("SentMessages")
   receivedMessages  Message[]        @relation("ReceivedMessages")
   pushSubscriptions PushSubscription[]
+  trainerProposals  PlanProposal[]   @relation("TrainerProposals")
+  clientProposals   PlanProposal[]   @relation("ClientProposals")
+  bodyMetrics       BodyMetric[]
 }
 
 model TrainerRequest {
@@ -54,22 +57,24 @@ model TrainerClient {
 }
 
 model UserProfile {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  dob          DateTime
-  gender       String
-  heightCm     Float
-  weightKg     Float
-  bodyFatPct   Float?
-  goal         String
-  fitnessLevel String
-  location     String
-  equipment    String[]
-  daysPerWeek  Int
-  targetArea   String?  @default("none")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  dob              DateTime
+  gender           String
+  heightCm         Float
+  weightKg         Float
+  bodyFatPct       Float?
+  goal             String
+  fitnessLevel     String
+  location         String
+  equipment        String[]
+  daysPerWeek      Int
+  targetArea       String?  @default("none")
+  targetWeightKg   Float?
+  targetBodyFatPct Float?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model WorkoutPlan {
@@ -122,19 +127,48 @@ model PushSubscription {
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  fromId    String
-  toId      String
-  body      String
-  type      String   @default("text")
-  requestId String?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  from      User     @relation("SentMessages",     fields: [fromId], references: [id], onDelete: Cascade)
-  to        User     @relation("ReceivedMessages", fields: [toId],   references: [id], onDelete: Cascade)
+  id         String        @id @default(cuid())
+  fromId     String
+  toId       String
+  body       String
+  type       String        @default("text")
+  requestId  String?
+  proposalId String?
+  read       Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  from       User          @relation("SentMessages",     fields: [fromId], references: [id], onDelete: Cascade)
+  to         User          @relation("ReceivedMessages", fields: [toId],   references: [id], onDelete: Cascade)
+  proposal   PlanProposal? @relation(fields: [proposalId], references: [id])
 
   @@index([toId])
   @@index([fromId, toId])
+}
+
+model PlanProposal {
+  id        String    @id @default(cuid())
+  trainerId String
+  clientId  String
+  status    String    @default("pending")
+  planJson  Json
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  trainer   User      @relation("TrainerProposals", fields: [trainerId], references: [id], onDelete: Cascade)
+  client    User      @relation("ClientProposals",  fields: [clientId],  references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@index([clientId])
+  @@index([trainerId])
+}
+
+model BodyMetric {
+  id         String   @id @default(cuid())
+  userId     String
+  date       DateTime @default(now())
+  weightKg   Float?
+  bodyFatPct Float?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model WorkoutLog {
