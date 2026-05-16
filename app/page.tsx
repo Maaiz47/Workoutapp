@@ -485,7 +485,7 @@ export default function HomePage() {
         }
       } catch {}
     };
-    const id = setInterval(poll, 3000);
+    const id = setInterval(poll, 1000);
     return () => clearInterval(id);
   }, [view, activeConversation]);
 
