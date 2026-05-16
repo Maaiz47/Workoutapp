@@ -547,7 +547,10 @@ export default function HomePage() {
     color: ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD"][day.dayIndex % 6] || "#FF6B6B",
     gradient: ["linear-gradient(135deg,#FF6B6B,#ee5a24)","linear-gradient(135deg,#4ECDC4,#44a08d)","linear-gradient(135deg,#45B7D1,#2980b9)","linear-gradient(135deg,#96CEB4,#6aab8e)","linear-gradient(135deg,#f7d794,#e17055)","linear-gradient(135deg,#DDA0DD,#9b59b6)"][day.dayIndex % 6] || "linear-gradient(135deg,#FF6B6B,#ee5a24)",
     focus: day.focus,
-    sections: [{ name: "Main", type: "main" as const, exercises: day.exercises.map((ex: any) => ({ id: ex.exerciseId, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest, info: ex.notes })) }],
+    sections: [{ name: "Main", type: "main" as const, exercises: day.exercises.map((ex: any) => {
+      const meta = (EXERCISES as any[]).find((e: any) => e.id === ex.exerciseId);
+      return { id: ex.exerciseId, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest, note: ex.notes ?? undefined, type: meta?.type ?? "compound" };
+    }) }],
   });
 
   const openCustomise = async () => {
@@ -1580,7 +1583,7 @@ export default function HomePage() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 14, fontWeight: 500, color: "#fff" }}>{ex.name}</span>
-                        <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1 }}>{ex.type.toUpperCase()}</span>
+                        {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1 }}>{ex.type.toUpperCase()}</span>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         {trackable && done > 0 && (
