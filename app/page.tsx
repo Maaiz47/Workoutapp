@@ -396,6 +396,9 @@ export default function HomePage() {
   const [conversationMessages, setConversationMessages] = useState<any[]>([]);
   const [messageText, setMessageText] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const lastMsgCreatedAtRef = useRef<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // ── Onboarding + custom plan ──
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -447,6 +450,44 @@ export default function HomePage() {
       }
     }).catch(() => {});
   }, [user]);
+
+  // Keep lastMsgCreatedAtRef in sync for polling
+  useEffect(() => {
+    const last = conversationMessages[conversationMessages.length - 1];
+    if (last) lastMsgCreatedAtRef.current = last.createdAt;
+  }, [conversationMessages]);
+
+  // Auto-scroll to bottom when new messages arrive (only if already near bottom)
+  useEffect(() => {
+    if (view !== "conversation") return;
+    const container = messagesContainerRef.current;
+    if (!container) { messagesEndRef.current?.scrollIntoView(); return; }
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+    if (nearBottom) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [conversationMessages, view]);
+
+  // Poll for new messages every 3 seconds while conversation is open
+  useEffect(() => {
+    if (view !== "conversation" || !activeConversation) return;
+    const partnerId = activeConversation.id;
+    const poll = async () => {
+      const since = lastMsgCreatedAtRef.current;
+      if (!since) return;
+      try {
+        const res = await fetch(`/api/messages/${partnerId}?since=${encodeURIComponent(since)}`);
+        const data = await res.json();
+        if (data.messages?.length > 0) {
+          setConversationMessages(prev => {
+            const ids = new Set(prev.map((m: any) => m.id));
+            const fresh = data.messages.filter((m: any) => !ids.has(m.id));
+            return fresh.length > 0 ? [...prev, ...fresh] : prev;
+          });
+        }
+      } catch {}
+    };
+    const id = setInterval(poll, 3000);
+    return () => clearInterval(id);
+  }, [view, activeConversation]);
 
   useEffect(() => {
     if (!user) return;
@@ -1395,7 +1436,7 @@ export default function HomePage() {
         <button onClick={() => { setView("messages"); setActiveConversation(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         <div style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>@{activeConversation.username}</div>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div ref={messagesContainerRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {conversationMessages.length === 0 && (
           <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 40 }}>No messages yet</div>
         )}
@@ -1424,6 +1465,7 @@ export default function HomePage() {
             </div>
           );
         })}
+        <div ref={messagesEndRef} />
       </div>
       <div style={{ padding: "12px 20px 32px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8, flexShrink: 0 }}>
         <input

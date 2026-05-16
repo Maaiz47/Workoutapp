@@ -4,12 +4,13 @@ import { prisma } from "../../../../lib/prisma";
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
 
-// GET — full conversation with a specific user, marks messages as read
+// GET — conversation thread; supports ?since= for incremental polling
 export async function GET(req: NextRequest, { params }: { params: { userId: string } }) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
 
   const { userId } = params;
+  const since = req.nextUrl.searchParams.get("since");
 
   try {
     const messages = await prisma.message.findMany({
@@ -18,12 +19,14 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
           { fromId: uid, toId: userId },
           { fromId: userId, toId: uid },
         ],
+        ...(since ? { createdAt: { gt: new Date(since) } } : {}),
       },
       include: { from: { select: { id: true, username: true } } },
       orderBy: { createdAt: "asc" },
-      take: 100,
+      take: since ? 50 : 100,
     });
 
+    // Mark incoming messages as read
     await prisma.message.updateMany({
       where: { fromId: userId, toId: uid, read: false },
       data: { read: true },
