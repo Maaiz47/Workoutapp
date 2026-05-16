@@ -369,6 +369,17 @@ export default function HomePage() {
   const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history">("dashboard");
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
 
+  // ── Onboarding + custom plan ──
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [generatingPlan, setGeneratingPlan] = useState(false);
+  const [planNote, setPlanNote] = useState("");
+  const [customPlan, setCustomPlan] = useState<any[] | null>(null);
+  const [ob, setOb] = useState({
+    dob: "", gender: "", heightCm: "", weightKg: "", bodyFatPct: "",
+    goal: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
+  });
+
   const rest = useCountdown();
   const timer = useTimer();
 
@@ -388,6 +399,22 @@ export default function HomePage() {
         if (!data.error) setHistory(data);
       }).catch(() => {});
     }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/profile").then(r => r.json()).then(profileData => {
+      if (profileData.profile) {
+        fetch("/api/plan").then(r => r.json()).then(planData => {
+          if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
+        });
+      } else {
+        fetch("/api/workout").then(r => r.json()).then(histData => {
+          const hasLogs = !histData.error && Object.values(histData as Record<string, any[]>).some(s => s.length > 0);
+          if (!hasLogs) setShowOnboarding(true);
+        });
+      }
+    });
   }, [user]);
 
   useEffect(() => {
@@ -489,6 +516,35 @@ export default function HomePage() {
     await fetch("/api/auth", { method: "DELETE" });
     setUser(null); setView("home"); setActiveDay(null); timer.stopT();
     setAuthStep("username"); setPasswordInput(""); setEmailInput("");
+    setCustomPlan(null); setShowOnboarding(false); setOnboardingStep(0);
+  };
+
+  const planDayToWorkoutDay = (day: any): WorkoutDay => ({
+    id: day.id,
+    title: day.title,
+    subtitle: day.subtitle,
+    label: `DAY ${(day.dayIndex ?? 0) + 1}`,
+    color: ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD"][day.dayIndex % 6] || "#FF6B6B",
+    gradient: ["linear-gradient(135deg,#FF6B6B,#ee5a24)","linear-gradient(135deg,#4ECDC4,#44a08d)","linear-gradient(135deg,#45B7D1,#2980b9)","linear-gradient(135deg,#96CEB4,#6aab8e)","linear-gradient(135deg,#f7d794,#e17055)","linear-gradient(135deg,#DDA0DD,#9b59b6)"][day.dayIndex % 6] || "linear-gradient(135deg,#FF6B6B,#ee5a24)",
+    focus: day.focus,
+    sections: [{ type: "main" as const, exercises: day.exercises.map((ex: any) => ({ id: ex.exerciseId, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest, info: ex.notes })) }],
+  });
+
+  const submitOnboarding = async () => {
+    setGeneratingPlan(true);
+    try {
+      const profileRes = await fetch("/api/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ob) });
+      if (!profileRes.ok) { setGeneratingPlan(false); return; }
+      const planRes = await fetch("/api/plan", { method: "POST" });
+      const planData = await planRes.json();
+      if (planData.plan?.days?.length) {
+        setCustomPlan(planData.plan.days);
+        setPlanNote(planData.planNote || "");
+      }
+    } catch {}
+    setGeneratingPlan(false);
+    setShowOnboarding(false);
+    setOnboardingStep(0);
   };
 
   const openDay = (d: WorkoutDay) => { setActiveDay(d); setView("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); };
@@ -711,6 +767,196 @@ export default function HomePage() {
     );
   }
 
+  // ─── ONBOARDING ─────────────────────────────────────────────────────
+  if (showOnboarding) {
+    const STEPS = 7;
+    const progress = Math.round((onboardingStep / STEPS) * 100);
+    const obInput: React.CSSProperties = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", padding: "14px 20px", width: "100%", outline: "none", boxSizing: "border-box" as const };
+    const obBtn: React.CSSProperties = { display: "block", width: "100%", marginTop: 24, padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
+    const obSkip: React.CSSProperties = { background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 14, display: "block", width: "100%" };
+    const selCard = (active: boolean): React.CSSProperties => ({ padding: "16px 20px", borderRadius: 12, border: `1px solid ${active ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, background: active ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", cursor: "pointer", marginBottom: 10, transition: "all 0.15s" });
+
+    const EQUIPMENT_OPTIONS = [
+      { id: "dumbbell", label: "Dumbbells" }, { id: "barbell", label: "Barbell" },
+      { id: "resistance_band", label: "Resistance Bands" }, { id: "pullup_bar", label: "Pull-Up Bar" },
+      { id: "bench", label: "Bench" }, { id: "kettlebell", label: "Kettlebell" },
+      { id: "dip_bar", label: "Dip Bars" },
+    ];
+
+    const toggleEquip = (id: string) => setOb(o => ({ ...o, equipment: o.equipment.includes(id) ? o.equipment.filter(e => e !== id) : [...o.equipment, id] }));
+
+    const canNext = () => {
+      if (onboardingStep === 0) return true;
+      if (onboardingStep === 1) return !!ob.dob && !!ob.gender;
+      if (onboardingStep === 2) return !!ob.heightCm && !!ob.weightKg;
+      if (onboardingStep === 3) return !!ob.goal;
+      if (onboardingStep === 4) return !!ob.fitnessLevel;
+      if (onboardingStep === 5) return !!ob.location;
+      return true;
+    };
+
+    if (generatingPlan) return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: 32 }}>
+        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 32 }}>BUILDING YOUR PLAN</div>
+        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 26, fontWeight: 700, color: "#FF6B6B", marginBottom: 16 }}>IRON<span style={{ color: "#fff" }}>LOG</span></div>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", textAlign: "center", lineHeight: 1.7 }}>Analysing your goals and selecting the best exercises for you...</div>
+      </div>
+    );
+
+    return (
+      <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "48px 24px 80px" }}>
+        {/* Progress bar */}
+        <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginBottom: 40 }}>
+          <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg, #FF6B6B, #ee5a24)", borderRadius: 2, transition: "width 0.3s ease" }} />
+        </div>
+
+        {/* Step 0: Welcome */}
+        {onboardingStep === 0 && (
+          <div className="slide-up">
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 32, fontWeight: 700, color: "#fff", marginBottom: 8 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Let's build your plan.</div>
+            <div style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 32 }}>Answer a few quick questions and we'll put together a personalised workout programme designed around your goals, schedule, and equipment.</div>
+            <button onClick={() => setOnboardingStep(1)} style={obBtn}>GET STARTED</button>
+            <button onClick={() => setShowOnboarding(false)} style={obSkip}>Skip — use default plan</button>
+          </div>
+        )}
+
+        {/* Step 1: DOB + gender */}
+        {onboardingStep === 1 && (
+          <div className="slide-up">
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>ABOUT YOU</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>When were you born?</div>
+            <input type="date" value={ob.dob} onChange={e => setOb(o => ({ ...o, dob: e.target.value }))} style={{ ...obInput, marginBottom: 24, colorScheme: "dark" }} />
+            <div style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", marginBottom: 12 }}>Gender</div>
+            {["Male", "Female", "Other"].map(g => (
+              <div key={g} style={selCard(ob.gender === g.toLowerCase())} onClick={() => setOb(o => ({ ...o, gender: g.toLowerCase() }))}>
+                <div style={{ color: ob.gender === g.toLowerCase() ? "#FF6B6B" : "#fff", fontWeight: 500 }}>{g}</div>
+              </div>
+            ))}
+            <button onClick={() => setOnboardingStep(2)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(0)} style={obSkip}>← Back</button>
+          </div>
+        )}
+
+        {/* Step 2: Height + weight */}
+        {onboardingStep === 2 && (
+          <div className="slide-up">
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>YOUR BODY</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>Height & weight</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Height (cm)</div>
+            <input type="number" placeholder="e.g. 178" value={ob.heightCm} onChange={e => setOb(o => ({ ...o, heightCm: e.target.value }))} style={{ ...obInput, marginBottom: 16 }} />
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Weight (kg)</div>
+            <input type="number" placeholder="e.g. 80" value={ob.weightKg} onChange={e => setOb(o => ({ ...o, weightKg: e.target.value }))} style={{ ...obInput, marginBottom: 16 }} />
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Body fat % <span style={{ color: "rgba(255,255,255,0.25)" }}>(optional)</span></div>
+            <input type="number" placeholder="e.g. 18" value={ob.bodyFatPct} onChange={e => setOb(o => ({ ...o, bodyFatPct: e.target.value }))} style={obInput} />
+            <button onClick={() => setOnboardingStep(3)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(1)} style={obSkip}>← Back</button>
+          </div>
+        )}
+
+        {/* Step 3: Goal */}
+        {onboardingStep === 3 && (
+          <div className="slide-up">
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>YOUR GOAL</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>What are you training for?</div>
+            {[
+              { id: "muscle", label: "Build Muscle", desc: "Hypertrophy-focused training with progressive overload" },
+              { id: "strength", label: "Get Stronger", desc: "Heavy compound lifts, low reps, long rest" },
+              { id: "fat_loss", label: "Lose Fat", desc: "Higher volume, cardio finishers, calorie-burning focus" },
+              { id: "fitness", label: "General Fitness", desc: "Balanced training to improve overall health and conditioning" },
+            ].map(g => (
+              <div key={g.id} style={selCard(ob.goal === g.id)} onClick={() => setOb(o => ({ ...o, goal: g.id }))}>
+                <div style={{ color: ob.goal === g.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{g.label}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{g.desc}</div>
+              </div>
+            ))}
+            <button onClick={() => setOnboardingStep(4)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(2)} style={obSkip}>← Back</button>
+          </div>
+        )}
+
+        {/* Step 4: Experience */}
+        {onboardingStep === 4 && (
+          <div className="slide-up">
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>EXPERIENCE</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>How long have you been training?</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 28 }}>This helps us set the right volume and exercise selection.</div>
+            {[
+              { id: "beginner", label: "Less than 1 year", desc: "Focus on form, fundamentals, and building habits" },
+              { id: "intermediate", label: "1–3 years", desc: "Comfortable with the main lifts, ready for more volume" },
+              { id: "advanced", label: "3+ years", desc: "Strong base, looking to optimise and push harder" },
+            ].map(l => (
+              <div key={l.id} style={selCard(ob.fitnessLevel === l.id)} onClick={() => setOb(o => ({ ...o, fitnessLevel: l.id }))}>
+                <div style={{ color: ob.fitnessLevel === l.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{l.label}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{l.desc}</div>
+              </div>
+            ))}
+            <button onClick={() => setOnboardingStep(5)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(3)} style={obSkip}>← Back</button>
+          </div>
+        )}
+
+        {/* Step 5: Location */}
+        {onboardingStep === 5 && (
+          <div className="slide-up">
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>SETUP</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>Where do you train?</div>
+            {[
+              { id: "gym", label: "Gym", desc: "Full access to barbells, cables, machines" },
+              { id: "home", label: "Home", desc: "I train at home with my own equipment" },
+              { id: "both", label: "Both", desc: "Mix of gym and home sessions" },
+            ].map(l => (
+              <div key={l.id} style={selCard(ob.location === l.id)} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: l.id === "gym" ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell"] : o.equipment }))}>
+                <div style={{ color: ob.location === l.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{l.label}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{l.desc}</div>
+              </div>
+            ))}
+            <button onClick={() => setOnboardingStep(ob.location === "gym" ? 7 : 6)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(4)} style={obSkip}>← Back</button>
+          </div>
+        )}
+
+        {/* Step 6: Equipment (home/both only) */}
+        {onboardingStep === 6 && (
+          <div className="slide-up">
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>EQUIPMENT</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>What do you have available?</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Select everything you have access to.</div>
+            {EQUIPMENT_OPTIONS.map(e => (
+              <div key={e.id} style={selCard(ob.equipment.includes(e.id))} onClick={() => toggleEquip(e.id)}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ color: ob.equipment.includes(e.id) ? "#FF6B6B" : "#fff", fontWeight: 500 }}>{e.label}</div>
+                  {ob.equipment.includes(e.id) && <div style={{ color: "#FF6B6B", fontSize: 16 }}>✓</div>}
+                </div>
+              </div>
+            ))}
+            <button onClick={() => setOnboardingStep(7)} style={obBtn}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(5)} style={obSkip}>← Back</button>
+          </div>
+        )}
+
+        {/* Step 7: Days per week */}
+        {onboardingStep === 7 && (
+          <div className="slide-up">
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>SCHEDULE</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>How many days per week?</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 32 }}>We'll recommend the optimal split for your schedule and goal.</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 24 }}>
+              {[2,3,4,5,6].map(d => (
+                <div key={d} onClick={() => setOb(o => ({ ...o, daysPerWeek: d }))} style={{ flex: 1, minWidth: 52, padding: "18px 0", textAlign: "center", borderRadius: 12, border: `1px solid ${ob.daysPerWeek === d ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, background: ob.daysPerWeek === d ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", cursor: "pointer", color: ob.daysPerWeek === d ? "#FF6B6B" : "#fff", fontWeight: 700, fontSize: 20 }}>
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", marginBottom: 8 }}>days per week</div>
+            <button onClick={submitOnboarding} style={obBtn}>BUILD MY PLAN</button>
+            <button onClick={() => setOnboardingStep(ob.location === "gym" ? 5 : 6)} style={obSkip}>← Back</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ─── HOME ───────────────────────────────────────────────────────────
   if (view === "home") return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
@@ -722,8 +968,12 @@ export default function HomePage() {
         <button onClick={doLogout} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 14px", color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", letterSpacing: 1 }}>LOG OUT</button>
       </div>
       <div style={{ padding: "28px 20px 0" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
-        {WORKOUT_DATA.map((d, i) => (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
+          {customPlan && <button onClick={() => setShowOnboarding(true)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>REGENERATE</button>}
+        </div>
+        {planNote && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontStyle: "italic", lineHeight: 1.5 }}>{planNote}</div>}
+        {(customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA).map((d, i) => (
           <div key={d.id} className="card-hover fade-in" style={{ animationDelay: `${i * 0.06}s`, marginBottom: 10, cursor: "pointer" }} onClick={() => openDay(d)}>
             <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: d.gradient, borderRadius: "16px 0 0 16px" }} />

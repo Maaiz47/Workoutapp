@@ -15,6 +15,63 @@ model User {
   mustResetPassword Boolean      @default(false)
   createdAt         DateTime     @default(now())
   workoutLogs       WorkoutLog[]
+  profile           UserProfile?
+  workoutPlan       WorkoutPlan?
+}
+
+model UserProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  dob          DateTime
+  gender       String
+  heightCm     Float
+  weightKg     Float
+  bodyFatPct   Float?
+  goal         String
+  fitnessLevel String
+  location     String
+  equipment    String[]
+  daysPerWeek  Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WorkoutPlan {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  days      PlanDay[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PlanDay {
+  id          String        @id @default(cuid())
+  planId      String
+  dayIndex    Int
+  title       String
+  subtitle    String
+  focus       String
+  exercises   PlanExercise[]
+  plan        WorkoutPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+}
+
+model PlanExercise {
+  id         String  @id @default(cuid())
+  dayId      String
+  order      Int
+  exerciseId String
+  name       String
+  sets       Int
+  reps       String
+  rest       Int
+  notes      String?
+  day        PlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@index([dayId])
 }
 
 model WorkoutLog {
