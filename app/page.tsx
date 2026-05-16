@@ -449,12 +449,9 @@ export default function HomePage() {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
         });
       } else {
-        fetch("/api/workout").then(r => r.json()).then(histData => {
-          const hasLogs = !histData.error && Object.values(histData as Record<string, any[]>).some(s => s.length > 0);
-          if (!hasLogs) setShowOnboarding(true);
-        });
+        setShowOnboarding(true);
       }
-    });
+    }).catch(() => setShowOnboarding(true));
   }, [user]);
 
   useEffect(() => {
