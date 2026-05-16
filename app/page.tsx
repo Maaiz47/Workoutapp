@@ -596,8 +596,8 @@ export default function HomePage() {
   };
 
   const openCustomise = async () => {
+    setEditingDay(null);
     if (!customPlan) {
-      // existing user — init plan from WORKOUT_DATA first
       const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "init" }) });
       const data = await res.json();
       if (data.plan?.days?.length) setCustomPlan(data.plan.days);
