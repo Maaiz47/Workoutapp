@@ -7,7 +7,7 @@ export type Exercise = {
 export type Section = { name: string; type?: "main" | "warmup" | "cardio"; exercises: Exercise[] };
 
 export type WorkoutDay = {
-  id: string; day: number; label: string; title: string;
+  id: string; day?: number; label: string; title: string; subtitle?: string;
   focus: string; color: string; gradient: string; sections: Section[];
 };
 
