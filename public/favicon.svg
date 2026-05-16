@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#141414"/>
+      <stop offset="100%" style="stop-color:#0a0a0a"/>
+    </linearGradient>
+    <linearGradient id="fire" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B6B"/>
+      <stop offset="100%" style="stop-color:#ee5a24"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+
+  <!-- Dumbbell bar -->
+  <rect x="14" y="28.5" width="36" height="7" rx="3.5" fill="#ffffff" opacity="0.75"/>
+
+  <!-- Left plate outer -->
+  <rect x="7"  y="19" width="9" height="26" rx="3" fill="url(#fire)"/>
+  <!-- Left plate inner -->
+  <rect x="13" y="23" width="5" height="18" rx="2" fill="url(#fire)" opacity="0.6"/>
+
+  <!-- Right plate outer -->
+  <rect x="48" y="19" width="9" height="26" rx="3" fill="url(#fire)"/>
+  <!-- Right plate inner -->
+  <rect x="46" y="23" width="5" height="18" rx="2" fill="url(#fire)" opacity="0.6"/>
+
+  <!-- End caps -->
+  <rect x="4"  y="25" width="5" height="14" rx="2" fill="#ffffff" opacity="0.2"/>
+  <rect x="55" y="25" width="5" height="14" rx="2" fill="#ffffff" opacity="0.2"/>
+</svg>
