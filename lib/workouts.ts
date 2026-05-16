@@ -4,7 +4,7 @@ export type Exercise = {
   rest?: number; note?: string; trackable?: boolean;
 };
 
-export type Section = { name: string; exercises: Exercise[] };
+export type Section = { name: string; type?: "main" | "warmup" | "cardio"; exercises: Exercise[] };
 
 export type WorkoutDay = {
   id: string; day: number; label: string; title: string;
