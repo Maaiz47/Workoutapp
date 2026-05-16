@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import Head from "next/head";
+import Image from "next/image";
 
 type User = {
   id: string;
@@ -220,7 +222,7 @@ export default function AdminPage() {
     return (
       <div style={s.page}>
         <div style={s.loginBox}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>🔐</div>
+          <Image src="/admin-icon.svg" alt="Admin" width={88} height={88} style={{ marginBottom: 16 }} priority />
           <div style={{ ...s.heading, marginBottom: 24 }}>Admin</div>
           <form onSubmit={handleLogin}>
             <input
@@ -244,7 +246,10 @@ export default function AdminPage() {
   return (
     <div style={s.page}>
       <div style={s.card}>
-        <div style={s.heading}>Admin Panel</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
+          <Image src="/admin-icon.svg" alt="Admin" width={48} height={48} priority />
+          <div style={s.heading}>Admin Panel</div>
+        </div>
         <div style={s.sub}>Ironlog — developer access only</div>
 
         <div style={s.stats}>
