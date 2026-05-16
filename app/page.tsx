@@ -365,6 +365,7 @@ export default function HomePage() {
   const [editSets, setEditSets] = useState<Record<string, { weight: number; reps: number }>>({});
   const [showFinishPrompt, setShowFinishPrompt] = useState(false);
   const [adjustedDuration, setAdjustedDuration] = useState("");
+  const [resumeOverlay, setResumeOverlay] = useState<{ title: string; ageStr: string } | null>(null);
   const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history">("dashboard");
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
 
@@ -400,15 +401,12 @@ export default function HomePage() {
       if (!day) { localStorage.removeItem("ironlog-session"); return; }
       const ageMin = Math.round((Date.now() - session.startTime) / 60000);
       const ageStr = ageMin < 60 ? `${ageMin}m ago` : `${Math.round(ageMin / 60)}h ago`;
-      if (confirm(`Resume ${day.title} session started ${ageStr}?`)) {
-        setActiveDay(day);
-        setLog(session.log || {});
-        setStarted(true);
-        setView("workout");
-        timer.resumeT(session.startTime);
-      } else {
-        localStorage.removeItem("ironlog-session");
-      }
+      setActiveDay(day);
+      setLog(session.log || {});
+      setStarted(true);
+      setView("workout");
+      timer.resumeT(session.startTime);
+      setResumeOverlay({ title: day.title, ageStr });
     } catch { try { localStorage.removeItem("ironlog-session"); } catch {} }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1014,6 +1012,15 @@ export default function HomePage() {
 
     return (
       <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
+        {resumeOverlay && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 32 }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 32 }}>SESSION RESTORED</div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 8, textAlign: "center" }}>{resumeOverlay.title}</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", marginBottom: 48 }}>Started {resumeOverlay.ageStr}</div>
+            <button onClick={() => setResumeOverlay(null)} style={{ padding: "16px 48px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 14, color: "#fff", fontSize: 14, fontWeight: 700, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>GOT IT</button>
+          </div>
+        )}
+
         {showFinishPrompt && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 32 }}>
             <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 32, fontFamily: "'Space Mono', monospace" }}>SAVE WORKOUT</div>
