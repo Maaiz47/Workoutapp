@@ -11,37 +11,39 @@ export async function GET(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
 
-  const trainer = await prisma.user.findUnique({ where: { id: uid } });
-  if (!trainer || trainer.role !== "trainer") return json({ error: "Trainer account required" }, 403);
+  try {
+    const trainer = await prisma.user.findUnique({ where: { id: uid } });
+    if (!trainer || trainer.role !== "trainer") return json({ error: "Trainer account required" }, 403);
 
-  const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
-  if (q.length < 1) return json({ results: [] });
+    const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
+    if (q.length < 1) return json({ results: [] });
 
-  const users = await prisma.user.findMany({
-    where: {
-      username: { equals: q, mode: "insensitive" },
-      role: "user",
-      id: { not: uid },
-    },
-    select: {
-      id: true,
-      username: true,
-      createdAt: true,
-      clientOf: { select: { trainerId: true } },
-      _count: { select: { workoutLogs: true } },
-    },
-    orderBy: { username: "asc" },
-    take: 10,
-  });
+    const users = await prisma.user.findMany({
+      where: {
+        username: { equals: q, mode: "insensitive" },
+        role: "user",
+        id: { not: uid },
+      },
+      select: {
+        id: true,
+        username: true,
+        createdAt: true,
+        _count: { select: { workoutLogs: true } },
+      },
+      orderBy: { username: "asc" },
+      take: 10,
+    });
 
-  return json({
-    results: users.map(u => ({
-      id: u.id,
-      username: u.username,
-      joinedAt: u.createdAt,
-      logCount: u._count.workoutLogs,
-      hasTrainer: !!u.clientOf,
-      isMyClient: u.clientOf?.trainerId === uid,
-    })),
-  });
+    return json({
+      results: users.map(u => ({
+        id: u.id,
+        username: u.username,
+        joinedAt: u.createdAt,
+        logCount: u._count.workoutLogs,
+      })),
+    });
+  } catch (e: any) {
+    console.error("Trainer search error:", e);
+    return json({ error: e?.message ?? "Search failed" }, 500);
+  }
 }
