@@ -205,6 +205,39 @@ function useTimer() {
   return { elapsed, startT, resumeT, stopT, fmt };
 }
 
+function useSwipeBack(onBack: () => void, enabled: boolean) {
+  const onBackRef = useRef(onBack);
+  onBackRef.current = onBack;
+
+  useEffect(() => {
+    if (!enabled) return;
+    let startX = 0;
+    let startY = 0;
+    let active = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      active = startX < 30;
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!active) return;
+      active = false;
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = Math.abs(e.changedTouches[0].clientY - startY);
+      if (dx > 72 && dy < dx * 0.65) onBackRef.current();
+    };
+
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [enabled]);
+}
+
 // ─── ANALYTICS HELPERS ──────────────────────────────────────────────────
 function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: string) {
   const sessions = history[dayId] || [];
@@ -469,6 +502,15 @@ export default function HomePage() {
 
   const rest = useCountdown();
   const timer = useTimer();
+
+  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings"]);
+  useSwipeBack(() => {
+    if (view === "conversation") { setView("messages"); setActiveConversation(null); }
+    else if (view === "messages") setView("home");
+    else if (view === "clientDetail") { setView("home"); setEditingPlan(false); setEditedPlanDays(null); }
+    else if (view === "progress") { setView("home"); }
+    else if (view === "settings") setView("home");
+  }, swipeBackViews.has(view));
 
   // On mount: check browser permission; if already granted, re-register subscription
   useEffect(() => {
