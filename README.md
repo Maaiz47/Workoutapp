@@ -12,7 +12,7 @@ Create a repo on GitHub, then:
 ```bash
 git remote add origin https://github.com/YOUR_USERNAME/ironlog.git
 git branch -M main && git push -u origin main
-```
+``` 
 
 ### 2. Create database + deploy
 1. Go to [vercel.com/new](https://vercel.com/new) → Import your repo
