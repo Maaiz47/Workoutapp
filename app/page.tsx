@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
+import { EXERCISES } from "../lib/exercises";
 
 // ─── HOOKS ──────────────────────────────────────────────────────────────
 function useCountdown() {
@@ -369,6 +370,11 @@ export default function HomePage() {
   const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history">("dashboard");
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
 
+  // ── Customise ──
+  const [editingDay, setEditingDay] = useState<any | null>(null);
+  const [exSearch, setExSearch] = useState("");
+  const [showExBrowser, setShowExBrowser] = useState(false);
+
   // ── Onboarding + custom plan ──
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -529,6 +535,32 @@ export default function HomePage() {
     focus: day.focus,
     sections: [{ type: "main" as const, exercises: day.exercises.map((ex: any) => ({ id: ex.exerciseId, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest, info: ex.notes })) }],
   });
+
+  const openCustomise = async () => {
+    if (!customPlan) {
+      // existing user — init plan from WORKOUT_DATA first
+      const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "init" }) });
+      const data = await res.json();
+      if (data.plan?.days?.length) setCustomPlan(data.plan.days);
+    }
+    setView("customise");
+  };
+
+  const saveDay = async (day: any, exercises: any[]) => {
+    const res = await fetch("/api/plan", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dayId: day.id, exercises }) });
+    const data = await res.json();
+    if (data.day) {
+      setCustomPlan(prev => prev ? prev.map(d => d.id === day.id ? { ...d, exercises: data.day.exercises } : d) : prev);
+      setEditingDay((prev: any) => prev ? { ...prev, exercises: data.day.exercises } : prev);
+    }
+  };
+
+  const moveExercise = (exercises: any[], from: number, to: number) => {
+    const arr = [...exercises];
+    const [item] = arr.splice(from, 1);
+    arr.splice(to, 0, item);
+    return arr;
+  };
 
   const submitOnboarding = async () => {
     setGeneratingPlan(true);
@@ -957,6 +989,100 @@ export default function HomePage() {
     );
   }
 
+  // ─── CUSTOMISE ──────────────────────────────────────────────────────
+  if (view === "customise") {
+    const planDays = customPlan ?? [];
+    const EXERCISES_LIST = (EXERCISES as any[]);
+
+    // Day editor view
+    if (editingDay) {
+      const exs: any[] = editingDay.exercises ?? [];
+      const filtered = EXERCISES_LIST.filter((e: any) =>
+        !exSearch || e.name.toLowerCase().includes(exSearch.toLowerCase()) ||
+        e.primaryMuscles.some((m: string) => m.includes(exSearch.toLowerCase()))
+      ).slice(0, 40);
+
+      return (
+        <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "0 0 100px" }}>
+          <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+            <button onClick={() => { setEditingDay(null); setShowExBrowser(false); setExSearch(""); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "#FF6B6B", letterSpacing: 3 }}>EDITING</div>
+          </div>
+          <div style={{ padding: "0 20px" }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{editingDay.title}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>{editingDay.focus}</div>
+
+            {exs.map((ex: any, i: number) => (
+              <div key={ex.id ?? i} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", marginTop: 3 }}>{ex.sets} × {ex.reps} · {ex.rest}s</div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={async () => { const moved = moveExercise(exs, i, i - 1); if (i > 0) await saveDay(editingDay, moved); }} disabled={i === 0} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === 0 ? "default" : "pointer", fontSize: 14 }}>↑</button>
+                  <button onClick={async () => { const moved = moveExercise(exs, i, i + 1); if (i < exs.length - 1) await saveDay(editingDay, moved); }} disabled={i === exs.length - 1} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === exs.length - 1 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === exs.length - 1 ? "default" : "pointer", fontSize: 14 }}>↓</button>
+                  <button onClick={async () => { const updated = exs.filter((_: any, j: number) => j !== i); await saveDay(editingDay, updated); }} style={{ background: "rgba(255,107,107,0.1)", border: "none", borderRadius: 6, color: "#FF6B6B", width: 28, height: 28, cursor: "pointer", fontSize: 14 }}>✕</button>
+                </div>
+              </div>
+            ))}
+
+            {/* Add exercise */}
+            {!showExBrowser ? (
+              <button onClick={() => { setShowExBrowser(true); setExSearch(""); }} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 8 }}>+ Add Exercise</button>
+            ) : (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: 3, marginBottom: 12, fontFamily: "'Space Mono', monospace" }}>ADD EXERCISE</div>
+                <input value={exSearch} onChange={e => setExSearch(e.target.value)} placeholder="Search by name or muscle..." autoFocus style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "12px 16px", width: "100%", outline: "none", boxSizing: "border-box", marginBottom: 10 }} />
+                <div style={{ maxHeight: 300, overflowY: "auto" }}>
+                  {filtered.map((ex: any) => (
+                    <div key={ex.id} onClick={async () => {
+                      const newEx = { exerciseId: ex.id, name: ex.name, sets: 3, reps: "10–12", rest: 60, notes: null };
+                      await saveDay(editingDay, [...exs, newEx]);
+                      setShowExBrowser(false); setExSearch("");
+                    }} style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)", marginBottom: 6, cursor: "pointer" }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{ex.primaryMuscles.join(", ")} · {ex.equipment.join(", ")} · {ex.difficulty}</div>
+                    </div>
+                  ))}
+                  {filtered.length === 0 && <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "12px 0" }}>No exercises found</div>}
+                </div>
+                <button onClick={() => { setShowExBrowser(false); setExSearch(""); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 8 }}>Cancel</button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Plan overview — list all days
+    return (
+      <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "0 0 100px" }}>
+        <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
+          <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>CUSTOMISE PLAN</div>
+          <div style={{ width: 48 }} />
+        </div>
+        <div style={{ padding: "0 20px" }}>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 1.6, marginBottom: 28 }}>Tap a day to add, remove, or reorder exercises. Your workout history is always preserved.</div>
+          {planDays.map((day: any, i: number) => (
+            <div key={day.id} className="card-hover" style={{ marginBottom: 10, cursor: "pointer" }} onClick={() => setEditingDay(day)}>
+              <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>{day.title}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>{day.exercises?.length ?? 0} exercises</div>
+                </div>
+                <div style={{ color: "#FF6B6B", fontSize: 13, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>EDIT ›</div>
+              </div>
+            </div>
+          ))}
+          {planDays.length === 0 && (
+            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 14, textAlign: "center", marginTop: 40 }}>No plan yet. Complete the questionnaire first.</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ─── HOME ───────────────────────────────────────────────────────────
   if (view === "home") return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
@@ -970,7 +1096,10 @@ export default function HomePage() {
       <div style={{ padding: "28px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
-          {customPlan && <button onClick={() => setShowOnboarding(true)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>REGENERATE</button>}
+          <div style={{ display: "flex", gap: 12 }}>
+            {customPlan && <button onClick={() => setShowOnboarding(true)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>REGENERATE</button>}
+            <button onClick={openCustomise} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>CUSTOMISE</button>
+          </div>
         </div>
         {planNote && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontStyle: "italic", lineHeight: 1.5 }}>{planNote}</div>}
         {(customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA).map((d, i) => (
