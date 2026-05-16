@@ -390,6 +390,12 @@ export default function HomePage() {
   const [sendingRequest, setSendingRequest] = useState<string | null>(null);
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [respondingRequest, setRespondingRequest] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [activeConversation, setActiveConversation] = useState<{ id: string; username: string } | null>(null);
+  const [conversationMessages, setConversationMessages] = useState<any[]>([]);
+  const [messageText, setMessageText] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   // ── Onboarding + custom plan ──
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -434,6 +440,12 @@ export default function HomePage() {
         if (data.requests) setIncomingRequests(data.requests);
       }).catch(() => {});
     }
+    fetch("/api/messages").then(r => r.json()).then(data => {
+      if (data.conversations) {
+        setConversations(data.conversations);
+        setUnreadCount(data.conversations.reduce((a: number, c: any) => a + (c.unreadCount ?? 0), 0));
+      }
+    }).catch(() => {});
   }, [user]);
 
   useEffect(() => {
@@ -619,6 +631,39 @@ export default function HomePage() {
       if (data.ok) setIncomingRequests(prev => prev.filter(r => r.id !== requestId));
     } catch {}
     setRespondingRequest(null);
+  };
+
+  const openConversation = async (partner: { id: string; username: string }) => {
+    setActiveConversation(partner);
+    setConversationMessages([]);
+    setView("conversation");
+    try {
+      const res = await fetch(`/api/messages/${partner.id}`);
+      const data = await res.json();
+      if (data.messages) {
+        setConversationMessages(data.messages);
+        setConversations(prev => prev.map(c => c.partner.id === partner.id ? { ...c, unreadCount: 0 } : c));
+        setUnreadCount(prev => Math.max(0, prev - (conversations.find(c => c.partner.id === partner.id)?.unreadCount ?? 0)));
+      }
+    } catch {}
+  };
+
+  const sendMessage = async () => {
+    if (!messageText.trim() || !activeConversation || sendingMessage) return;
+    setSendingMessage(true);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toId: activeConversation.id, body: messageText.trim() }),
+      });
+      const data = await res.json();
+      if (data.message) {
+        setConversationMessages(prev => [...prev, data.message]);
+        setMessageText("");
+      }
+    } catch {}
+    setSendingMessage(false);
   };
 
   const openCustomise = async () => {
@@ -1224,29 +1269,6 @@ export default function HomePage() {
         </button>
         <button onClick={doLogout} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 14px", color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", letterSpacing: 1 }}>LOG OUT</button>
       </div>
-      {incomingRequests.length > 0 && (
-        <div style={{ padding: "16px 20px 0" }}>
-          {incomingRequests.map(req => (
-            <div key={req.id} style={{ background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 14, padding: "14px 16px", marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: "#4ECDC4", letterSpacing: 3, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>TRAINER REQUEST</div>
-              <div style={{ fontSize: 14, color: "#fff", fontWeight: 600, marginBottom: 4 }}>@{req.trainer.username}</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>wants to add you as a client</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => respondToRequest(req.id, "accept")}
-                  disabled={respondingRequest === req.id}
-                  style={{ flex: 1, padding: "10px", background: "#4ECDC4", border: "none", borderRadius: 10, color: "#000", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
-                >{respondingRequest === req.id ? "…" : "ACCEPT"}</button>
-                <button
-                  onClick={() => respondToRequest(req.id, "decline")}
-                  disabled={respondingRequest === req.id}
-                  style={{ flex: 1, padding: "10px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 10, color: "rgba(255,107,107,0.8)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
-                >{respondingRequest === req.id ? "…" : "DECLINE"}</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
       <div style={{ padding: "28px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
@@ -1328,8 +1350,90 @@ export default function HomePage() {
           )}
         </div>
       )}
-      <div style={{ padding: "12px 20px 0" }}>
+      <div style={{ padding: "12px 20px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+        <button className="card-hover" onClick={() => setView("messages")} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxSizing: "border-box" }}>
+          MESSAGES
+          {unreadCount > 0 && <span style={{ background: "#4ECDC4", color: "#000", borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
+        </button>
         <button className="card-hover" onClick={() => { setView("progress"); setProgressTab("dashboard"); }} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>VIEW PROGRESS →</button>
+      </div>
+    </div>
+  );
+
+  // ─── MESSAGES LIST ──────────────────────────────────────────────────
+  if (view === "messages") return (
+    <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
+      <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+        <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>MESSAGES</div>
+      </div>
+      <div style={{ padding: "0 20px" }}>
+        {conversations.length === 0 && (
+          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 60 }}>No messages yet</div>
+        )}
+        {conversations.map(c => (
+          <div key={c.partner.id} className="card-hover" onClick={() => openConversation(c.partner)} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${c.unreadCount > 0 ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, padding: "16px", marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 4 }}>@{c.partner.username}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {c.latestMessage.type === "adoption_request" ? "Trainer request" : c.latestMessage.body}
+              </div>
+            </div>
+            {c.unreadCount > 0 && (
+              <span style={{ background: "#4ECDC4", color: "#000", borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", flexShrink: 0, marginLeft: 12 }}>{c.unreadCount}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ─── CONVERSATION ────────────────────────────────────────────────────
+  if (view === "conversation" && activeConversation) return (
+    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+        <button onClick={() => { setView("messages"); setActiveConversation(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+        <div style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>@{activeConversation.username}</div>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {conversationMessages.length === 0 && (
+          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 40 }}>No messages yet</div>
+        )}
+        {conversationMessages.map(msg => {
+          const isMine = msg.from.id === user.id;
+          if (msg.type === "adoption_request") {
+            const isPending = incomingRequests.some(r => r.id === msg.requestId);
+            return (
+              <div key={msg.id} style={{ background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 14, padding: "14px 16px", maxWidth: "85%" }}>
+                <div style={{ fontSize: 10, color: "#4ECDC4", letterSpacing: 3, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>TRAINER REQUEST</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: isPending ? 12 : 0 }}>{msg.body}</div>
+                {isPending && (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => respondToRequest(msg.requestId, "accept")} disabled={respondingRequest === msg.requestId} style={{ flex: 1, padding: "9px", background: "#4ECDC4", border: "none", borderRadius: 8, color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{respondingRequest === msg.requestId ? "…" : "ACCEPT"}</button>
+                    <button onClick={() => respondToRequest(msg.requestId, "decline")} disabled={respondingRequest === msg.requestId} style={{ flex: 1, padding: "9px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.8)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{respondingRequest === msg.requestId ? "…" : "DECLINE"}</button>
+                  </div>
+                )}
+                {!isPending && !isMine && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4, fontFamily: "'Space Mono', monospace" }}>RESOLVED</div>}
+              </div>
+            );
+          }
+          return (
+            <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", maxWidth: "75%" }}>
+              <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.4 }}>{msg.body}</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4, textAlign: isMine ? "right" : "left" }}>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ padding: "12px 20px 32px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8, flexShrink: 0 }}>
+        <input
+          value={messageText}
+          onChange={e => setMessageText(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+          placeholder="Message…"
+          style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "13px 16px", outline: "none" }}
+        />
+        <button onClick={sendMessage} disabled={sendingMessage || !messageText.trim()} style={{ padding: "13px 18px", background: messageText.trim() ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, color: messageText.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: messageText.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", transition: "all 0.15s" }}>SEND</button>
       </div>
     </div>
   );

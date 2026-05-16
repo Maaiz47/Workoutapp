@@ -60,6 +60,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Send an adoption request message to the user
+    await prisma.message.create({
+      data: {
+        fromId: uid,
+        toId: targetUserId,
+        body: `${trainer.username} wants to add you as their client`,
+        type: "adoption_request",
+        requestId: request.id,
+      },
+    }).catch(() => {}); // non-fatal if Message table not yet created
+
     return json({ request });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);
