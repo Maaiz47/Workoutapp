@@ -414,6 +414,7 @@ export default function HomePage() {
   const [upgradeError, setUpgradeError] = useState("");
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "unsupported" | "error" | "requesting">("idle");
   const [testingNotif, setTestingNotif] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [showNotifBanner, setShowNotifBanner] = useState(false);
 
   // ── Trainer search ──
   const [trainerSearch, setTrainerSearch] = useState("");
@@ -458,6 +459,10 @@ export default function HomePage() {
     if (Notification.permission === "granted") {
       // Re-save subscription in case it wasn't stored yet (e.g. first deploy with push)
       subscribeToPush().then(s => setNotifStatus(s));
+    } else if (Notification.permission === "default") {
+      // Show banner unless user previously dismissed it
+      const dismissed = localStorage.getItem("ironlog-notif-dismissed");
+      if (!dismissed) setShowNotifBanner(true);
     }
   }, []);
 
@@ -1349,15 +1354,33 @@ export default function HomePage() {
   if (view === "home") return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px 20px 0" }}>
-        <button onClick={() => setView("settings")} style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0 }}>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 300 }}>Welcome back</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-            <div style={{ fontSize: 20, fontWeight: 600, color: "#fff" }}>{user.username}</div>
+        <button onClick={() => setView("settings")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "10px 14px" }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 300, letterSpacing: 1 }}>Welcome back</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
+            <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>{user.username}</div>
             {user.role === "trainer" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 4, padding: "2px 6px" }}>TRAINER</span>}
+            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }}>›</span>
           </div>
         </button>
         <button onClick={doLogout} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 14px", color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", letterSpacing: 1 }}>LOG OUT</button>
       </div>
+      {showNotifBanner && notifStatus === "idle" && (
+        <div style={{ margin: "16px 20px 0", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#4ECDC4", marginBottom: 3 }}>Enable notifications</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>Get notified when you receive a message or a trainer sends you a request.</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+            <button onClick={async () => {
+              setShowNotifBanner(false);
+              setNotifStatus("requesting");
+              const s = await subscribeToPush();
+              setNotifStatus(s);
+            }} style={{ background: "#4ECDC4", border: "none", borderRadius: 8, padding: "7px 14px", color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>ENABLE</button>
+            <button onClick={() => { localStorage.setItem("ironlog-notif-dismissed", "1"); setShowNotifBanner(false); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: "2px 0", textAlign: "center" }}>Not now</button>
+          </div>
+        </div>
+      )}
       <div style={{ padding: "28px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
