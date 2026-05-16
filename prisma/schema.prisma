@@ -13,6 +13,7 @@ model User {
   email             String?      @unique
   passwordHash      String?
   mustResetPassword Boolean      @default(false)
+  role              String       @default("user")
   createdAt         DateTime     @default(now())
   workoutLogs       WorkoutLog[]
   profile           UserProfile?
