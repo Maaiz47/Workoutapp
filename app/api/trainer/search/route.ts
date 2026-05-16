@@ -15,11 +15,11 @@ export async function GET(req: NextRequest) {
   if (!trainer || trainer.role !== "trainer") return json({ error: "Trainer account required" }, 403);
 
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
-  if (q.length < 2) return json({ results: [] });
+  if (q.length < 1) return json({ results: [] });
 
   const users = await prisma.user.findMany({
     where: {
-      username: { contains: q, mode: "insensitive" },
+      username: { equals: q, mode: "insensitive" },
       role: "user",
       id: { not: uid },
       clientOf: { is: null },

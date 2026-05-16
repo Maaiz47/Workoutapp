@@ -570,12 +570,12 @@ export default function HomePage() {
     }) }],
   });
 
-  const doTrainerSearch = async (q: string) => {
-    setTrainerSearch(q);
-    if (q.trim().length < 2) { setTrainerResults([]); return; }
+  const doTrainerSearch = async (q?: string) => {
+    const term = (q ?? trainerSearch).trim();
+    if (term.length < 1) { setTrainerResults([]); return; }
     setTrainerSearching(true);
     try {
-      const res = await fetch(`/api/trainer/search?q=${encodeURIComponent(q.trim())}`);
+      const res = await fetch(`/api/trainer/search?q=${encodeURIComponent(term)}`);
       const data = await res.json();
       setTrainerResults(data.results ?? []);
     } catch {}
@@ -1235,12 +1235,16 @@ export default function HomePage() {
       {user.role === "trainer" && (
         <div style={{ padding: "24px 20px 0" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>FIND CLIENTS</div>
-          <input
-            value={trainerSearch}
-            onChange={e => doTrainerSearch(e.target.value)}
-            placeholder="Search by username…"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "13px 16px", width: "100%", outline: "none", boxSizing: "border-box", marginBottom: 10 }}
-          />
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <input
+              value={trainerSearch}
+              onChange={e => { setTrainerSearch(e.target.value); if (!e.target.value.trim()) setTrainerResults([]); }}
+              onKeyDown={e => { if (e.key === "Enter") doTrainerSearch(); }}
+              placeholder="Enter exact username…"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "13px 16px", flex: 1, outline: "none", boxSizing: "border-box" }}
+            />
+            <button onClick={() => doTrainerSearch()} style={{ padding: "13px 18px", background: "#4ECDC4", border: "none", borderRadius: 12, color: "#000", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>SEARCH</button>
+          </div>
           {trainerSearching && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>Searching…</div>}
           {trainerResults.map(u => {
             const req = trainerRequests.find(r => r.userId === u.id);
@@ -1264,7 +1268,7 @@ export default function HomePage() {
               </div>
             );
           })}
-          {trainerSearch.length >= 2 && !trainerSearching && trainerResults.length === 0 && (
+          {trainerSearch.trim().length >= 1 && !trainerSearching && trainerResults.length === 0 && (
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>No users found matching "{trainerSearch}"</div>
           )}
         </div>
