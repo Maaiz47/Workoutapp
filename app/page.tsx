@@ -507,13 +507,14 @@ export default function HomePage() {
   const rest = useCountdown();
   const timer = useTimer();
 
-  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings"]);
+  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "workout"]);
   useSwipeBack(() => {
     if (view === "conversation") { setView("messages"); setActiveConversation(null); }
     else if (view === "messages") setView("home");
     else if (view === "clientDetail") { setView("home"); setEditingPlan(false); setEditedPlanDays(null); }
     else if (view === "progress") { setView("home"); }
     else if (view === "settings") setView("home");
+    else if (view === "workout" && started) setView("home"); // leave but keep session alive
   }, swipeBackViews.has(view));
 
   // On mount: check browser permission; if already granted, re-register subscription
@@ -650,16 +651,14 @@ export default function HomePage() {
       if (!saved) return;
       const session = JSON.parse(saved);
       if (session.userId !== user.id) { localStorage.removeItem("ironlog-session"); return; }
-      const day = WORKOUT_DATA.find(d => d.id === session.dayId);
+      // Support stored full day data (custom plans) or fall back to WORKOUT_DATA lookup
+      const day: WorkoutDay | undefined = session.dayData ?? WORKOUT_DATA.find((d: WorkoutDay) => d.id === session.dayId);
       if (!day) { localStorage.removeItem("ironlog-session"); return; }
-      const ageMin = Math.round((Date.now() - session.startTime) / 60000);
-      const ageStr = ageMin < 60 ? `${ageMin}m ago` : `${Math.round(ageMin / 60)}h ago`;
       setActiveDay(day);
       setLog(session.log || {});
       setStarted(true);
-      setView("workout");
       timer.resumeT(session.startTime);
-      setResumeOverlay({ title: day.title, ageStr });
+      // Stay on home — the active card will show the live session
     } catch { try { localStorage.removeItem("ironlog-session"); } catch {} }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1016,7 +1015,7 @@ export default function HomePage() {
     setStarted(true);
     timer.startT();
     if (user && activeDay) {
-      try { localStorage.setItem("ironlog-session", JSON.stringify({ userId: user.id, dayId: activeDay.id, startTime: Date.now(), log: {} })); } catch {}
+      try { localStorage.setItem("ironlog-session", JSON.stringify({ userId: user.id, dayId: activeDay.id, dayData: activeDay, startTime: Date.now(), log: {} })); } catch {}
     }
   };
 
@@ -1597,24 +1596,49 @@ export default function HomePage() {
           </div>
         </div>
         {planNote && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontStyle: "italic", lineHeight: 1.5 }}>{planNote}</div>}
-        {(customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA).map((d, i) => (
-          <div key={d.id} className="card-hover fade-in" style={{ animationDelay: `${i * 0.06}s`, marginBottom: 10, cursor: "pointer" }} onClick={() => openDay(d)}>
-            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", position: "relative", overflow: "hidden" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: d.gradient, borderRadius: "16px 0 0 16px" }} />
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ paddingLeft: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: d.color, fontWeight: 700, opacity: 0.7 }}>{d.label}</span>
-                    <span style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>{d.title}</span>
+        {(customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA).map((d, i) => {
+          const isActive = started && activeDay?.id === d.id;
+          const isLocked = started && activeDay?.id !== d.id;
+          return (
+            <div
+              key={d.id}
+              className={isLocked ? undefined : "card-hover"}
+              style={{ animationDelay: `${i * 0.06}s`, marginBottom: 10, cursor: isLocked ? "default" : "pointer", opacity: isLocked ? 0.3 : 1, transition: "opacity 0.2s" }}
+              onClick={() => {
+                if (isLocked) return;
+                if (isActive) { setView("workout"); return; }
+                openDay(d);
+              }}
+            >
+              <div style={{
+                background: isActive ? `${d.color}14` : "rgba(255,255,255,0.04)",
+                border: isActive ? `1px solid ${d.color}60` : "1px solid rgba(255,255,255,0.06)",
+                borderRadius: 16, padding: "20px", position: "relative", overflow: "hidden",
+                boxShadow: isActive ? `0 0 20px ${d.color}18` : "none",
+              }}>
+                <div style={{ position: "absolute", top: 0, left: 0, width: isActive ? 6 : 4, height: "100%", background: d.gradient, borderRadius: "16px 0 0 16px" }} />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ paddingLeft: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: d.color, fontWeight: 700, opacity: 0.7 }}>{d.label}</span>
+                      <span style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>{d.title}</span>
+                      {isActive && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: d.color, background: `${d.color}18`, border: `1px solid ${d.color}40`, borderRadius: 4, padding: "2px 6px" }}>ACTIVE</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 6, fontWeight: 300 }}>{d.focus}</div>
+                    {isActive && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: d.color, letterSpacing: 2 }}>{timer.fmt}</div>
+                        <div style={{ fontSize: 11, color: d.color, opacity: 0.7, letterSpacing: 1 }}>TAP TO RESUME →</div>
+                      </div>
+                    )}
+                    {!isActive && history[d.id]?.[0] && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 10, fontFamily: "'Space Mono', monospace" }}>Last: {history[d.id][0].date} · {history[d.id][0].duration}</div>}
                   </div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 6, fontWeight: 300 }}>{d.focus}</div>
-                  {history[d.id]?.[0] && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 10, fontFamily: "'Space Mono', monospace" }}>Last: {history[d.id][0].date} · {history[d.id][0].duration}</div>}
+                  <div style={{ color: isActive ? d.color : "rgba(255,255,255,0.15)", fontSize: 20 }}>›</div>
                 </div>
-                <div style={{ color: "rgba(255,255,255,0.15)", fontSize: 20 }}>›</div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {customPlan && (
         <div style={{ padding: "4px 20px 0", textAlign: "center" }}>
@@ -2724,9 +2748,12 @@ export default function HomePage() {
             <button onClick={rest.stop} style={{ marginTop: 40, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 36px", color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "'DM Sans', sans-serif", letterSpacing: 2, cursor: "pointer" }}>SKIP</button>
           </div>
         )}
-        <div style={{ padding: "20px 20px 16px", background: `linear-gradient(180deg, ${activeDay.color}10, transparent)`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-          <button onClick={abandonWorkout} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.6)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Quit</button>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginTop: 8 }}>{activeDay.title}</div>
+        <div style={{ padding: "16px 20px 14px", background: `linear-gradient(180deg, ${activeDay.color}10, transparent)`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Home</button>
+            <button onClick={abandonWorkout} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.45)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>QUIT ×</button>
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginTop: 10 }}>{activeDay.title}</div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>{activeDay.focus}</div>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
