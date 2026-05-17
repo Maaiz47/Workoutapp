@@ -536,6 +536,13 @@ export default function HomePage() {
   const [goalBfPrev, setGoalBfPrev] = useState("");
   const [editingGoals, setEditingGoals] = useState(false);
   const [savingGoals, setSavingGoals] = useState(false);
+  const [editingMetricId, setEditingMetricId] = useState<string | null>(null);
+  const [editMetricWeight, setEditMetricWeight] = useState("");
+  const [editMetricBf, setEditMetricBf] = useState("");
+  const [editMetricDate, setEditMetricDate] = useState("");
+  const [savingMetric, setSavingMetric] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenConfirm, setRegenConfirm] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeConversation, setActiveConversation] = useState<{ id: string; username: string } | null>(null);
@@ -992,6 +999,8 @@ export default function HomePage() {
       const data = await res.json();
       if (data.metric) {
         setBodyMetrics(prev => [data.metric, ...prev]);
+        if (metricWeight) setOb(o => ({ ...o, weightKg: metricWeight }));
+        if (metricBf) setOb(o => ({ ...o, bodyFatPct: metricBf }));
         setMetricWeight("");
         setMetricBf("");
       }
@@ -1004,6 +1013,45 @@ export default function HomePage() {
       await fetch(`/api/metrics/${id}`, { method: "DELETE" });
       setBodyMetrics(prev => prev.filter(m => m.id !== id));
     } catch {}
+  };
+
+  const saveBodyMetricEdit = async () => {
+    if (!editingMetricId) return;
+    setSavingMetric(true);
+    try {
+      const res = await fetch(`/api/metrics/${editingMetricId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(editMetricWeight && { weightKg: editMetricWeight }),
+          ...(editMetricBf && { bodyFatPct: editMetricBf }),
+          ...(editMetricDate && { date: editMetricDate }),
+        }),
+      });
+      const data = await res.json();
+      if (data.metric) {
+        setBodyMetrics(prev =>
+          prev.map(m => m.id === editingMetricId ? data.metric : m)
+              .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        );
+        setEditingMetricId(null);
+      }
+    } catch {}
+    setSavingMetric(false);
+  };
+
+  const regeneratePlan = async () => {
+    setRegenerating(true);
+    try {
+      const res = await fetch("/api/plan", { method: "POST" });
+      const data = await res.json();
+      if (data.plan?.days?.length) {
+        setCustomPlan(data.plan.days);
+        setPlanNote(data.planNote || "");
+      }
+      setRegenConfirm(false);
+    } catch {}
+    setRegenerating(false);
   };
 
   const saveGoals = async () => {
@@ -1231,6 +1279,14 @@ export default function HomePage() {
   const overall = useMemo(() => getOverallStats(history), [history]);
   const bc: Record<string, string> = { compound: "#2ecc71", isolation: "#74b9ff", cardio: "#FF6B6B" };
 
+  const EQUIPMENT_OPTIONS = [
+    { id: "dumbbell", label: "Dumbbells" }, { id: "barbell", label: "Barbell" },
+    { id: "resistance_band", label: "Resistance Bands" }, { id: "pullup_bar", label: "Pull-Up Bar" },
+    { id: "bench", label: "Bench" }, { id: "kettlebell", label: "Kettlebell" },
+    { id: "dip_bar", label: "Dip Bars" },
+  ];
+  const toggleEquip = (id: string) => setOb(o => ({ ...o, equipment: o.equipment.includes(id) ? o.equipment.filter(e => e !== id) : [...o.equipment, id] }));
+
   // ─── LOADING ────────────────────────────────────────────────────────
   if (authLoading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
@@ -1344,15 +1400,6 @@ export default function HomePage() {
     const obBtn: React.CSSProperties = { display: "block", width: "100%", marginTop: 24, padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
     const obSkip: React.CSSProperties = { background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 14, display: "block", width: "100%" };
     const selCard = (active: boolean): React.CSSProperties => ({ padding: "16px 20px", borderRadius: 12, border: `1px solid ${active ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, background: active ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", cursor: "pointer", marginBottom: 10, transition: "all 0.15s" });
-
-    const EQUIPMENT_OPTIONS = [
-      { id: "dumbbell", label: "Dumbbells" }, { id: "barbell", label: "Barbell" },
-      { id: "resistance_band", label: "Resistance Bands" }, { id: "pullup_bar", label: "Pull-Up Bar" },
-      { id: "bench", label: "Bench" }, { id: "kettlebell", label: "Kettlebell" },
-      { id: "dip_bar", label: "Dip Bars" },
-    ];
-
-    const toggleEquip = (id: string) => setOb(o => ({ ...o, equipment: o.equipment.includes(id) ? o.equipment.filter(e => e !== id) : [...o.equipment, id] }));
 
     const canNext = () => {
       if (onboardingStep === 0) return true;
@@ -2499,6 +2546,54 @@ export default function HomePage() {
                     ))}
                   </div>
                 </div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>LOCATION</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {[{ id: "gym", label: "Gym" }, { id: "home", label: "Home" }, { id: "both", label: "Both" }].map(l => (
+                      <button key={l.id} onClick={() => setOb(o => ({ ...o, location: l.id }))} style={{ flex: 1, padding: "10px 4px", background: ob.location === l.id ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${ob.location === l.id ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: ob.location === l.id ? "#FF6B6B" : "rgba(255,255,255,0.45)", fontSize: 12, cursor: "pointer" }}>{l.label}</button>
+                    ))}
+                  </div>
+                </div>
+                {ob.location !== "gym" && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>EQUIPMENT</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {EQUIPMENT_OPTIONS.map(e => {
+                        const has = ob.equipment.includes(e.id);
+                        return (
+                          <button key={e.id} onClick={() => toggleEquip(e.id)} style={{ padding: "10px 14px", background: has ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${has ? "rgba(255,107,107,0.3)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: has ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
+                            {e.label}{has && <span>✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>FOCUS AREA</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {[
+                      { id: "none", label: "Balanced" },
+                      { id: "shoulders", label: "Shoulders" },
+                      { id: "glutes", label: "Glutes" },
+                      { id: "back", label: "Back" },
+                      { id: "chest", label: "Chest" },
+                      { id: "arms", label: "Arms" },
+                      { id: "core", label: "Core" },
+                      { id: "legs", label: "Legs" },
+                      { id: "rehab_knee", label: "Rehab — Knee" },
+                      { id: "rehab_shoulder", label: "Rehab — Shoulder" },
+                      { id: "rehab_lower_back", label: "Rehab — Lower Back" },
+                    ].map(t => {
+                      const sel = ob.targetArea === t.id;
+                      return (
+                        <button key={t.id} onClick={() => setOb(o => ({ ...o, targetArea: t.id }))} style={{ padding: "9px 14px", background: sel ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
+                          {t.label}{sel && <span>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <button
                   disabled={savingProfile}
                   onClick={async () => {
@@ -2521,6 +2616,20 @@ export default function HomePage() {
                   }}
                   style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: 2, cursor: savingProfile ? "not-allowed" : "pointer", fontFamily: "'Space Mono', monospace", opacity: savingProfile ? 0.6 : 1 }}
                 >{savingProfile ? "SAVING…" : "SAVE CHANGES"}</button>
+                {!regenConfirm ? (
+                  <button
+                    onClick={() => setRegenConfirm(true)}
+                    style={{ width: "100%", padding: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace", marginTop: 8 }}
+                  >REBUILD PLAN FROM SETTINGS</button>
+                ) : (
+                  <div style={{ marginTop: 8, background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12, padding: "14px" }}>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 10 }}>This will replace your current workout plan with a new one generated from your updated settings.</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={regeneratePlan} disabled={regenerating} style={{ flex: 1, padding: "10px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 10, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{regenerating ? "REBUILDING…" : "CONFIRM REBUILD"}</button>
+                      <button onClick={() => setRegenConfirm(false)} style={{ padding: "10px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer" }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2895,6 +3004,26 @@ export default function HomePage() {
               )}
             </div>
 
+            {ob.heightCm && (() => {
+              const latestW = (bodyMetrics.find((m: any) => m.weightKg != null) as any)?.weightKg ?? (ob.weightKg ? parseFloat(ob.weightKg) : null);
+              if (!latestW) return null;
+              const h = parseFloat(ob.heightCm) / 100;
+              const bmi = latestW / (h * h);
+              const cat = bmi < 18.5 ? { label: "Underweight", color: "#A29BFE" }
+                : bmi < 25   ? { label: "Normal range", color: "#4ECDC4" }
+                : bmi < 30   ? { label: "Overweight", color: "#FFD166" }
+                : { label: "Obese", color: "#FF6B6B" };
+              return (
+                <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "14px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 4 }}>BMI</div>
+                    <div style={{ fontSize: 11, color: cat.color, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{cat.label}</div>
+                  </div>
+                  <div style={{ fontSize: 30, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{bmi.toFixed(1)}</div>
+                </div>
+              );
+            })()}
+
             {/* Log today */}
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 12 }}>LOG TODAY</div>
@@ -2997,16 +3126,46 @@ export default function HomePage() {
               <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 12 }}>HISTORY</div>
                 {bodyMetrics.slice(0, 30).map(m => (
-                  <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                    <div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{new Date(m.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
-                      <div style={{ fontSize: 13, color: "#fff", marginTop: 2, fontWeight: 500 }}>
-                        {m.weightKg != null ? `${m.weightKg}kg` : ""}
-                        {m.weightKg != null && m.bodyFatPct != null ? " · " : ""}
-                        {m.bodyFatPct != null ? `${m.bodyFatPct}% bf` : ""}
+                  <div key={m.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                    {editingMetricId === m.id ? (
+                      <div>
+                        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: 1, marginBottom: 4, fontFamily: "'Space Mono', monospace" }}>DATE</div>
+                            <input type="date" value={editMetricDate} onChange={e => setEditMetricDate(e.target.value)} style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, padding: "8px 10px", outline: "none", boxSizing: "border-box", fontFamily: "'Space Mono', monospace" }} />
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: 1, marginBottom: 4, fontFamily: "'Space Mono', monospace" }}>WEIGHT (kg)</div>
+                            <input type="number" value={editMetricWeight} onChange={e => setEditMetricWeight(e.target.value)} placeholder="—" style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, padding: "8px 10px", outline: "none", boxSizing: "border-box", fontFamily: "'Space Mono', monospace" }} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: 1, marginBottom: 4, fontFamily: "'Space Mono', monospace" }}>BODY FAT (%)</div>
+                            <input type="number" value={editMetricBf} onChange={e => setEditMetricBf(e.target.value)} placeholder="—" style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, padding: "8px 10px", outline: "none", boxSizing: "border-box", fontFamily: "'Space Mono', monospace" }} />
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={saveBodyMetricEdit} disabled={savingMetric} style={{ flex: 1, padding: "8px", background: "#4ECDC4", border: "none", borderRadius: 8, color: "#000", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{savingMetric ? "SAVING…" : "SAVE"}</button>
+                          <button onClick={() => setEditingMetricId(null)} style={{ padding: "8px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.4)", fontSize: 10, cursor: "pointer" }}>Cancel</button>
+                        </div>
                       </div>
-                    </div>
-                    <button onClick={() => deleteBodyMetric(m.id)} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.4)", fontSize: 16, cursor: "pointer", padding: "4px 8px" }}>×</button>
+                    ) : (
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{new Date(m.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
+                          <div style={{ fontSize: 13, color: "#fff", marginTop: 2, fontWeight: 500 }}>
+                            {m.weightKg != null ? `${m.weightKg}kg` : ""}
+                            {m.weightKg != null && m.bodyFatPct != null ? " · " : ""}
+                            {m.bodyFatPct != null ? `${m.bodyFatPct}% bf` : ""}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <button onClick={() => { setEditingMetricId(m.id); setEditMetricWeight(m.weightKg != null ? String(m.weightKg) : ""); setEditMetricBf(m.bodyFatPct != null ? String(m.bodyFatPct) : ""); setEditMetricDate(new Date(m.date).toISOString().slice(0, 10)); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 14, cursor: "pointer", padding: "4px 6px" }}>✎</button>
+                          <button onClick={() => deleteBodyMetric(m.id)} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.4)", fontSize: 16, cursor: "pointer", padding: "4px 8px" }}>×</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

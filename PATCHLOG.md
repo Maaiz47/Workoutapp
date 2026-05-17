@@ -33,6 +33,40 @@ Generate VAPID keys: `npx web-push generate-vapid-keys`
 
 ---
 
+## Patch 20 · 2026-05-17
+**Body Metrics Edit + BMI Card + Settings: Location/Equipment/Focus Area + Regenerate Plan**
+
+### Body metric editing
+- Each history entry in the Body tab now has an edit (✎) button alongside the existing delete (×) button
+- Tapping edit opens an inline form with date, weight, and body fat inputs pre-filled with the current values
+- SAVE calls the new `PATCH /api/metrics/[id]` endpoint and updates the entry in-place (re-sorted by date)
+- Cancel reverts without saving
+
+### BMI card
+- New BMI card inserted between the Goals section and the LOG TODAY section in the Body tab
+- Only renders when height is set in the profile; uses the latest logged weight (or profile weight as fallback)
+- Colour-coded category: Underweight (purple), Normal range (teal), Overweight (amber), Obese (red)
+
+### ob staleness fix after logging
+- After logging a body metric, `ob.weightKg` and `ob.bodyFatPct` are now updated in state immediately
+- Settings → BODY & STATS form now reflects the latest logged values without requiring a page reload
+
+### Settings: Location, Equipment, Focus Area
+- LOCATION selector (Gym / Home / Both) added to the Settings BODY & STATS edit form
+- EQUIPMENT multi-select (same options as onboarding) shown when location is not "gym"
+- FOCUS AREA selector with all target areas (Balanced, Shoulders, Glutes, Back, Chest, Arms, Core, Legs, Rehab variants) added before SAVE CHANGES
+
+### Regenerate Plan button
+- REBUILD PLAN FROM SETTINGS button added below SAVE CHANGES in settings
+- Tapping shows a confirmation card explaining the plan will be replaced
+- CONFIRM REBUILD calls `POST /api/plan` and replaces `customPlan` state with the newly generated plan
+- `EQUIPMENT_OPTIONS` and `toggleEquip` moved to component scope so they are accessible in both onboarding and settings
+
+### API
+- `PATCH /api/metrics/[id]` handler already existed; no new routes needed
+
+---
+
 ## Patch 19 · 2026-05-17
 **Body Trend Charts — Time-Scaled + Date Labels; Goals Cancel Fix**
 
@@ -90,16 +124,6 @@ Generate VAPID keys: `npx web-push generate-vapid-keys`
 - Each entry now shows the best weight **and** the rep count achieved at that weight (e.g. `80kg × 8 reps`)
 - Tie-breaking: if two sessions share the same top weight, the one with more reps wins
 - `getOverallStats` updated to store `reps` in `exercisePRs`
-
----
-
-## Patch 15 · 2026-05-17
-**Personal Bests — Renamed + Reps Display**
-
-- Renamed "PERSONAL RECORDS" → "PERSONAL BESTS" on the progress dashboard
-- Each entry now shows the best weight **and** the rep count achieved at that weight (e.g. `80kg × 8 reps`)
-- Tie-breaking updated: if two sessions share the same top weight, the one with more reps is recorded as the best
-- `getOverallStats` updated to store `reps` in `exercisePRs` alongside `weight` and `date`
 
 ---
 
