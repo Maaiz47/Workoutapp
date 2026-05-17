@@ -470,6 +470,7 @@ export default function HomePage() {
   const [clientData, setClientData] = useState<{ profile: any; history: Record<string, any[]>; plan: any } | null>(null);
   const [clientDataLoading, setClientDataLoading] = useState(false);
   const [clientDetailTab, setClientDetailTab] = useState<"split" | "history" | "profile">("split");
+  const [openClientSession, setOpenClientSession] = useState<string | null>(null);
   const [editingPlan, setEditingPlan] = useState(false);
   const [editedPlanDays, setEditedPlanDays] = useState<any[] | null>(null);
   const [proposingPlan, setProposingPlan] = useState(false);
@@ -1990,30 +1991,116 @@ export default function HomePage() {
         )}
 
         {/* ─── HISTORY TAB ─── */}
-        {!clientDataLoading && clientDetailTab === "history" && (
-          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
-            {flatHistory.length === 0 && (
-              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "48px 0" }}>No workouts logged yet</div>
-            )}
-            {flatHistory.map((s: any, i: number) => {
-              const setCount = typeof s.sets === "object" ? Object.keys(s.sets).length : 0;
-              return (
-                <div key={`${s.id}-${i}`} style={{
-                  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)",
-                  borderRadius: 12, padding: "14px 16px", marginBottom: 8,
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{s.dayName}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
-                      {s.date} · {s.duration}{setCount > 0 ? ` · ${setCount} set${setCount !== 1 ? "s" : ""}` : ""}
+        {!clientDataLoading && clientDetailTab === "history" && (() => {
+          // Build exerciseId → name from client plan
+          const exNameMap: Record<string, string> = {};
+          if (clientData?.plan) {
+            for (const day of clientData.plan) {
+              for (const ex of day.exercises ?? []) {
+                exNameMap[ex.exerciseId] = ex.name;
+              }
+            }
+          }
+
+          return (
+            <div className="fade-in" style={{ padding: "16px 20px 0" }}>
+              {flatHistory.length === 0 && (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "48px 0" }}>No workouts logged yet</div>
+              )}
+              {flatHistory.map((s: any, i: number) => {
+                const sessionKey = s.id ?? `${s.dayId}-${i}`;
+                const isOpen = openClientSession === sessionKey;
+                const rawSets = (s.sets ?? {}) as Record<string, { weight: number; reps: number }>;
+
+                // Group sets by exerciseId
+                const byExercise: Record<string, { name: string; sets: { setNum: string; weight: number; reps: number }[] }> = {};
+                for (const [k, v] of Object.entries(rawSets)) {
+                  const parts = k.split("-");
+                  const setNum = parts.pop()!;
+                  const eid = parts.join("-");
+                  if (!byExercise[eid]) byExercise[eid] = { name: exNameMap[eid] ?? eid, sets: [] };
+                  byExercise[eid].sets.push({ setNum, weight: v.weight, reps: v.reps });
+                }
+                for (const ex of Object.values(byExercise)) ex.sets.sort((a, b) => Number(a.setNum) - Number(b.setNum));
+
+                // Planned exercises for this day from client plan
+                const planDay = (clientData?.plan as any)?.days?.find((d: any) => d.id === s.dayId);
+                const plannedExercises: { exerciseId: string; name: string; sets: number }[] =
+                  planDay?.exercises ?? Object.keys(byExercise).map(eid => ({ exerciseId: eid, name: exNameMap[eid] ?? eid, sets: 0 }));
+
+                const loggedCount = Object.keys(byExercise).length;
+                const totalCount = plannedExercises.length || loggedCount;
+                const completedCount = plannedExercises.filter((pe: any) => byExercise[pe.exerciseId]).length;
+
+                return (
+                  <div key={sessionKey} style={{ marginBottom: 8 }}>
+                    <div
+                      onClick={() => setOpenClientSession(isOpen ? null : sessionKey)}
+                      style={{
+                        background: isOpen ? "rgba(78,205,196,0.06)" : "rgba(255,255,255,0.03)",
+                        border: `1px solid ${isOpen ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.05)"}`,
+                        borderRadius: isOpen ? "12px 12px 0 0" : 12,
+                        padding: "14px 16px",
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{s.dayName}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+                          {s.date} · {s.duration}
+                          {totalCount > 0 && <span style={{ color: completedCount === totalCount ? "#4ECDC4" : "rgba(255,180,0,0.7)", marginLeft: 8 }}>
+                            {completedCount}/{totalCount} exercises
+                          </span>}
+                        </div>
+                      </div>
+                      <div style={{ color: "rgba(255,255,255,0.2)", fontSize: 14, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}>›</div>
                     </div>
+
+                    {isOpen && (
+                      <div className="fade-in" style={{
+                        background: "rgba(255,255,255,0.02)", border: "1px solid rgba(78,205,196,0.15)",
+                        borderTop: "none", borderRadius: "0 0 12px 12px", padding: "12px 16px",
+                      }}>
+                        {plannedExercises.length > 0 ? plannedExercises.map((pe: any) => {
+                          const logged = byExercise[pe.exerciseId];
+                          return (
+                            <div key={pe.exerciseId} style={{ marginBottom: 10 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: logged ? "#fff" : "rgba(255,255,255,0.2)" }}>{pe.name}</div>
+                                {!logged && <div style={{ fontSize: 10, color: "rgba(255,107,107,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>SKIPPED</div>}
+                              </div>
+                              {logged && (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px", marginTop: 4 }}>
+                                  {logged.sets.map(set => (
+                                    <div key={set.setNum} style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>
+                                      S{set.setNum} <span style={{ color: "#fff", fontWeight: 600 }}>{set.weight}kg×{set.reps}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }) : Object.entries(byExercise).map(([eid, ex]) => (
+                          <div key={eid} style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#fff", marginBottom: 4 }}>{ex.name}</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px" }}>
+                              {ex.sets.map(set => (
+                                <div key={set.setNum} style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>
+                                  S{set.setNum} <span style={{ color: "#fff", fontWeight: 600 }}>{set.weight}kg×{set.reps}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* ─── PROFILE TAB ─── */}
         {!clientDataLoading && clientDetailTab === "profile" && (
