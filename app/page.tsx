@@ -459,90 +459,162 @@ function Trend({ current, previous, unit = "kg" }: { current: number; previous: 
 // ─── MUSCLE DIAGRAM ──────────────────────────────────────────────────────────
 function MuscleDiagram({ primary, secondary }: { primary: string[]; secondary: string[] }) {
   const mc = (m: string) => primary.includes(m) ? "#FF4422" : secondary.includes(m) ? "#FF9900" : "rgba(255,255,255,0.07)";
-  const mf = (m: string) => primary.includes(m) ? "url(#mgp)" : secondary.includes(m) ? "url(#mgs)" : undefined;
-  const active = (m: string) => primary.includes(m) || secondary.includes(m);
+  const ms = (m: string) => primary.includes(m) ? "rgba(255,100,60,0.5)" : secondary.includes(m) ? "rgba(255,160,40,0.4)" : "rgba(255,255,255,0.1)";
+  const mf = (m: string) => (primary.includes(m) || secondary.includes(m)) ? (primary.includes(m) ? "url(#mgp)" : "url(#mgs)") : undefined;
+  const seg = "rgba(0,0,0,0.22)";
   return (
-    <svg viewBox="0 0 300 342" style={{ width: "100%", maxHeight: 320 }}>
+    <svg viewBox="0 0 300 365" style={{ width: "100%", maxHeight: 340 }}>
       <defs>
         <filter id="mgp" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
         <filter id="mgs" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/>
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
 
-      {/* ── FRONT VIEW (center x=75) ── */}
-      <circle cx={75} cy={20} r={14} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" strokeWidth={1}/>
-      <rect x={70} y={34} width={10} height={10} rx={2} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" strokeWidth={0.5}/>
-      <path d="M46,46 L104,46 L108,64 L100,88 L94,132 L90,154 L60,154 L56,132 L50,88 L42,64 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.14)" strokeWidth={0.8}/>
-      {/* front delts */}
-      <ellipse cx={40} cy={62} rx={13} ry={11} fill={mc("shoulders")} filter={mf("shoulders")}/>
-      <ellipse cx={110} cy={62} rx={13} ry={11} fill={mc("shoulders")} filter={mf("shoulders")}/>
-      {/* chest */}
-      <path d="M48,50 L75,56 L75,83 L50,87 Q46,80 46,66 Z" fill={mc("chest")} filter={mf("chest")}/>
-      <path d="M75,56 L102,50 L104,66 Q104,80 100,87 L75,83 Z" fill={mc("chest")} filter={mf("chest")}/>
-      {active("chest") && <line x1={75} y1={54} x2={75} y2={83} stroke="rgba(0,0,0,0.3)" strokeWidth={0.8}/>}
-      {/* biceps */}
-      <path d="M28,48 L44,48 L42,110 L26,110 Z" fill={mc("biceps")} filter={mf("biceps")}/>
-      <path d="M106,48 L122,48 L124,110 L108,110 Z" fill={mc("biceps")} filter={mf("biceps")}/>
-      {/* forearms */}
-      <path d="M27,114 L42,114 L40,155 L25,151 Z" fill={mc("forearms")} filter={mf("forearms")} stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
-      <path d="M108,114 L123,114 L125,151 L110,155 Z" fill={mc("forearms")} filter={mf("forearms")} stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
-      {/* core/abs */}
-      <rect x={58} y={90} width={34} height={54} rx={3} fill={mc("core")} filter={mf("core")}/>
-      {active("core") && <><line x1={75} y1={90} x2={75} y2={144} stroke="rgba(0,0,0,0.25)" strokeWidth={0.8}/><line x1={58} y1={108} x2={92} y2={108} stroke="rgba(0,0,0,0.2)" strokeWidth={0.8}/><line x1={58} y1={126} x2={92} y2={126} stroke="rgba(0,0,0,0.2)" strokeWidth={0.8}/></>}
-      {/* hips */}
-      <path d="M56,156 L94,156 L100,178 L50,178 Z" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
-      {/* quads */}
-      <path d="M52,180 L74,180 L72,264 L50,264 Z" fill={mc("quads")} filter={mf("quads")}/>
-      <path d="M76,180 L98,180 L100,264 L78,264 Z" fill={mc("quads")} filter={mf("quads")}/>
-      {/* knees */}
-      <rect x={52} y={265} width={22} height={8} rx={3} fill="rgba(255,255,255,0.05)"/>
-      <rect x={78} y={265} width={22} height={8} rx={3} fill="rgba(255,255,255,0.05)"/>
-      {/* calves front (shins) */}
-      <path d="M53,275 L72,275 L70,318 L53,318 Z" fill={mc("calves")} filter={mf("calves")}/>
-      <path d="M78,275 L97,275 L97,318 L80,318 Z" fill={mc("calves")} filter={mf("calves")}/>
-      <text x={75} y={334} textAnchor="middle" fontSize={7.5} fill="rgba(255,255,255,0.22)" fontFamily="monospace" letterSpacing={2}>FRONT</text>
+      {/* ═══ FRONT VIEW (cx=75) ═══ */}
 
-      {/* ── BACK VIEW (center x=225) ── */}
-      <circle cx={225} cy={20} r={14} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" strokeWidth={1}/>
-      <rect x={220} y={34} width={10} height={10} rx={2} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" strokeWidth={0.5}/>
-      <path d="M196,46 L254,46 L258,64 L250,88 L244,132 L240,154 L210,154 L206,132 L200,88 L192,64 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.14)" strokeWidth={0.8}/>
-      {/* rear delts */}
-      <ellipse cx={190} cy={62} rx={13} ry={11} fill={mc("shoulders")} filter={mf("shoulders")}/>
-      <ellipse cx={260} cy={62} rx={13} ry={11} fill={mc("shoulders")} filter={mf("shoulders")}/>
-      {/* traps */}
-      <path d="M196,46 L254,46 L258,70 L225,68 L192,70 Z" fill={mc("back")} filter={mf("back")}/>
-      {/* lats */}
-      <path d="M192,70 L225,68 L223,128 L192,122 Z" fill={mc("back")} filter={mf("back")}/>
-      <path d="M225,68 L258,70 L258,122 L227,128 Z" fill={mc("back")} filter={mf("back")}/>
-      {/* lower back */}
-      <path d="M192,122 L258,122 L256,148 L194,148 Z" fill={mc("back")} filter={mf("back")}/>
-      {/* triceps */}
-      <path d="M178,48 L194,48 L192,110 L176,110 Z" fill={mc("triceps")} filter={mf("triceps")}/>
-      <path d="M256,48 L272,48 L274,110 L258,110 Z" fill={mc("triceps")} filter={mf("triceps")}/>
-      {/* forearms back */}
-      <path d="M176,114 L192,114 L190,155 L174,151 Z" fill={mc("forearms")} filter={mf("forearms")} stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
-      <path d="M258,114 L274,114 L276,151 L262,155 Z" fill={mc("forearms")} filter={mf("forearms")} stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
-      {/* hips back */}
-      <path d="M206,154 L244,154 L248,178 L202,178 Z" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
-      {/* glutes */}
-      <path d="M203,178 L225,182 L223,216 L202,212 Z" fill={mc("glutes")} filter={mf("glutes")}/>
-      <path d="M225,182 L247,178 L248,212 L227,216 Z" fill={mc("glutes")} filter={mf("glutes")}/>
-      {active("glutes") && <line x1={225} y1={178} x2={225} y2={216} stroke="rgba(0,0,0,0.2)" strokeWidth={0.8}/>}
-      {/* hamstrings */}
-      <path d="M202,218 L224,218 L222,264 L200,264 Z" fill={mc("hamstrings")} filter={mf("hamstrings")}/>
-      <path d="M226,218 L248,218 L250,264 L228,264 Z" fill={mc("hamstrings")} filter={mf("hamstrings")}/>
-      {/* knees back */}
-      <rect x={202} y={265} width={22} height={8} rx={3} fill="rgba(255,255,255,0.05)"/>
-      <rect x={226} y={265} width={22} height={8} rx={3} fill="rgba(255,255,255,0.05)"/>
-      {/* calves back */}
-      <path d="M202,275 L222,275 L220,318 L202,318 Z" fill={mc("calves")} filter={mf("calves")}/>
-      <path d="M228,275 L248,275 L250,318 L230,318 Z" fill={mc("calves")} filter={mf("calves")}/>
-      <text x={225} y={334} textAnchor="middle" fontSize={7.5} fill="rgba(255,255,255,0.22)" fontFamily="monospace" letterSpacing={2}>BACK</text>
+      {/* — Body silhouette base — */}
+      <circle cx={75} cy={19} r={15} fill="#181822" stroke="#2a2a3a" strokeWidth={1}/>
+      {/* neck */}
+      <path d="M69,33 Q75,37 81,33 L80,46 Q75,49 70,46 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      {/* torso */}
+      <path d="M38,50 C35,62 34,84 35,110 C36,132 40,152 47,164 C52,174 62,181 75,182 C88,181 98,174 103,164 C110,152 114,132 115,110 C116,84 115,62 112,50 C103,44 90,40 75,40 C60,40 47,44 38,50 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.8}/>
+      {/* hips/pelvis */}
+      <path d="M47,166 C46,172 46,178 49,183 C54,189 63,192 75,192 C87,192 96,189 101,183 C104,178 104,172 103,166 Z" fill="#141420" stroke="#2a2a3a" strokeWidth={0.7}/>
+      {/* left upper arm */}
+      <path d="M36,52 C31,62 28,80 28,100 C28,116 31,128 36,132 C40,135 45,133 48,127 C51,119 52,103 51,85 C50,69 46,57 41,52 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      {/* right upper arm */}
+      <path d="M114,52 C119,62 122,80 122,100 C122,116 119,128 114,132 C110,135 105,133 102,127 C99,119 98,103 99,85 C100,69 104,57 109,52 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      {/* left forearm */}
+      <path d="M29,134 C26,142 25,154 26,164 C27,172 31,178 37,178 C42,177 45,170 45,160 C45,150 42,140 38,135 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      {/* right forearm */}
+      <path d="M121,134 C124,142 125,154 124,164 C123,172 119,178 113,178 C108,177 105,170 105,160 C105,150 108,140 112,135 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      {/* left thigh */}
+      <path d="M48,194 C45,206 43,226 45,246 C47,262 53,274 61,278 C67,280 73,278 76,272 C79,264 80,250 79,232 C78,214 73,198 67,194 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      {/* right thigh */}
+      <path d="M102,194 C105,206 107,226 105,246 C103,262 97,274 89,278 C83,280 77,278 74,272 C71,264 70,250 71,232 C72,214 77,198 83,194 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      {/* left lower leg */}
+      <path d="M46,281 C43,292 43,310 45,324 C47,336 53,344 60,345 C66,345 71,340 73,332 C75,322 75,306 72,292 C70,281 65,276 59,277 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      {/* right lower leg */}
+      <path d="M104,281 C107,292 107,310 105,324 C103,336 97,344 90,345 C84,345 79,340 77,332 C75,322 75,306 78,292 C80,281 85,276 91,277 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+
+      {/* — Front muscle overlays — */}
+
+      {/* SHOULDERS – anterior deltoids */}
+      <path d="M37,52 C33,57 31,65 33,75 C35,82 40,86 46,83 C52,78 53,66 51,56 C48,50 43,48 37,52 Z" fill={mc("shoulders")} filter={mf("shoulders")} stroke={ms("shoulders")} strokeWidth={0.7}/>
+      <path d="M113,52 C117,57 119,65 117,75 C115,82 110,86 104,83 C98,78 97,66 99,56 C102,50 107,48 113,52 Z" fill={mc("shoulders")} filter={mf("shoulders")} stroke={ms("shoulders")} strokeWidth={0.7}/>
+
+      {/* CHEST – pectoralis major (fan shape) */}
+      <path d="M75,60 C67,54 54,51 46,56 C42,60 40,68 43,78 C46,88 54,98 63,103 C68,106 73,106 75,103 Z" fill={mc("chest")} filter={mf("chest")} stroke={ms("chest")} strokeWidth={0.7}/>
+      <path d="M75,60 C83,54 96,51 104,56 C108,60 110,68 107,78 C104,88 96,98 87,103 C82,106 77,106 75,103 Z" fill={mc("chest")} filter={mf("chest")} stroke={ms("chest")} strokeWidth={0.7}/>
+      <line x1={75} y1={58} x2={75} y2={103} stroke={seg} strokeWidth={0.8}/>
+
+      {/* BICEPS – brachii peak on front upper arm */}
+      <path d="M29,70 C27,80 27,97 30,110 C32,119 37,124 42,122 C47,119 48,109 47,96 C46,83 41,72 36,69 Z" fill={mc("biceps")} filter={mf("biceps")} stroke={ms("biceps")} strokeWidth={0.7}/>
+      <path d="M121,70 C123,80 123,97 120,110 C118,119 113,124 108,122 C103,119 102,109 103,96 C104,83 109,72 114,69 Z" fill={mc("biceps")} filter={mf("biceps")} stroke={ms("biceps")} strokeWidth={0.7}/>
+
+      {/* FOREARMS – flexor group front */}
+      <path d="M28,136 C25,144 24,155 26,165 C28,173 33,178 38,176 C43,174 45,165 44,155 C43,145 39,137 34,134 Z" fill={mc("forearms")} filter={mf("forearms")} stroke={ms("forearms")} strokeWidth={0.7}/>
+      <path d="M122,136 C125,144 126,155 124,165 C122,173 117,178 112,176 C107,174 105,165 106,155 C107,145 111,137 116,134 Z" fill={mc("forearms")} filter={mf("forearms")} stroke={ms("forearms")} strokeWidth={0.7}/>
+
+      {/* CORE – rectus abdominis (six segments) + obliques */}
+      {/* Obliques */}
+      <path d="M46,94 C44,102 44,116 47,128 C49,138 55,146 62,148 C63,142 62,133 61,123 C59,112 54,103 49,96 Z" fill={mc("core")} filter={mf("core")} stroke={ms("core")} strokeWidth={0.7}/>
+      <path d="M104,94 C106,102 106,116 103,128 C101,138 95,146 88,148 C87,142 88,133 89,123 C91,112 96,103 101,96 Z" fill={mc("core")} filter={mf("core")} stroke={ms("core")} strokeWidth={0.7}/>
+      {/* Abs upper row */}
+      <path d="M65,105 C63,105 62,107 62,112 C62,117 64,120 67,120 C70,120 73,119 75,118 C77,119 80,120 83,120 C86,120 88,117 88,112 C88,107 87,105 85,105 Z" fill={mc("core")} filter={mf("core")} stroke={ms("core")} strokeWidth={0.7}/>
+      {/* Abs mid row */}
+      <path d="M63,122 C61,122 60,125 61,131 C62,137 65,140 68,140 C71,140 73,138 75,136 C77,138 79,140 82,140 C85,140 88,137 89,131 C90,125 89,122 87,122 Z" fill={mc("core")} filter={mf("core")} stroke={ms("core")} strokeWidth={0.7}/>
+      {/* Abs lower row */}
+      <path d="M63,142 C61,142 60,145 62,151 C63,156 67,159 70,159 C73,159 75,156 75,154 C75,156 77,159 80,159 C83,159 87,156 88,151 C90,145 89,142 87,142 Z" fill={mc("core")} filter={mf("core")} stroke={ms("core")} strokeWidth={0.7}/>
+      {/* Linea alba */}
+      <line x1={75} y1={104} x2={75} y2={159} stroke={seg} strokeWidth={0.7}/>
+
+      {/* QUADS – vastus lateralis, rectus femoris, vastus medialis */}
+      {/* Left outer (vastus lateralis) */}
+      <path d="M47,196 C44,208 43,228 45,248 C47,263 53,273 59,274 C63,272 65,263 64,248 C63,232 58,212 53,197 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
+      {/* Left center (rectus femoris) */}
+      <path d="M55,196 C53,210 52,232 54,250 C56,263 61,272 66,272 C70,270 71,260 70,246 C69,230 65,210 60,197 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
+      {/* Left teardrop vastus medialis */}
+      <path d="M55,256 C53,263 53,272 57,277 C60,280 65,280 67,276 C69,271 68,263 65,258 C63,254 58,253 55,256 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
+      {/* Right outer */}
+      <path d="M103,196 C106,208 107,228 105,248 C103,263 97,273 91,274 C87,272 85,263 86,248 C87,232 92,212 97,197 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
+      {/* Right center */}
+      <path d="M95,196 C97,210 98,232 96,250 C94,263 89,272 84,272 C80,270 79,260 80,246 C81,230 85,210 90,197 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
+      {/* Right teardrop */}
+      <path d="M95,256 C97,263 97,272 93,277 C90,280 85,280 83,276 C81,271 82,263 85,258 C87,254 92,253 95,256 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
+
+      {/* CALVES – tibialis anterior (front shin) */}
+      <path d="M47,284 C44,294 44,312 47,325 C49,334 55,341 61,340 C65,338 67,331 66,319 C65,308 60,294 54,284 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
+      <path d="M103,284 C106,294 106,312 103,325 C101,334 95,341 89,340 C85,338 83,331 84,319 C85,308 90,294 96,284 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
+
+      <text x={75} y={358} textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.2)" fontFamily="monospace" letterSpacing={2}>FRONT</text>
+
+      {/* ═══ BACK VIEW (cx=225) ═══ */}
+
+      {/* — Body silhouette base — */}
+      <circle cx={225} cy={19} r={15} fill="#181822" stroke="#2a2a3a" strokeWidth={1}/>
+      <path d="M219,33 Q225,37 231,33 L230,46 Q225,49 220,46 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      <path d="M188,50 C185,62 184,84 185,110 C186,132 190,152 197,164 C202,174 212,181 225,182 C238,181 248,174 253,164 C260,152 264,132 265,110 C266,84 265,62 262,50 C253,44 240,40 225,40 C210,40 197,44 188,50 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.8}/>
+      <path d="M197,166 C196,172 196,178 199,183 C204,189 213,192 225,192 C237,192 246,189 251,183 C254,178 254,172 253,166 Z" fill="#141420" stroke="#2a2a3a" strokeWidth={0.7}/>
+      <path d="M186,52 C181,62 178,80 178,100 C178,116 181,128 186,132 C190,135 195,133 198,127 C201,119 202,103 201,85 C200,69 196,57 191,52 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      <path d="M264,52 C269,62 272,80 272,100 C272,116 269,128 264,132 C260,135 255,133 252,127 C249,119 248,103 249,85 C250,69 254,57 259,52 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      <path d="M179,134 C176,142 175,154 176,164 C177,172 181,178 187,178 C192,177 195,170 195,160 C195,150 192,140 188,135 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      <path d="M271,134 C274,142 275,154 274,164 C273,172 269,178 263,178 C258,177 255,170 255,160 C255,150 258,140 262,135 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      <path d="M198,194 C195,206 193,226 195,246 C197,262 203,274 211,278 C217,280 223,278 226,272 C229,264 230,250 229,232 C228,214 223,198 217,194 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      <path d="M252,194 C255,206 257,226 255,246 C253,262 247,274 239,278 C233,280 227,278 224,272 C221,264 220,250 221,232 C222,214 227,198 233,194 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      <path d="M196,281 C193,292 193,310 195,324 C197,336 203,344 210,345 C216,345 221,340 223,332 C225,322 225,306 222,292 C220,281 215,276 209,277 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      <path d="M254,281 C257,292 257,310 255,324 C253,336 247,344 240,345 C234,345 229,340 227,332 C225,322 225,306 228,292 C230,281 235,276 241,277 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+
+      {/* — Back muscle overlays — */}
+
+      {/* SHOULDERS – rear deltoids */}
+      <path d="M187,52 C183,57 181,65 183,75 C185,82 190,86 196,83 C202,78 203,66 201,56 C198,50 193,48 187,52 Z" fill={mc("shoulders")} filter={mf("shoulders")} stroke={ms("shoulders")} strokeWidth={0.7}/>
+      <path d="M263,52 C267,57 269,65 267,75 C265,82 260,86 254,83 C248,78 247,66 249,56 C252,50 257,48 263,52 Z" fill={mc("shoulders")} filter={mf("shoulders")} stroke={ms("shoulders")} strokeWidth={0.7}/>
+
+      {/* BACK – trapezius (upper + mid) */}
+      {/* Upper traps: triangle from neck to acromions */}
+      <path d="M225,41 C214,45 200,52 192,61 C190,67 192,73 198,75 C207,77 218,73 225,68 C232,73 243,77 252,75 C258,73 260,67 258,61 C250,52 236,45 225,41 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
+      {/* Mid traps + rhomboids */}
+      <path d="M198,75 C196,84 196,96 200,106 C204,114 212,118 219,116 C222,113 224,108 225,102 C226,108 228,113 231,116 C238,118 246,114 250,106 C254,96 254,84 252,75 C243,79 234,81 226,77 C225,75 225,75 224,77 C216,81 207,79 198,75 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
+      {/* Lats – sweeping wing shape */}
+      <path d="M190,74 C187,86 186,104 188,122 C190,136 194,150 200,156 C204,160 210,160 214,156 C218,151 219,141 217,127 C214,110 208,90 202,78 C198,74 193,71 190,74 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
+      <path d="M260,74 C263,86 264,104 262,122 C260,136 256,150 250,156 C246,160 240,160 236,156 C232,151 231,141 233,127 C236,110 242,90 248,78 C252,74 257,71 260,74 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
+      {/* Lower back / erector spinae */}
+      <path d="M217,108 C215,118 214,132 216,146 C218,156 221,162 225,163 C225,156 224,140 224,126 C224,116 221,108 218,106 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
+      <path d="M233,108 C235,118 236,132 234,146 C232,156 229,162 225,163 C225,156 226,140 226,126 C226,116 229,108 232,106 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
+      <line x1={225} y1={74} x2={225} y2={163} stroke={seg} strokeWidth={0.7}/>
+
+      {/* TRICEPS – long + lateral head (back of upper arm) */}
+      <path d="M179,62 C176,72 175,90 177,106 C179,118 184,126 189,124 C194,121 195,110 193,96 C191,82 186,70 181,63 Z" fill={mc("triceps")} filter={mf("triceps")} stroke={ms("triceps")} strokeWidth={0.7}/>
+      <path d="M271,62 C274,72 275,90 273,106 C271,118 266,126 261,124 C256,121 255,110 257,96 C259,82 264,70 269,63 Z" fill={mc("triceps")} filter={mf("triceps")} stroke={ms("triceps")} strokeWidth={0.7}/>
+
+      {/* FOREARMS – extensor group back */}
+      <path d="M178,136 C175,144 174,156 176,165 C178,173 183,178 188,176 C193,174 195,165 194,155 C193,145 189,137 184,134 Z" fill={mc("forearms")} filter={mf("forearms")} stroke={ms("forearms")} strokeWidth={0.7}/>
+      <path d="M272,136 C275,144 276,156 274,165 C272,173 267,178 262,176 C257,174 255,165 256,155 C257,145 261,137 266,134 Z" fill={mc("forearms")} filter={mf("forearms")} stroke={ms("forearms")} strokeWidth={0.7}/>
+
+      {/* GLUTES – gluteus maximus */}
+      <path d="M197,190 C194,198 193,212 196,224 C199,234 206,241 213,241 C218,239 221,231 220,220 C219,207 213,196 207,191 Z" fill={mc("glutes")} filter={mf("glutes")} stroke={ms("glutes")} strokeWidth={0.7}/>
+      <path d="M253,190 C256,198 257,212 254,224 C251,234 244,241 237,241 C232,239 229,231 230,220 C231,207 237,196 243,191 Z" fill={mc("glutes")} filter={mf("glutes")} stroke={ms("glutes")} strokeWidth={0.7}/>
+      <line x1={225} y1={188} x2={225} y2={241} stroke={seg} strokeWidth={0.8}/>
+
+      {/* HAMSTRINGS – biceps femoris (outer) + semitendinosus (inner) */}
+      <path d="M196,244 C193,256 192,276 195,292 C198,305 204,314 210,315 C215,313 217,303 215,288 C213,272 207,254 201,245 Z" fill={mc("hamstrings")} filter={mf("hamstrings")} stroke={ms("hamstrings")} strokeWidth={0.7}/>
+      <path d="M210,244 C213,256 215,276 213,292 C211,305 206,314 201,315 C197,313 196,303 197,288 C199,272 205,254 210,245 Z" fill={mc("hamstrings")} filter={mf("hamstrings")} stroke={ms("hamstrings")} strokeWidth={0.7}/>
+      <path d="M254,244 C257,256 258,276 255,292 C252,305 246,314 240,315 C235,313 233,303 235,288 C237,272 243,254 249,245 Z" fill={mc("hamstrings")} filter={mf("hamstrings")} stroke={ms("hamstrings")} strokeWidth={0.7}/>
+      <path d="M240,244 C237,256 235,276 237,292 C239,305 244,314 249,315 C253,313 254,303 253,288 C251,272 245,254 240,245 Z" fill={mc("hamstrings")} filter={mf("hamstrings")} stroke={ms("hamstrings")} strokeWidth={0.7}/>
+
+      {/* CALVES – gastrocnemius (two heads create diamond shape) */}
+      <path d="M197,284 C194,296 194,314 197,327 C200,337 206,343 211,342 C214,340 215,332 214,320 C212,307 207,294 201,285 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
+      <path d="M211,284 C215,296 216,314 214,327 C211,337 206,343 202,342 C199,340 198,332 199,320 C201,307 207,294 212,285 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
+      <path d="M253,284 C256,296 256,314 253,327 C250,337 244,343 239,342 C236,340 235,332 236,320 C238,307 243,294 249,285 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
+      <path d="M239,284 C235,296 234,314 236,327 C239,337 244,343 248,342 C251,340 252,332 251,320 C249,307 243,294 238,285 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
+
+      <text x={225} y={358} textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.2)" fontFamily="monospace" letterSpacing={2}>BACK</text>
     </svg>
   );
 }
