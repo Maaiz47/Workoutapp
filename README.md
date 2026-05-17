@@ -1,6 +1,6 @@
 # IRONLOG — Gym Workout Tracker
 
-A full-stack PWA workout tracker. Log sets, track progress, get a personalised training plan, and manage everything from a clean mobile-first UI.
+A full-stack PWA workout tracker. Log sets, track progress, get a personalised training plan, connect with a trainer, and manage everything from a clean mobile-first UI.
 
 ---
 
@@ -13,6 +13,7 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 | ORM | Prisma v5 |
 | Auth | Cookie-based (`ironlog-uid`, httpOnly, 1-year) |
 | Email | Nodemailer via Google Workspace SMTP |
+| Push Notifications | Web Push API + VAPID (`web-push` package) |
 | Hosting | Vercel |
 
 ---
@@ -32,13 +33,19 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Session elapsed timer
 - Comparison indicators on every set: **vs previous set** and **vs last session**
 - Warmup / cardio rows: tap to mark done, no data entry required
-- Instruction hint: "Tap an exercise to log a set"
+- Active workout persists across navigation — leave to home, message, check progress, return anytime
 
 ### Session Persistence
 - In-progress workouts saved to `localStorage` continuously
-- Resume overlay on return: shows workout name and time elapsed since session started
-- Finish review overlay: editable duration field, total sets logged, confirm before saving
-- Edit any logged set mid-session: ± steppers per set in a dedicated overlay
+- Active workout highlighted on home screen with live timer; other days greyed out
+- Tap the active card to resume; tap "← Home" during workout to return without losing session
+- Finish review overlay: editable duration, total sets logged, confirm before saving
+- Edit any logged set mid-session via a dedicated overlay
+
+### Home Screen
+- Active workout card shows live elapsed timer and "TAP TO RESUME →" when a session is in progress
+- Greyed-out cards prevent accidentally starting a second session
+- Notification permission banner (in-app) shown on first visit — "Not now" dismisses persistently
 
 ### Personalised Plan
 - 8-step onboarding questionnaire for new users: days per week, goal, fitness level, location, equipment, gender, DOB, body metrics
@@ -54,22 +61,66 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Searchable exercise browser (110+ exercises, filtered live by name)
 - Changes saved to database instantly; reflected in the workout view
 
+### Saved Routines
+- Save the current plan under any custom name as a snapshot
+- Restore any saved routine at any time (replaces active plan)
+- Share a routine to any user by exact username — appears in their saved routines with attribution
+- List is collapsed by default to prevent accidental restores; count badge shows how many are saved
+
 ### Progress
-- 28-day activity calendar
-- Weekly streak and average session time
-- Personal records dashboard per exercise
-- Per-exercise analytics: avg weight, avg reps, PB, weight trend chart
-- Full session history with delete per session
+- **Dashboard tab:** 28-day activity calendar, weekly streak, average session time, Personal Bests per exercise (best weight + reps achieved)
+- **Exercises tab:** per-exercise analytics — avg weight, avg reps, PB, weight trend chart, full session history
+- **History tab:** full session log grouped by training day, expandable per session
+- **Body tab:** log weight and body fat % over time, set target goals, trend chart, progress-to-goal bars
+
+### Body Metrics
+- Log weight (kg) and body fat % with a date stamp
+- Set target weight and target body fat % goals
+- Trend chart shows last 12 entries
+- Progress bars toward goals; history list with delete
+
+### Profile & Settings
+- **BODY & STATS** section in Settings: edit weight, height, body fat %, date of birth, gender, goal, fitness level, and days per week
+- Changes sync to `UserProfile` in the database
+
+### Trainer System
+- Trainer accounts can search for users by exact username and send a training request
+- Users accept/decline trainer requests from Settings
+- Accepted clients appear in the **MY CLIENTS** section on the trainer's home screen
+- Client detail view (3 tabs):
+  - **SPLIT** — view the client's current plan; trainers can edit exercises inline and propose changes
+  - **HISTORY** — full session log; tap any session to see every exercise logged vs skipped, with weight × reps per set
+  - **PROFILE** — client's body stats and fitness profile
+
+### Plan Proposals (Trainer → Client)
+- Trainer edits client's plan inline and taps "PROPOSE CHANGES"
+- A message is sent to the client containing a full plan preview
+- Client sees ACCEPT / DECLINE buttons in the conversation
+- Accepting replaces their active plan; declining leaves it unchanged
+- Push notification sent to client on proposal; to trainer on response
+
+### Messaging
+- In-app direct messaging between users and their trainer
+- Real-time polling (1-second incremental `?since=` fetch)
+- Unread message badge on the home screen
+- Push notifications for new messages (when app is backgrounded)
+- Swipe left-to-right from the edge to go back in any conversation or detail view
+
+### Push Notifications
+- Web Push API with VAPID keys
+- In-app permission banner on first use — native browser prompt only triggers on explicit "Enable" tap
+- Notifications for: rest timer done, new message, trainer request, plan proposal, proposal response
+- Push subscriptions stored per device; multiple devices supported per user
 
 ### Admin Panel
 - Navigate to `/admin` — password prompt (matches `ADMIN_SECRET` env var)
 - User list: username, email, role badge, log count, join date
 - Delete any user (cascades: profile, plan, logs)
-- Role selector: `user` / `trainer` / `admin` (foundation for upcoming trainer system)
+- Role selector: `user` / `trainer` / `admin`
 
 ### PWA
 - Install to homescreen on iOS and Android
-- Service worker for offline shell
+- Service worker for offline shell and push event handling
 - Custom SVG favicon per route (red dumbbell for main app, purple shield for admin)
 
 ---
@@ -86,9 +137,14 @@ SMTP_USER=              # e.g. admin@yourdomain.com
 SMTP_PASS=              # App password (not your account password)
 SMTP_FROM=              # From address shown to recipients
 ADMIN_SECRET=           # Password for the /admin panel
+VAPID_PUBLIC_KEY=       # Web Push public key (generate with web-push)
+VAPID_PRIVATE_KEY=      # Web Push private key
+VAPID_SUBJECT=          # e.g. mailto:admin@yourdomain.com
 ```
 
-> **SMTP note:** using Google Workspace. SPF and DKIM are configured on the sending domain. DMARC record pending.
+> Generate VAPID keys: `npx web-push generate-vapid-keys`
+
+> **SMTP note:** using Google Workspace. SPF and DKIM are configured on the sending domain.
 
 ---
 
@@ -96,7 +152,7 @@ ADMIN_SECRET=           # Password for the /admin panel
 
 ```bash
 git clone https://github.com/Maaiz47/Workoutapp.git
-cd Workoutapp-main
+cd Workoutapp
 npm install
 cp .env.example .env        # fill in your values
 npx prisma@5 db push        # sync schema to your database
@@ -112,11 +168,8 @@ npm run dev
 1. Push repo to GitHub
 2. Import into [vercel.com/new](https://vercel.com/new)
 3. Add all environment variables (see table above)
-4. Set build command to:
-   ```
-   npx prisma@5 generate && next build
-   ```
-5. Deploy — database schema is pushed separately via `npx prisma@5 db push` from local
+4. Build command (already in `package.json`): `prisma db push && prisma generate && next build`
+5. Deploy — the build command handles schema sync automatically
 
 ---
 
@@ -124,18 +177,35 @@ npm run dev
 
 ```
 app/
-  page.tsx              # Main app — all views (home, workout, progress, auth, onboarding, customise)
-  layout.tsx            # Root layout — metadata, favicon, PWA head tags
+  page.tsx                        # Main app — all views (home, workout, progress, messages,
+  |                               #   conversation, settings, customise, clientDetail)
+  layout.tsx                      # Root layout — metadata, favicon, PWA head tags
   admin/
-    page.tsx            # Admin panel UI
-    layout.tsx          # Admin metadata + favicon
+    page.tsx                      # Admin panel UI
+    layout.tsx                    # Admin metadata + favicon
   api/
-    auth/route.ts       # GET session · POST (check/register/setup/login) · PUT reset · DELETE logout
-    auth/forgot/        # POST — send temp password email
-    profile/route.ts    # GET/POST user profile
-    plan/route.ts       # GET/POST/PUT workout plan
-    logs/route.ts       # GET/POST workout logs
-    admin/route.ts      # GET/DELETE/PATCH user management
+    auth/route.ts                 # Session · register · login · reset · logout
+    auth/forgot/route.ts          # Send temp password email
+    profile/route.ts              # GET / POST / PATCH user profile + goals
+    plan/route.ts                 # GET / POST (generate/init) / PUT (update day) / DELETE
+    workout/route.ts              # GET / POST workout logs
+    metrics/route.ts              # GET / POST body metrics
+    metrics/[id]/route.ts         # DELETE body metric
+    messages/route.ts             # GET conversation list + unread count
+    messages/[userId]/route.ts    # GET / POST messages in a thread
+    plan-proposals/[id]/route.ts  # PATCH (accept/decline) plan proposal
+    routines/route.ts             # GET / POST saved routines
+    routines/[id]/route.ts        # DELETE / POST (restore) saved routine
+    routines/[id]/share/route.ts  # POST share routine to another user
+    trainer/search/route.ts       # GET search users by username
+    trainer/request/route.ts      # POST send trainer request
+    trainer/request/incoming/     # GET / PATCH incoming requests
+    trainer/clients/route.ts      # GET accepted clients list
+    trainer/clients/[clientId]/   # GET client detail (profile + history + plan)
+    trainer/clients/[clientId]/proposal/route.ts  # POST propose plan change
+    push/subscribe/route.ts       # POST save push subscription
+    push/test/route.ts            # POST send test notification
+    admin/route.ts                # GET / DELETE / PATCH user management
 
 lib/
   prisma.ts             # Prisma client singleton
@@ -146,27 +216,43 @@ lib/
   workouts.ts           # Default 5-day PPL split data + types
 
 prisma/
-  schema.prisma         # User, UserProfile, WorkoutPlan, PlanDay, PlanExercise, WorkoutLog
+  schema.prisma         # Full schema — see models below
 
 public/
   favicon.svg           # Main app tab icon (red dumbbell)
-  admin-favicon.svg     # Admin tab icon (purple shield, tab-optimised)
-  admin-icon.svg        # Full-size admin panel icon (login screen + header)
+  admin-favicon.svg     # Admin tab icon (purple shield)
+  admin-icon.svg        # Full-size admin panel icon
   icon-192.svg          # PWA homescreen icon
   manifest.json         # PWA manifest
-  sw.js                 # Service worker
+  sw.js                 # Service worker (push events + rest timer notifications)
 ```
+
+### Prisma Models
+
+| Model | Purpose |
+|---|---|
+| `User` | Auth, role, relations |
+| `UserProfile` | Body stats, goals, fitness profile |
+| `WorkoutPlan` | One per user; container for plan days |
+| `PlanDay` | A single training day with ordered exercises |
+| `PlanExercise` | Exercise entry within a plan day |
+| `WorkoutLog` | Completed session — sets JSON, duration, date |
+| `SavedRoutine` | Named plan snapshot; shareable between users |
+| `Message` | Direct message; supports text and plan_proposal types |
+| `PlanProposal` | Trainer-proposed plan change; linked to a Message |
+| `TrainerRequest` | Pending trainer → user connection request |
+| `TrainerClient` | Accepted trainer–client relationship |
+| `PushSubscription` | Web Push endpoint per device |
+| `BodyMetric` | Weight + body fat % log entry |
 
 ---
 
 ## Roadmap
 
-| Patch | Feature |
+| Item | Status |
 |---|---|
-| 6 | Trainer system — trainer/user roles, adopt clients, view client progress |
-| 7 | In-app trainer–user messaging |
-| 8 | GIF exercise icons, body measurement graphs |
-| — | Swap rule-based plan generator → Claude API (blocked: Anthropic credits) |
-| — | DMARC DNS record (blocked: Dhiraagu registrar access) |
+| Swap rule-based plan generator → Claude API | Blocked: Anthropic credits |
+| DMARC DNS record for revtech.com.mv | Blocked: Dhiraagu registrar access |
+| GIF exercise demo icons | Not started |
 
-See `PATCHLOG.md` for full history of what was built and when.
+See `PATCHLOG.md` for full history.

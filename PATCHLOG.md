@@ -13,20 +13,266 @@
 | `SMTP_PASS` | SMTP app password |
 | `SMTP_FROM` | From address shown to recipients |
 | `ADMIN_SECRET` | Password for `/admin` panel |
+| `VAPID_PUBLIC_KEY` | Web Push public key |
+| `VAPID_PRIVATE_KEY` | Web Push private key |
+| `VAPID_SUBJECT` | e.g. `mailto:admin@revtech.com.mv` |
 
-SMTP is via Google Workspace (`admin@revtech.com.mv`). SPF and DKIM are set up. DMARC record pending — to be added at Dhiraagu (domain registrar for revtech.com.mv).
+SMTP is via Google Workspace (`admin@revtech.com.mv`). SPF and DKIM are set up. DMARC record pending — Dhiraagu registrar access required.
+
+Generate VAPID keys: `npx web-push generate-vapid-keys`
 
 ---
 
 ## Upcoming — Roadmap
 
-| Patch | Feature | Blocked by |
-|---|---|---|
-| — | Swap rule-based plan generator → Claude API | Anthropic checkout unavailable |
-| — | DMARC DNS record for revtech.com.mv | Dhiraagu portal access |
-| 6 | Trainer system: trainer/user roles, adopt users, view client progress | — |
-| 7 | In-app trainer–user messaging | Patch 6 |
-| 8 | GIF exercise icons, body measurement graphs, username system | — |
+| Item | Blocked by |
+|---|---|
+| Swap rule-based plan generator → Claude API | Anthropic checkout unavailable |
+| DMARC DNS record for revtech.com.mv | Dhiraagu portal access |
+| GIF exercise demo icons | — |
+
+---
+
+## Patch 15 · 2026-05-17
+**Personal Bests — Renamed + Reps Display**
+
+- Renamed "PERSONAL RECORDS" → "PERSONAL BESTS" on the progress dashboard
+- Each entry now shows the best weight **and** the rep count achieved at that weight (e.g. `80kg × 8 reps`)
+- Tie-breaking updated: if two sessions share the same top weight, the one with more reps is recorded as the best
+- `getOverallStats` updated to store `reps` in `exercisePRs` alongside `weight` and `date`
+
+---
+
+## Patch 14 · 2026-05-17
+**Client History — Tappable Sessions with Exercise Detail**
+
+- Each session card in the trainer's client HISTORY tab is now tappable
+- Tapping expands the card inline to show every exercise from the client's plan day:
+  - Logged exercises show each set: `S1 80kg×8  S2 75kg×6`
+  - Exercises the client skipped show a **SKIPPED** badge in red
+- Card header shows `X/Y exercises` count — amber if incomplete, teal if all done
+- Collapse by tapping again; smooth `›` chevron rotation indicates state
+
+---
+
+## Patch 13 · 2026-05-17
+**Saved Routines + Routine Sharing**
+
+### Saved routines
+- New **SAVED ROUTINES** section on the home screen (below the split cards)
+- `+ SAVE` button saves the current plan under a custom name as a point-in-time snapshot
+- List is **collapsed by default** — tap the header to expand; count badge shows total saved
+- Collapsed state prevents accidental restores
+- **RESTORE** replaces the active plan with the saved snapshot (confirm dialog)
+- **✕** deletes the saved routine
+
+### Routine sharing
+- Each routine has a `↗` share button
+- Tap it to open an inline username field — enter an exact username and hit SEND
+- The routine is copied into that user's saved routines with "from @sender" attribution shown in teal
+- Recipient can restore or delete the shared routine like any other
+
+### New schema model
+- `SavedRoutine`: `id`, `userId`, `name`, `planJson Json`, `sharedBy String?`, `createdAt`
+
+### New API routes
+- `GET /api/routines` — list user's saved routines
+- `POST /api/routines` — save snapshot (`{ name, days }`)
+- `DELETE /api/routines/[id]` — delete
+- `POST /api/routines/[id]` — restore into active plan (replaces WorkoutPlan in a transaction)
+- `POST /api/routines/[id]/share` — copy routine to another user by username
+
+---
+
+## Patch 12 · 2026-05-17
+**Editable Profile in Settings**
+
+- New **BODY & STATS** card in Settings / Account view
+- Collapsed state shows a 6-cell stats grid: weight, height, body fat %, age, goal, days/week
+- Tap EDIT to expand a full form with inputs for:
+  - Weight (kg), Height (cm), Body Fat (%), Date of Birth
+  - Gender, Goal, Fitness Level, Days per week (pill selectors)
+- Saving calls `POST /api/profile` and updates `UserProfile` in the database
+- Form pre-fills from the existing profile fetched on mount
+
+---
+
+## Patch 11 · 2026-05-17
+**Active Workout Persistence + UX Fixes**
+
+### Leave workout and return
+- Users can now leave an active workout at any time via `← Home` in the workout header
+- Session state (started, log, timer) is preserved in component state — returning to the workout view resumes seamlessly
+- A separate `QUIT ×` button in the workout header abandons the session with confirmation
+
+### Home screen active card
+- The active workout day card gets a coloured border, **ACTIVE** badge, and live elapsed timer
+- Other workout cards are dimmed to 30% opacity and non-tappable during an active session
+- Session restore on page reload stays on home — user sees the active card, taps to resume
+
+### Notification permission flow (fixed)
+- In-app banner (teal card) shown on first visit for users who haven't granted/denied permission
+- "Not now" dismisses persistently via `localStorage`; "ENABLE" triggers the native browser prompt
+- Auth effects no longer call `subscribeToPush()` unconditionally — native prompt no longer appears on every page load
+- `subscribeToPush()` is called silently only when permission is already `"granted"`
+
+### MY CLIENTS always visible for trainers
+- The MY CLIENTS section on the trainer's home screen now always renders even when there are no accepted clients
+- Empty state: "No accepted clients yet"
+
+### Swipe back navigation (widened)
+- Swipe zone widened from 30px to 60px from the left edge for reliability on real devices
+- Swipe-back supported in: conversation, messages, clientDetail, progress, settings, workout (when started)
+
+---
+
+## Patch 10 · 2026-05-17
+**Body Metrics Tracking**
+
+### Logging and history
+- New **Body** tab in the Progress screen
+- Log weight (kg) and/or body fat % with an optional date; stored as `BodyMetric` records
+- History list shows all entries in reverse chronological order with a delete button per entry
+
+### Goals
+- Set a target weight and target body fat % from the Body tab
+- Stored on `UserProfile` via new `PATCH /api/profile` endpoint
+- Progress bars show current vs target with percentage complete
+
+### Trend chart
+- Line chart rendered as an SVG showing the last 12 weight entries
+- Min/max labels on Y axis; date labels on first and last points
+
+### New schema additions
+- `BodyMetric` model: `id`, `userId`, `date`, `weightKg Float?`, `bodyFatPct Float?`
+- `UserProfile`: added `targetWeightKg Float?`, `targetBodyFatPct Float?`
+
+### New API routes
+- `GET /api/metrics` — list user's body metrics (last 200, newest first)
+- `POST /api/metrics` — log a new entry (`{ weightKg?, bodyFatPct?, date? }`)
+- `DELETE /api/metrics/[id]` — delete a metric entry (ownership verified)
+- `PATCH /api/profile` — update goal targets only (`{ targetWeightKg?, targetBodyFatPct? }`)
+
+---
+
+## Patch 9 · 2026-05-17
+**Plan Proposals (Trainer → Client)**
+
+### Trainer workflow
+- In the client detail SPLIT tab, trainer can tap **EDIT PLAN** to enter an inline editing mode
+- Each day's exercises are shown with editable set/reps/rest fields
+- **PROPOSE CHANGES** sends the edited plan to the client as a special message
+
+### Client workflow
+- Plan proposal arrives as a `plan_proposal` message in the conversation
+- Full plan preview is shown: all days with their exercises
+- **ACCEPT** and **DECLINE** buttons appear below the preview
+- Accepting replaces the client's active `WorkoutPlan` (transactional — atomic swap)
+- Declining leaves the current plan unchanged
+- Both actions update the proposal `status` in the database
+
+### Notifications
+- Push notification sent to client when a proposal arrives
+- Push notification sent to trainer when client accepts or declines
+
+### New schema additions
+- `PlanProposal` model: `id`, `trainerId`, `clientId`, `status`, `planJson Json`, timestamps
+- `Message`: added `proposalId String?` linking a message to a `PlanProposal`
+
+### New API routes
+- `POST /api/trainer/clients/[clientId]/proposal` — create proposal and linked message
+- `PATCH /api/plan-proposals/[id]` — accept or decline (`{ action: "accept" | "decline" }`)
+
+---
+
+## Patch 8 · 2026-05-17
+**Push Notifications + VAPID**
+
+### Web Push setup
+- `web-push` npm package (dynamic import in API routes to avoid build-time errors)
+- VAPID keys stored as env vars; service worker (`public/sw.js`) handles push events
+- `PushSubscription` model stores endpoint + keys per device (multiple devices per user supported)
+
+### In-app permission banner
+- Teal banner shown on first app load when permission is `"default"` and not previously dismissed
+- "ENABLE" button triggers the native browser permission prompt then saves the subscription
+- "Not now" stores `ironlog-notif-dismissed` in `localStorage` and hides the banner permanently
+- Enable button also available in Settings if dismissed earlier
+
+### Notification triggers
+- **Rest timer complete** — fires from the service worker rest countdown; works when app is backgrounded
+- **New message** — sent server-side when a message is created
+- **Trainer request** — sent to user when a trainer sends a request
+- **Plan proposal** — sent to client when trainer proposes a plan change
+- **Proposal response** — sent to trainer when client accepts or declines
+
+### New API routes
+- `POST /api/push/subscribe` — save or update a device's push subscription
+- `POST /api/push/test` — send a test notification to the current user's devices
+
+---
+
+## Patch 7 · 2026-05-17
+**In-App Messaging**
+
+### Message model
+- `Message`: `fromId`, `toId`, `body`, `type` (text / plan_proposal), `read`, `requestId?`, `proposalId?`
+
+### Conversations list
+- Messages view shows all conversation threads sorted by most recent
+- Unread count badge on the home screen nav (red dot with count)
+
+### Conversation thread
+- Real-time polling: incremental `?since=` fetch every second for new messages
+- Messages grouped by sender with timestamps
+- Incoming messages marked as read on open
+- `plan_proposal` message type renders a full plan preview with ACCEPT / DECLINE buttons
+
+### Swipe back
+- Swipe right from the left edge to navigate back from a conversation to the messages list
+- Same gesture works in client detail, progress, settings, and workout views
+
+### New API routes
+- `GET /api/messages` — list conversation threads with last message and unread count
+- `GET /api/messages/[userId]` — thread with a specific user (supports `?since=` incremental)
+- `POST /api/messages/[userId]` — send a message
+
+---
+
+## Patch 6 · 2026-05-17
+**Trainer System**
+
+### Role and upgrade
+- Users can request a trainer role upgrade from Settings → TRAINER UPGRADE
+- Upgrade is immediate (no approval required); role stored on `User.role`
+- Trainer badge shown next to username on the home screen
+
+### Finding clients
+- Trainers can search for users by exact username via a search bar on the home screen
+- Search results show username, workout count, and join date
+- **SEND REQUEST** sends a `TrainerRequest` (pending → accepted)
+
+### Client management
+- Users see pending trainer requests in Settings and can ACCEPT or DECLINE
+- Accepted clients appear in the **MY CLIENTS** section on the trainer's home screen
+- Each client card shows workout count and last workout date; tap to open client detail
+
+### Client detail view (3 tabs)
+- **SPLIT** — client's current plan with all exercises per day; trainer can edit inline
+- **HISTORY** — full session log; each session is tappable to see per-exercise detail
+- **PROFILE** — client's body stats (age, weight, height, body fat %, goal, fitness level, location, equipment)
+
+### New schema models
+- `TrainerRequest`: `trainerId`, `userId`, `status` (pending/accepted/declined)
+- `TrainerClient`: `trainerId`, `clientId` (unique — one trainer per client)
+
+### New API routes
+- `GET /api/trainer/search?q=` — find users by exact username
+- `POST /api/trainer/request` — send a trainer request
+- `GET /api/trainer/request/incoming` — list incoming requests for a user
+- `PATCH /api/trainer/request/incoming` — accept or decline a request
+- `GET /api/trainer/clients` — list accepted clients with stats
+- `GET /api/trainer/clients/[clientId]` — client profile + history + plan
 
 ---
 
@@ -51,15 +297,12 @@ SMTP is via Google Workspace (`admin@revtech.com.mv`). SPF and DKIM are set up. 
 
 ### Schema change
 - Added `role String @default("user")` to `User` model
-- Applied via `npx prisma@5 db push`
-- `role` is the foundation for the Patch 6 trainer system
 
 ### Icons
-- `public/admin-icon.svg` — full-size admin panel icon: dark background, purple gradient shield, key symbol, circuit trace corner details. Used on the login screen (88px) and panel header (48px)
-- `public/admin-favicon.svg` — simplified version of the above, optimised for browser tab size (64×64 viewBox, bolder strokes)
-- `public/favicon.svg` — Ironlog browser tab icon: chunky red dumbbell on dark background, designed to read cleanly at 16–32px
-- Main app layout (`app/layout.tsx`) references `favicon.svg`
-- Admin layout (`app/admin/layout.tsx`) references `admin-favicon.svg` and sets page title to "Admin — Ironlog"
+- `public/admin-icon.svg` — full-size admin panel icon
+- `public/admin-favicon.svg` — tab-optimised version
+- `public/favicon.svg` — red dumbbell browser tab icon
+- Admin layout (`app/admin/layout.tsx`) references `admin-favicon.svg`
 
 ---
 
@@ -75,15 +318,8 @@ SMTP is via Google Workspace (`admin@revtech.com.mv`). SPF and DKIM are set up. 
 - Searchable list of all 110+ exercises in the database, filtered live by name
 - Selecting an exercise appends it to the bottom of the day's list
 
-### Plan adapter
-- `planDayToWorkoutDay()` in `app/page.tsx` converts database `PlanDay` records into the `WorkoutDay` type used by the workout view — customised plans render identically to the defaults
-
 ### API: `PUT /api/plan`
 - Accepts `{ dayId, exercises[] }`, atomically deletes and recreates all `PlanExercise` rows for that day in the new order
-
-### Type fixes (`lib/workouts.ts`)
-- Added `type?: "main" | "warmup" | "cardio"` and `name` to `Section` type
-- Added `subtitle?` and made `day?` optional on `WorkoutDay` — required for plan adapter compatibility
 
 ---
 
@@ -92,34 +328,20 @@ SMTP is via Google Workspace (`admin@revtech.com.mv`). SPF and DKIM are set up. 
 
 ### 8-step onboarding questionnaire
 - New users (no workout history) are shown a questionnaire before accessing the app
-- Steps: days per week → goal → fitness level → training location → equipment → gender → date of birth → body metrics (height, weight, optional body fat %)
-- Existing users (have at least one workout log) skip the questionnaire and see their prior plan unchanged
-- Detection: checks `WorkoutLog` count for the user; zero logs = new user flow
+- Steps: days per week → goal → fitness level → training location → equipment → gender → date of birth → body metrics
+- Existing users (have at least one workout log) skip the questionnaire
 
 ### Rule-based plan generator (`lib/planGenerator.ts`)
 - Generates a fully custom workout plan from the user's profile — no AI API call needed
 - Split logic: 2d → Full Body, 3d → PPL or Full Body ×3, 4d → Upper/Lower, 5d → PPL, 6d → PPL ×2
-- Pulls exercises from `lib/exercises.ts` filtered by location, available equipment, and training goal
-- Adjusts sets, reps, and rest per goal (strength / hypertrophy / fat loss / endurance / general) and fitness level
-- Output format matches the intended Claude API response shape — swap is a drop-in replacement once API credits are available
-
-### Exercise database (`lib/exercises.ts`)
-- 110+ exercises tagged: primary/secondary muscles, equipment[], location (gym/home/both), difficulty, type, goals[]
-- `filterExercises()` helper for querying by any combination of tags
+- Pulls exercises from `lib/exercises.ts` filtered by location, equipment, and goal
+- Adjusts sets, reps, and rest per goal and fitness level
 
 ### New Prisma models
-- `UserProfile` — dob, gender, height, weight, body fat %, goal, fitness level, location, equipment[], daysPerWeek
-- `WorkoutPlan` — one per user; contains ordered `PlanDay` records
-- `PlanDay` — dayIndex, title, subtitle, focus string; links to `PlanExercise[]`
-- `PlanExercise` — exerciseId, name, sets, reps, rest, notes, order
+- `UserProfile`, `WorkoutPlan`, `PlanDay`, `PlanExercise`
 
 ### New API routes
-- `GET /api/profile` — fetch current user's profile
-- `POST /api/profile` — upsert profile (used at onboarding completion)
-- `GET /api/plan` — fetch plan with all days and exercises
-- `POST /api/plan` — two modes:
-  - `{ action: "init" }` → creates plan from `WORKOUT_DATA` defaults (preserves original day IDs so workout history still matches)
-  - No action body → generates from profile using `planGenerator`
+- `GET/POST /api/profile`, `GET/POST /api/plan`
 
 ---
 
@@ -127,103 +349,53 @@ SMTP is via Google Workspace (`admin@revtech.com.mv`). SPF and DKIM are set up. 
 **Full Password Auth System + Email + Resume Overlay**
 
 ### Multi-step auth flow
-- Auth is now multi-step: enter username/email → screen adapts based on account state
-  - `new` → register screen (email + password + confirm) — sends welcome email on success
-  - `needs-setup` → setup screen (existing username-only account — add email + new password + confirm)
-  - `has-password` → login screen (password entry + forgot password link)
-- Passwords hashed with `scrypt` via Node built-in `crypto` — no external package (`lib/crypto.ts`)
-- Login accepts **username or email** — if input contains `@`, email lookup is tried first
+- Username → register / setup / login based on account state
+- Passwords hashed with `scrypt` (Node built-in `crypto`)
+- Login accepts username or email
 
 ### Forgot password flow
-- "Forgot password?" on the login step emails a randomly generated temporary password
-- Temp password is hashed and stored; `mustResetPassword` flag is set on the user
-- Email not found → still returns success (prevents email enumeration)
-- API route: `app/api/auth/forgot/route.ts`
-
-### Must-reset password screen
-- After logging in with a temp password, user sees a full-screen "Set a new password" prompt before the app loads
-- Reset via `PUT /api/auth`; clears `mustResetPassword` in the database on success
+- Emails a randomly generated temporary password; `mustResetPassword` flag set
+- Must-reset screen shown on next login before app loads
 
 ### Email system (`lib/email.ts`)
-- Fully rewritten with proper HTML email structure: DOCTYPE, `<table>` layout, inline styles (Gmail-compatible)
-- Plain-text fallback included on every email for spam filter compliance
-- **Welcome email** — sent automatically on new account registration; includes username and app link
-- **Forgot password email** — sends temp password with instructions to reset on login
-- SMTP via Google Workspace (`admin@revtech.com.mv`); configured via env vars
-- Graceful fallback: if SMTP not configured, temp password is logged to server console instead of crashing
+- HTML emails with plain-text fallback; Gmail-compatible inline styles
+- Welcome email + forgot password email via Google Workspace SMTP
 
 ### Resume workout overlay
-- If the app is opened with a saved session in `localStorage`, a full-screen overlay appears (instead of a silent resume)
-- Overlay shows the workout name and how long ago the session started (e.g. "Push Day — Heavy · started 42 min ago")
-- Single "GOT IT" button accepts the resume and navigates to the workout
-- Quitting or finishing a workout always clears the saved session
+- Full-screen overlay if a saved session exists in `localStorage`
+- Shows workout name and elapsed time; single "GOT IT" button to resume
 
 ### Schema changes
-- `User`: added `email String? @unique`, `passwordHash String?`, `mustResetPassword Boolean @default(false)`
-
-### Label clarity — "vs last session"
-- All comparison labels updated from "vs last" / "Last best:" to "vs last session" / "Last session:"
-- Clarifies the reference is the most recent previous session for that specific day
-
-### Dependencies
-- Added `nodemailer ^6.9.0` — run `npm install` after pulling
+- `User`: added `email`, `passwordHash`, `mustResetPassword`
 
 ---
 
 ## Patch 2 · 2026-05-16
 **Session Persistence, Finish Review & Edit Sets**
 
-### localStorage session save
-- In-progress workouts saved to `localStorage` (`ironlog-session`) on every set logged and on start
-- On login, saved session is detected and resume overlay shown (see Patch 3 for overlay details — original was a browser prompt, replaced in Patch 3)
-- Resuming restores all logged sets and restarts the timer from the original start time
-- Quitting (abandon) or finishing always clears the saved session
-
-### Finish review overlay
-- Replaced native `confirm()` dialogs with a full-screen review overlay on save
-- Overlay shows session duration in an editable field — user can correct it if the session was left open
-- Shows total sets logged before confirming
-- Cancelling returns to the workout without data loss
-
-### Edit set feature
-- EDIT button appears in the top-right of each exercise row once at least one set has been logged
-- Opens a full-screen overlay showing all logged sets with ± steppers for weight and reps
-- Saves back to session log and localStorage on confirm
+- In-progress workouts saved to `localStorage` on every set logged
+- Finish review overlay: editable duration, total sets, confirm before saving
+- Edit any logged set mid-session via a full-screen overlay with ± steppers
 
 ---
 
 ## Patch 1 · 2026-05-16
 **UI Fixes, Set Comparisons & Warmup Improvements**
 
-### Layout fix — portrait overflow
-- Stepper buttons reduced: 40px → 34px wide, 48px → 42px tall
-- Input fields given `minWidth: 0` so they compress correctly in portrait without horizontal scroll
-- Both columns use `flex: 1` with overflow constraints
-
-### Set difference indicators
-- Log set panel shows comparison tags below weight and reps:
-  - **vs S{n}** — difference from the previous set in the current session (from set 2 onwards)
-  - **vs last session** — difference from the max weight/reps in the most recent prior session for that day
-- Last session reference uses the **max** value across all sets (not the first stored value)
-
-### Warmup / cardio exercises
-- Non-trackable exercises show "TAP TO MARK DONE"
-- Tapping toggles a ✓ done state and dims the row to 30% opacity
-
-### Instruction hint
-- Subtle italic hint "Tap an exercise to log a set" below the session timer
+- Portrait overflow fix: stepper buttons and input fields constrained correctly
+- Set comparison tags: vs previous set (within session) and vs last session
+- Warmup / cardio exercises: tap to mark done, row dims to 30% opacity
+- Instruction hint: "Tap an exercise to log a set"
 
 ---
 
 ## v1.0 · Initial Build
 **Full-stack PWA workout tracker**
 
-- Next.js 14 app with Prisma + PostgreSQL (Neon) backend
-- 5-day PPL split: Push Heavy, Pull Width, Legs, Push Volume, Pull Thickness (`lib/workouts.ts`)
+- Next.js 14 + Prisma + PostgreSQL (Neon)
+- 5-day PPL split (Push Heavy, Pull Width, Legs, Push Volume, Pull Thickness)
 - Per-set weight and reps logging with ± steppers and last-session pre-fill
-- Session timer (elapsed) and rest countdown timer with audio beep + push notification on rest completion
-- Progress screen: 28-day activity calendar, weekly streak, average session time, personal records dashboard
-- Per-exercise analytics: avg weight, avg reps, PB, weight trend mini-chart, session-over-session trend indicators
-- Full session history with delete per session
-- Cookie-based auth (`ironlog-uid`, 1-year, httpOnly) — find-or-create by username
+- Session timer and rest countdown with audio beep + push notification
+- Progress screen: 28-day calendar, weekly streak, avg session time, personal bests, exercise analytics
+- Cookie-based auth (`ironlog-uid`, 1-year, httpOnly)
 - PWA manifest, service worker, install-to-homescreen support
