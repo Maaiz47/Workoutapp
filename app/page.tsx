@@ -452,6 +452,8 @@ export default function HomePage() {
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "unsupported" | "error" | "requesting">("idle");
   const [testingNotif, setTestingNotif] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [showNotifBanner, setShowNotifBanner] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   // ── Trainer search ──
   const [trainerSearch, setTrainerSearch] = useState("");
@@ -2143,6 +2145,111 @@ export default function HomePage() {
                 : <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 10px" }}>USER</span>
               }
             </div>
+          </div>
+
+          {/* Body & Stats */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: editingProfile ? 16 : 0 }}>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3 }}>BODY & STATS</div>
+              {!editingProfile
+                ? <button onClick={() => setEditingProfile(true)} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 14px", color: "rgba(255,255,255,0.6)", fontSize: 11, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>EDIT</button>
+                : <button onClick={() => setEditingProfile(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
+              }
+            </div>
+            {!editingProfile ? (
+              ob.weightKg || ob.heightCm || ob.dob ? (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 14 }}>
+                  {[
+                    { label: "WEIGHT", value: ob.weightKg ? `${ob.weightKg}kg` : "—" },
+                    { label: "HEIGHT", value: ob.heightCm ? `${ob.heightCm}cm` : "—" },
+                    { label: "BODY FAT", value: ob.bodyFatPct ? `${ob.bodyFatPct}%` : "—" },
+                    { label: "GOAL", value: ob.goal?.replace(/_/g, " ") || "—" },
+                    { label: "LEVEL", value: ob.fitnessLevel || "—" },
+                    { label: "DAYS/WK", value: ob.daysPerWeek ? `${ob.daysPerWeek}` : "—" },
+                  ].map((s, i) => (
+                    <div key={i} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 8px", textAlign: "center" }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{s.value}</div>
+                      <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginTop: 4, fontFamily: "'Space Mono', monospace" }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", marginTop: 10 }}>No profile set up yet — tap EDIT to add your details</div>
+              )
+            ) : (
+              <div>
+                {[
+                  { label: "Weight (kg)", key: "weightKg", type: "number", placeholder: "e.g. 80" },
+                  { label: "Height (cm)", key: "heightCm", type: "number", placeholder: "e.g. 178" },
+                  { label: "Body Fat %", key: "bodyFatPct", type: "number", placeholder: "e.g. 18 (optional)" },
+                  { label: "Date of birth", key: "dob", type: "date", placeholder: "" },
+                ].map(f => (
+                  <div key={f.key} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>{f.label.toUpperCase()}</div>
+                    <input
+                      type={f.type}
+                      value={(ob as any)[f.key]}
+                      placeholder={f.placeholder}
+                      onChange={e => setOb(o => ({ ...o, [f.key]: e.target.value }))}
+                      style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 15, padding: "11px 14px", outline: "none", boxSizing: "border-box", fontFamily: f.type === "number" ? "'Space Mono', monospace" : "'DM Sans', sans-serif", colorScheme: "dark" }}
+                    />
+                  </div>
+                ))}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>GENDER</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {["male", "female", "other"].map(g => (
+                      <button key={g} onClick={() => setOb(o => ({ ...o, gender: g }))} style={{ flex: 1, padding: "10px 6px", background: ob.gender === g ? "rgba(255,107,107,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${ob.gender === g ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: ob.gender === g ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textTransform: "capitalize" }}>{g}</button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>GOAL</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {[{ id: "lose_fat", label: "Lose Fat" }, { id: "build_muscle", label: "Build Muscle" }, { id: "improve_fitness", label: "Improve Fitness" }, { id: "recomposition", label: "Recomposition" }].map(g => (
+                      <button key={g.id} onClick={() => setOb(o => ({ ...o, goal: g.id }))} style={{ padding: "10px 14px", background: ob.goal === g.id ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${ob.goal === g.id ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: ob.goal === g.id ? "#FF6B6B" : "rgba(255,255,255,0.55)", fontSize: 13, cursor: "pointer", textAlign: "left" }}>{g.label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>FITNESS LEVEL</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {["beginner", "intermediate", "advanced"].map(l => (
+                      <button key={l} onClick={() => setOb(o => ({ ...o, fitnessLevel: l }))} style={{ flex: 1, padding: "10px 4px", background: ob.fitnessLevel === l ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${ob.fitnessLevel === l ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: ob.fitnessLevel === l ? "#FF6B6B" : "rgba(255,255,255,0.45)", fontSize: 11, cursor: "pointer", textTransform: "capitalize" }}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>DAYS PER WEEK</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {[3, 4, 5, 6].map(n => (
+                      <button key={n} onClick={() => setOb(o => ({ ...o, daysPerWeek: n }))} style={{ flex: 1, padding: "12px 0", background: ob.daysPerWeek === n ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${ob.daysPerWeek === n ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: ob.daysPerWeek === n ? "#FF6B6B" : "rgba(255,255,255,0.45)", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{n}</button>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  disabled={savingProfile}
+                  onClick={async () => {
+                    setSavingProfile(true);
+                    try {
+                      await fetch("/api/profile", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          dob: ob.dob, gender: ob.gender, heightCm: ob.heightCm, weightKg: ob.weightKg,
+                          bodyFatPct: ob.bodyFatPct || null, goal: ob.goal, fitnessLevel: ob.fitnessLevel,
+                          location: ob.location || "gym", equipment: ob.equipment.length ? ob.equipment : ["barbell","dumbbell","cable","machine"],
+                          daysPerWeek: ob.daysPerWeek, targetArea: ob.targetArea || "none",
+                        }),
+                      });
+                      setEditingProfile(false);
+                    } catch {}
+                    setSavingProfile(false);
+                  }}
+                  style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: 2, cursor: savingProfile ? "not-allowed" : "pointer", fontFamily: "'Space Mono', monospace", opacity: savingProfile ? 0.6 : 1 }}
+                >{savingProfile ? "SAVING…" : "SAVE CHANGES"}</button>
+              </div>
+            )}
           </div>
 
           {/* Trainer upgrade */}
