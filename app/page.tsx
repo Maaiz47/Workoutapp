@@ -218,7 +218,7 @@ function useSwipeBack(onBack: () => void, enabled: boolean) {
     const onTouchStart = (e: TouchEvent) => {
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
-      active = startX < 30;
+      active = startX < 60;
     };
 
     const onTouchEnd = (e: TouchEvent) => {
@@ -226,14 +226,18 @@ function useSwipeBack(onBack: () => void, enabled: boolean) {
       active = false;
       const dx = e.changedTouches[0].clientX - startX;
       const dy = Math.abs(e.changedTouches[0].clientY - startY);
-      if (dx > 72 && dy < dx * 0.65) onBackRef.current();
+      if (dx > 60 && dy < dx * 0.7) onBackRef.current();
     };
+
+    const onTouchCancel = () => { active = false; };
 
     document.addEventListener("touchstart", onTouchStart, { passive: true });
     document.addEventListener("touchend", onTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", onTouchCancel, { passive: true });
     return () => {
       document.removeEventListener("touchstart", onTouchStart);
       document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("touchcancel", onTouchCancel);
     };
   }, [enabled]);
 }
@@ -533,7 +537,10 @@ export default function HomePage() {
       if (data.user) {
         setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user" });
         if (data.user.mustReset) setMustResetPassword(true);
-        subscribeToPush().then(s => setNotifStatus(s));
+        // Only silently re-save subscription if permission already granted — never prompt here
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          subscribeToPush().then(s => setNotifStatus(s));
+        }
       }
       setAuthLoading(false);
     }).catch(() => setAuthLoading(false));
@@ -685,7 +692,8 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "register", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush().then(s => setNotifStatus(s));
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
+      setShowNotifBanner(!localStorage.getItem("ironlog-notif-dismissed"));
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -695,7 +703,8 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "setup", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush().then(s => setNotifStatus(s));
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
+      setShowNotifBanner(!localStorage.getItem("ironlog-notif-dismissed"));
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -704,7 +713,7 @@ export default function HomePage() {
     try {
       const data = await authPost({ action: "login", username: nameInput.trim().toLowerCase(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
-      setUser({ id: data.id, username: data.username, role: data.role ?? "user" }); subscribeToPush().then(s => setNotifStatus(s));
+      setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
       if (data.mustReset) setMustResetPassword(true);
     } catch { setAuthError("Something went wrong"); }
   };
@@ -1661,10 +1670,12 @@ export default function HomePage() {
           )}
         </div>
       )}
-      {user.role === "trainer" && clients.length > 0 && (
+      {user.role === "trainer" && (
         <div style={{ padding: "24px 20px 0" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>MY CLIENTS</div>
-          {clients.map(c => (
+          {clients.length === 0 ? (
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontStyle: "italic", padding: "8px 0" }}>No accepted clients yet — send requests above</div>
+          ) : clients.map(c => (
             <div key={c.id} className="card-hover" onClick={() => openClientDetail(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
