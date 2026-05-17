@@ -362,6 +362,42 @@ function getOverallStats(history: Record<string, any[]>) {
 }
 
 // Mini bar chart component
+function BodyTrendChart({ items, color, unit }: { items: { value: number; date: string }[]; color: string; unit: string }) {
+  if (items.length < 2) return null;
+  const W = 320, H = 90, PL = 36, PR = 8, PT = 10, PB = 22;
+  const times = items.map(i => new Date(i.date).getTime());
+  const minT = Math.min(...times), maxT = Math.max(...times);
+  const tRange = maxT - minT || 1;
+  const vals = items.map(i => i.value);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const vRange = maxV - minV || 1;
+  const cx = (d: string) => PL + ((new Date(d).getTime() - minT) / tRange) * (W - PL - PR);
+  const cy = (v: number) => PT + ((maxV - v) / vRange) * (H - PT - PB);
+  const pathD = items.map((it, i) => `${i === 0 ? "M" : "L"}${cx(it.date).toFixed(1)},${cy(it.value).toFixed(1)}`).join(" ");
+  const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  // pick up to 3 evenly spaced labels
+  const labelIdxs = items.length === 2 ? [0, 1] : [0, Math.floor(items.length / 2), items.length - 1];
+  const uniqueIdxs = labelIdxs.filter((v, i, a) => a.indexOf(v) === i);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block", overflow: "visible" }}>
+      <line x1={PL} y1={PT} x2={PL} y2={H - PB} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+      <text x={PL - 4} y={PT + 5} fill="rgba(255,255,255,0.3)" fontSize="8" textAnchor="end" fontFamily="monospace">{maxV.toFixed(1)}</text>
+      {vRange > 0 && <text x={PL - 4} y={H - PB} fill="rgba(255,255,255,0.3)" fontSize="8" textAnchor="end" fontFamily="monospace">{minV.toFixed(1)}</text>}
+      <path d={pathD} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
+      {items.map((it, i) => {
+        const isLast = i === items.length - 1;
+        return <circle key={i} cx={cx(it.date)} cy={cy(it.value)} r={isLast ? 4 : 2.5} fill={isLast ? color : `${color}70`} />;
+      })}
+      {uniqueIdxs.map((idx, i) => {
+        const it = items[idx];
+        const x = Math.max(PL, Math.min(W - PR, cx(it.date)));
+        const anchor = i === 0 ? "start" : i === uniqueIdxs.length - 1 ? "end" : "middle";
+        return <text key={idx} x={x} y={H - 5} fill="rgba(255,255,255,0.25)" fontSize="7.5" textAnchor={anchor} fontFamily="monospace">{fmt(it.date)}</text>;
+      })}
+    </svg>
+  );
+}
+
 function MiniChart({ data, color, label }: { data: number[]; color: string; label: string }) {
   if (data.length < 2) return null;
   const max = Math.max(...data), min = Math.min(...data);
@@ -485,6 +521,8 @@ export default function HomePage() {
   const [loggingMetric, setLoggingMetric] = useState(false);
   const [goalWeight, setGoalWeight] = useState("");
   const [goalBf, setGoalBf] = useState("");
+  const [goalWeightPrev, setGoalWeightPrev] = useState("");
+  const [goalBfPrev, setGoalBfPrev] = useState("");
   const [editingGoals, setEditingGoals] = useState(false);
   const [savingGoals, setSavingGoals] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
@@ -2813,7 +2851,7 @@ export default function HomePage() {
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>GOALS</div>
-                {!editingGoals && <button onClick={() => setEditingGoals(true)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>EDIT</button>}
+                {!editingGoals && <button onClick={() => { setGoalWeightPrev(goalWeight); setGoalBfPrev(goalBf); setEditingGoals(true); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>EDIT</button>}
               </div>
               {editingGoals ? (
                 <div>
@@ -2831,7 +2869,7 @@ export default function HomePage() {
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={saveGoals} disabled={savingGoals} style={{ flex: 1, padding: "10px", background: "#4ECDC4", border: "none", borderRadius: 10, color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{savingGoals ? "SAVING…" : "SAVE GOALS"}</button>
-                    <button onClick={() => setEditingGoals(false)} style={{ padding: "10px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer" }}>Cancel</button>
+                    <button onClick={() => { setGoalWeight(goalWeightPrev); setGoalBf(goalBfPrev); setEditingGoals(false); }} style={{ padding: "10px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer" }}>Cancel</button>
                   </div>
                 </div>
               ) : (
@@ -2869,8 +2907,10 @@ export default function HomePage() {
             {/* Trend + progress (if data exists) */}
             {bodyMetrics.length > 0 && (() => {
               const latest = bodyMetrics[0];
-              const weightData = bodyMetrics.filter(m => m.weightKg != null).map(m => m.weightKg).reverse();
-              const bfData = bodyMetrics.filter(m => m.bodyFatPct != null).map(m => m.bodyFatPct).reverse();
+              const weightItems = bodyMetrics.filter(m => m.weightKg != null).map(m => ({ value: m.weightKg as number, date: m.date as string })).reverse();
+              const bfItems = bodyMetrics.filter(m => m.bodyFatPct != null).map(m => ({ value: m.bodyFatPct as number, date: m.date as string })).reverse();
+              const weightData = weightItems.map(i => i.value);
+              const bfData = bfItems.map(i => i.value);
               const targetW = goalWeight ? parseFloat(goalWeight) : null;
               const targetBf = goalBf ? parseFloat(goalBf) : null;
 
@@ -2919,16 +2959,22 @@ export default function HomePage() {
                   )}
 
                   {/* Trend charts */}
-                  {weightData.length >= 2 && (
+                  {weightItems.length >= 2 && (
                     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 8 }}>WEIGHT TREND</div>
-                      <MiniChart data={weightData} color="#4ECDC4" label={`${weightData[weightData.length - 1]}kg`} />
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>WEIGHT TREND</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>{weightItems[weightItems.length - 1].value.toFixed(1)}kg</div>
+                      </div>
+                      <BodyTrendChart items={weightItems} color="#4ECDC4" unit="kg" />
                     </div>
                   )}
-                  {bfData.length >= 2 && (
+                  {bfItems.length >= 2 && (
                     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 8 }}>BODY FAT TREND</div>
-                      <MiniChart data={bfData} color="#A29BFE" label={`${bfData[bfData.length - 1]}%`} />
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>BODY FAT TREND</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: "#A29BFE", fontFamily: "'Space Mono', monospace" }}>{bfItems[bfItems.length - 1].value.toFixed(1)}%</div>
+                      </div>
+                      <BodyTrendChart items={bfItems} color="#A29BFE" unit="%" />
                     </div>
                   )}
                 </>

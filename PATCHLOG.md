@@ -33,6 +33,22 @@ Generate VAPID keys: `npx web-push generate-vapid-keys`
 
 ---
 
+## Patch 19 · 2026-05-17
+**Body Trend Charts — Time-Scaled + Date Labels; Goals Cancel Fix**
+
+### Time-scaled trend charts
+- Weight and body fat trend charts now use a new `BodyTrendChart` SVG component
+- X-axis positions are proportional to actual time between recordings — recordings a week apart are spaced further than recordings a day apart
+- Date labels shown on x-axis (first recording, a middle point, most recent)
+- Current value displayed as a large number in the chart header; latest dot is highlighted in full colour, older dots are dimmed
+- Y-axis shows min and max values
+
+### Goals cancel fix
+- Opening the Goals EDIT dialog now snapshots the current values
+- Cancelling restores the snapshot — previously, clearing the inputs then cancelling would leave the Goals section showing "—" until page reload (values were only in DB from last explicit SAVE GOALS, but local state was cleared)
+
+---
+
 ## Patch 18 · 2026-05-17
 **Bug fixes — Multi-goal toggle + Body metrics refresh**
 
