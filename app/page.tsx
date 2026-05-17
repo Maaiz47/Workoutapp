@@ -456,6 +456,105 @@ function Trend({ current, previous, unit = "kg" }: { current: number; previous: 
   );
 }
 
+// ─── MUSCLE DIAGRAM ──────────────────────────────────────────────────────────
+function MuscleDiagram({ primary, secondary }: { primary: string[]; secondary: string[] }) {
+  const mc = (m: string) => primary.includes(m) ? "#FF4422" : secondary.includes(m) ? "#FF9900" : "rgba(255,255,255,0.07)";
+  const mf = (m: string) => primary.includes(m) ? "url(#mgp)" : secondary.includes(m) ? "url(#mgs)" : undefined;
+  const active = (m: string) => primary.includes(m) || secondary.includes(m);
+  return (
+    <svg viewBox="0 0 300 342" style={{ width: "100%", maxHeight: 320 }}>
+      <defs>
+        <filter id="mgp" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="mgs" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      {/* ── FRONT VIEW (center x=75) ── */}
+      <circle cx={75} cy={20} r={14} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" strokeWidth={1}/>
+      <rect x={70} y={34} width={10} height={10} rx={2} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" strokeWidth={0.5}/>
+      <path d="M46,46 L104,46 L108,64 L100,88 L94,132 L90,154 L60,154 L56,132 L50,88 L42,64 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.14)" strokeWidth={0.8}/>
+      {/* front delts */}
+      <ellipse cx={40} cy={62} rx={13} ry={11} fill={mc("shoulders")} filter={mf("shoulders")}/>
+      <ellipse cx={110} cy={62} rx={13} ry={11} fill={mc("shoulders")} filter={mf("shoulders")}/>
+      {/* chest */}
+      <path d="M48,50 L75,56 L75,83 L50,87 Q46,80 46,66 Z" fill={mc("chest")} filter={mf("chest")}/>
+      <path d="M75,56 L102,50 L104,66 Q104,80 100,87 L75,83 Z" fill={mc("chest")} filter={mf("chest")}/>
+      {active("chest") && <line x1={75} y1={54} x2={75} y2={83} stroke="rgba(0,0,0,0.3)" strokeWidth={0.8}/>}
+      {/* biceps */}
+      <path d="M28,48 L44,48 L42,110 L26,110 Z" fill={mc("biceps")} filter={mf("biceps")}/>
+      <path d="M106,48 L122,48 L124,110 L108,110 Z" fill={mc("biceps")} filter={mf("biceps")}/>
+      {/* forearms (no group) */}
+      <path d="M27,114 L42,114 L40,155 L25,151 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
+      <path d="M108,114 L123,114 L125,151 L110,155 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
+      {/* core/abs */}
+      <rect x={58} y={90} width={34} height={54} rx={3} fill={mc("core")} filter={mf("core")}/>
+      {active("core") && <><line x1={75} y1={90} x2={75} y2={144} stroke="rgba(0,0,0,0.25)" strokeWidth={0.8}/><line x1={58} y1={108} x2={92} y2={108} stroke="rgba(0,0,0,0.2)" strokeWidth={0.8}/><line x1={58} y1={126} x2={92} y2={126} stroke="rgba(0,0,0,0.2)" strokeWidth={0.8}/></>}
+      {/* hips */}
+      <path d="M56,156 L94,156 L100,178 L50,178 Z" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
+      {/* quads */}
+      <path d="M52,180 L74,180 L72,264 L50,264 Z" fill={mc("quads")} filter={mf("quads")}/>
+      <path d="M76,180 L98,180 L100,264 L78,264 Z" fill={mc("quads")} filter={mf("quads")}/>
+      {/* knees */}
+      <rect x={52} y={265} width={22} height={8} rx={3} fill="rgba(255,255,255,0.05)"/>
+      <rect x={78} y={265} width={22} height={8} rx={3} fill="rgba(255,255,255,0.05)"/>
+      {/* calves front (shins) */}
+      <path d="M53,275 L72,275 L70,318 L53,318 Z" fill={mc("calves")} filter={mf("calves")}/>
+      <path d="M78,275 L97,275 L97,318 L80,318 Z" fill={mc("calves")} filter={mf("calves")}/>
+      <text x={75} y={334} textAnchor="middle" fontSize={7.5} fill="rgba(255,255,255,0.22)" fontFamily="monospace" letterSpacing={2}>FRONT</text>
+
+      {/* ── BACK VIEW (center x=225) ── */}
+      <circle cx={225} cy={20} r={14} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" strokeWidth={1}/>
+      <rect x={220} y={34} width={10} height={10} rx={2} fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" strokeWidth={0.5}/>
+      <path d="M196,46 L254,46 L258,64 L250,88 L244,132 L240,154 L210,154 L206,132 L200,88 L192,64 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.14)" strokeWidth={0.8}/>
+      {/* rear delts */}
+      <ellipse cx={190} cy={62} rx={13} ry={11} fill={mc("shoulders")} filter={mf("shoulders")}/>
+      <ellipse cx={260} cy={62} rx={13} ry={11} fill={mc("shoulders")} filter={mf("shoulders")}/>
+      {/* traps */}
+      <path d="M196,46 L254,46 L258,70 L225,68 L192,70 Z" fill={mc("back")} filter={mf("back")}/>
+      {/* lats */}
+      <path d="M192,70 L225,68 L223,128 L192,122 Z" fill={mc("back")} filter={mf("back")}/>
+      <path d="M225,68 L258,70 L258,122 L227,128 Z" fill={mc("back")} filter={mf("back")}/>
+      {/* lower back */}
+      <path d="M192,122 L258,122 L256,148 L194,148 Z" fill={mc("back")} filter={mf("back")}/>
+      {/* triceps */}
+      <path d="M178,48 L194,48 L192,110 L176,110 Z" fill={mc("triceps")} filter={mf("triceps")}/>
+      <path d="M256,48 L272,48 L274,110 L258,110 Z" fill={mc("triceps")} filter={mf("triceps")}/>
+      {/* forearms back */}
+      <path d="M176,114 L192,114 L190,155 L174,151 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
+      <path d="M258,114 L274,114 L276,151 L262,155 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
+      {/* hips back */}
+      <path d="M206,154 L244,154 L248,178 L202,178 Z" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
+      {/* glutes */}
+      <path d="M203,178 L225,182 L223,216 L202,212 Z" fill={mc("glutes")} filter={mf("glutes")}/>
+      <path d="M225,182 L247,178 L248,212 L227,216 Z" fill={mc("glutes")} filter={mf("glutes")}/>
+      {active("glutes") && <line x1={225} y1={178} x2={225} y2={216} stroke="rgba(0,0,0,0.2)" strokeWidth={0.8}/>}
+      {/* hamstrings */}
+      <path d="M202,218 L224,218 L222,264 L200,264 Z" fill={mc("hamstrings")} filter={mf("hamstrings")}/>
+      <path d="M226,218 L248,218 L250,264 L228,264 Z" fill={mc("hamstrings")} filter={mf("hamstrings")}/>
+      {/* knees back */}
+      <rect x={202} y={265} width={22} height={8} rx={3} fill="rgba(255,255,255,0.05)"/>
+      <rect x={226} y={265} width={22} height={8} rx={3} fill="rgba(255,255,255,0.05)"/>
+      {/* calves back */}
+      <path d="M202,275 L222,275 L220,318 L202,318 Z" fill={mc("calves")} filter={mf("calves")}/>
+      <path d="M228,275 L248,275 L250,318 L230,318 Z" fill={mc("calves")} filter={mf("calves")}/>
+      <text x={225} y={334} textAnchor="middle" fontSize={7.5} fill="rgba(255,255,255,0.22)" fontFamily="monospace" letterSpacing={2}>BACK</text>
+    </svg>
+  );
+}
+
+function lookupExMuscles(name: string): { muscles: string[]; secondaryMuscles: string[] } {
+  const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const key = n(name);
+  let found = EXERCISES.find(e => n(e.name) === key);
+  if (!found) found = EXERCISES.find(e => key.includes(n(e.name)) || n(e.name).includes(key));
+  return { muscles: found?.primaryMuscles ?? [], secondaryMuscles: found?.secondaryMuscles ?? [] };
+}
+
 // ─── MAIN ───────────────────────────────────────────────────────────────
 export default function HomePage() {
   const [user, setUser] = useState<{ id: string; username: string; role: string } | null>(null);
@@ -574,9 +673,11 @@ export default function HomePage() {
     goals: [] as string[], targetArea: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
   });
 
-  const [formPreview, setFormPreview] = useState<{ id: string; name: string; muscles: string[] } | null>(null);
+  const [formPreview, setFormPreview] = useState<{ id: string; name: string; muscles: string[]; secondaryMuscles?: string[] } | null>(null);
   const [formFrame, setFormFrame] = useState(0);
   const [formImgError, setFormImgError] = useState(false);
+  const [modalSlide, setModalSlide] = useState(0);
+  const swipeTouchX = useRef(0);
 
   const rest = useCountdown();
   const timer = useTimer();
@@ -743,6 +844,7 @@ export default function HomePage() {
     if (!formPreview) return;
     setFormFrame(0);
     setFormImgError(false);
+    setModalSlide(0);
     const iv = setInterval(() => setFormFrame(f => f === 0 ? 1 : 0), 900);
     return () => clearInterval(iv);
   }, [formPreview]);
@@ -1689,7 +1791,7 @@ export default function HomePage() {
                       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                         <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{ex.name}</span>
                         <button
-                          onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [] }); }}
+                          onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [], secondaryMuscles: ex.secondaryMuscles ?? [] }); }}
                           style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}
                         >FORM</button>
                       </div>
@@ -3311,39 +3413,74 @@ export default function HomePage() {
 
         {formPreview && (() => {
           const urls = getExerciseImageUrls(formPreview.id, formPreview.name);
+          const primary = formPreview.muscles;
+          const secondary = formPreview.secondaryMuscles ?? [];
+          const allMuscles = [...primary, ...secondary].filter((m, i, a) => a.indexOf(m) === i);
           return (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setFormPreview(null)}>
-              <div style={{ width: "100%", maxWidth: 420 }} onClick={e => e.stopPropagation()}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.93)", zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setFormPreview(null)}>
+              <div style={{ width: "100%", maxWidth: 420 }}
+                onClick={e => e.stopPropagation()}
+                onTouchStart={e => { swipeTouchX.current = e.touches[0].clientX; }}
+                onTouchEnd={e => { const dx = e.changedTouches[0].clientX - swipeTouchX.current; if (Math.abs(dx) > 50) setModalSlide(dx < 0 ? 1 : 0); }}
+              >
+                {/* Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
                   <div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{formPreview.name}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1 }}>{formPreview.muscles.join(" · ").toUpperCase()}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 3 }}>{formPreview.name}</div>
+                    {allMuscles.length > 0 && (
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1 }}>
+                        {primary.map((m, i) => <span key={m} style={{ color: "#FF6644" }}>{i > 0 ? " · " : ""}{m.toUpperCase()}</span>)}
+                        {secondary.map((m, i) => <span key={m} style={{ color: "rgba(255,255,255,0.35)" }}>{(i > 0 || primary.length > 0) ? " · " : ""}{m.toUpperCase()}</span>)}
+                      </div>
+                    )}
                   </div>
                   <button onClick={() => setFormPreview(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", lineHeight: 1, padding: "0 0 0 12px" }}>×</button>
                 </div>
-                {urls && !formImgError ? (
-                  <div style={{ position: "relative", width: "100%", borderRadius: 14, overflow: "hidden", background: "#111" }}>
-                    <img
-                      key={urls[formFrame]}
-                      src={urls[formFrame]}
-                      alt={formPreview.name}
-                      style={{ width: "100%", display: "block", minHeight: 220, objectFit: "cover" }}
-                      onError={() => setFormImgError(true)}
-                    />
-                    <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
-                    <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", gap: 4 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: formFrame === 0 ? "#fff" : "rgba(255,255,255,0.25)", transition: "background 0.3s" }} />
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: formFrame === 1 ? "#fff" : "rgba(255,255,255,0.25)", transition: "background 0.3s" }} />
+
+                {/* Slide content */}
+                {modalSlide === 0 ? (
+                  urls && !formImgError ? (
+                    <div style={{ position: "relative", width: "100%", borderRadius: 14, overflow: "hidden", background: "#111" }}>
+                      <img key={urls[formFrame]} src={urls[formFrame]} alt={formPreview.name}
+                        style={{ width: "100%", display: "block", minHeight: 220, objectFit: "cover" }}
+                        onError={() => setFormImgError(true)}
+                      />
+                      <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
+                      <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", gap: 4 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: formFrame === 0 ? "#fff" : "rgba(255,255,255,0.25)", transition: "background 0.3s" }}/>
+                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: formFrame === 1 ? "#fff" : "rgba(255,255,255,0.25)", transition: "background 0.3s" }}/>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                      <div style={{ fontSize: 32, opacity: 0.3 }}>🏋️</div>
+                      <div>No form demo available</div>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.15)" }}>Search YouTube for &ldquo;{formPreview.name} form&rdquo;</div>
+                    </div>
+                  )
                 ) : (
-                  <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 40, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                    <div style={{ fontSize: 32, opacity: 0.3 }}>🏋️</div>
-                    <div>No form demo available for this exercise</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.15)" }}>Search YouTube for "{formPreview.name} form" for a video guide</div>
+                  <div style={{ background: "#0b0b0b", borderRadius: 14, overflow: "hidden", padding: "10px 8px 4px" }}>
+                    <MuscleDiagram primary={primary} secondary={secondary}/>
+                    {allMuscles.length === 0 && (
+                      <div style={{ textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 12, paddingBottom: 12 }}>No muscle data for this exercise</div>
+                    )}
+                    {allMuscles.length > 0 && (
+                      <div style={{ display: "flex", gap: 16, justifyContent: "center", padding: "6px 0 8px", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: "#FF4422" }}/><span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>PRIMARY</span></div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: "#FF9900" }}/><span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>SECONDARY</span></div>
+                      </div>
+                    )}
                   </div>
                 )}
-                <div style={{ marginTop: 12, fontSize: 11, color: "rgba(255,255,255,0.2)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>TAP OUTSIDE TO CLOSE</div>
+
+                {/* Slide indicators + navigation */}
+                <div style={{ marginTop: 14, display: "flex", justifyContent: "center", alignItems: "center", gap: 10 }}>
+                  <button onClick={() => setModalSlide(0)} style={{ width: modalSlide === 0 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 0 ? "#fff" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
+                  <button onClick={() => setModalSlide(1)} style={{ width: modalSlide === 1 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 1 ? "#FF6644" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.18)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                  {modalSlide === 0 ? "SWIPE LEFT · MUSCLES MAP" : "SWIPE RIGHT · FORM DEMO"} · TAP OUTSIDE TO CLOSE
+                </div>
               </div>
             </div>
           );
@@ -3395,14 +3532,14 @@ export default function HomePage() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                         {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? (
-                          <img src={tu[0]} alt="" onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: [] }); }}
+                          <img src={tu[0]} alt="" onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }}
                             style={{ width: 38, height: 38, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "#1a1a1a", cursor: "pointer" }}
                             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
                         ) : null; })()}
                         <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</span>
                         {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1, flexShrink: 0 }}>{ex.type.toUpperCase()}</span>}
                         <button
-                          onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: [] }); }}
+                          onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }}
                           style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginLeft: 6, flexShrink: 0 }}
                         >FORM</button>
                       </div>
