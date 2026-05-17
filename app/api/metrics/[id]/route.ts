@@ -17,3 +17,24 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return json({ error: e?.message ?? "Failed" }, 500);
   }
 }
+
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const uid = req.cookies.get(COOKIE)?.value;
+  if (!uid) return json({ error: "Unauthorized" }, 401);
+  try {
+    const metric = await prisma.bodyMetric.findUnique({ where: { id: params.id } });
+    if (!metric || metric.userId !== uid) return json({ error: "Not found" }, 404);
+    const { weightKg, bodyFatPct, date } = await req.json();
+    const updated = await prisma.bodyMetric.update({
+      where: { id: params.id },
+      data: {
+        ...(weightKg !== undefined && { weightKg: weightKg ? parseFloat(weightKg) : null }),
+        ...(bodyFatPct !== undefined && { bodyFatPct: bodyFatPct ? parseFloat(bodyFatPct) : null }),
+        ...(date !== undefined && { date: new Date(date) }),
+      },
+    });
+    return json({ metric: updated });
+  } catch (e: any) {
+    return json({ error: e?.message ?? "Failed" }, 500);
+  }
+}

@@ -33,6 +33,39 @@ Generate VAPID keys: `npx web-push generate-vapid-keys`
 
 ---
 
+## Patch 20 · 2026-05-17
+**Editable Body Metrics, Live BMI, Settings Completion, Plan Rebuild**
+
+### Editable body metric history
+- Every entry in Progress → Body → HISTORY now has an edit button (✎)
+- Tapping it opens an inline form to change the date, weight (kg), and body fat % — useful for backdating data
+- SAVE calls the new `PATCH /api/metrics/[id]` endpoint; the list re-sorts by date after saving
+- Cancel dismisses without changes
+
+### Live BMI card
+- New BMI card in Progress → Body between GOALS and LOG TODAY
+- Calculated live from latest weight entry and profile height: `weight(kg) / height(m)²`
+- Colour-coded category label: Underweight (<18.5) · Normal range (18.5–24.9) · Overweight (25–29.9) · Obese (≥30)
+
+### Settings edit form — location, equipment, target area
+- Settings → BODY & STATS edit form now includes all profile fields that were previously only editable during onboarding:
+  - **Location** — Gym / Home / Both pill selector
+  - **Equipment** — multi-select checklist (shown when location is Home or Both)
+  - **Focus Area** — full list of muscle focus and rehabilitation options
+
+### REBUILD PLAN FROM SETTINGS
+- New secondary button below SAVE CHANGES in Settings → BODY & STATS
+- Confirms before acting (shows a warning that the current plan will be replaced)
+- Calls `POST /api/plan` to regenerate the plan from the updated profile — goals, days per week, location, and equipment all feed into the new plan
+
+### ob staleness fix
+- Logging a body metric via Progress → Body (LOG NOW) now immediately updates `ob.weightKg` and `ob.bodyFatPct` so the Settings form reflects the latest values without a page reload
+
+### New API
+- `PATCH /api/metrics/[id]` — update a body metric entry's date, weight, or body fat
+
+---
+
 ## Patch 19 · 2026-05-17
 **Body Trend Charts — Time-Scaled + Date Labels; Goals Cancel Fix**
 
@@ -90,16 +123,6 @@ Generate VAPID keys: `npx web-push generate-vapid-keys`
 - Each entry now shows the best weight **and** the rep count achieved at that weight (e.g. `80kg × 8 reps`)
 - Tie-breaking: if two sessions share the same top weight, the one with more reps wins
 - `getOverallStats` updated to store `reps` in `exercisePRs`
-
----
-
-## Patch 15 · 2026-05-17
-**Personal Bests — Renamed + Reps Display**
-
-- Renamed "PERSONAL RECORDS" → "PERSONAL BESTS" on the progress dashboard
-- Each entry now shows the best weight **and** the rep count achieved at that weight (e.g. `80kg × 8 reps`)
-- Tie-breaking updated: if two sessions share the same top weight, the one with more reps is recorded as the best
-- `getOverallStats` updated to store `reps` in `exercisePRs` alongside `weight` and `date`
 
 ---
 
