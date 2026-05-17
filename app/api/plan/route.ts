@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
 
     const input: UserProfileInput = {
       daysPerWeek: profile.daysPerWeek,
-      goal: profile.goal as Goal,
+      goals: (profile.goals?.length ? profile.goals : [profile.goal]) as Goal[],
       fitnessLevel: profile.fitnessLevel as "beginner" | "intermediate" | "advanced",
       location: profile.location as Location,
       equipment: profile.equipment as Equipment[],

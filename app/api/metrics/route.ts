@@ -28,14 +28,26 @@ export async function POST(req: NextRequest) {
     const { weightKg, bodyFatPct, date } = await req.json();
     if (!weightKg && !bodyFatPct) return json({ error: "Provide at least one value" }, 400);
 
+    const parsedWeight = weightKg ? parseFloat(weightKg) : null;
+    const parsedBf = bodyFatPct ? parseFloat(bodyFatPct) : null;
+
     const metric = await prisma.bodyMetric.create({
       data: {
         userId: uid,
-        weightKg: weightKg ? parseFloat(weightKg) : null,
-        bodyFatPct: bodyFatPct ? parseFloat(bodyFatPct) : null,
+        weightKg: parsedWeight,
+        bodyFatPct: parsedBf,
         date: date ? new Date(date) : new Date(),
       },
     });
+
+    // Keep UserProfile current weight/bf in sync
+    const profileUpdate: Record<string, number | null> = {};
+    if (parsedWeight !== null) profileUpdate.weightKg = parsedWeight;
+    if (parsedBf !== null) profileUpdate.bodyFatPct = parsedBf;
+    if (Object.keys(profileUpdate).length > 0) {
+      await prisma.userProfile.updateMany({ where: { userId: uid }, data: profileUpdate });
+    }
+
     return json({ metric });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);

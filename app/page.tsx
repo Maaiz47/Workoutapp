@@ -514,7 +514,7 @@ export default function HomePage() {
   const [shareResult, setShareResult] = useState<string | null>(null);
   const [ob, setOb] = useState({
     dob: "", gender: "", heightCm: "", weightKg: "", bodyFatPct: "",
-    goal: "", targetArea: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
+    goals: [] as string[], targetArea: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
   });
 
   const rest = useCountdown();
@@ -639,7 +639,7 @@ export default function HomePage() {
           heightCm: p.heightCm?.toString() || "",
           weightKg: p.weightKg?.toString() || "",
           bodyFatPct: p.bodyFatPct?.toString() || "",
-          goal: p.goal || "",
+          goals: p.goals?.length ? p.goals : (p.goal ? [p.goal] : []),
           targetArea: p.targetArea || "none",
           fitnessLevel: p.fitnessLevel || "",
           location: p.location || "",
@@ -1309,7 +1309,7 @@ export default function HomePage() {
       if (onboardingStep === 0) return true;
       if (onboardingStep === 1) return !!ob.dob && !!ob.gender;
       if (onboardingStep === 2) return !!ob.heightCm && !!ob.weightKg;
-      if (onboardingStep === 3) return !!ob.goal;
+      if (onboardingStep === 3) return ob.goals.length > 0;
       if (onboardingStep === 4) return !!ob.targetArea;
       if (onboardingStep === 5) return !!ob.fitnessLevel;
       if (onboardingStep === 6) return !!ob.location;
@@ -1378,19 +1378,26 @@ export default function HomePage() {
         {/* Step 3: Goal */}
         {onboardingStep === 3 && (
           <div className="slide-up">
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>YOUR GOAL</div>
-            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>What are you training for?</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>YOUR GOALS</div>
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>What are you training for?</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 24 }}>Select all that apply — your plan will blend them.</div>
             {[
               { id: "muscle", label: "Build Muscle", desc: "Hypertrophy-focused training with progressive overload" },
               { id: "strength", label: "Get Stronger", desc: "Heavy compound lifts, low reps, long rest" },
               { id: "fat_loss", label: "Lose Fat", desc: "Higher volume, cardio finishers, calorie-burning focus" },
               { id: "fitness", label: "General Fitness", desc: "Balanced training to improve overall health and conditioning" },
-            ].map(g => (
-              <div key={g.id} style={selCard(ob.goal === g.id)} onClick={() => setOb(o => ({ ...o, goal: g.id }))}>
-                <div style={{ color: ob.goal === g.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{g.label}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{g.desc}</div>
-              </div>
-            ))}
+            ].map(g => {
+              const sel = ob.goals.includes(g.id);
+              return (
+                <div key={g.id} style={selCard(sel)} onClick={() => setOb(o => ({ ...o, goals: sel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }))}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <div style={{ color: sel ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{g.label}</div>
+                    {sel && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{g.desc}</div>
+                </div>
+              );
+            })}
             <button onClick={() => setOnboardingStep(4)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
             <button onClick={() => setOnboardingStep(2)} style={obSkip}>← Back</button>
           </div>
@@ -2374,7 +2381,7 @@ export default function HomePage() {
                     { label: "WEIGHT", value: ob.weightKg ? `${ob.weightKg}kg` : "—" },
                     { label: "HEIGHT", value: ob.heightCm ? `${ob.heightCm}cm` : "—" },
                     { label: "BODY FAT", value: ob.bodyFatPct ? `${ob.bodyFatPct}%` : "—" },
-                    { label: "GOAL", value: ob.goal?.replace(/_/g, " ") || "—" },
+                    { label: "GOAL", value: ob.goals.length ? ob.goals.map(g => g.replace(/_/g, " ")).join(", ") : "—" },
                     { label: "LEVEL", value: ob.fitnessLevel || "—" },
                     { label: "DAYS/WK", value: ob.daysPerWeek ? `${ob.daysPerWeek}` : "—" },
                   ].map((s, i) => (
@@ -2415,11 +2422,16 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>GOAL</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 4 }}>GOALS <span style={{ color: "rgba(255,255,255,0.2)", fontWeight: 400 }}>(select all that apply)</span></div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {[{ id: "lose_fat", label: "Lose Fat" }, { id: "build_muscle", label: "Build Muscle" }, { id: "improve_fitness", label: "Improve Fitness" }, { id: "recomposition", label: "Recomposition" }].map(g => (
-                      <button key={g.id} onClick={() => setOb(o => ({ ...o, goal: g.id }))} style={{ padding: "10px 14px", background: ob.goal === g.id ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${ob.goal === g.id ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: ob.goal === g.id ? "#FF6B6B" : "rgba(255,255,255,0.55)", fontSize: 13, cursor: "pointer", textAlign: "left" }}>{g.label}</button>
-                    ))}
+                    {[{ id: "muscle", label: "Build Muscle" }, { id: "strength", label: "Get Stronger" }, { id: "fat_loss", label: "Lose Fat" }, { id: "fitness", label: "General Fitness" }].map(g => {
+                      const sel = ob.goals.includes(g.id);
+                      return (
+                        <button key={g.id} onClick={() => setOb(o => ({ ...o, goals: sel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }))} style={{ padding: "10px 14px", background: sel ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF6B6B" : "rgba(255,255,255,0.55)", fontSize: 13, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
+                          {g.label}{sel && <span>✓</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 <div style={{ marginBottom: 12 }}>
@@ -2448,7 +2460,7 @@ export default function HomePage() {
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                           dob: ob.dob, gender: ob.gender, heightCm: ob.heightCm, weightKg: ob.weightKg,
-                          bodyFatPct: ob.bodyFatPct || null, goal: ob.goal, fitnessLevel: ob.fitnessLevel,
+                          bodyFatPct: ob.bodyFatPct || null, goals: ob.goals, fitnessLevel: ob.fitnessLevel,
                           location: ob.location || "gym", equipment: ob.equipment.length ? ob.equipment : ["barbell","dumbbell","cable","machine"],
                           daysPerWeek: ob.daysPerWeek, targetArea: ob.targetArea || "none",
                         }),

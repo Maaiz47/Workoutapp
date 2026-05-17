@@ -65,7 +65,8 @@ model UserProfile {
   heightCm         Float
   weightKg         Float
   bodyFatPct       Float?
-  goal             String
+  goal             String   @default("muscle")
+  goals            String[]
   fitnessLevel     String
   location         String
   equipment        String[]
