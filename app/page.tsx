@@ -488,9 +488,9 @@ function MuscleDiagram({ primary, secondary }: { primary: string[]; secondary: s
       {/* biceps */}
       <path d="M28,48 L44,48 L42,110 L26,110 Z" fill={mc("biceps")} filter={mf("biceps")}/>
       <path d="M106,48 L122,48 L124,110 L108,110 Z" fill={mc("biceps")} filter={mf("biceps")}/>
-      {/* forearms (no group) */}
-      <path d="M27,114 L42,114 L40,155 L25,151 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
-      <path d="M108,114 L123,114 L125,151 L110,155 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
+      {/* forearms */}
+      <path d="M27,114 L42,114 L40,155 L25,151 Z" fill={mc("forearms")} filter={mf("forearms")} stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
+      <path d="M108,114 L123,114 L125,151 L110,155 Z" fill={mc("forearms")} filter={mf("forearms")} stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
       {/* core/abs */}
       <rect x={58} y={90} width={34} height={54} rx={3} fill={mc("core")} filter={mf("core")}/>
       {active("core") && <><line x1={75} y1={90} x2={75} y2={144} stroke="rgba(0,0,0,0.25)" strokeWidth={0.8}/><line x1={58} y1={108} x2={92} y2={108} stroke="rgba(0,0,0,0.2)" strokeWidth={0.8}/><line x1={58} y1={126} x2={92} y2={126} stroke="rgba(0,0,0,0.2)" strokeWidth={0.8}/></>}
@@ -525,8 +525,8 @@ function MuscleDiagram({ primary, secondary }: { primary: string[]; secondary: s
       <path d="M178,48 L194,48 L192,110 L176,110 Z" fill={mc("triceps")} filter={mf("triceps")}/>
       <path d="M256,48 L272,48 L274,110 L258,110 Z" fill={mc("triceps")} filter={mf("triceps")}/>
       {/* forearms back */}
-      <path d="M176,114 L192,114 L190,155 L174,151 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
-      <path d="M258,114 L274,114 L276,151 L262,155 Z" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
+      <path d="M176,114 L192,114 L190,155 L174,151 Z" fill={mc("forearms")} filter={mf("forearms")} stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
+      <path d="M258,114 L274,114 L276,151 L262,155 Z" fill={mc("forearms")} filter={mf("forearms")} stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
       {/* hips back */}
       <path d="M206,154 L244,154 L248,178 L202,178 Z" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.09)" strokeWidth={0.5}/>
       {/* glutes */}
@@ -591,6 +591,9 @@ export default function HomePage() {
   // ── Customise ──
   const [editingDay, setEditingDay] = useState<any | null>(null);
   const [exSearch, setExSearch] = useState("");
+  const [exFilterLoc, setExFilterLoc] = useState("all");
+  const [exFilterMove, setExFilterMove] = useState("all");
+  const [exFilterMuscle, setExFilterMuscle] = useState("all");
   const [showExBrowser, setShowExBrowser] = useState(false);
 
   // ── Settings / trainer upgrade ──
@@ -1741,14 +1744,31 @@ export default function HomePage() {
   if (view === "customise") {
     const planDays = customPlan ?? [];
     const EXERCISES_LIST = (EXERCISES as any[]);
+    const exMovement = (e: any): string => {
+      const pm: string[] = e.primaryMuscles;
+      if (pm.includes("cardio")) return "cardio";
+      if (pm.some((m: string) => ["chest", "shoulders", "triceps"].includes(m))) return "push";
+      if (pm.some((m: string) => ["back", "biceps", "forearms"].includes(m))) return "pull";
+      if (pm.some((m: string) => ["quads", "hamstrings", "glutes", "calves"].includes(m))) return "legs";
+      return "core";
+    };
 
     // Day editor view
     if (editingDay) {
       const exs: any[] = editingDay.exercises ?? [];
-      const filtered = EXERCISES_LIST.filter((e: any) =>
-        !exSearch || e.name.toLowerCase().includes(exSearch.toLowerCase()) ||
-        e.primaryMuscles.some((m: string) => m.includes(exSearch.toLowerCase()))
-      ).slice(0, 40);
+      const filtered = EXERCISES_LIST.filter((e: any) => {
+        if (exSearch && !e.name.toLowerCase().includes(exSearch.toLowerCase()) &&
+            !e.primaryMuscles.some((m: string) => m.toLowerCase().includes(exSearch.toLowerCase())) &&
+            !e.secondaryMuscles.some((m: string) => m.toLowerCase().includes(exSearch.toLowerCase()))) return false;
+        if (exFilterLoc !== "all") {
+          if (exFilterLoc === "bodyweight" && !e.equipment.every((eq: string) => ["bodyweight", "resistance_band"].includes(eq))) return false;
+          else if (exFilterLoc === "gym" && e.location !== "gym") return false;
+          else if (exFilterLoc === "home" && !["home", "both"].includes(e.location)) return false;
+        }
+        if (exFilterMove !== "all" && exMovement(e) !== exFilterMove) return false;
+        if (exFilterMuscle !== "all" && !e.primaryMuscles.includes(exFilterMuscle) && !e.secondaryMuscles.includes(exFilterMuscle)) return false;
+        return true;
+      }).slice(0, 60);
 
       return (
         <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "0 0 100px" }}>
@@ -1780,27 +1800,70 @@ export default function HomePage() {
             ) : (
               <div style={{ marginTop: 16 }}>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: 3, marginBottom: 12, fontFamily: "'Space Mono', monospace" }}>ADD EXERCISE</div>
-                <input value={exSearch} onChange={e => setExSearch(e.target.value)} placeholder="Search by name or muscle..." autoFocus style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "12px 16px", width: "100%", outline: "none", boxSizing: "border-box", marginBottom: 10 }} />
-                <div style={{ maxHeight: 300, overflowY: "auto" }}>
+                <input value={exSearch} onChange={e => setExSearch(e.target.value)} placeholder="Search exercises..." autoFocus style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "12px 16px", width: "100%", outline: "none", boxSizing: "border-box", marginBottom: 10 }} />
+
+                {/* Filter rows */}
+                {(() => {
+                  const chipStyle = (active: boolean, color?: string) => ({
+                    padding: "5px 12px", borderRadius: 20, fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
+                    border: active ? "1px solid transparent" : "1px solid rgba(255,255,255,0.1)",
+                    background: active ? (color ?? "#fff") : "rgba(255,255,255,0.04)",
+                    color: active ? "#000" : "rgba(255,255,255,0.5)",
+                    cursor: "pointer", whiteSpace: "nowrap" as const, flexShrink: 0,
+                  });
+                  const row = { display: "flex", gap: 6, overflowX: "auto" as const, paddingBottom: 6, marginBottom: 6, scrollbarWidth: "none" as const };
+                  return (
+                    <div style={{ marginBottom: 10 }}>
+                      {/* Location / equipment */}
+                      <div style={row}>
+                        {[["all","All"],["gym","Gym"],["home","Home"],["bodyweight","Bodyweight"]].map(([v,l]) => (
+                          <button key={v} onClick={() => setExFilterLoc(v)} style={chipStyle(exFilterLoc===v,"#4ECDC4")}>{l}</button>
+                        ))}
+                      </div>
+                      {/* Push / pull / movement */}
+                      <div style={row}>
+                        {[["all","All"],["push","Push"],["pull","Pull"],["legs","Legs"],["core","Core"],["cardio","Cardio"]].map(([v,l]) => (
+                          <button key={v} onClick={() => setExFilterMove(v)} style={chipStyle(exFilterMove===v,"#FF6B6B")}>{l}</button>
+                        ))}
+                      </div>
+                      {/* Muscle group */}
+                      <div style={row}>
+                        {[["all","All"],["chest","Chest"],["back","Back"],["shoulders","Shoulders"],["biceps","Biceps"],["triceps","Triceps"],["forearms","Forearms"],["quads","Quads"],["hamstrings","Hamstrings"],["glutes","Glutes"],["calves","Calves"],["core","Core"]].map(([v,l]) => (
+                          <button key={v} onClick={() => setExFilterMuscle(v)} style={chipStyle(exFilterMuscle===v,"#FFE66D")}>{l}</button>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{filtered.length} EXERCISES</div>
+                    </div>
+                  );
+                })()}
+
+                <div style={{ maxHeight: 320, overflowY: "auto" }}>
                   {filtered.map((ex: any) => (
                     <div key={ex.id} onClick={async () => {
                       const newEx = { exerciseId: ex.id, name: ex.name, sets: 3, reps: "10–12", rest: 60, notes: null };
                       await saveDay(editingDay, [...exs, newEx]);
-                      setShowExBrowser(false); setExSearch("");
-                    }} style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)", marginBottom: 6, cursor: "pointer" }}>
+                      setShowExBrowser(false); setExSearch(""); setExFilterLoc("all"); setExFilterMove("all"); setExFilterMuscle("all");
+                    }} style={{ padding: "11px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)", marginBottom: 6, cursor: "pointer" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{ex.name}</span>
+                        {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? <img src={tu[0]} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/> : null; })()}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
+                            <span style={{ color: "#FF6644" }}>{ex.primaryMuscles.join(" · ")}</span>
+                            {ex.secondaryMuscles.length > 0 && <span style={{ color: "rgba(255,255,255,0.25)" }}> · {ex.secondaryMuscles.join(" · ")}</span>}
+                            <span style={{ color: "rgba(255,255,255,0.2)" }}> · {ex.difficulty}</span>
+                          </div>
+                        </div>
                         <button
                           onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [], secondaryMuscles: ex.secondaryMuscles ?? [] }); }}
                           style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}
                         >FORM</button>
                       </div>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{ex.primaryMuscles.join(", ")} · {ex.equipment.join(", ")} · {ex.difficulty}</div>
                     </div>
                   ))}
-                  {filtered.length === 0 && <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "12px 0" }}>No exercises found</div>}
+                  {filtered.length === 0 && <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "12px 0" }}>No exercises match these filters</div>}
                 </div>
-                <button onClick={() => { setShowExBrowser(false); setExSearch(""); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 8 }}>Cancel</button>
+                <button onClick={() => { setShowExBrowser(false); setExSearch(""); setExFilterLoc("all"); setExFilterMove("all"); setExFilterMuscle("all"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 8 }}>Cancel</button>
               </div>
             )}
           </div>

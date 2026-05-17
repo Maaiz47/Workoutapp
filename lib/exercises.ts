@@ -4,7 +4,7 @@ export type Equipment =
 
 export type MuscleGroup =
   | "chest" | "back" | "shoulders" | "biceps" | "triceps"
-  | "quads" | "hamstrings" | "glutes" | "calves" | "core" | "cardio";
+  | "quads" | "hamstrings" | "glutes" | "calves" | "core" | "cardio" | "forearms";
 
 export type Difficulty = "beginner" | "intermediate" | "advanced";
 export type ExerciseType = "compound" | "isolation" | "isometric" | "cardio";
@@ -46,9 +46,9 @@ export const EXERCISES: Exercise[] = [
 
   // ── BACK ───────────────────────────────────────────────────────────────
 
-  { id: "barbell-deadlift", name: "Barbell Deadlift", primaryMuscles: ["back"], secondaryMuscles: ["hamstrings", "glutes", "core"], equipment: ["barbell"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["strength", "muscle"] },
+  { id: "barbell-deadlift", name: "Barbell Deadlift", primaryMuscles: ["back"], secondaryMuscles: ["hamstrings", "glutes", "core", "forearms"], equipment: ["barbell"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["strength", "muscle"] },
   { id: "romanian-deadlift", name: "Romanian Deadlift", primaryMuscles: ["hamstrings", "glutes"], secondaryMuscles: ["back"], equipment: ["barbell"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
-  { id: "barbell-row", name: "Barbell Row", primaryMuscles: ["back"], secondaryMuscles: ["biceps", "shoulders"], equipment: ["barbell"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
+  { id: "barbell-row", name: "Barbell Row", primaryMuscles: ["back"], secondaryMuscles: ["biceps", "shoulders", "forearms"], equipment: ["barbell"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
   { id: "t-bar-row", name: "T-Bar Row", primaryMuscles: ["back"], secondaryMuscles: ["biceps"], equipment: ["machine"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
   { id: "seated-cable-row", name: "Seated Cable Row", primaryMuscles: ["back"], secondaryMuscles: ["biceps"], equipment: ["cable"], location: "gym", difficulty: "beginner", type: "compound", goals: ["muscle", "fitness"] },
   { id: "lat-pulldown", name: "Lat Pulldown", primaryMuscles: ["back"], secondaryMuscles: ["biceps"], equipment: ["cable"], location: "gym", difficulty: "beginner", type: "compound", goals: ["muscle", "fitness", "fat_loss"] },
@@ -59,8 +59,8 @@ export const EXERCISES: Exercise[] = [
   { id: "barbell-shrugs", name: "Barbell Shrugs", primaryMuscles: ["back"], secondaryMuscles: [], equipment: ["barbell"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
   { id: "dumbbell-shrugs", name: "Dumbbell Shrugs", primaryMuscles: ["back"], secondaryMuscles: [], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
   { id: "hyperextension", name: "Back Extension", primaryMuscles: ["back"], secondaryMuscles: ["glutes", "hamstrings"], equipment: ["machine", "bodyweight"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness", "fat_loss"] },
-  { id: "pullups", name: "Pull-Ups", primaryMuscles: ["back"], secondaryMuscles: ["biceps"], equipment: ["pullup_bar"], location: "both", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength", "fitness"] },
-  { id: "chinups", name: "Chin-Ups", primaryMuscles: ["back"], secondaryMuscles: ["biceps"], equipment: ["pullup_bar"], location: "both", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
+  { id: "pullups", name: "Pull-Ups", primaryMuscles: ["back"], secondaryMuscles: ["biceps", "forearms"], equipment: ["pullup_bar"], location: "both", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength", "fitness"] },
+  { id: "chinups", name: "Chin-Ups", primaryMuscles: ["back"], secondaryMuscles: ["biceps", "forearms"], equipment: ["pullup_bar"], location: "both", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
   { id: "inverted-row", name: "Inverted Row", primaryMuscles: ["back"], secondaryMuscles: ["biceps", "core"], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "compound", goals: ["fitness", "fat_loss"] },
   { id: "superman", name: "Superman Hold", primaryMuscles: ["back"], secondaryMuscles: ["glutes"], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "isometric", goals: ["fitness"] },
   { id: "resistance-band-row", name: "Resistance Band Row", primaryMuscles: ["back"], secondaryMuscles: ["biceps"], equipment: ["resistance_band"], location: "home", difficulty: "beginner", type: "compound", goals: ["fitness", "fat_loss"] },
@@ -83,14 +83,14 @@ export const EXERCISES: Exercise[] = [
 
   // ── BICEPS ─────────────────────────────────────────────────────────────
 
-  { id: "barbell-curl", name: "Barbell Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["barbell"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle", "strength"] },
-  { id: "dumbbell-curl", name: "Dumbbell Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
-  { id: "hammer-curl", name: "Hammer Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
+  { id: "barbell-curl", name: "Barbell Curl", primaryMuscles: ["biceps"], secondaryMuscles: ["forearms"], equipment: ["barbell"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle", "strength"] },
+  { id: "dumbbell-curl", name: "Dumbbell Curl", primaryMuscles: ["biceps"], secondaryMuscles: ["forearms"], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
+  { id: "hammer-curl", name: "Hammer Curl", primaryMuscles: ["biceps", "forearms"], secondaryMuscles: [], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
   { id: "incline-dumbbell-curl", name: "Incline Dumbbell Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["dumbbell", "bench"], location: "both", difficulty: "intermediate", type: "isolation", goals: ["muscle"] },
-  { id: "concentration-curl", name: "Concentration Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
+  { id: "concentration-curl", name: "Concentration Curl", primaryMuscles: ["biceps"], secondaryMuscles: ["forearms"], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
   { id: "cable-curl", name: "Cable Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["cable"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
-  { id: "preacher-curl", name: "Preacher Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["machine", "barbell"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
-  { id: "ez-bar-curl", name: "EZ Bar Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["barbell"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
+  { id: "preacher-curl", name: "Preacher Curl", primaryMuscles: ["biceps"], secondaryMuscles: ["forearms"], equipment: ["machine", "barbell"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
+  { id: "ez-bar-curl", name: "EZ Bar Curl", primaryMuscles: ["biceps"], secondaryMuscles: ["forearms"], equipment: ["barbell"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
   { id: "resistance-band-curl", name: "Resistance Band Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["resistance_band"], location: "home", difficulty: "beginner", type: "isolation", goals: ["fitness", "fat_loss"] },
 
   // ── TRICEPS ────────────────────────────────────────────────────────────
