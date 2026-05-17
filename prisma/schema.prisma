@@ -28,6 +28,7 @@ model User {
   trainerProposals  PlanProposal[]   @relation("TrainerProposals")
   clientProposals   PlanProposal[]   @relation("ClientProposals")
   bodyMetrics       BodyMetric[]
+  savedRoutines     SavedRoutine[]
 }
 
 model TrainerRequest {
@@ -181,5 +182,16 @@ model WorkoutLog {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, dayId])
+  @@index([userId])
+}
+
+model SavedRoutine {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  planJson  Json
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }

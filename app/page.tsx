@@ -501,6 +501,10 @@ export default function HomePage() {
   const [generatingPlan, setGeneratingPlan] = useState(false);
   const [planNote, setPlanNote] = useState("");
   const [customPlan, setCustomPlan] = useState<any[] | null>(null);
+  const [savedRoutines, setSavedRoutines] = useState<any[]>([]);
+  const [showSaveRoutine, setShowSaveRoutine] = useState(false);
+  const [saveRoutineName, setSaveRoutineName] = useState("");
+  const [savingRoutine, setSavingRoutine] = useState(false);
   const [ob, setOb] = useState({
     dob: "", gender: "", heightCm: "", weightKg: "", bodyFatPct: "",
     goal: "", targetArea: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
@@ -639,6 +643,9 @@ export default function HomePage() {
         if (p.targetBodyFatPct) setGoalBf(p.targetBodyFatPct.toString());
         fetch("/api/plan").then(r => r.json()).then(planData => {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
+        });
+        fetch("/api/routines").then(r => r.json()).then(d => {
+          if (Array.isArray(d.routines)) setSavedRoutines(d.routines);
         });
       } else {
         setShowOnboarding(true);
@@ -833,6 +840,35 @@ export default function HomePage() {
     setEditedPlanDays(days);
     setEditingPlan(true);
     setProposalSent(false);
+  };
+
+  const doSaveRoutine = async () => {
+    const days = customPlan ?? (WORKOUT_DATA as any[]).map((d, i) => ({
+      title: d.title, subtitle: d.focus, focus: d.focus,
+      exercises: d.sections.flatMap((s: any) => s.exercises).filter((e: any) => e.trackable !== false).map((ex: any, j: number) => ({
+        order: j, exerciseId: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest ?? 60, notes: ex.note ?? null,
+      })),
+    }));
+    if (!saveRoutineName.trim()) return;
+    setSavingRoutine(true);
+    try {
+      const res = await fetch("/api/routines", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: saveRoutineName.trim(), days }) });
+      const data = await res.json();
+      if (data.routine) { setSavedRoutines(prev => [data.routine, ...prev]); setShowSaveRoutine(false); setSaveRoutineName(""); }
+    } finally { setSavingRoutine(false); }
+  };
+
+  const doRestoreRoutine = async (id: string, name: string) => {
+    if (!confirm(`Restore "${name}"? Your current plan will be replaced.`)) return;
+    const res = await fetch(`/api/routines/${id}`, { method: "POST" });
+    const data = await res.json();
+    if (data.plan?.days?.length) setCustomPlan(data.plan.days);
+  };
+
+  const doDeleteRoutine = async (id: string) => {
+    if (!confirm("Delete this saved routine?")) return;
+    await fetch(`/api/routines/${id}`, { method: "DELETE" });
+    setSavedRoutines(prev => prev.filter(r => r.id !== id));
   };
 
   const proposePlan = async () => {
@@ -1642,16 +1678,50 @@ export default function HomePage() {
           );
         })}
       </div>
-      {customPlan && (
-        <div style={{ padding: "4px 20px 0", textAlign: "center" }}>
-          <button onClick={async () => {
-            if (!confirm("Revert to the original 5-day split? Your custom plan will be removed, but your workout history is kept.")) return;
-            await fetch("/api/plan", { method: "DELETE" });
-            setCustomPlan(null);
-            setPlanNote("");
-          }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1, padding: "10px 0" }}>← revert to original 5-day split</button>
+      {/* ── Saved Routines ── */}
+      <div style={{ padding: "20px 20px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>SAVED ROUTINES</div>
+          <button onClick={() => { setShowSaveRoutine(s => !s); setSaveRoutineName(""); }} style={{ background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 12px" }}>
+            {showSaveRoutine ? "CANCEL" : "+ SAVE CURRENT"}
+          </button>
         </div>
-      )}
+
+        {showSaveRoutine && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <input
+              value={saveRoutineName}
+              onChange={e => setSaveRoutineName(e.target.value)}
+              onKeyDown={async e => { if (e.key === "Enter") await doSaveRoutine(); }}
+              placeholder="Routine name…"
+              maxLength={40}
+              style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 10, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "11px 14px", outline: "none", boxSizing: "border-box" }}
+            />
+            <button onClick={doSaveRoutine} disabled={savingRoutine || !saveRoutineName.trim()} style={{ padding: "11px 16px", background: saveRoutineName.trim() ? "#4ECDC4" : "rgba(255,255,255,0.08)", border: "none", borderRadius: 10, color: saveRoutineName.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: saveRoutineName.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>
+              {savingRoutine ? "…" : "SAVE"}
+            </button>
+          </div>
+        )}
+
+        {savedRoutines.length === 0 && !showSaveRoutine && (
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif", padding: "4px 0 8px" }}>No saved routines yet. Save your current plan to restore it later.</div>
+        )}
+
+        {savedRoutines.map(r => (
+          <div key={r.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: "'DM Sans', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>
+                {(r.planJson as any[]).length} days · {new Date(r.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <button onClick={() => doRestoreRoutine(r.id, r.name)} style={{ background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}>RESTORE</button>
+              <button onClick={() => doDeleteRoutine(r.id)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}>✕</button>
+            </div>
+          </div>
+        ))}
+      </div>
       {user.role === "trainer" && (
         <div style={{ padding: "24px 20px 0" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>FIND CLIENTS</div>
