@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IronLog — Track smarter. Train harder.</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--orange:#FF6644;--teal:#4ECDC4;--yellow:#FFE66D;--green:#5CDB95;--bg:#090910;--card:#101018;--border:rgba(255,255,255,0.07);--text:rgba(255,255,255,0.58)}
+body{background:var(--bg);color:#fff;font-family:'DM Sans',sans-serif;line-height:1.65;overflow-x:hidden}
+nav{position:sticky;top:0;z-index:100;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;background:rgba(9,9,16,0.9);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+.logo{font-family:'Space Mono',monospace;font-size:15px;font-weight:700;color:#fff;letter-spacing:2px;text-decoration:none}
+.logo span{color:var(--orange)}
+.nav-links{display:flex;gap:8px;align-items:center}
+.nav-link{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;color:rgba(255,255,255,0.45)}
+.nav-link.active,.nav-link:hover{color:#fff;background:rgba(255,255,255,0.07)}
+.nav-cta{padding:9px 18px;background:var(--teal);color:#000;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none}
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:100px 24px 80px;position:relative;overflow:hidden}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 50% 20%,rgba(78,205,196,0.09) 0%,transparent 65%);pointer-events:none}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border:1px solid rgba(78,205,196,0.25);border-radius:6px;font-size:10px;font-family:'Space Mono',monospace;color:var(--teal);letter-spacing:3px;margin-bottom:28px}
+h1{font-size:clamp(38px,7vw,76px);font-weight:700;line-height:1.05;margin-bottom:22px;letter-spacing:-1.5px}
+h1 em{color:var(--teal);font-style:normal}
+.hero p{font-size:18px;color:var(--text);max-width:480px;margin:0 auto 40px;line-height:1.7}
+.hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:60px}
+.btn-teal{padding:15px 32px;background:var(--teal);color:#000;border-radius:12px;font-weight:700;font-size:15px;text-decoration:none;display:inline-block}
+.btn-ghost{padding:15px 32px;background:rgba(255,255,255,0.05);color:#fff;border:1px solid rgba(255,255,255,0.12);border-radius:12px;font-weight:600;font-size:15px;text-decoration:none;display:inline-block}
+.free-note{font-size:13px;color:rgba(255,255,255,0.3);display:flex;align-items:center;gap:8px;justify-content:center}
+/* SECTIONS */
+.section{padding:80px 24px;max-width:1000px;margin:0 auto}
+.tag{font-family:'Space Mono',monospace;font-size:10px;color:var(--teal);letter-spacing:4px;margin-bottom:12px}
+h2{font-size:clamp(26px,4vw,44px);font-weight:700;margin-bottom:14px;line-height:1.12}
+.lead{font-size:17px;color:var(--text);max-width:560px;margin-bottom:48px;line-height:1.7}
+.divider{border:none;border-top:1px solid var(--border)}
+/* FEATURE GRID */
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px}
+.feat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:26px;transition:border-color .2s}
+.feat:hover{border-color:rgba(78,205,196,0.2)}
+.feat-icon{font-size:28px;margin-bottom:14px}
+.feat h3{font-size:15px;font-weight:700;margin-bottom:8px}
+.feat p{font-size:13px;color:var(--text);line-height:1.65}
+/* HOW IT WORKS */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}
+.step{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;position:relative}
+.step-n{font-family:'Space Mono',monospace;font-size:40px;font-weight:700;color:rgba(78,205,196,0.15);margin-bottom:10px;line-height:1}
+.step h4{font-size:15px;font-weight:700;margin-bottom:8px}
+.step p{font-size:12.5px;color:var(--text);line-height:1.65}
+/* BEFORE AFTER */
+.ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:580px){.ba-grid{grid-template-columns:1fr}}
+.ba-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px}
+.ba-card.after{border-color:rgba(78,205,196,0.2);background:linear-gradient(135deg,rgba(78,205,196,0.05),var(--card))}
+.ba-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;margin-bottom:14px}
+.ba-card.before .ba-label{color:rgba(255,100,100,0.7)}
+.ba-card.after .ba-label{color:var(--teal)}
+.ba-card ul{list-style:none;padding:0}
+.ba-card ul li{font-size:13px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--text);display:flex;gap:10px;align-items:flex-start}
+.ba-card ul li:last-child{border-bottom:none}
+/* SCREEN MOCKUPS */
+.mocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.mock{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:16px 14px;aspect-ratio:9/17;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.mock-head{font-family:'Space Mono',monospace;font-size:8px;color:rgba(255,255,255,0.2);letter-spacing:2px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);text-align:center}
+.mock-lbl{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-family:'Space Mono',monospace;font-size:7px;color:rgba(255,255,255,0.2);letter-spacing:1px}
+.m-ex{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:9px 10px;margin-bottom:6px}
+.m-ex-name{font-size:10px;font-weight:700;margin-bottom:2px}
+.m-ex-muscle{font-size:8px;color:var(--orange)}
+.m-set{display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:7px;background:rgba(255,255,255,0.03);margin-bottom:3px}
+.m-set-n{font-family:'Space Mono',monospace;font-size:8px;color:rgba(255,255,255,0.25);min-width:24px}
+.m-set-v{font-size:9px;font-weight:600}
+.m-set-cmp{font-size:8px;color:var(--teal);margin-left:auto;display:flex;align-items:center;gap:2px}
+.m-set-pr{font-size:7px;padding:1px 5px;border-radius:3px;background:rgba(255,230,109,0.15);color:var(--yellow);margin-left:auto;font-weight:700}
+.m-pr-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.m-pr-row:last-child{border-bottom:none}
+.m-pr-badge{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--orange),#FF9900);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#000;flex-shrink:0}
+.m-pr-name{font-size:9px;font-weight:600}
+.m-pr-val{font-size:8px;color:rgba(255,255,255,0.3)}
+.m-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:6px}
+.m-cal-dot{height:9px;border-radius:2px}
+/* TRAINER SECTION */
+.trainer-block{background:linear-gradient(135deg,rgba(255,102,68,0.08),rgba(255,102,68,0.03));border:1px solid rgba(255,102,68,0.2);border-radius:20px;padding:36px;display:flex;gap:32px;align-items:center;flex-wrap:wrap}
+.trainer-block-text{flex:2;min-width:220px}
+.trainer-block-visual{flex:1;min-width:180px}
+.tblock-tag{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:rgba(255,102,68,0.6);margin-bottom:10px}
+.tblock-visual-inner{background:var(--card);border:1px solid rgba(255,102,68,0.15);border-radius:14px;padding:18px}
+/* FREE BANNER */
+.free-banner{background:linear-gradient(135deg,rgba(78,205,196,0.1),rgba(78,205,196,0.04));border:1px solid rgba(78,205,196,0.2);border-radius:20px;padding:40px;text-align:center}
+.big-free{font-family:'Space Mono',monospace;font-size:80px;font-weight:700;color:rgba(78,205,196,0.15);line-height:1;margin-bottom:-10px}
+.free-sub{font-size:32px;font-weight:700;margin-bottom:12px}
+/* CTA */
+.cta-section{text-align:center;padding:80px 24px;max-width:640px;margin:0 auto}
+.cta-section h2{font-size:clamp(28px,5vw,52px);font-weight:700;margin-bottom:16px}
+.cta-section p{font-size:16px;color:var(--text);margin-bottom:36px}
+footer{border-top:1px solid var(--border);padding:32px 24px;text-align:center;font-size:11px;color:rgba(255,255,255,0.15);font-family:'Space Mono',monospace;letter-spacing:1px}
+@media(max-width:768px){nav{padding:12px 16px}.hero{padding:90px 20px 60px}}
+/* ANIM */
+.fade-up{opacity:0;transform:translateY(20px);transition:opacity .5s ease,transform .5s ease}
+.fade-up.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="promo.html" class="logo">IRON<span>LOG</span></a>
+  <div class="nav-links">
+    <a href="promo.html" class="nav-link">Overview</a>
+    <a href="revenue.html" class="nav-link">Revenue</a>
+    <a href="trainer.html" class="nav-link">For Trainers</a>
+    <a href="client.html" class="nav-link active">For Athletes</a>
+    <a href="ironlogmv.vercel.app" class="nav-cta">Start Free</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="badge">🏆 FREE FOR ATHLETES · ALWAYS</div>
+  <h1>Your workouts.<br>Your data.<br><em>Your results.</em></h1>
+  <p>IronLog tracks every set, celebrates every PR, and shows exactly how far you've come — all for free.</p>
+  <div class="hero-btns">
+    <a href="ironlogmv.vercel.app" class="btn-teal">Start Training Free</a>
+    <a href="#features" class="btn-ghost">See the App</a>
+  </div>
+  <div class="free-note">🔒 No credit card · No trial expiry · No catch</div>
+</div>
+
+<hr class="divider"/>
+
+<!-- BEFORE / AFTER -->
+<div class="section fade-up">
+  <div class="tag">THE DIFFERENCE</div>
+  <h2>Stop guessing.<br>Start progressing.</h2>
+  <p class="lead">Most gym-goers have no idea what they lifted last week. That's why most gym-goers plateau. IronLog fixes that.</p>
+  <div class="ba-grid">
+    <div class="ba-card before">
+      <div class="ba-label">✗ WITHOUT IRONLOG</div>
+      <ul>
+        <li><span>😵</span>Can't remember what weight you used last time</li>
+        <li><span>📝</span>Tracking in Notes app, or not at all</li>
+        <li><span>❓</span>No idea if you're actually getting stronger</li>
+        <li><span>⏰</span>Rest times are guesswork</li>
+        <li><span>📋</span>Following a random YouTube program with no structure</li>
+        <li><span>💪</span>No form demos — just trying to copy someone at the gym</li>
+      </ul>
+    </div>
+    <div class="ba-card after">
+      <div class="ba-label">✓ WITH IRONLOG</div>
+      <ul>
+        <li><span style="color:var(--teal)">✦</span>Last session's numbers shown right next to your input</li>
+        <li><span style="color:var(--teal)">✦</span>One tap per set — log in under 3 seconds</li>
+        <li><span style="color:var(--teal)">✦</span>Automatic PR alerts the moment you break a record</li>
+        <li><span style="color:var(--teal)">✦</span>Rest timer with push notification — even with phone locked</li>
+        <li><span style="color:var(--teal)">✦</span>AI-generated plan built around your goals and equipment</li>
+        <li><span style="color:var(--teal)">✦</span>Form demos + muscle activation maps for every exercise</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- FEATURES -->
+<div class="section fade-up" id="features">
+  <div class="tag">FEATURES</div>
+  <h2>Everything you need.<br>Nothing you don't.</h2>
+  <p class="lead">Built to be used during a workout — fast, clean, and one-handed.</p>
+  <div class="feat-grid">
+    <div class="feat">
+      <div class="feat-icon">⚡</div>
+      <h3>Instant set logging</h3>
+      <p>Tap a set, enter weight and reps. Done in 3 seconds. Your last set's numbers are always visible so you know whether to push or hold back.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🏆</div>
+      <h3>Automatic PR detection</h3>
+      <p>IronLog tracks your personal bests across every exercise. When you break a record, you know it immediately — no manual checking.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">⏱️</div>
+      <h3>Smart rest timer</h3>
+      <p>Set your rest period once per exercise. When time's up, you get a push notification — even if you lock your phone between sets.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🤖</div>
+      <h3>AI-generated training plan</h3>
+      <p>Tell IronLog your goals, fitness level, available equipment, and days per week. Get a complete weekly program generated in seconds.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🎬</div>
+      <h3>Exercise form demos</h3>
+      <p>Swipe to see start and finish position images for any exercise. No more guessing if your form is right — the reference is always one tap away.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🫀</div>
+      <h3>Muscle activation maps</h3>
+      <p>Every exercise shows a front and back body diagram with primary muscles glowing red and secondary muscles in orange. Know what you're training before you do it.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📊</div>
+      <h3>Progress charts</h3>
+      <p>Weight trend, body fat trend, 28-day activity calendar, weekly stats, and per-exercise progress graphs. See the trajectory at a glance.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🔥</div>
+      <h3>Streak tracking</h3>
+      <p>Week-over-week training streaks keep you consistent. Sessions logged, average duration, and weekly frequency — all tracked automatically.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">💾</div>
+      <h3>Save &amp; share routines</h3>
+      <p>Build a program you love? Save it. Share it with a training partner by username. Restore any saved routine with one tap.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- HOW IT WORKS -->
+<div class="section fade-up">
+  <div class="tag">GETTING STARTED</div>
+  <h2>Up and tracking<br>in 3 minutes.</h2>
+  <p class="lead">No tutorial needed. Walk through onboarding once and you'll have a full week's training plan waiting.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-n">01</div>
+      <h4>Create your free account</h4>
+      <p>No credit card, no subscription prompt. Just email and password. You're in.</p>
+    </div>
+    <div class="step">
+      <div class="step-n">02</div>
+      <h4>Tell us about you</h4>
+      <p>9 quick questions: goals, fitness level, equipment, days per week. Takes under 2 minutes.</p>
+    </div>
+    <div class="step">
+      <div class="step-n">03</div>
+      <h4>Get your plan</h4>
+      <p>IronLog generates a personalised weekly training split based on your answers. Edit it anytime or follow it as-is.</p>
+    </div>
+    <div class="step">
+      <div class="step-n">04</div>
+      <h4>Start your first session</h4>
+      <p>Tap the day, select an exercise, and log your first set. You'll see exactly what you need to beat next time.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- APP SCREENS -->
+<div class="section fade-up">
+  <div class="tag">THE APP</div>
+  <h2>Clean during a workout.<br>Informative after.</h2>
+  <p class="lead">Designed to be used with sweaty hands, one thumb, mid-set.</p>
+  <div class="mocks">
+    <!-- Workout -->
+    <div class="mock">
+      <div class="mock-head">ACTIVE SESSION</div>
+      <div class="m-ex">
+        <div class="m-ex-name">Barbell Squat</div>
+        <div class="m-ex-muscle">quads · glutes · hamstrings</div>
+      </div>
+      <div class="m-set"><div class="m-set-n">SET 1</div><div class="m-set-v">100kg × 8</div><div class="m-set-cmp">↑ +5kg</div></div>
+      <div class="m-set"><div class="m-set-n">SET 2</div><div class="m-set-v">100kg × 7</div><div class="m-set-cmp" style="color:rgba(255,255,255,0.25)">= same</div></div>
+      <div class="m-set" style="background:rgba(255,230,109,0.06);border:1px solid rgba(255,230,109,0.15)"><div class="m-set-n" style="color:var(--yellow)">SET 3</div><div class="m-set-v" style="color:var(--yellow)">105kg × 6</div><div class="m-set-pr">NEW PR</div></div>
+      <div style="margin-top:8px;background:rgba(78,205,196,0.08);border:1px solid rgba(78,205,196,0.15);border-radius:8px;padding:7px;font-size:8px;color:var(--teal)">⏱ REST · 01:30 remaining</div>
+      <div class="mock-lbl">WORKOUT LOGGING</div>
+    </div>
+    <!-- Progress -->
+    <div class="mock">
+      <div class="mock-head">PROGRESS</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px">
+        <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:6px;text-align:center"><div style="font-size:13px;font-weight:700;color:var(--orange)">5</div><div style="font-size:6px;color:rgba(255,255,255,0.25)">SESSIONS</div></div>
+        <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:6px;text-align:center"><div style="font-size:13px;font-weight:700;color:var(--teal)">4</div><div style="font-size:6px;color:rgba(255,255,255,0.25)">STREAK</div></div>
+        <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:6px;text-align:center"><div style="font-size:13px;font-weight:700;color:var(--yellow)">54m</div><div style="font-size:6px;color:rgba(255,255,255,0.25)">AVG</div></div>
+      </div>
+      <div style="font-size:8px;color:rgba(255,255,255,0.25);margin-bottom:5px;font-family:'Space Mono',monospace;letter-spacing:1px">ACTIVITY · MAY</div>
+      <div class="m-cal">
+        ${[...Array(28)].map((_,i)=>`<div class="m-cal-dot" style="background:${[1,2,4,5,8,9,11,12,15,16,18,19,22,23,25,26].includes(i)?'var(--orange)':'rgba(255,255,255,0.06)'}"></div>`).join('')}
+      </div>
+      <div style="margin-top:8px;font-size:8px;color:rgba(255,255,255,0.25);font-family:'Space Mono',monospace;letter-spacing:1px">TOP PRs</div>
+      <div class="m-pr-row">
+        <div class="m-pr-badge">🏆</div>
+        <div><div class="m-pr-name">Deadlift</div><div class="m-pr-val">180kg · May 14</div></div>
+      </div>
+      <div class="m-pr-row">
+        <div class="m-pr-badge" style="background:linear-gradient(135deg,var(--teal),#009999)">🏆</div>
+        <div><div class="m-pr-name">Bench Press</div><div class="m-pr-val">100kg · May 12</div></div>
+      </div>
+      <div class="mock-lbl">PROGRESS DASHBOARD</div>
+    </div>
+    <!-- Exercise browser -->
+    <div class="mock">
+      <div class="mock-head">EXERCISE LIBRARY</div>
+      <div style="background:rgba(255,255,255,0.05);border-radius:7px;padding:6px 8px;font-size:8px;color:rgba(255,255,255,0.2);margin-bottom:7px">🔍 Pull day exercises...</div>
+      <div style="display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap">
+        <div style="padding:2px 6px;border-radius:8px;font-size:6px;font-weight:700;background:var(--teal);color:#000">Gym</div>
+        <div style="padding:2px 6px;border-radius:8px;font-size:6px;background:rgba(255,102,68,0.8);color:#000;font-weight:700">Pull</div>
+        <div style="padding:2px 6px;border-radius:8px;font-size:6px;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.3)">Back</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:7px 8px;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+        <div style="width:20px;height:20px;border-radius:5px;background:rgba(255,102,68,0.2);flex-shrink:0"></div>
+        <div><div style="font-size:8px;font-weight:700">Barbell Row</div><div style="font-size:6px;color:var(--orange)">back · biceps · forearms</div></div>
+        <div style="font-size:6px;background:rgba(255,255,255,0.05);padding:2px 4px;border-radius:3px;margin-left:auto;color:rgba(255,255,255,0.4)">FORM</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:7px 8px;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+        <div style="width:20px;height:20px;border-radius:5px;background:rgba(255,102,68,0.2);flex-shrink:0"></div>
+        <div><div style="font-size:8px;font-weight:700">Lat Pulldown</div><div style="font-size:6px;color:var(--orange)">back · biceps</div></div>
+        <div style="font-size:6px;background:rgba(255,255,255,0.05);padding:2px 4px;border-radius:3px;margin-left:auto;color:rgba(255,255,255,0.4)">FORM</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:7px 8px;display:flex;align-items:center;gap:6px">
+        <div style="width:20px;height:20px;border-radius:5px;background:rgba(255,102,68,0.2);flex-shrink:0"></div>
+        <div><div style="font-size:8px;font-weight:700">Pull-Ups</div><div style="font-size:6px;color:var(--orange)">back · biceps · forearms</div></div>
+        <div style="font-size:6px;background:rgba(255,255,255,0.05);padding:2px 4px;border-radius:3px;margin-left:auto;color:rgba(255,255,255,0.4)">FORM</div>
+      </div>
+      <div class="mock-lbl">EXERCISE BROWSER</div>
+    </div>
+    <!-- Body metrics -->
+    <div class="mock">
+      <div class="mock-head">BODY TRACKING</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:14px;font-weight:700;color:var(--teal)">83.2</div>
+          <div style="font-size:7px;color:rgba(255,255,255,0.25)">KG · CURRENT</div>
+        </div>
+        <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:14px;font-weight:700;color:var(--orange)">78.0</div>
+          <div style="font-size:7px;color:rgba(255,255,255,0.25)">KG · TARGET</div>
+        </div>
+      </div>
+      <div style="font-size:7px;color:rgba(255,255,255,0.2);margin-bottom:5px;font-family:'Space Mono',monospace;letter-spacing:1px">WEIGHT TREND</div>
+      <svg viewBox="0 0 130 40" style="width:100%;margin-bottom:8px">
+        <polyline points="0,35 15,33 30,32 45,30 60,28 75,27 90,24 105,22 120,18 130,15" fill="none" stroke="rgba(78,205,196,0.6)" stroke-width="1.5" stroke-linejoin="round"/>
+        <polyline points="0,35 15,33 30,32 45,30 60,28 75,27 90,24 105,22 120,18 130,15 130,40 0,40" fill="url(#gr)" opacity="0.2"/>
+        <defs><linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4ECDC4"/><stop offset="100%" stop-color="transparent"/></linearGradient></defs>
+      </svg>
+      <div style="font-size:7px;color:rgba(255,255,255,0.2);margin-bottom:5px;font-family:'Space Mono',monospace;letter-spacing:1px">BMI</div>
+      <div style="background:rgba(255,255,255,0.04);border-radius:6px;padding:7px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:13px;font-weight:700;color:var(--green)">24.1</div>
+        <div style="font-size:7px;color:var(--green)">NORMAL</div>
+      </div>
+      <div class="mock-lbl">BODY METRICS</div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- TRAINER CONNECTION -->
+<div class="section fade-up">
+  <div class="tag">WORK WITH A TRAINER</div>
+  <h2>Have a trainer?<br>They'll love this too.</h2>
+  <p class="lead">If your trainer uses IronLog, they can see your data, send you programs, and message you — all inside the same app you're already using.</p>
+  <div class="trainer-block">
+    <div class="trainer-block-text">
+      <div class="tblock-tag">HOW IT WORKS</div>
+      <h3 style="font-size:22px;font-weight:700;margin-bottom:12px">You share. They coach.<br>Nothing extra to set up.</h3>
+      <p style="font-size:14px;color:var(--text);margin-bottom:20px;line-height:1.7">Your trainer searches your username, sends a connection request, and you accept. From that moment, they can view your history, write you a custom program, and message you directly. You keep full control — disconnect at any time.</p>
+      <ul style="list-style:none;padding:0">
+        <li style="font-size:13px;padding:7px 0;border-bottom:1px solid var(--border);color:var(--text);display:flex;gap:10px"><span style="color:var(--orange)">✦</span>Your trainer sees your sessions and PRs</li>
+        <li style="font-size:13px;padding:7px 0;border-bottom:1px solid var(--border);color:var(--text);display:flex;gap:10px"><span style="color:var(--orange)">✦</span>They send you programs you can preview before accepting</li>
+        <li style="font-size:13px;padding:7px 0;border-bottom:1px solid var(--border);color:var(--text);display:flex;gap:10px"><span style="color:var(--orange)">✦</span>In-app messages stay attached to your training context</li>
+        <li style="font-size:13px;padding:7px 0;color:var(--text);display:flex;gap:10px"><span style="color:var(--orange)">✦</span>You don't need to pay anything — the trainer covers the cost</li>
+      </ul>
+    </div>
+    <div class="trainer-block-visual">
+      <div class="tblock-visual-inner">
+        <div style="font-family:'Space Mono',monospace;font-size:8px;color:rgba(255,255,255,0.2);letter-spacing:2px;margin-bottom:10px">TRAINER MESSAGE</div>
+        <div style="background:rgba(255,255,255,0.05);border-radius:8px 8px 8px 2px;padding:8px 10px;font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:6px">Great session yesterday! I'm pushing your squat weight 5kg from next week.</div>
+        <div style="background:rgba(255,255,255,0.05);border-radius:8px 8px 8px 2px;padding:8px 10px;font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:10px">I've sent you an updated plan — take a look and accept when ready.</div>
+        <div style="padding:9px;background:rgba(255,102,68,0.1);border:1px solid rgba(255,102,68,0.2);border-radius:8px;font-size:10px;color:rgba(255,102,68,0.8)">📋 New plan proposal from coach_ali — <span style="text-decoration:underline">Review &amp; Accept</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- FREE BANNER -->
+<div class="section fade-up" style="text-align:center">
+  <div class="free-banner">
+    <div class="big-free">FREE</div>
+    <div class="free-sub">Completely, permanently free.</div>
+    <p style="font-size:15px;color:var(--text);max-width:460px;margin:0 auto 28px;line-height:1.7">Every athlete feature — workout logging, AI plans, PR tracking, form demos, muscle maps, progress charts, body metrics — free forever. No ads, no trial, no hidden tier.</p>
+    <a href="ironlogmv.vercel.app" class="btn-teal" style="font-size:15px;padding:14px 36px;display:inline-block">Create Your Free Account</a>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta-section">
+  <div class="tag" style="display:flex;justify-content:center;margin-bottom:14px">YOUR FIRST SESSION</div>
+  <h2>Start tonight.<br>See the difference.</h2>
+  <p>Log one workout. Look at the numbers after. You'll never go back to guessing.</p>
+  <a href="ironlogmv.vercel.app" class="btn-teal" style="font-size:16px;padding:16px 40px;display:inline-block">Get IronLog Free →</a>
+</div>
+
+<footer>
+  <div style="font-size:16px;font-weight:700;letter-spacing:3px;margin-bottom:8px">IRON<span style="color:#FF6644">LOG</span></div>
+  FREE FOR ATHLETES · ALWAYS · IRONLOGMV.VERCEL.APP
+</footer>
+
+<script>
+const obs = new IntersectionObserver(entries => entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('in'); }), {threshold:0.1});
+document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

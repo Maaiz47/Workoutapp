@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IronLog — Business & Revenue Model</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Mono:wght@400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--orange:#FF6644;--teal:#4ECDC4;--yellow:#FFE66D;--green:#5CDB95;--purple:#A78BFA;--bg:#090910;--card:#101018;--card2:#14141e;--border:rgba(255,255,255,0.07);--text:rgba(255,255,255,0.6)}
+body{background:var(--bg);color:#fff;font-family:'DM Sans',sans-serif;line-height:1.65;overflow-x:hidden}
+/* NAV */
+nav{position:sticky;top:0;z-index:100;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;background:rgba(9,9,16,0.9);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+.logo{font-family:'Space Mono',monospace;font-size:15px;font-weight:700;color:#fff;letter-spacing:2px;text-decoration:none}
+.logo span{color:var(--orange)}
+.nav-links{display:flex;gap:8px}
+.nav-link{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;color:rgba(255,255,255,0.45);transition:color .2s}
+.nav-link:hover{color:#fff}
+.nav-link.active{color:#fff;background:rgba(255,255,255,0.07)}
+/* COVER */
+.cover{min-height:90vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px 60px;position:relative;overflow:hidden}
+.cover-bg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(255,102,68,0.1) 0%,transparent 65%),radial-gradient(ellipse 50% 40% at 80% 80%,rgba(78,205,196,0.07) 0%,transparent 60%);pointer-events:none}
+.doc-type{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border:1px solid rgba(255,102,68,0.25);border-radius:4px;font-size:10px;font-family:'Space Mono',monospace;color:var(--orange);letter-spacing:3px;margin-bottom:28px}
+.cover h1{font-size:clamp(38px,7vw,76px);font-weight:700;line-height:1.0;margin-bottom:20px;letter-spacing:-1px}
+.cover h1 span{color:var(--orange)}
+.cover-sub{font-size:16px;color:var(--text);max-width:500px;margin-bottom:40px}
+.cover-meta{display:flex;gap:24px;flex-wrap:wrap;justify-content:center}
+.meta-item{font-family:'Space Mono',monospace;font-size:10px;color:rgba(255,255,255,0.25);letter-spacing:2px}
+/* PAGE SECTIONS */
+.page{max-width:1000px;margin:0 auto;padding:72px 24px}
+.section-eyebrow{font-family:'Space Mono',monospace;font-size:10px;color:var(--orange);letter-spacing:4px;margin-bottom:12px}
+h2{font-size:clamp(24px,4vw,40px);font-weight:700;margin-bottom:12px;line-height:1.15}
+.lead{font-size:17px;color:var(--text);max-width:620px;margin-bottom:48px;line-height:1.7}
+.divider{border:none;border-top:1px solid var(--border);margin:0}
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px}
+.card-sm{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px}
+/* PRICING GRID */
+.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:16px}
+.tier{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;position:relative;display:flex;flex-direction:column}
+.tier.hero-tier{border-color:var(--orange);background:linear-gradient(160deg,rgba(255,102,68,0.08),var(--card))}
+.tier-badge{position:absolute;top:-1px;left:50%;transform:translateX(-50%);background:var(--orange);color:#000;font-size:9px;font-weight:700;font-family:'Space Mono',monospace;padding:4px 16px;border-radius:0 0 10px 10px;letter-spacing:1px;white-space:nowrap}
+.tier-name{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.35);margin-bottom:10px}
+.tier-price{margin-bottom:6px}
+.tier-price .amount{font-size:44px;font-weight:700;font-family:'Space Mono',monospace;line-height:1}
+.tier-price .curr{font-size:20px;vertical-align:super;font-weight:700}
+.tier-price .per{font-size:13px;color:rgba(255,255,255,0.35)}
+.tier-desc{font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.tier ul{list-style:none;flex:1;margin-bottom:20px}
+.tier ul li{font-size:12.5px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--text);display:flex;gap:9px;align-items:flex-start}
+.tier ul li:last-child{border-bottom:none}
+.tier-check{color:var(--teal);flex-shrink:0;font-size:13px;margin-top:1px}
+.tier-btn{display:block;text-align:center;padding:11px;border-radius:10px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;text-decoration:none;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.6);transition:all .2s;cursor:pointer;margin-top:auto}
+.tier-btn.cta{background:var(--orange);color:#000;border-color:transparent}
+.tier-btn:hover{opacity:.8}
+/* REVENUE PROJECTIONS */
+.scenarios{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:640px){.scenarios{grid-template-columns:1fr}}
+.scenario{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px}
+.scenario.mid{border-color:rgba(255,102,68,0.3);background:linear-gradient(160deg,rgba(255,102,68,0.06),var(--card))}
+.scenario-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;margin-bottom:16px}
+.scenario-label.con{color:rgba(78,205,196,0.7)}
+.scenario-label.mod{color:var(--orange)}
+.scenario-label.agg{color:var(--yellow)}
+.scenario-num{font-size:13px;color:var(--text);margin-bottom:6px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)}
+.scenario-num:last-of-type{border-bottom:none}
+.scenario-num b{color:#fff}
+.scenario-total{margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1);font-family:'Space Mono',monospace;font-size:20px;font-weight:700}
+/* UNIT ECONOMICS */
+.econ-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.econ-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center}
+.econ-num{font-family:'Space Mono',monospace;font-size:28px;font-weight:700;margin-bottom:4px}
+.econ-label{font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:1px}
+.econ-note{font-size:10px;color:rgba(255,255,255,0.2);margin-top:4px}
+/* FUNNEL */
+.funnel{display:flex;flex-direction:column;align-items:center;gap:0}
+.funnel-stage{width:100%;max-width:600px;display:flex;gap:16px;align-items:center;padding:14px 20px;border:1px solid var(--border);background:var(--card);position:relative}
+.funnel-stage:first-child{border-radius:12px 12px 0 0;width:100%}
+.funnel-stage:nth-child(2){border-radius:0;width:90%;border-top:none}
+.funnel-stage:nth-child(3){border-radius:0;width:78%;border-top:none}
+.funnel-stage:nth-child(4){border-radius:0;width:64%;border-top:none}
+.funnel-stage:last-child{border-radius:0 0 12px 12px;width:52%;border-top:none}
+.funnel-num{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;min-width:80px}
+.funnel-label{font-size:13px;font-weight:600}
+.funnel-sub{font-size:11px;color:rgba(255,255,255,0.3)}
+/* PAYMENT METHODS */
+.pay-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.pay-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px}
+.pay-badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:700;font-family:'Space Mono',monospace;margin-bottom:12px;letter-spacing:1px}
+.pay-badge.best{background:rgba(92,219,149,0.15);color:var(--green)}
+.pay-badge.good{background:rgba(255,230,109,0.15);color:var(--yellow)}
+.pay-badge.later{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3)}
+.pay-card h4{font-size:16px;font-weight:700;margin-bottom:6px}
+.pay-card p{font-size:12px;color:var(--text);line-height:1.6;margin-bottom:10px}
+.pay-pros{list-style:none;padding:0}
+.pay-pros li{font-size:11px;color:rgba(255,255,255,0.4);padding:3px 0;display:flex;gap:7px}
+/* ROADMAP */
+.roadmap{display:flex;flex-direction:column;gap:0;position:relative}
+.roadmap::before{content:'';position:absolute;left:23px;top:24px;bottom:24px;width:1px;background:var(--border)}
+.roadmap-item{display:flex;gap:20px;align-items:flex-start;padding:20px 0}
+.roadmap-dot{width:46px;height:46px;border-radius:50%;border:1px solid var(--border);background:var(--card);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;position:relative;z-index:1}
+.roadmap-dot.done{background:rgba(92,219,149,0.12);border-color:rgba(92,219,149,0.3)}
+.roadmap-dot.now{background:rgba(255,102,68,0.12);border-color:rgba(255,102,68,0.4)}
+.roadmap-dot.soon{background:rgba(255,230,109,0.08);border-color:rgba(255,230,109,0.2)}
+.roadmap-body{padding-top:10px;flex:1}
+.roadmap-phase{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.25);margin-bottom:4px}
+.roadmap-body h4{font-size:15px;font-weight:700;margin-bottom:6px}
+.roadmap-body p{font-size:12.5px;color:var(--text)}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;font-family:'Space Mono',monospace;letter-spacing:1px;margin-right:4px;margin-bottom:6px}
+.tag.done{background:rgba(92,219,149,0.12);color:var(--green)}
+.tag.now{background:rgba(255,102,68,0.12);color:var(--orange)}
+.tag.q3{background:rgba(255,230,109,0.1);color:var(--yellow)}
+.tag.q4{background:rgba(167,139,250,0.1);color:var(--purple)}
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:10px 14px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,0.25);text-align:left;border-bottom:1px solid var(--border)}
+td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--text)}
+td:first-child{color:#fff;font-weight:600}
+tr:last-child td{border-bottom:none}
+.yes{color:var(--teal)}
+.no{color:rgba(255,255,255,0.2)}
+/* CALLOUT */
+.callout{background:rgba(255,102,68,0.07);border:1px solid rgba(255,102,68,0.2);border-radius:12px;padding:20px 24px;margin:24px 0}
+.callout-teal{background:rgba(78,205,196,0.06);border-color:rgba(78,205,196,0.18)}
+.callout h4{font-size:14px;font-weight:700;margin-bottom:6px}
+.callout p{font-size:13px;color:var(--text);line-height:1.7}
+/* HELPERS */
+.flex{display:flex}
+.gap-12{gap:12px}
+.gap-16{gap:16px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.grid-2{grid-template-columns:1fr}}
+.mb-8{margin-bottom:8px}
+.mb-16{margin-bottom:16px}
+.mb-32{margin-bottom:32px}
+.mb-48{margin-bottom:48px}
+.mt-48{margin-top:48px}
+.text-sm{font-size:13px;color:var(--text)}
+.mono{font-family:'Space Mono',monospace}
+.orange{color:var(--orange)}
+.teal{color:var(--teal)}
+.green{color:var(--green)}
+.yellow{color:var(--yellow)}
+.dim{color:rgba(255,255,255,0.2)}
+/* FOOTER */
+footer{border-top:1px solid var(--border);padding:32px 24px;text-align:center;font-size:11px;color:rgba(255,255,255,0.15);font-family:'Space Mono',monospace;letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="promo.html" class="logo">IRON<span>LOG</span></a>
+  <div class="nav-links">
+    <a href="promo.html" class="nav-link">Overview</a>
+    <a href="revenue.html" class="nav-link active">Revenue Model</a>
+    <a href="trainer.html" class="nav-link">For Trainers</a>
+    <a href="client.html" class="nav-link">For Athletes</a>
+  </div>
+</nav>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-bg"></div>
+  <div class="doc-type">CONFIDENTIAL · BUSINESS MODEL</div>
+  <h1>How <span>IronLog</span><br>makes money.</h1>
+  <p class="cover-sub">A freemium SaaS built on trainer subscriptions, with a clear path to gym licensing and enterprise.</p>
+  <div class="cover-meta">
+    <span class="meta-item">VERSION 1.0</span>
+    <span class="meta-item">MAY 2026</span>
+    <span class="meta-item">CONFIDENTIAL</span>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- CORE MODEL -->
+<div class="page">
+  <div class="section-eyebrow">THE CORE THESIS</div>
+  <h2>Free for athletes.<br>Paid for trainers.</h2>
+  <p class="lead">The athlete side of the app is free forever — this drives adoption and makes every trainer's client roster sticky. Revenue comes from trainers who get real, measurable value from managing clients on the platform.</p>
+
+  <div class="grid-2 mb-32">
+    <div class="card">
+      <div style="font-size:28px;margin-bottom:12px">🏋️</div>
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:8px">Athletes — Free</h3>
+      <p class="text-sm">Workout logging, AI plan generation, progress tracking, exercise library — all free. The athlete never pays. This makes it easy for trainers to onboard any client, regardless of budget.</p>
+    </div>
+    <div class="card" style="border-color:rgba(255,102,68,0.2)">
+      <div style="font-size:28px;margin-bottom:12px">💼</div>
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:8px">Trainers — Subscription</h3>
+      <p class="text-sm">Client management, program delivery, workout history access, in-app messaging, plan proposals. These are the tools trainers need to run a serious coaching business — worth paying for.</p>
+    </div>
+  </div>
+
+  <hr class="divider" style="margin-bottom:48px"/>
+
+  <!-- PRICING -->
+  <div class="section-eyebrow">PRICING TIERS</div>
+  <h2>Three tiers. Simple.</h2>
+  <p class="lead">Pricing is set in USD for global positioning. Trainers in Maldives, UK, UAE, and beyond all pay the same rate.</p>
+
+  <div class="pricing-grid mb-16">
+    <div class="tier">
+      <div class="tier-name">ATHLETE</div>
+      <div class="tier-price"><span class="amount">$0</span><span class="per"> / forever</span></div>
+      <div class="tier-desc">For anyone who trains. No card needed, no trial — just free.</div>
+      <ul>
+        <li><span class="tier-check">✓</span>Full workout logging</li>
+        <li><span class="tier-check">✓</span>AI-generated training plan</li>
+        <li><span class="tier-check">✓</span>Progress tracking &amp; PRs</li>
+        <li><span class="tier-check">✓</span>119+ exercises + form demos</li>
+        <li><span class="tier-check">✓</span>Body metrics &amp; trends</li>
+        <li><span class="tier-check">✓</span>Receive trainer programs</li>
+        <li><span class="tier-check" style="color:rgba(255,255,255,0.15)">✗</span><span style="color:rgba(255,255,255,0.25)">Manage clients</span></li>
+      </ul>
+      <a href="#" class="tier-btn">Get Started Free</a>
+    </div>
+
+    <div class="tier hero-tier">
+      <div class="tier-badge">MOST POPULAR</div>
+      <div class="tier-name" style="margin-top:18px">TRAINER — STARTER</div>
+      <div class="tier-price"><span class="curr">$</span><span class="amount">19</span><span class="per"> / month</span></div>
+      <div class="tier-desc">For trainers with up to 10 active clients. Best for independent coaches starting out.</div>
+      <ul>
+        <li><span class="tier-check">✓</span>Everything in Athlete</li>
+        <li><span class="tier-check">✓</span>Up to <b>10 clients</b></li>
+        <li><span class="tier-check">✓</span>Build &amp; deliver programs</li>
+        <li><span class="tier-check">✓</span>View client workout history</li>
+        <li><span class="tier-check">✓</span>In-app client messaging</li>
+        <li><span class="tier-check">✓</span>Plan proposals + approvals</li>
+        <li><span class="tier-check">✓</span>Client body metrics access</li>
+      </ul>
+      <a href="#" class="tier-btn cta">Start Free Trial</a>
+    </div>
+
+    <div class="tier">
+      <div class="tier-name">TRAINER — PRO</div>
+      <div class="tier-price"><span class="curr">$</span><span class="amount">49</span><span class="per"> / month</span></div>
+      <div class="tier-desc">Unlimited clients. For established coaches and full-time personal trainers.</div>
+      <ul>
+        <li><span class="tier-check">✓</span>Everything in Starter</li>
+        <li><span class="tier-check">✓</span><b>Unlimited clients</b></li>
+        <li><span class="tier-check">✓</span>Priority support</li>
+        <li><span class="tier-check">✓</span>Routine library sharing</li>
+        <li><span class="tier-check">✓</span>Early access to new features</li>
+        <li><span class="tier-check" style="color:var(--yellow)">→</span><span style="color:var(--yellow)">Gym white-label (coming Q4)</span></li>
+        <li><span class="tier-check" style="color:var(--yellow)">→</span><span style="color:var(--yellow)">Analytics dashboard (coming Q4)</span></li>
+      </ul>
+      <a href="#" class="tier-btn">Start Free Trial</a>
+    </div>
+  </div>
+
+  <div class="callout">
+    <h4>30-day free trial on all trainer plans</h4>
+    <p>No credit card required to start. Trainers experience the full platform before deciding to pay. Conversion from trial to paid is the key metric to optimize in Year 1.</p>
+  </div>
+
+  <hr class="divider" style="margin:48px 0"/>
+
+  <!-- REVENUE PROJECTIONS -->
+  <div class="section-eyebrow">FINANCIAL PROJECTIONS</div>
+  <h2>Month 12 scenarios.</h2>
+  <p class="lead">Based on 20 trainers onboarded in Month 1, organic word-of-mouth growth, and a 70% trial-to-paid conversion rate.</p>
+
+  <div class="scenarios mb-32">
+    <div class="scenario">
+      <div class="scenario-label con">CONSERVATIVE</div>
+      <div class="scenario-num"><span>Trainers (Starter)</span><b class="teal">30</b></div>
+      <div class="scenario-num"><span>Trainers (Pro)</span><b class="teal">8</b></div>
+      <div class="scenario-num"><span>Athletes (free)</span><b class="dim">250</b></div>
+      <div class="scenario-num"><span>Churn rate</span><b class="dim">8% / mo</b></div>
+      <div class="scenario-total orange">$962<span style="font-size:13px;color:rgba(255,255,255,0.3)">/mo</span></div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:4px">~$11.5K ARR</div>
+    </div>
+    <div class="scenario mid">
+      <div class="scenario-label mod">MODERATE</div>
+      <div class="scenario-num"><span>Trainers (Starter)</span><b class="orange">65</b></div>
+      <div class="scenario-num"><span>Trainers (Pro)</span><b class="orange">22</b></div>
+      <div class="scenario-num"><span>Athletes (free)</span><b class="dim">800</b></div>
+      <div class="scenario-num"><span>Churn rate</span><b class="dim">5% / mo</b></div>
+      <div class="scenario-total orange">$2,313<span style="font-size:13px;color:rgba(255,255,255,0.3)">/mo</span></div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:4px">~$27.8K ARR</div>
+    </div>
+    <div class="scenario">
+      <div class="scenario-label agg">AGGRESSIVE</div>
+      <div class="scenario-num"><span>Trainers (Starter)</span><b class="yellow">130</b></div>
+      <div class="scenario-num"><span>Trainers (Pro)</span><b class="yellow">55</b></div>
+      <div class="scenario-num"><span>Athletes (free)</span><b class="dim">2,500</b></div>
+      <div class="scenario-num"><span>Churn rate</span><b class="dim">3% / mo</b></div>
+      <div class="scenario-total orange">$5,165<span style="font-size:13px;color:rgba(255,255,255,0.3)">/mo</span></div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:4px">~$61.9K ARR</div>
+    </div>
+  </div>
+
+  <div class="callout callout-teal">
+    <h4>The gym licensing kicker</h4>
+    <p>A single resort gym or fitness studio on a white-label plan at <strong>$199–$299/month</strong> equals 10–16 individual trainer subscriptions. The Maldives has 160+ resort islands — targeting resort gym managers is a high-value, low-competition distribution channel.</p>
+  </div>
+
+  <hr class="divider" style="margin:48px 0"/>
+
+  <!-- UNIT ECONOMICS -->
+  <div class="section-eyebrow">UNIT ECONOMICS</div>
+  <h2>The numbers that matter.</h2>
+  <p class="lead">SaaS health requires LTV:CAC above 3:1. Fitness coaching has exceptionally high retention once clients are embedded.</p>
+
+  <div class="econ-grid mb-32">
+    <div class="econ-card">
+      <div class="econ-num orange">$312</div>
+      <div class="econ-label">LTV — STARTER</div>
+      <div class="econ-note">$19/mo × 16.5 mo avg retention</div>
+    </div>
+    <div class="econ-card">
+      <div class="econ-num orange">$833</div>
+      <div class="econ-label">LTV — PRO</div>
+      <div class="econ-note">$49/mo × 17 mo avg retention</div>
+    </div>
+    <div class="econ-card">
+      <div class="econ-num teal">~$8</div>
+      <div class="econ-label">CAC (ORGANIC)</div>
+      <div class="econ-note">Word-of-mouth, zero ad spend</div>
+    </div>
+    <div class="econ-card">
+      <div class="econ-num green">39:1</div>
+      <div class="econ-label">LTV:CAC RATIO</div>
+      <div class="econ-note">Excellent for early-stage SaaS</div>
+    </div>
+    <div class="econ-card">
+      <div class="econ-num yellow">30 days</div>
+      <div class="econ-label">PAYBACK PERIOD</div>
+      <div class="econ-note">Month 2 is pure margin</div>
+    </div>
+    <div class="econ-card">
+      <div class="econ-num" style="color:var(--purple)">~80%</div>
+      <div class="econ-label">GROSS MARGIN</div>
+      <div class="econ-note">After payment processing fees</div>
+    </div>
+  </div>
+
+  <hr class="divider" style="margin:48px 0"/>
+
+  <!-- PAYMENT INFRASTRUCTURE -->
+  <div class="section-eyebrow">PAYMENT INFRASTRUCTURE</div>
+  <h2>Collecting money from Maldives.</h2>
+  <p class="lead">Stripe is not directly available in MVB. Here's the stack, ranked by speed to implement.</p>
+
+  <div class="pay-grid mb-32">
+    <div class="pay-card">
+      <div class="pay-badge best">RECOMMENDED NOW</div>
+      <h4>Paddle</h4>
+      <p>Acts as Merchant of Record — they charge the customer, handle all taxes and VAT globally, then pay you via bank transfer or Wise. No US entity needed. Works today.</p>
+      <ul class="pay-pros">
+        <li>✓ <span>5% + $0.50 per transaction</span></li>
+        <li>✓ <span>Payouts to MVB via Wise</span></li>
+        <li>✓ <span>Handles VAT/tax globally</span></li>
+        <li>✓ <span>Built-in subscription management</span></li>
+        <li>✓ <span>No US entity required</span></li>
+      </ul>
+    </div>
+    <div class="pay-card">
+      <div class="pay-badge good">ALSO GOOD</div>
+      <h4>Lemon Squeezy</h4>
+      <p>Same Merchant of Record model as Paddle. Slightly simpler setup, developer-friendly API, and strong for SaaS. Growing fast.</p>
+      <ul class="pay-pros">
+        <li>✓ <span>5% + $0.50 per transaction</span></li>
+        <li>✓ <span>Payouts via Wise or bank</span></li>
+        <li>✓ <span>Built-in affiliate program</span></li>
+        <li>✓ <span>Great dashboard UX</span></li>
+        <li>✓ <span>Stripe Checkout-like embed</span></li>
+      </ul>
+    </div>
+    <div class="pay-card">
+      <div class="pay-badge later">SCALE LATER</div>
+      <h4>Stripe via Atlas</h4>
+      <p>Stripe Atlas registers a US LLC for ~$500. Gives you direct Stripe access with lower fees (2.9% + $0.30) and maximum flexibility. Worth it at $2K+ MRR.</p>
+      <ul class="pay-pros">
+        <li>→ <span>$500 one-time setup cost</span></li>
+        <li>→ <span>2.9% + $0.30 per transaction</span></li>
+        <li>→ <span>Full Stripe product suite</span></li>
+        <li>→ <span>~4–6 weeks to set up</span></li>
+        <li>→ <span>US tax filing required annually</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider" style="margin:48px 0"/>
+
+  <!-- CONVERSION FUNNEL -->
+  <div class="section-eyebrow">ACQUISITION FUNNEL</div>
+  <h2>From discovery to paid.</h2>
+  <p class="lead">The trainer funnel is shorter than typical B2C. Trainers are motivated buyers — they want tools that save them time and make them look professional to clients.</p>
+
+  <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:32px">
+    <div class="funnel-stage"><div class="funnel-num orange">1,000</div><div><div class="funnel-label">Trainers reached</div><div class="funnel-sub">Social posts, word of mouth, gym visits</div></div></div>
+    <div class="funnel-stage"><div class="funnel-num teal">280</div><div><div class="funnel-label">Visit the trainer pitch page</div><div class="funnel-sub">28% click-through from outreach</div></div></div>
+    <div class="funnel-stage"><div class="funnel-num yellow">140</div><div><div class="funnel-label">Sign up for free trial</div><div class="funnel-sub">50% of visitors start trial</div></div></div>
+    <div class="funnel-stage"><div class="funnel-num" style="color:var(--purple)">98</div><div><div class="funnel-label">Onboard at least 1 client</div><div class="funnel-sub">70% activation rate once signed up</div></div></div>
+    <div class="funnel-stage"><div class="funnel-num green">82</div><div><div class="funnel-label">Convert to paid</div><div class="funnel-sub">84% of activated trainers pay (high value users)</div></div></div>
+  </div>
+
+  <div class="callout">
+    <h4>Key insight: activation = retention</h4>
+    <p>A trainer who onboards even one client has strong reasons to stay — their clients now depend on the app. The most important metric in Month 1 is not signups, it's "trainers who have connected at least one client."</p>
+  </div>
+
+  <hr class="divider" style="margin:48px 0"/>
+
+  <!-- ROADMAP -->
+  <div class="section-eyebrow">REVENUE ROADMAP</div>
+  <h2>How revenue grows over time.</h2>
+  <p class="lead">Three distinct phases, each unlocking a new revenue channel with increasing deal size.</p>
+
+  <div class="roadmap">
+    <div class="roadmap-item">
+      <div class="roadmap-dot done">✓</div>
+      <div class="roadmap-body">
+        <div class="roadmap-phase">PHASE 1 · NOW</div>
+        <span class="tag done">DONE</span>
+        <h4>Platform launch + trainer subscriptions</h4>
+        <p>Core product is built. Exercise library, tracking, trainer tools, plan builder, muscle maps all live. Stripe/Paddle integration is the one remaining unlock. Target: 20 paying trainers in Month 1.</p>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-dot now">◉</div>
+      <div class="roadmap-body">
+        <div class="roadmap-phase">PHASE 2 · Q3 2026</div>
+        <span class="tag now">IN PROGRESS</span>
+        <span class="tag q3">Q3 2026</span>
+        <h4>Payment integration + trainer marketing push</h4>
+        <p>Wire up Paddle. Build the trainer onboarding email sequence. Run outreach to 50+ trainers across Male', Hulhumalé, and resort gyms. Target: $1K MRR by end of Q3.</p>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-dot soon">○</div>
+      <div class="roadmap-body">
+        <div class="roadmap-phase">PHASE 3 · Q4 2026</div>
+        <span class="tag q4">Q4 2026</span>
+        <h4>Gym &amp; resort white-labelling</h4>
+        <p>$199–299/month per gym. Custom branding, multiple staff trainer accounts, gym-wide client roster. First target: resort gym operators across Maldives. One deal = ~10 trainer subscriptions in revenue.</p>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-dot soon">○</div>
+      <div class="roadmap-body">
+        <div class="roadmap-phase">PHASE 4 · 2027</div>
+        <span class="tag" style="background:rgba(78,205,196,0.1);color:var(--teal)">2027</span>
+        <h4>Claude AI integration + premium plan tier</h4>
+        <p>Add real AI coaching — adaptive plan adjustments, workout summaries, natural language program generation. Justifies a higher tier ($79–99/month) and reinvigorates growth.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div style="font-size:16px;font-weight:700;letter-spacing:3px;margin-bottom:8px">IRON<span style="color:var(--orange)">LOG</span></div>
+  CONFIDENTIAL · NOT FOR DISTRIBUTION · © 2026 IRONLOG
+</footer>
+
+</body>
+</html>
