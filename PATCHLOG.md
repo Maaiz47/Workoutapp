@@ -33,6 +33,37 @@ Generate VAPID keys: `npx web-push generate-vapid-keys`
 
 ---
 
+## Patch 17 · 2026-05-17
+**Multi-Goal Selection + Body Data Sync**
+
+### Multiple goals
+- Onboarding step 3 and Settings → BODY & STATS now allow selecting **multiple goals** simultaneously (Build Muscle, Get Stronger, Lose Fat, General Fitness)
+- Tap to toggle — any combination is valid; checkmark shows selected state
+- Plan generator blends volume parameters (sets, reps, rest) across all selected goals using an average: e.g. Muscle + Fat Loss → 3-4 sets, 10–16 reps, 60s rest
+- Primary goal (priority: strength > muscle > fat_loss > fitness) determines the split type (PPL / Upper-Lower / Full Body)
+- Fat Loss anywhere in goals adds cardio finishers to push and full-body days
+- `UserProfile` stores `goals String[]` alongside legacy `goal String` — existing users retain their data; plan generation reads `goals[]` with `goal` fallback
+
+### Body data sync (linked inputs)
+- **Log in Progress → Body tab** → also updates `UserProfile.weightKg` and `bodyFatPct` (Settings reflects the latest value immediately)
+- **Save in Settings → BODY & STATS** → also creates a `BodyMetric` entry if weight or body fat changed (Progress history updates automatically)
+- Both directions keep the two screens in sync — only one source of truth
+
+### Schema change
+- `UserProfile`: added `goals String[]` field
+
+---
+
+## Patch 16 · 2026-05-17
+**Personal Bests — Renamed + Reps Display**
+
+- Renamed "PERSONAL RECORDS" → "PERSONAL BESTS" on the progress dashboard
+- Each entry now shows the best weight **and** the rep count achieved at that weight (e.g. `80kg × 8 reps`)
+- Tie-breaking: if two sessions share the same top weight, the one with more reps wins
+- `getOverallStats` updated to store `reps` in `exercisePRs`
+
+---
+
 ## Patch 15 · 2026-05-17
 **Personal Bests — Renamed + Reps Display**
 

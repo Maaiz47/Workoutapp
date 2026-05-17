@@ -48,10 +48,12 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Notification permission banner (in-app) shown on first visit — "Not now" dismisses persistently
 
 ### Personalised Plan
-- 8-step onboarding questionnaire for new users: days per week, goal, fitness level, location, equipment, gender, DOB, body metrics
+- 8-step onboarding questionnaire for new users: days per week, goals, fitness level, location, equipment, gender, DOB, body metrics
+- **Multiple goals** supported — select any combination of Build Muscle, Get Stronger, Lose Fat, General Fitness
 - Rule-based plan generator produces a custom split — no AI API required
   - 2d → Full Body · 3d → PPL or Full Body ×3 · 4d → Upper/Lower · 5d → PPL · 6d → PPL ×2
-  - Adjusts sets/reps/rest per goal (strength / hypertrophy / fat loss / endurance) and fitness level
+  - Blends sets/reps/rest across all selected goals (e.g. Muscle + Fat Loss → moderate reps, shorter rest)
+  - Primary goal (strength > muscle > fat_loss > fitness) drives split type; Fat Loss adds cardio finishers
   - Pulls from 110+ exercise database tagged by muscle, equipment, location, and goal
 - Existing users (have workout history) skip onboarding and keep their prior plan
 
@@ -75,6 +77,7 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 
 ### Body Metrics
 - Log weight (kg) and body fat % with a date stamp
+- **Synced with Settings**: logging in Progress updates your profile; saving in Settings creates a metric entry
 - Set target weight and target body fat % goals
 - Trend chart shows last 12 entries
 - Progress bars toward goals; history list with delete
