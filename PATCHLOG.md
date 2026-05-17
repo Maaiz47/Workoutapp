@@ -33,6 +33,29 @@ Generate VAPID keys: `npx web-push generate-vapid-keys`
 
 ---
 
+## Patch 21 · 2026-05-17
+**Exercise Form Preview Modal**
+
+### Form preview modal
+- New full-screen modal that animates between the start and end position JPG images from the free-exercise-db GitHub repository to demonstrate proper exercise form
+- Image URLs follow the pattern `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/{DB_ID}/{frame}.jpg` where frame is `0` (start) or `1` (end)
+- Images alternate automatically every 900 ms; a START/END label overlays the bottom-right corner of the image
+- If no image mapping exists for an exercise, the modal shows a graceful "No form demo available" message instead of hiding the button
+- Tapping the dark backdrop or the × button closes the modal
+
+### FORM button — workout view
+- Each exercise row in the active workout view now has a small `FORM` button inline with the exercise name
+- Tapping it opens the form preview modal without collapsing or logging the set (stopPropagation)
+
+### FORM button — exercise browser
+- Each exercise row in the Customise → Add Exercise browser also has a `FORM` button
+- Tapping it opens the form preview modal without triggering the "add exercise" action (stopPropagation)
+
+### lib/exerciseImages.ts
+- New utility file mapping internal exercise IDs to free-exercise-db directory names for ~110 exercises across all muscle groups
+
+---
+
 ## Patch 20 · 2026-05-17
 **Body Metrics Edit + BMI Card + Settings: Location/Equipment/Focus Area + Regenerate Plan**
 

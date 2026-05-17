@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 import { EXERCISES } from "../lib/exercises";
+import { getExerciseImageUrls } from "../lib/exerciseImages";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -573,6 +574,9 @@ export default function HomePage() {
     goals: [] as string[], targetArea: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
   });
 
+  const [formPreview, setFormPreview] = useState<{ id: string; name: string; muscles: string[] } | null>(null);
+  const [formFrame, setFormFrame] = useState(0);
+
   const rest = useCountdown();
   const timer = useTimer();
 
@@ -733,6 +737,13 @@ export default function HomePage() {
       // Stay on home — the active card will show the live session
     } catch { try { localStorage.removeItem("ironlog-session"); } catch {} }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!formPreview) return;
+    setFormFrame(0);
+    const iv = setInterval(() => setFormFrame(f => f === 0 ? 1 : 0), 900);
+    return () => clearInterval(iv);
+  }, [formPreview]);
 
   const authPost = async (body: object) => {
     const res = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -1673,7 +1684,13 @@ export default function HomePage() {
                       await saveDay(editingDay, [...exs, newEx]);
                       setShowExBrowser(false); setExSearch("");
                     }} style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)", marginBottom: 6, cursor: "pointer" }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{ex.name}</span>
+                        <button
+                          onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [] }); }}
+                          style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}
+                        >FORM</button>
+                      </div>
                       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{ex.primaryMuscles.join(", ")} · {ex.equipment.join(", ")} · {ex.difficulty}</div>
                     </div>
                   ))}
@@ -3290,6 +3307,37 @@ export default function HomePage() {
           );
         })()}
 
+        {formPreview && (() => {
+          const urls = getExerciseImageUrls(formPreview.id);
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setFormPreview(null)}>
+              <div style={{ width: "100%", maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{formPreview.name}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1 }}>{formPreview.muscles.join(" · ").toUpperCase()}</div>
+                  </div>
+                  <button onClick={() => setFormPreview(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", lineHeight: 1, padding: "0 0 0 12px" }}>×</button>
+                </div>
+                {urls ? (
+                  <div style={{ position: "relative", width: "100%", borderRadius: 14, overflow: "hidden", background: "#111" }}>
+                    <img
+                      src={urls[formFrame]}
+                      alt={formPreview.name}
+                      style={{ width: "100%", display: "block", minHeight: 200, objectFit: "cover" }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                    <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.5)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
+                  </div>
+                ) : (
+                  <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 32, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No form demo available for this exercise</div>
+                )}
+                <div style={{ marginTop: 12, fontSize: 11, color: "rgba(255,255,255,0.2)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>TAP OUTSIDE TO CLOSE</div>
+              </div>
+            </div>
+          );
+        })()}
+
         {rest.running && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(20px)" }}>
             <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>REST</div>
@@ -3334,9 +3382,13 @@ export default function HomePage() {
                   }}
                     style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: (allDone || wuDone) ? 0.3 : 1, cursor: "pointer", transition: "opacity 0.3s" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 14, fontWeight: 500, color: "#fff" }}>{ex.name}</span>
-                        {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1 }}>{ex.type.toUpperCase()}</span>}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</span>
+                        {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1, flexShrink: 0 }}>{ex.type.toUpperCase()}</span>}
+                        <button
+                          onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: [] }); }}
+                          style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginLeft: 6, flexShrink: 0 }}
+                        >FORM</button>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         {trackable && done > 0 && (
