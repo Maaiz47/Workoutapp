@@ -576,6 +576,7 @@ export default function HomePage() {
 
   const [formPreview, setFormPreview] = useState<{ id: string; name: string; muscles: string[] } | null>(null);
   const [formFrame, setFormFrame] = useState(0);
+  const [formImgError, setFormImgError] = useState(false);
 
   const rest = useCountdown();
   const timer = useTimer();
@@ -741,6 +742,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!formPreview) return;
     setFormFrame(0);
+    setFormImgError(false);
     const iv = setInterval(() => setFormFrame(f => f === 0 ? 1 : 0), 900);
     return () => clearInterval(iv);
   }, [formPreview]);
@@ -3319,18 +3321,27 @@ export default function HomePage() {
                   </div>
                   <button onClick={() => setFormPreview(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", lineHeight: 1, padding: "0 0 0 12px" }}>×</button>
                 </div>
-                {urls ? (
+                {urls && !formImgError ? (
                   <div style={{ position: "relative", width: "100%", borderRadius: 14, overflow: "hidden", background: "#111" }}>
                     <img
+                      key={urls[formFrame]}
                       src={urls[formFrame]}
                       alt={formPreview.name}
-                      style={{ width: "100%", display: "block", minHeight: 200, objectFit: "cover" }}
-                      onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      style={{ width: "100%", display: "block", minHeight: 220, objectFit: "cover" }}
+                      onError={() => setFormImgError(true)}
                     />
-                    <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.5)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
+                    <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
+                    <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", gap: 4 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: formFrame === 0 ? "#fff" : "rgba(255,255,255,0.25)", transition: "background 0.3s" }} />
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: formFrame === 1 ? "#fff" : "rgba(255,255,255,0.25)", transition: "background 0.3s" }} />
+                    </div>
                   </div>
                 ) : (
-                  <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 32, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No form demo available for this exercise</div>
+                  <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 40, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                    <div style={{ fontSize: 32, opacity: 0.3 }}>🏋️</div>
+                    <div>No form demo available for this exercise</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.15)" }}>Search YouTube for "{formPreview.name} form" for a video guide</div>
+                  </div>
                 )}
                 <div style={{ marginTop: 12, fontSize: 11, color: "rgba(255,255,255,0.2)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>TAP OUTSIDE TO CLOSE</div>
               </div>
@@ -3383,6 +3394,11 @@ export default function HomePage() {
                     style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: (allDone || wuDone) ? 0.3 : 1, cursor: "pointer", transition: "opacity 0.3s" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+                        {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? (
+                          <img src={tu[0]} alt="" onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: [] }); }}
+                            style={{ width: 38, height: 38, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "#1a1a1a", cursor: "pointer" }}
+                            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        ) : null; })()}
                         <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</span>
                         {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1, flexShrink: 0 }}>{ex.type.toUpperCase()}</span>}
                         <button
