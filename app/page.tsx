@@ -375,9 +375,20 @@ function BodyTrendChart({ items, color, unit }: { items: { value: number; date: 
   const cy = (v: number) => PT + ((maxV - v) / vRange) * (H - PT - PB);
   const pathD = items.map((it, i) => `${i === 0 ? "M" : "L"}${cx(it.date).toFixed(1)},${cy(it.value).toFixed(1)}`).join(" ");
   const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-  // pick up to 3 evenly spaced labels
-  const labelIdxs = items.length === 2 ? [0, 1] : [0, Math.floor(items.length / 2), items.length - 1];
-  const uniqueIdxs = labelIdxs.filter((v, i, a) => a.indexOf(v) === i);
+  // Candidate label positions: first, second-to-last, last
+  const LABEL_MIN_GAP = 38; // min px between label centres before suppressing
+  const candidates = items.length === 2
+    ? [0, items.length - 1]
+    : [0, items.length - 2, items.length - 1];
+  const uniqueCandidates = candidates.filter((v, i, a) => a.indexOf(v) === i);
+  // Collision filter: left-to-right, skip any label whose x is within MIN_GAP of the last drawn
+  const visibleIdxs: number[] = [];
+  let lastX = -Infinity;
+  for (const idx of uniqueCandidates) {
+    const x = Math.max(PL, Math.min(W - PR, cx(items[idx].date)));
+    if (x - lastX >= LABEL_MIN_GAP) { visibleIdxs.push(idx); lastX = x; }
+  }
+  // If only 1 survives and we had 2 candidates, still try to render just 1 centred label
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block", overflow: "visible" }}>
       <line x1={PL} y1={PT} x2={PL} y2={H - PB} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
@@ -388,10 +399,10 @@ function BodyTrendChart({ items, color, unit }: { items: { value: number; date: 
         const isLast = i === items.length - 1;
         return <circle key={i} cx={cx(it.date)} cy={cy(it.value)} r={isLast ? 4 : 2.5} fill={isLast ? color : `${color}70`} />;
       })}
-      {uniqueIdxs.map((idx, i) => {
+      {visibleIdxs.map((idx, i) => {
         const it = items[idx];
         const x = Math.max(PL, Math.min(W - PR, cx(it.date)));
-        const anchor = i === 0 ? "start" : i === uniqueIdxs.length - 1 ? "end" : "middle";
+        const anchor = i === 0 ? "start" : i === visibleIdxs.length - 1 ? "end" : "middle";
         return <text key={idx} x={x} y={H - 5} fill="rgba(255,255,255,0.25)" fontSize="7.5" textAnchor={anchor} fontFamily="monospace">{fmt(it.date)}</text>;
       })}
     </svg>
