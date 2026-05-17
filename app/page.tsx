@@ -1190,7 +1190,7 @@ export default function HomePage() {
       if (!confirm("No sets logged. Quit without saving?")) return;
       timer.stopT();
       try { localStorage.removeItem("ironlog-session"); } catch {}
-      setView("home"); setActiveDay(null); setLog({});
+      setView("home"); setActiveDay(null); setLog({}); setStarted(false);
       return;
     }
     setAdjustedDuration(timer.fmt);
@@ -1213,7 +1213,7 @@ export default function HomePage() {
       } catch {}
     }
     try { localStorage.removeItem("ironlog-session"); } catch {}
-    setView("home"); setActiveDay(null); setLog({});
+    setView("home"); setActiveDay(null); setLog({}); setStarted(false);
   };
 
   const openEditModal = (eid: string) => {
@@ -1239,7 +1239,7 @@ export default function HomePage() {
     if (!confirm("Quit workout? Your progress will NOT be saved.")) return;
     timer.stopT();
     try { localStorage.removeItem("ironlog-session"); } catch {}
-    setView("home"); setActiveDay(null); setLog({});
+    setView("home"); setActiveDay(null); setLog({}); setStarted(false);
   };
 
   const deleteSession = async (sessionId: string) => {
@@ -3308,7 +3308,7 @@ export default function HomePage() {
         })()}
 
         {formPreview && (() => {
-          const urls = getExerciseImageUrls(formPreview.id);
+          const urls = getExerciseImageUrls(formPreview.id, formPreview.name);
           return (
             <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setFormPreview(null)}>
               <div style={{ width: "100%", maxWidth: 420 }} onClick={e => e.stopPropagation()}>

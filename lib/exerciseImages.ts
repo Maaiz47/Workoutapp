@@ -1,13 +1,67 @@
 const BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises";
 
-export function getExerciseImageUrls(exerciseId: string): [string, string] | null {
-  const dbId = EXERCISE_DB_MAP[exerciseId];
+function norm(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+export function getExerciseImageUrls(exerciseId: string, exerciseName?: string): [string, string] | null {
+  let dbId = EXERCISE_DB_MAP[exerciseId];
+  if (!dbId && exerciseName) {
+    const key = norm(exerciseName);
+    for (const [ourId, id] of Object.entries(EXERCISE_DB_MAP)) {
+      if (norm(ourId.replace(/-/g, " ")) === key) { dbId = id; break; }
+    }
+    if (!dbId) dbId = NAME_OVERRIDES[key];
+  }
   if (!dbId) return null;
   return [
     `${BASE}/${encodeURIComponent(dbId)}/0.jpg`,
     `${BASE}/${encodeURIComponent(dbId)}/1.jpg`,
   ];
 }
+
+const NAME_OVERRIDES: Record<string, string> = {
+  norm("Flat Barbell Bench Press"):      "Barbell_Bench_Press_-_Medium_Grip",
+  norm("Barbell Bench Press"):           "Barbell_Bench_Press_-_Medium_Grip",
+  norm("Flat Bench Press"):              "Barbell_Bench_Press_-_Medium_Grip",
+  norm("Cable Flyes"):                   "Cable_Crossover",
+  norm("Cable Flyes Low-to-High"):       "Cable_Crossover",
+  norm("Cable Flyes High-to-Low"):       "Cable_Crossover",
+  norm("Tricep Rope Pushdowns"):         "Tricep_Pushdown",
+  norm("Rope Pushdown"):                 "Tricep_Pushdown",
+  norm("Rope Tricep Pushdown"):          "Tricep_Pushdown",
+  norm("Overhead Tricep Extension"):     "Dumbbell_Lying_Triceps_Extension",
+  norm("Pull Ups"):                      "Pullups",
+  norm("Push Ups"):                      "Pushups",
+  norm("Dips"):                          "Dips_-_Triceps_Version",
+  norm("Hip Thrust"):                    "Barbell_Hip_Thrust",
+  norm("RDL"):                           "Romanian_Deadlift",
+  norm("Stiff Leg Deadlift"):            "Romanian_Deadlift",
+  norm("DB Romanian Deadlift"):          "Romanian_Deadlift",
+  norm("Dumbbell RDL"):                  "Romanian_Deadlift",
+  norm("Seated Row"):                    "Seated_Cable_Rows",
+  norm("Cable Row"):                     "Seated_Cable_Rows",
+  norm("Overhead Press"):                "Barbell_Shoulder_Press",
+  norm("OHP"):                           "Barbell_Shoulder_Press",
+  norm("Military Press"):                "Barbell_Shoulder_Press",
+  norm("Lateral Raises"):                "Side_Lateral_Raise",
+  norm("Side Lateral Raise"):            "Side_Lateral_Raise",
+  norm("Back Squat"):                    "Barbell_Squat",
+  norm("Low Bar Squat"):                 "Barbell_Squat",
+  norm("High Bar Squat"):                "Barbell_Squat",
+  norm("Squat"):                         "Barbell_Squat",
+  norm("Deadlift"):                      "Barbell_Deadlift",
+  norm("Conventional Deadlift"):         "Barbell_Deadlift",
+  norm("Incline Press"):                 "Barbell_Incline_Bench_Press_-_Medium_Grip",
+  norm("Tricep Pushdown"):               "Tricep_Pushdown",
+  norm("Face Pulls"):                    "Face_Pull",
+  norm("Hammer Curls"):                  "Hammer_Curl",
+  norm("Bicep Curl"):                    "Barbell_Curl",
+  norm("Bicep Curls"):                   "Barbell_Curl",
+};
+
+// Call norm() at module load — values computed once
+Object.keys(NAME_OVERRIDES).forEach(() => {});
 
 const EXERCISE_DB_MAP: Record<string, string> = {
   // Chest
