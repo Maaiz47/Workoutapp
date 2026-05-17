@@ -176,6 +176,7 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   "dumbbell-shrugs":                "Dumbbell_Shrug",
   "inverted-row":                   "Inverted_Row",
   "hyperextension":                 "Hyperextensions_With_No_Hyperextension_Bench",
+  "resistance-band-pulldown":        "Wide-Grip_Lat_Pulldown",
   "resistance-band-row":            "Bent_Over_Barbell_Row",
 
   // ── Shoulders ────────────────────────────────────────────────────────────
