@@ -503,9 +503,14 @@ export default function HomePage() {
   const [planNote, setPlanNote] = useState("");
   const [customPlan, setCustomPlan] = useState<any[] | null>(null);
   const [savedRoutines, setSavedRoutines] = useState<any[]>([]);
+  const [showSavedList, setShowSavedList] = useState(false);
   const [showSaveRoutine, setShowSaveRoutine] = useState(false);
   const [saveRoutineName, setSaveRoutineName] = useState("");
   const [savingRoutine, setSavingRoutine] = useState(false);
+  const [sharingRoutineId, setSharingRoutineId] = useState<string | null>(null);
+  const [shareUsername, setShareUsername] = useState("");
+  const [sharingLoading, setSharingLoading] = useState(false);
+  const [shareResult, setShareResult] = useState<string | null>(null);
   const [ob, setOb] = useState({
     dob: "", gender: "", heightCm: "", weightKg: "", bodyFatPct: "",
     goal: "", targetArea: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
@@ -870,6 +875,18 @@ export default function HomePage() {
     if (!confirm("Delete this saved routine?")) return;
     await fetch(`/api/routines/${id}`, { method: "DELETE" });
     setSavedRoutines(prev => prev.filter(r => r.id !== id));
+  };
+
+  const doShareRoutine = async (id: string) => {
+    if (!shareUsername.trim()) return;
+    setSharingLoading(true);
+    setShareResult(null);
+    try {
+      const res = await fetch(`/api/routines/${id}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toUsername: shareUsername.trim() }) });
+      const data = await res.json();
+      if (data.ok) { setShareResult(`Sent to @${data.to}`); setShareUsername(""); setTimeout(() => { setSharingRoutineId(null); setShareResult(null); }, 2000); }
+      else setShareResult(data.error ?? "Failed");
+    } finally { setSharingLoading(false); }
   };
 
   const proposePlan = async () => {
@@ -1681,47 +1698,83 @@ export default function HomePage() {
       </div>
       {/* ── Saved Routines ── */}
       <div style={{ padding: "20px 20px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>SAVED ROUTINES</div>
-          <button onClick={() => { setShowSaveRoutine(s => !s); setSaveRoutineName(""); }} style={{ background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 12px" }}>
-            {showSaveRoutine ? "CANCEL" : "+ SAVE CURRENT"}
+        {/* Header row — always visible */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: showSavedList || showSaveRoutine ? 12 : 0 }}>
+          <button onClick={() => { setShowSavedList(s => !s); setShowSaveRoutine(false); setSharingRoutineId(null); }} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>SAVED ROUTINES</div>
+            {savedRoutines.length > 0 && <div style={{ background: "rgba(78,205,196,0.15)", borderRadius: 10, padding: "1px 7px", fontSize: 10, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>{savedRoutines.length}</div>}
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", transform: showSavedList ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}>›</div>
+          </button>
+          <button onClick={() => { setShowSaveRoutine(s => !s); setShowSavedList(false); setSaveRoutineName(""); setSharingRoutineId(null); }} style={{ background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 8, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 12px" }}>
+            {showSaveRoutine ? "CANCEL" : "+ SAVE"}
           </button>
         </div>
 
+        {/* Save name input */}
         {showSaveRoutine && (
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <input
               value={saveRoutineName}
               onChange={e => setSaveRoutineName(e.target.value)}
               onKeyDown={async e => { if (e.key === "Enter") await doSaveRoutine(); }}
-              placeholder="Routine name…"
+              placeholder="Name this routine…"
               maxLength={40}
+              autoFocus
               style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 10, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "11px 14px", outline: "none", boxSizing: "border-box" }}
             />
-            <button onClick={doSaveRoutine} disabled={savingRoutine || !saveRoutineName.trim()} style={{ padding: "11px 16px", background: saveRoutineName.trim() ? "#4ECDC4" : "rgba(255,255,255,0.08)", border: "none", borderRadius: 10, color: saveRoutineName.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: saveRoutineName.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>
+            <button onClick={doSaveRoutine} disabled={savingRoutine || !saveRoutineName.trim()} style={{ padding: "11px 16px", background: saveRoutineName.trim() ? "#4ECDC4" : "rgba(255,255,255,0.08)", border: "none", borderRadius: 10, color: saveRoutineName.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: saveRoutineName.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace" }}>
               {savingRoutine ? "…" : "SAVE"}
             </button>
           </div>
         )}
 
-        {savedRoutines.length === 0 && !showSaveRoutine && (
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif", padding: "4px 0 8px" }}>No saved routines yet. Save your current plan to restore it later.</div>
-        )}
-
-        {savedRoutines.map(r => (
-          <div key={r.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: "'DM Sans', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>
-                {(r.planJson as any[]).length} days · {new Date(r.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+        {/* Routine list — hidden by default */}
+        {showSavedList && (
+          <div className="fade-in">
+            {savedRoutines.length === 0 && (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: "'DM Sans', sans-serif", padding: "4px 0 8px" }}>No saved routines yet.</div>
+            )}
+            {savedRoutines.map(r => (
+              <div key={r.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
+                {/* Routine row */}
+                <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: "'DM Sans', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>
+                      {(r.planJson as any[]).length} days · {new Date(r.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                      {r.sharedBy && <span style={{ color: "rgba(78,205,196,0.5)", marginLeft: 6 }}>from @{r.sharedBy}</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <button onClick={() => { setSharingRoutineId(sharingRoutineId === r.id ? null : r.id); setShareUsername(""); setShareResult(null); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}>↗</button>
+                    <button onClick={() => doRestoreRoutine(r.id, r.name)} style={{ background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 8, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}>RESTORE</button>
+                    <button onClick={() => doDeleteRoutine(r.id)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, color: "rgba(255,255,255,0.25)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}>✕</button>
+                  </div>
+                </div>
+                {/* Share panel */}
+                {sharingRoutineId === r.id && (
+                  <div className="fade-in" style={{ padding: "0 14px 12px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8, paddingTop: 10 }}>SHARE WITH USER</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        value={shareUsername}
+                        onChange={e => { setShareUsername(e.target.value); setShareResult(null); }}
+                        onKeyDown={async e => { if (e.key === "Enter") await doShareRoutine(r.id); }}
+                        placeholder="Exact username…"
+                        autoFocus
+                        style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, fontFamily: "'DM Sans', sans-serif", padding: "9px 12px", outline: "none", boxSizing: "border-box" }}
+                      />
+                      <button onClick={() => doShareRoutine(r.id)} disabled={sharingLoading || !shareUsername.trim()} style={{ padding: "9px 14px", background: shareUsername.trim() ? "#4ECDC4" : "rgba(255,255,255,0.07)", border: "none", borderRadius: 8, color: shareUsername.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: shareUsername.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace" }}>
+                        {sharingLoading ? "…" : "SEND"}
+                      </button>
+                    </div>
+                    {shareResult && <div style={{ fontSize: 11, color: shareResult.startsWith("Sent") ? "#4ECDC4" : "rgba(255,107,107,0.8)", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{shareResult}</div>}
+                  </div>
+                )}
               </div>
-            </div>
-            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-              <button onClick={() => doRestoreRoutine(r.id, r.name)} style={{ background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}>RESTORE</button>
-              <button onClick={() => doDeleteRoutine(r.id)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}>✕</button>
-            </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
       {user.role === "trainer" && (
         <div style={{ padding: "24px 20px 0" }}>

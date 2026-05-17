@@ -190,6 +190,7 @@ model SavedRoutine {
   userId    String
   name      String
   planJson  Json
+  sharedBy  String?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
