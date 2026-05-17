@@ -1744,14 +1744,14 @@ export default function HomePage() {
   if (view === "customise") {
     const planDays = customPlan ?? [];
     const EXERCISES_LIST = (EXERCISES as any[]);
-    function exMovement(e: any): string {
+    const exMovement = (e: any): string => {
       const pm: string[] = e.primaryMuscles;
       if (pm.includes("cardio")) return "cardio";
       if (pm.some((m: string) => ["chest", "shoulders", "triceps"].includes(m))) return "push";
       if (pm.some((m: string) => ["back", "biceps", "forearms"].includes(m))) return "pull";
       if (pm.some((m: string) => ["quads", "hamstrings", "glutes", "calves"].includes(m))) return "legs";
       return "core";
-    }
+    };
 
     // Day editor view
     if (editingDay) {
