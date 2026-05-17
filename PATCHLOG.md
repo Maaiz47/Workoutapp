@@ -33,6 +33,19 @@ Generate VAPID keys: `npx web-push generate-vapid-keys`
 
 ---
 
+## Patch 18 · 2026-05-17
+**Bug fixes — Multi-goal toggle + Body metrics refresh**
+
+### Multi-goal stale closure fix
+- Fixed a stale closure bug in the goals toggle (both onboarding step 3 and Settings → BODY & STATS) where rapid taps could skip de-selection
+- `onClick` now computes `isSel` inside the React state updater (`setOb(o => { const isSel = o.goals.includes(g.id); ... })`) so it always reads the latest state, not the render-time snapshot
+
+### Body metrics not refreshing after Settings save fix
+- After saving profile from Settings → BODY & STATS, `setBodyMetricsLoaded(false)` is now called so the Progress → Body tab re-fetches on next open
+- Previously, body metric entries logged from a Settings save would not appear in Progress → Body history until app restart
+
+---
+
 ## Patch 17 · 2026-05-17
 **Multi-Goal Selection + Body Data Sync**
 

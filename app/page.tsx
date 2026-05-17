@@ -1389,7 +1389,7 @@ export default function HomePage() {
             ].map(g => {
               const sel = ob.goals.includes(g.id);
               return (
-                <div key={g.id} style={selCard(sel)} onClick={() => setOb(o => ({ ...o, goals: sel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }))}>
+                <div key={g.id} style={selCard(sel)} onClick={() => setOb(o => { const isSel = o.goals.includes(g.id); return { ...o, goals: isSel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }; })}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                     <div style={{ color: sel ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{g.label}</div>
                     {sel && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
@@ -2427,7 +2427,7 @@ export default function HomePage() {
                     {[{ id: "muscle", label: "Build Muscle" }, { id: "strength", label: "Get Stronger" }, { id: "fat_loss", label: "Lose Fat" }, { id: "fitness", label: "General Fitness" }].map(g => {
                       const sel = ob.goals.includes(g.id);
                       return (
-                        <button key={g.id} onClick={() => setOb(o => ({ ...o, goals: sel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }))} style={{ padding: "10px 14px", background: sel ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF6B6B" : "rgba(255,255,255,0.55)", fontSize: 13, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
+                        <button key={g.id} onClick={() => setOb(o => { const isSel = o.goals.includes(g.id); return { ...o, goals: isSel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }; })} style={{ padding: "10px 14px", background: sel ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF6B6B" : "rgba(255,255,255,0.55)", fontSize: 13, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
                           {g.label}{sel && <span>✓</span>}
                         </button>
                       );
@@ -2466,6 +2466,7 @@ export default function HomePage() {
                         }),
                       });
                       setEditingProfile(false);
+                      setBodyMetricsLoaded(false);
                     } catch {}
                     setSavingProfile(false);
                   }}
