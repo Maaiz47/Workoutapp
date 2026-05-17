@@ -138,21 +138,57 @@ export async function GET(req: NextRequest) {
     res.cookies.delete(COOKIE);
     return res;
   }
-  return jsonRes({ user: { id: user.id, username: user.username, role: user.role, mustReset: user.mustResetPassword } });
+  return jsonRes({
+    user: {
+      id: user.id, username: user.username, role: user.role,
+      mustReset: user.mustResetPassword,
+      roleRequest: user.roleRequest,
+    },
+  });
 }
 
-// ── PATCH: upgrade to trainer ──────────────────────────────────────────
+// ── PATCH: request a trainer-role upgrade (queues for admin approval) ──
 export async function PATCH(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return jsonRes({ error: "Unauthorized" }, 401);
 
-  const { action } = await req.json();
-  if (action === "upgrade-trainer") {
+  const body = await req.json();
+  const { action } = body;
+
+  if (action === "upgrade-trainer" || action === "request-trainer") {
     const existing = await prisma.user.findUnique({ where: { id: uid } });
     if (!existing) return jsonRes({ error: "User not found" }, 404);
     if (existing.role !== "user") return jsonRes({ error: "Already a trainer or admin" }, 400);
-    const updated = await prisma.user.update({ where: { id: uid }, data: { role: "trainer" } });
-    return jsonRes({ user: { id: updated.id, username: updated.username, role: updated.role } });
+    if (existing.roleRequest) return jsonRes({ error: "A request is already pending review" }, 400);
+
+    const note = typeof body.note === "string" ? body.note.trim().slice(0, 500) : null;
+    const updated = await prisma.user.update({
+      where: { id: uid },
+      data: {
+        roleRequest: "trainer",
+        roleRequestNote: note,
+        roleRequestAt: new Date(),
+      },
+    });
+    return jsonRes({
+      user: {
+        id: updated.id, username: updated.username, role: updated.role,
+        roleRequest: updated.roleRequest,
+      },
+    });
+  }
+
+  if (action === "cancel-role-request") {
+    const updated = await prisma.user.update({
+      where: { id: uid },
+      data: { roleRequest: null, roleRequestNote: null, roleRequestAt: null },
+    });
+    return jsonRes({
+      user: {
+        id: updated.id, username: updated.username, role: updated.role,
+        roleRequest: updated.roleRequest,
+      },
+    });
   }
 
   return jsonRes({ error: "Invalid action" }, 400);

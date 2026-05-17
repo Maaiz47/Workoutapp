@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 import { EXERCISES } from "../lib/exercises";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
+import { MUSCLE_DETAIL } from "../lib/muscleDetail";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -457,11 +458,43 @@ function Trend({ current, previous, unit = "kg" }: { current: number; previous: 
 }
 
 // ─── MUSCLE DIAGRAM ──────────────────────────────────────────────────────────
-function MuscleDiagram({ primary, secondary }: { primary: string[]; secondary: string[] }) {
-  const mc = (m: string) => primary.includes(m) ? "#FF4422" : secondary.includes(m) ? "#FF9900" : "rgba(255,255,255,0.07)";
-  const ms = (m: string) => primary.includes(m) ? "rgba(255,100,60,0.5)" : secondary.includes(m) ? "rgba(255,160,40,0.4)" : "rgba(255,255,255,0.1)";
-  const mf = (m: string) => (primary.includes(m) || secondary.includes(m)) ? (primary.includes(m) ? "url(#mgp)" : "url(#mgs)") : undefined;
-  const seg = "rgba(0,0,0,0.22)";
+function MuscleDiagram({ primary, secondary, exerciseId }: { primary: string[]; secondary: string[]; exerciseId?: string }) {
+  // If we have detailed sub-muscle mapping for this exercise, use it; otherwise fall back to the broad primary/secondary.
+  const detail = exerciseId ? MUSCLE_DETAIL[exerciseId] : null;
+  const p = detail?.p ?? primary;
+  const s = detail?.s ?? secondary;
+
+  // Has any sub-muscle of a parent been specifically targeted? If so, only those sub-zones glow; the others stay dim.
+  const hasSubFor = (parent: string) =>
+    [...p, ...s].some(m => m.startsWith(parent + "-"));
+
+  // Resolve a sub-muscle to a color state. "p" = primary, "s" = secondary, "" = inactive.
+  const subSt = (sub: string, parent: string): "p" | "s" | "" => {
+    if (p.includes(sub)) return "p";
+    if (s.includes(sub)) return "s";
+    if (hasSubFor(parent)) return ""; // sibling sub-muscles targeted, but not this one
+    if (p.includes(parent)) return "p";
+    if (s.includes(parent)) return "s";
+    return "";
+  };
+
+  const stFill = (st: "p" | "s" | "") => st === "p" ? "#FF4422" : st === "s" ? "#FF9900" : "rgba(255,255,255,0.07)";
+  const stStroke = (st: "p" | "s" | "") => st === "p" ? "rgba(255,100,60,0.55)" : st === "s" ? "rgba(255,160,40,0.45)" : "rgba(255,255,255,0.1)";
+  const stFilter = (st: "p" | "s" | "") => st === "p" ? "url(#mgp)" : st === "s" ? "url(#mgs)" : undefined;
+
+  // Whole-muscle helpers (used when no sub-muscle granularity for that group).
+  const wholeSt = (m: string): "p" | "s" | "" => p.includes(m) ? "p" : s.includes(m) ? "s" : "";
+  const mc = (m: string) => stFill(wholeSt(m));
+  const ms = (m: string) => stStroke(wholeSt(m));
+  const mf = (m: string) => stFilter(wholeSt(m));
+
+  // Sub-muscle <path/> renderer.
+  const SP = ({ d, sub, parent }: { d: string; sub: string; parent: string }) => {
+    const st = subSt(sub, parent);
+    return <path d={d} fill={stFill(st)} stroke={stStroke(st)} filter={stFilter(st)} strokeWidth={0.7}/>;
+  };
+
+  const seg = "rgba(0,0,0,0.28)";
   return (
     <svg viewBox="0 0 300 365" style={{ width: "100%", maxHeight: 340 }}>
       <defs>
@@ -473,55 +506,70 @@ function MuscleDiagram({ primary, secondary }: { primary: string[]; secondary: s
           <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/>
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
+        <radialGradient id="skin" cx="50%" cy="40%" r="65%">
+          <stop offset="0%" stopColor="#1f1f2c"/>
+          <stop offset="100%" stopColor="#141420"/>
+        </radialGradient>
       </defs>
 
       {/* ═══ FRONT VIEW (cx=75) ═══ */}
 
-      {/* — Body silhouette base — */}
-      <circle cx={75} cy={19} r={15} fill="#181822" stroke="#2a2a3a" strokeWidth={1}/>
-      {/* neck */}
-      <path d="M69,33 Q75,37 81,33 L80,46 Q75,49 70,46 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      {/* torso */}
-      <path d="M38,50 C35,62 34,84 35,110 C36,132 40,152 47,164 C52,174 62,181 75,182 C88,181 98,174 103,164 C110,152 114,132 115,110 C116,84 115,62 112,50 C103,44 90,40 75,40 C60,40 47,44 38,50 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.8}/>
-      {/* hips/pelvis */}
-      <path d="M47,166 C46,172 46,178 49,183 C54,189 63,192 75,192 C87,192 96,189 101,183 C104,178 104,172 103,166 Z" fill="#141420" stroke="#2a2a3a" strokeWidth={0.7}/>
-      {/* left upper arm */}
-      <path d="M36,52 C31,62 28,80 28,100 C28,116 31,128 36,132 C40,135 45,133 48,127 C51,119 52,103 51,85 C50,69 46,57 41,52 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      {/* right upper arm */}
-      <path d="M114,52 C119,62 122,80 122,100 C122,116 119,128 114,132 C110,135 105,133 102,127 C99,119 98,103 99,85 C100,69 104,57 109,52 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      {/* left forearm */}
-      <path d="M29,134 C26,142 25,154 26,164 C27,172 31,178 37,178 C42,177 45,170 45,160 C45,150 42,140 38,135 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      {/* right forearm */}
-      <path d="M121,134 C124,142 125,154 124,164 C123,172 119,178 113,178 C108,177 105,170 105,160 C105,150 108,140 112,135 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      {/* left thigh */}
-      <path d="M48,194 C45,206 43,226 45,246 C47,262 53,274 61,278 C67,280 73,278 76,272 C79,264 80,250 79,232 C78,214 73,198 67,194 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      {/* right thigh */}
-      <path d="M102,194 C105,206 107,226 105,246 C103,262 97,274 89,278 C83,280 77,278 74,272 C71,264 70,250 71,232 C72,214 77,198 83,194 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      {/* left lower leg */}
-      <path d="M46,281 C43,292 43,310 45,324 C47,336 53,344 60,345 C66,345 71,340 73,332 C75,322 75,306 72,292 C70,281 65,276 59,277 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      {/* right lower leg */}
-      <path d="M104,281 C107,292 107,310 105,324 C103,336 97,344 90,345 C84,345 79,340 77,332 C75,322 75,306 78,292 C80,281 85,276 91,277 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      {/* — Body silhouette — */}
+      <circle cx={75} cy={19} r={15} fill="url(#skin)" stroke="#2e2e40" strokeWidth={1}/>
+      <path d="M69,33 Q75,37 81,33 L80,46 Q75,49 70,46 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M38,50 C35,62 34,84 35,110 C36,132 40,152 47,164 C52,174 62,181 75,182 C88,181 98,174 103,164 C110,152 114,132 115,110 C116,84 115,62 112,50 C103,44 90,40 75,40 C60,40 47,44 38,50 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.8}/>
+      <path d="M47,166 C46,172 46,178 49,183 C54,189 63,192 75,192 C87,192 96,189 101,183 C104,178 104,172 103,166 Z" fill="#141420" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M36,52 C31,62 28,80 28,100 C28,116 31,128 36,132 C40,135 45,133 48,127 C51,119 52,103 51,85 C50,69 46,57 41,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M114,52 C119,62 122,80 122,100 C122,116 119,128 114,132 C110,135 105,133 102,127 C99,119 98,103 99,85 C100,69 104,57 109,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M29,134 C26,142 25,154 26,164 C27,172 31,178 37,178 C42,177 45,170 45,160 C45,150 42,140 38,135 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M121,134 C124,142 125,154 124,164 C123,172 119,178 113,178 C108,177 105,170 105,160 C105,150 108,140 112,135 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M48,194 C45,206 43,226 45,246 C47,262 53,274 61,278 C67,280 73,278 76,272 C79,264 80,250 79,232 C78,214 73,198 67,194 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M102,194 C105,206 107,226 105,246 C103,262 97,274 89,278 C83,280 77,278 74,272 C71,264 70,250 71,232 C72,214 77,198 83,194 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M46,281 C43,292 43,310 45,324 C47,336 53,344 60,345 C66,345 71,340 73,332 C75,322 75,306 72,292 C70,281 65,276 59,277 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M104,281 C107,292 107,310 105,324 C103,336 97,344 90,345 C84,345 79,340 77,332 C75,322 75,306 78,292 C80,281 85,276 91,277 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
 
-      {/* — Front muscle overlays — */}
+      {/* — SHOULDERS (front view: anterior + lateral heads) — */}
+      {/* Left shoulder: lateral cap (outer half) */}
+      <SP d="M37,52 C33,57 31,65 33,75 C35,82 38,85 42,84 C43,72 42,60 41,52 C39,50 38,51 37,52 Z" sub="shoulders-side" parent="shoulders"/>
+      {/* Left shoulder: anterior head (inner-front half) */}
+      <SP d="M41,52 C42,60 43,72 42,84 C46,86 51,84 53,78 C54,68 53,58 51,52 C48,49 44,49 41,52 Z" sub="shoulders-front" parent="shoulders"/>
+      {/* Right shoulder: lateral cap */}
+      <SP d="M113,52 C117,57 119,65 117,75 C115,82 112,85 108,84 C107,72 108,60 109,52 C111,50 112,51 113,52 Z" sub="shoulders-side" parent="shoulders"/>
+      {/* Right shoulder: anterior head */}
+      <SP d="M109,52 C108,60 107,72 108,84 C104,86 99,84 97,78 C96,68 97,58 99,52 C102,49 106,49 109,52 Z" sub="shoulders-front" parent="shoulders"/>
 
-      {/* SHOULDERS – anterior deltoids */}
-      <path d="M37,52 C33,57 31,65 33,75 C35,82 40,86 46,83 C52,78 53,66 51,56 C48,50 43,48 37,52 Z" fill={mc("shoulders")} filter={mf("shoulders")} stroke={ms("shoulders")} strokeWidth={0.7}/>
-      <path d="M113,52 C117,57 119,65 117,75 C115,82 110,86 104,83 C98,78 97,66 99,56 C102,50 107,48 113,52 Z" fill={mc("shoulders")} filter={mf("shoulders")} stroke={ms("shoulders")} strokeWidth={0.7}/>
-
-      {/* CHEST – pectoralis major (fan shape) */}
-      <path d="M75,60 C67,54 54,51 46,56 C42,60 40,68 43,78 C46,88 54,98 63,103 C68,106 73,106 75,103 Z" fill={mc("chest")} filter={mf("chest")} stroke={ms("chest")} strokeWidth={0.7}/>
-      <path d="M75,60 C83,54 96,51 104,56 C108,60 110,68 107,78 C104,88 96,98 87,103 C82,106 77,106 75,103 Z" fill={mc("chest")} filter={mf("chest")} stroke={ms("chest")} strokeWidth={0.7}/>
-      <line x1={75} y1={58} x2={75} y2={103} stroke={seg} strokeWidth={0.8}/>
+      {/* — CHEST (pectoralis: upper / mid / lower / inner) — */}
+      {/* LEFT PEC */}
+      {/* Upper (clavicular head) */}
+      <SP d="M75,60 C67,54 56,52 47,55 C43,57 41,62 41,69 C50,71 60,71 75,71 Z" sub="chest-upper" parent="chest"/>
+      {/* Mid (sternocostal upper) */}
+      <SP d="M75,71 C60,71 50,71 41,69 C41,75 43,82 46,87 C56,87 66,87 75,86 Z" sub="chest-mid" parent="chest"/>
+      {/* Lower (sternocostal lower) */}
+      <SP d="M75,86 C66,87 56,87 46,87 C50,94 56,99 63,103 C68,106 73,106 75,103 Z" sub="chest-lower" parent="chest"/>
+      {/* Inner (medial sternum strip) */}
+      <SP d="M75,60 C72,63 71,69 71,77 C71,87 73,96 75,103 C75,89 75,75 75,60 Z" sub="chest-inner" parent="chest"/>
+      {/* RIGHT PEC */}
+      <SP d="M75,60 C83,54 94,52 103,55 C107,57 109,62 109,69 C100,71 90,71 75,71 Z" sub="chest-upper" parent="chest"/>
+      <SP d="M75,71 C90,71 100,71 109,69 C109,75 107,82 104,87 C94,87 84,87 75,86 Z" sub="chest-mid" parent="chest"/>
+      <SP d="M75,86 C84,87 94,87 104,87 C100,94 94,99 87,103 C82,106 77,106 75,103 Z" sub="chest-lower" parent="chest"/>
+      <SP d="M75,60 C78,63 79,69 79,77 C79,87 77,96 75,103 C75,89 75,75 75,60 Z" sub="chest-inner" parent="chest"/>
+      <line x1={75} y1={59} x2={75} y2={103} stroke={seg} strokeWidth={0.6}/>
 
       {/* BICEPS – brachii peak on front upper arm */}
       <path d="M29,70 C27,80 27,97 30,110 C32,119 37,124 42,122 C47,119 48,109 47,96 C46,83 41,72 36,69 Z" fill={mc("biceps")} filter={mf("biceps")} stroke={ms("biceps")} strokeWidth={0.7}/>
       <path d="M121,70 C123,80 123,97 120,110 C118,119 113,124 108,122 C103,119 102,109 103,96 C104,83 109,72 114,69 Z" fill={mc("biceps")} filter={mf("biceps")} stroke={ms("biceps")} strokeWidth={0.7}/>
+      {/* Brachialis hint */}
+      <path d="M44,90 C42,98 42,108 45,114 C47,116 49,116 50,113 C51,107 51,99 49,92 Z" fill={mc("biceps")} stroke={ms("biceps")} strokeWidth={0.5} opacity={0.6}/>
+      <path d="M106,90 C108,98 108,108 105,114 C103,116 101,116 100,113 C99,107 99,99 101,92 Z" fill={mc("biceps")} stroke={ms("biceps")} strokeWidth={0.5} opacity={0.6}/>
 
       {/* FOREARMS – flexor group front */}
       <path d="M28,136 C25,144 24,155 26,165 C28,173 33,178 38,176 C43,174 45,165 44,155 C43,145 39,137 34,134 Z" fill={mc("forearms")} filter={mf("forearms")} stroke={ms("forearms")} strokeWidth={0.7}/>
       <path d="M122,136 C125,144 126,155 124,165 C122,173 117,178 112,176 C107,174 105,165 106,155 C107,145 111,137 116,134 Z" fill={mc("forearms")} filter={mf("forearms")} stroke={ms("forearms")} strokeWidth={0.7}/>
 
-      {/* CORE – rectus abdominis (six segments) + obliques */}
+      {/* CORE – rectus abdominis (six segments) + obliques + serratus */}
+      {/* Serratus anterior (finger-like) */}
+      <path d="M50,92 C49,96 49,100 51,103 C54,102 56,99 56,95 Z" fill={mc("core")} stroke={ms("core")} strokeWidth={0.5} opacity={0.55}/>
+      <path d="M100,92 C101,96 101,100 99,103 C96,102 94,99 94,95 Z" fill={mc("core")} stroke={ms("core")} strokeWidth={0.5} opacity={0.55}/>
       {/* Obliques */}
       <path d="M46,94 C44,102 44,116 47,128 C49,138 55,146 62,148 C63,142 62,133 61,123 C59,112 54,103 49,96 Z" fill={mc("core")} filter={mf("core")} stroke={ms("core")} strokeWidth={0.7}/>
       <path d="M104,94 C106,102 106,116 103,128 C101,138 95,146 88,148 C87,142 88,133 89,123 C91,112 96,103 101,96 Z" fill={mc("core")} filter={mf("core")} stroke={ms("core")} strokeWidth={0.7}/>
@@ -535,86 +583,81 @@ function MuscleDiagram({ primary, secondary }: { primary: string[]; secondary: s
       <line x1={75} y1={104} x2={75} y2={159} stroke={seg} strokeWidth={0.7}/>
 
       {/* QUADS – vastus lateralis, rectus femoris, vastus medialis */}
-      {/* Left outer (vastus lateralis) */}
       <path d="M47,196 C44,208 43,228 45,248 C47,263 53,273 59,274 C63,272 65,263 64,248 C63,232 58,212 53,197 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
-      {/* Left center (rectus femoris) */}
       <path d="M55,196 C53,210 52,232 54,250 C56,263 61,272 66,272 C70,270 71,260 70,246 C69,230 65,210 60,197 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
-      {/* Left teardrop vastus medialis */}
       <path d="M55,256 C53,263 53,272 57,277 C60,280 65,280 67,276 C69,271 68,263 65,258 C63,254 58,253 55,256 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
-      {/* Right outer */}
       <path d="M103,196 C106,208 107,228 105,248 C103,263 97,273 91,274 C87,272 85,263 86,248 C87,232 92,212 97,197 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
-      {/* Right center */}
       <path d="M95,196 C97,210 98,232 96,250 C94,263 89,272 84,272 C80,270 79,260 80,246 C81,230 85,210 90,197 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
-      {/* Right teardrop */}
       <path d="M95,256 C97,263 97,272 93,277 C90,280 85,280 83,276 C81,271 82,263 85,258 C87,254 92,253 95,256 Z" fill={mc("quads")} filter={mf("quads")} stroke={ms("quads")} strokeWidth={0.7}/>
 
       {/* CALVES – tibialis anterior (front shin) */}
       <path d="M47,284 C44,294 44,312 47,325 C49,334 55,341 61,340 C65,338 67,331 66,319 C65,308 60,294 54,284 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
       <path d="M103,284 C106,294 106,312 103,325 C101,334 95,341 89,340 C85,338 83,331 84,319 C85,308 90,294 96,284 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
 
-      <text x={75} y={358} textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.2)" fontFamily="monospace" letterSpacing={2}>FRONT</text>
+      <text x={75} y={358} textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.25)" fontFamily="monospace" letterSpacing={2}>FRONT</text>
 
       {/* ═══ BACK VIEW (cx=225) ═══ */}
 
-      {/* — Body silhouette base — */}
-      <circle cx={225} cy={19} r={15} fill="#181822" stroke="#2a2a3a" strokeWidth={1}/>
-      <path d="M219,33 Q225,37 231,33 L230,46 Q225,49 220,46 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      <path d="M188,50 C185,62 184,84 185,110 C186,132 190,152 197,164 C202,174 212,181 225,182 C238,181 248,174 253,164 C260,152 264,132 265,110 C266,84 265,62 262,50 C253,44 240,40 225,40 C210,40 197,44 188,50 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.8}/>
-      <path d="M197,166 C196,172 196,178 199,183 C204,189 213,192 225,192 C237,192 246,189 251,183 C254,178 254,172 253,166 Z" fill="#141420" stroke="#2a2a3a" strokeWidth={0.7}/>
-      <path d="M186,52 C181,62 178,80 178,100 C178,116 181,128 186,132 C190,135 195,133 198,127 C201,119 202,103 201,85 C200,69 196,57 191,52 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      <path d="M264,52 C269,62 272,80 272,100 C272,116 269,128 264,132 C260,135 255,133 252,127 C249,119 248,103 249,85 C250,69 254,57 259,52 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      <path d="M179,134 C176,142 175,154 176,164 C177,172 181,178 187,178 C192,177 195,170 195,160 C195,150 192,140 188,135 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      <path d="M271,134 C274,142 275,154 274,164 C273,172 269,178 263,178 C258,177 255,170 255,160 C255,150 258,140 262,135 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      <path d="M198,194 C195,206 193,226 195,246 C197,262 203,274 211,278 C217,280 223,278 226,272 C229,264 230,250 229,232 C228,214 223,198 217,194 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      <path d="M252,194 C255,206 257,226 255,246 C253,262 247,274 239,278 C233,280 227,278 224,272 C221,264 220,250 221,232 C222,214 227,198 233,194 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      <path d="M196,281 C193,292 193,310 195,324 C197,336 203,344 210,345 C216,345 221,340 223,332 C225,322 225,306 222,292 C220,281 215,276 209,277 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
-      <path d="M254,281 C257,292 257,310 255,324 C253,336 247,344 240,345 C234,345 229,340 227,332 C225,322 225,306 228,292 C230,281 235,276 241,277 Z" fill="#181822" stroke="#2a2a3a" strokeWidth={0.7}/>
+      <circle cx={225} cy={19} r={15} fill="url(#skin)" stroke="#2e2e40" strokeWidth={1}/>
+      <path d="M219,33 Q225,37 231,33 L230,46 Q225,49 220,46 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M188,50 C185,62 184,84 185,110 C186,132 190,152 197,164 C202,174 212,181 225,182 C238,181 248,174 253,164 C260,152 264,132 265,110 C266,84 265,62 262,50 C253,44 240,40 225,40 C210,40 197,44 188,50 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.8}/>
+      <path d="M197,166 C196,172 196,178 199,183 C204,189 213,192 225,192 C237,192 246,189 251,183 C254,178 254,172 253,166 Z" fill="#141420" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M186,52 C181,62 178,80 178,100 C178,116 181,128 186,132 C190,135 195,133 198,127 C201,119 202,103 201,85 C200,69 196,57 191,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M264,52 C269,62 272,80 272,100 C272,116 269,128 264,132 C260,135 255,133 252,127 C249,119 248,103 249,85 C250,69 254,57 259,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M179,134 C176,142 175,154 176,164 C177,172 181,178 187,178 C192,177 195,170 195,160 C195,150 192,140 188,135 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M271,134 C274,142 275,154 274,164 C273,172 269,178 263,178 C258,177 255,170 255,160 C255,150 258,140 262,135 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M198,194 C195,206 193,226 195,246 C197,262 203,274 211,278 C217,280 223,278 226,272 C229,264 230,250 229,232 C228,214 223,198 217,194 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M252,194 C255,206 257,226 255,246 C253,262 247,274 239,278 C233,280 227,278 224,272 C221,264 220,250 221,232 C222,214 227,198 233,194 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M196,281 C193,292 193,310 195,324 C197,336 203,344 210,345 C216,345 221,340 223,332 C225,322 225,306 222,292 C220,281 215,276 209,277 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M254,281 C257,292 257,310 255,324 C253,336 247,344 240,345 C234,345 229,340 227,332 C225,322 225,306 228,292 C230,281 235,276 241,277 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
 
-      {/* — Back muscle overlays — */}
+      {/* — SHOULDERS (back view: posterior + lateral heads) — */}
+      {/* Left: lateral cap */}
+      <SP d="M187,52 C183,57 181,65 183,75 C185,82 188,85 192,84 C193,72 192,60 191,52 C189,50 188,51 187,52 Z" sub="shoulders-side" parent="shoulders"/>
+      {/* Left: posterior head */}
+      <SP d="M191,52 C192,60 193,72 192,84 C196,86 201,84 203,78 C204,68 203,58 201,52 C198,49 194,49 191,52 Z" sub="shoulders-rear" parent="shoulders"/>
+      {/* Right: lateral cap */}
+      <SP d="M263,52 C267,57 269,65 267,75 C265,82 262,85 258,84 C257,72 258,60 259,52 C261,50 262,51 263,52 Z" sub="shoulders-side" parent="shoulders"/>
+      {/* Right: posterior head */}
+      <SP d="M259,52 C258,60 257,72 258,84 C254,86 249,84 247,78 C246,68 247,58 249,52 C252,49 256,49 259,52 Z" sub="shoulders-rear" parent="shoulders"/>
 
-      {/* SHOULDERS – rear deltoids */}
-      <path d="M187,52 C183,57 181,65 183,75 C185,82 190,86 196,83 C202,78 203,66 201,56 C198,50 193,48 187,52 Z" fill={mc("shoulders")} filter={mf("shoulders")} stroke={ms("shoulders")} strokeWidth={0.7}/>
-      <path d="M263,52 C267,57 269,65 267,75 C265,82 260,86 254,83 C248,78 247,66 249,56 C252,50 257,48 263,52 Z" fill={mc("shoulders")} filter={mf("shoulders")} stroke={ms("shoulders")} strokeWidth={0.7}/>
-
-      {/* BACK – trapezius (upper + mid) */}
-      {/* Upper traps: triangle from neck to acromions */}
+      {/* BACK – trapezius, rhomboids, lats, erectors */}
       <path d="M225,41 C214,45 200,52 192,61 C190,67 192,73 198,75 C207,77 218,73 225,68 C232,73 243,77 252,75 C258,73 260,67 258,61 C250,52 236,45 225,41 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
-      {/* Mid traps + rhomboids */}
       <path d="M198,75 C196,84 196,96 200,106 C204,114 212,118 219,116 C222,113 224,108 225,102 C226,108 228,113 231,116 C238,118 246,114 250,106 C254,96 254,84 252,75 C243,79 234,81 226,77 C225,75 225,75 224,77 C216,81 207,79 198,75 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
-      {/* Lats – sweeping wing shape */}
       <path d="M190,74 C187,86 186,104 188,122 C190,136 194,150 200,156 C204,160 210,160 214,156 C218,151 219,141 217,127 C214,110 208,90 202,78 C198,74 193,71 190,74 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
       <path d="M260,74 C263,86 264,104 262,122 C260,136 256,150 250,156 C246,160 240,160 236,156 C232,151 231,141 233,127 C236,110 242,90 248,78 C252,74 257,71 260,74 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
-      {/* Lower back / erector spinae */}
       <path d="M217,108 C215,118 214,132 216,146 C218,156 221,162 225,163 C225,156 224,140 224,126 C224,116 221,108 218,106 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
       <path d="M233,108 C235,118 236,132 234,146 C232,156 229,162 225,163 C225,156 226,140 226,126 C226,116 229,108 232,106 Z" fill={mc("back")} filter={mf("back")} stroke={ms("back")} strokeWidth={0.7}/>
-      <line x1={225} y1={74} x2={225} y2={163} stroke={seg} strokeWidth={0.7}/>
+      <line x1={225} y1={74} x2={225} y2={163} stroke={seg} strokeWidth={0.6}/>
 
-      {/* TRICEPS – long + lateral head (back of upper arm) */}
+      {/* TRICEPS – long + lateral head with subtle horseshoe division */}
       <path d="M179,62 C176,72 175,90 177,106 C179,118 184,126 189,124 C194,121 195,110 193,96 C191,82 186,70 181,63 Z" fill={mc("triceps")} filter={mf("triceps")} stroke={ms("triceps")} strokeWidth={0.7}/>
       <path d="M271,62 C274,72 275,90 273,106 C271,118 266,126 261,124 C256,121 255,110 257,96 C259,82 264,70 269,63 Z" fill={mc("triceps")} filter={mf("triceps")} stroke={ms("triceps")} strokeWidth={0.7}/>
+      <path d="M185,82 C183,92 183,104 185,114 C186,118 188,118 189,114 C190,106 190,94 188,84 Z" fill={mc("triceps")} stroke={ms("triceps")} strokeWidth={0.4} opacity={0.5}/>
+      <path d="M265,82 C267,92 267,104 265,114 C264,118 262,118 261,114 C260,106 260,94 262,84 Z" fill={mc("triceps")} stroke={ms("triceps")} strokeWidth={0.4} opacity={0.5}/>
 
       {/* FOREARMS – extensor group back */}
       <path d="M178,136 C175,144 174,156 176,165 C178,173 183,178 188,176 C193,174 195,165 194,155 C193,145 189,137 184,134 Z" fill={mc("forearms")} filter={mf("forearms")} stroke={ms("forearms")} strokeWidth={0.7}/>
       <path d="M272,136 C275,144 276,156 274,165 C272,173 267,178 262,176 C257,174 255,165 256,155 C257,145 261,137 266,134 Z" fill={mc("forearms")} filter={mf("forearms")} stroke={ms("forearms")} strokeWidth={0.7}/>
 
-      {/* GLUTES – gluteus maximus */}
+      {/* GLUTES */}
       <path d="M197,190 C194,198 193,212 196,224 C199,234 206,241 213,241 C218,239 221,231 220,220 C219,207 213,196 207,191 Z" fill={mc("glutes")} filter={mf("glutes")} stroke={ms("glutes")} strokeWidth={0.7}/>
       <path d="M253,190 C256,198 257,212 254,224 C251,234 244,241 237,241 C232,239 229,231 230,220 C231,207 237,196 243,191 Z" fill={mc("glutes")} filter={mf("glutes")} stroke={ms("glutes")} strokeWidth={0.7}/>
-      <line x1={225} y1={188} x2={225} y2={241} stroke={seg} strokeWidth={0.8}/>
+      <line x1={225} y1={188} x2={225} y2={241} stroke={seg} strokeWidth={0.6}/>
 
-      {/* HAMSTRINGS – biceps femoris (outer) + semitendinosus (inner) */}
+      {/* HAMSTRINGS */}
       <path d="M196,244 C193,256 192,276 195,292 C198,305 204,314 210,315 C215,313 217,303 215,288 C213,272 207,254 201,245 Z" fill={mc("hamstrings")} filter={mf("hamstrings")} stroke={ms("hamstrings")} strokeWidth={0.7}/>
       <path d="M210,244 C213,256 215,276 213,292 C211,305 206,314 201,315 C197,313 196,303 197,288 C199,272 205,254 210,245 Z" fill={mc("hamstrings")} filter={mf("hamstrings")} stroke={ms("hamstrings")} strokeWidth={0.7}/>
       <path d="M254,244 C257,256 258,276 255,292 C252,305 246,314 240,315 C235,313 233,303 235,288 C237,272 243,254 249,245 Z" fill={mc("hamstrings")} filter={mf("hamstrings")} stroke={ms("hamstrings")} strokeWidth={0.7}/>
       <path d="M240,244 C237,256 235,276 237,292 C239,305 244,314 249,315 C253,313 254,303 253,288 C251,272 245,254 240,245 Z" fill={mc("hamstrings")} filter={mf("hamstrings")} stroke={ms("hamstrings")} strokeWidth={0.7}/>
 
-      {/* CALVES – gastrocnemius (two heads create diamond shape) */}
+      {/* CALVES */}
       <path d="M197,284 C194,296 194,314 197,327 C200,337 206,343 211,342 C214,340 215,332 214,320 C212,307 207,294 201,285 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
       <path d="M211,284 C215,296 216,314 214,327 C211,337 206,343 202,342 C199,340 198,332 199,320 C201,307 207,294 212,285 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
       <path d="M253,284 C256,296 256,314 253,327 C250,337 244,343 239,342 C236,340 235,332 236,320 C238,307 243,294 249,285 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
       <path d="M239,284 C235,296 234,314 236,327 C239,337 244,343 248,342 C251,340 252,332 251,320 C249,307 243,294 238,285 Z" fill={mc("calves")} filter={mf("calves")} stroke={ms("calves")} strokeWidth={0.7}/>
 
-      <text x={225} y={358} textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.2)" fontFamily="monospace" letterSpacing={2}>BACK</text>
+      <text x={225} y={358} textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.25)" fontFamily="monospace" letterSpacing={2}>BACK</text>
     </svg>
   );
 }
@@ -629,7 +672,7 @@ function lookupExMuscles(name: string): { muscles: string[]; secondaryMuscles: s
 
 // ─── MAIN ───────────────────────────────────────────────────────────────
 export default function HomePage() {
-  const [user, setUser] = useState<{ id: string; username: string; role: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; username: string; role: string; roleRequest?: string | null } | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
@@ -672,6 +715,8 @@ export default function HomePage() {
   const [confirmUpgrade, setConfirmUpgrade] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [upgradeError, setUpgradeError] = useState("");
+  const [upgradeNote, setUpgradeNote] = useState("");
+  const [cancellingRequest, setCancellingRequest] = useState(false);
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "unsupported" | "error" | "requesting">("idle");
   const [testingNotif, setTestingNotif] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [showNotifBanner, setShowNotifBanner] = useState(false);
@@ -786,7 +831,7 @@ export default function HomePage() {
   useEffect(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
       if (data.user) {
-        setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user" });
+        setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user", roleRequest: data.user.roleRequest ?? null });
         if (data.user.mustReset) setMustResetPassword(true);
         // Only silently re-save subscription if permission already granted — never prompt here
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
@@ -1479,8 +1524,11 @@ export default function HomePage() {
 
   // ─── LOADING ────────────────────────────────────────────────────────
   if (authLoading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-      <div style={{ color: "#555", fontSize: 13, letterSpacing: 4, fontFamily: "'Space Mono', monospace" }}>IRONLOG</div>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: 18 }}>
+      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, letterSpacing: 6, color: "rgba(255,255,255,0.55)", animation: "breathe 1.8s ease infinite" }}>
+        IRON<span style={{ color: "#FF6B6B" }}>LOG</span>
+      </div>
+      <div style={{ width: 80, height: 2, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.4), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite" }}/>
     </div>
   );
 
@@ -1982,6 +2030,8 @@ export default function HomePage() {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
             <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>{user.username}</div>
             {user.role === "trainer" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 4, padding: "2px 6px" }}>TRAINER</span>}
+            {user.role === "admin" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
+            {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
             <span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }}>›</span>
           </div>
         </button>
@@ -2680,18 +2730,40 @@ export default function HomePage() {
   // ─── SETTINGS ───────────────────────────────────────────────────────
   if (view === "settings") {
     const isTrainer = user.role === "trainer";
+    const hasPendingRequest = user.roleRequest === "trainer";
 
     const doUpgrade = async () => {
       setUpgrading(true);
       setUpgradeError("");
       try {
-        const res = await fetch("/api/auth", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "upgrade-trainer" }) });
+        const res = await fetch("/api/auth", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "request-trainer", note: upgradeNote.trim() }),
+        });
         const data = await res.json();
         if (data.error) { setUpgradeError(data.error); setUpgrading(false); return; }
-        setUser(u => u ? { ...u, role: "trainer" } : u);
+        setUser(u => u ? { ...u, role: data.user.role, roleRequest: data.user.roleRequest } : u);
         setConfirmUpgrade(false);
+        setUpgradeNote("");
       } catch { setUpgradeError("Something went wrong"); }
       setUpgrading(false);
+    };
+
+    const cancelRequest = async () => {
+      setCancellingRequest(true);
+      try {
+        const res = await fetch("/api/auth", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "cancel-role-request" }),
+        });
+        const data = await res.json();
+        if (!data.error) {
+          setUser(u => u ? { ...u, roleRequest: null } : u);
+        }
+      } catch {}
+      setCancellingRequest(false);
     };
 
     return (
@@ -2890,29 +2962,54 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Trainer upgrade */}
-          {!isTrainer && !confirmUpgrade && (
-            <div style={{ background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: "rgba(78,205,196,0.6)", letterSpacing: 3, marginBottom: 10 }}>BECOME A TRAINER</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 16 }}>Upgrade your account to trainer mode. You'll be able to search for users, send adoption requests, and monitor your clients' progress and stats.</div>
-              <button onClick={() => setConfirmUpgrade(true)} style={{ background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 10, padding: "12px 20px", color: "#4ECDC4", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Upgrade to Trainer →</button>
+          {/* Trainer upgrade — request flow */}
+          {!isTrainer && hasPendingRequest && (
+            <div style={{ background: "linear-gradient(180deg, rgba(253,203,110,0.08), rgba(253,203,110,0.02))", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 4, background: "#fdcb6e", animation: "pulse 2s ease infinite" }}/>
+                <div style={{ fontSize: 11, color: "#fdcb6e", letterSpacing: 3, fontWeight: 700 }}>REQUEST PENDING</div>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 8 }}>Trainer upgrade under review</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.7, marginBottom: 16 }}>Your request has been sent to the IronLog admins for review. You'll be notified once it's approved — usually within 24–48 hours.</div>
+              <button
+                onClick={cancelRequest}
+                disabled={cancellingRequest}
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 18px", color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 500, cursor: cancellingRequest ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", opacity: cancellingRequest ? 0.5 : 1 }}
+              >{cancellingRequest ? "Cancelling…" : "Cancel request"}</button>
             </div>
           )}
 
-          {!isTrainer && confirmUpgrade && (
+          {!isTrainer && !hasPendingRequest && !confirmUpgrade && (
+            <div style={{ background: "linear-gradient(180deg, rgba(78,205,196,0.06), rgba(78,205,196,0.02))", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "rgba(78,205,196,0.7)", letterSpacing: 3, marginBottom: 10, fontWeight: 700 }}>BECOME A TRAINER</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 16 }}>Request a trainer upgrade. Once approved by an admin, you'll be able to search for users, send adoption requests, and monitor your clients' progress and stats.</div>
+              <button onClick={() => setConfirmUpgrade(true)} style={{ background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 10, padding: "12px 20px", color: "#4ECDC4", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Request Trainer Upgrade →</button>
+            </div>
+          )}
+
+          {!isTrainer && !hasPendingRequest && confirmUpgrade && (
             <div style={{ background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 16, padding: "24px 20px", marginBottom: 12 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Confirm upgrade</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.8, marginBottom: 8 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Request trainer access</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.8, marginBottom: 14 }}>
                 As a trainer you'll be able to:<br />
                 · Search for users by username<br />
                 · Send them an adoption request<br />
                 · View their full workout history and stats once accepted
               </div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 20, lineHeight: 1.6 }}>This is a permanent upgrade — your own training plan and history are not affected.</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: 1.5, marginBottom: 8, fontWeight: 600 }}>BACKGROUND <span style={{ color: "rgba(255,255,255,0.25)", fontWeight: 400 }}>(optional, helps admins approve faster)</span></div>
+              <textarea
+                value={upgradeNote}
+                onChange={e => setUpgradeNote(e.target.value.slice(0, 500))}
+                placeholder="Briefly tell us about your training background, certifications, or who you'd like to train…"
+                rows={4}
+                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 13, padding: "12px 14px", outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans', sans-serif", resize: "vertical", marginBottom: 6 }}
+              />
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", textAlign: "right", marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>{upgradeNote.length}/500</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 16, lineHeight: 1.6 }}>An admin will review your request. You can cancel it any time before approval.</div>
               {upgradeError && <div style={{ fontSize: 13, color: "#FF6B6B", marginBottom: 12 }}>{upgradeError}</div>}
               <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={doUpgrade} disabled={upgrading} style={{ flex: 1, padding: "13px", background: "linear-gradient(135deg, #4ECDC4, #44a08d)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: upgrading ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", opacity: upgrading ? 0.6 : 1 }}>{upgrading ? "UPGRADING…" : "CONFIRM UPGRADE"}</button>
-                <button onClick={() => { setConfirmUpgrade(false); setUpgradeError(""); }} style={{ padding: "13px 18px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
+                <button onClick={doUpgrade} disabled={upgrading} style={{ flex: 1, padding: "13px", background: "linear-gradient(135deg, #4ECDC4, #44a08d)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: upgrading ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", opacity: upgrading ? 0.6 : 1 }}>{upgrading ? "SUBMITTING…" : "SUBMIT REQUEST"}</button>
+                <button onClick={() => { setConfirmUpgrade(false); setUpgradeError(""); setUpgradeNote(""); }} style={{ padding: "13px 18px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
               </div>
             </div>
           )}
@@ -3595,15 +3692,22 @@ export default function HomePage() {
                   )
                 ) : (
                   <div style={{ background: "#0b0b0b", borderRadius: 14, overflow: "hidden", padding: "10px 8px 4px" }}>
-                    <MuscleDiagram primary={primary} secondary={secondary}/>
+                    <MuscleDiagram primary={primary} secondary={secondary} exerciseId={formPreview.id}/>
                     {allMuscles.length === 0 && (
                       <div style={{ textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 12, paddingBottom: 12 }}>No muscle data for this exercise</div>
                     )}
                     {allMuscles.length > 0 && (
-                      <div style={{ display: "flex", gap: 16, justifyContent: "center", padding: "6px 0 8px", flexWrap: "wrap" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: "#FF4422" }}/><span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>PRIMARY</span></div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: "#FF9900" }}/><span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>SECONDARY</span></div>
-                      </div>
+                      <>
+                        <div style={{ display: "flex", gap: 16, justifyContent: "center", padding: "6px 0 4px", flexWrap: "wrap" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: "#FF4422" }}/><span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>PRIMARY</span></div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: "#FF9900" }}/><span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>SECONDARY</span></div>
+                        </div>
+                        {MUSCLE_DETAIL[formPreview.id] && (
+                          <div style={{ textAlign: "center", padding: "0 0 8px" }}>
+                            <span style={{ fontSize: 9, color: "rgba(78,205,196,0.6)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>⊕ SUB-MUSCLE DETAIL</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

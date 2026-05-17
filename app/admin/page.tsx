@@ -10,7 +10,17 @@ type User = {
   role: string;
   mustResetPassword: boolean;
   createdAt: string;
+  roleRequest: string | null;
   _count: { workoutLogs: number };
+};
+
+type TrainerRequest = {
+  id: string;
+  username: string;
+  email: string | null;
+  note: string | null;
+  requestedAt: string | null;
+  workoutLogs: number;
 };
 
 const ROLES = ["user", "trainer", "admin"];
@@ -20,10 +30,13 @@ export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [authError, setAuthError] = useState("");
   const [users, setUsers] = useState<User[]>([]);
+  const [trainerRequests, setTrainerRequests] = useState<TrainerRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [userSearch, setUserSearch] = useState("");
 
   const fetchUsers = useCallback(async (secret: string) => {
     setLoading(true);
@@ -39,6 +52,7 @@ export default function AdminPage() {
       }
       const data = await res.json();
       setUsers(data.users);
+      setTrainerRequests(data.trainerRequests ?? []);
       setAuthed(true);
     } catch {
       setError("Failed to load users.");
@@ -46,6 +60,26 @@ export default function AdminPage() {
       setLoading(false);
     }
   }, []);
+
+  async function reviewRequest(userId: string, action: "approve-request" | "reject-request") {
+    setReviewingId(userId);
+    try {
+      const res = await fetch("/api/admin", {
+        method: "PATCH",
+        headers: { "x-admin-key": key, "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, action }),
+      });
+      const data = await res.json();
+      if (data.user) {
+        setTrainerRequests(rs => rs.filter(r => r.id !== userId));
+        setUsers(us => us.map(u => u.id === userId ? { ...u, role: data.user.role, roleRequest: null } : u));
+      }
+    } catch {
+      setError("Review failed.");
+    } finally {
+      setReviewingId(null);
+    }
+  }
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -242,6 +276,12 @@ export default function AdminPage() {
   }
 
   const totalLogs = users.reduce((n, u) => n + u._count.workoutLogs, 0);
+  const filteredUsers = userSearch
+    ? users.filter(u =>
+        u.username.toLowerCase().includes(userSearch.toLowerCase()) ||
+        (u.email ?? "").toLowerCase().includes(userSearch.toLowerCase())
+      )
+    : users;
 
   return (
     <div style={s.page}>
@@ -265,6 +305,75 @@ export default function AdminPage() {
             <div style={s.statNum}>{users.filter(u => u.role === "trainer").length}</div>
             <div style={s.statLabel}>Trainers</div>
           </div>
+          <div style={{ ...s.statBox, background: trainerRequests.length ? "#1f1a08" : "#111", border: `1px solid ${trainerRequests.length ? "#5a4218" : "#1f1f1f"}` }}>
+            <div style={{ ...s.statNum, color: trainerRequests.length ? "#fdcb6e" : "#f0f0f0" }}>{trainerRequests.length}</div>
+            <div style={s.statLabel}>Pending requests</div>
+          </div>
+        </div>
+
+        {/* Pending trainer requests panel */}
+        {trainerRequests.length > 0 && (
+          <div style={{
+            background: "linear-gradient(180deg, rgba(253,203,110,0.06), rgba(253,203,110,0.02))",
+            border: "1px solid rgba(253,203,110,0.25)",
+            borderRadius: 14,
+            padding: "18px 20px 16px",
+            marginBottom: 28,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <div style={{ width: 6, height: 6, borderRadius: 3, background: "#fdcb6e" }}/>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#fdcb6e", letterSpacing: 1.5, textTransform: "uppercase" }}>Trainer upgrade requests</div>
+              <div style={{ marginLeft: "auto", fontSize: 11, color: "#888" }}>{trainerRequests.length} pending</div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {trainerRequests.map(r => (
+                <div key={r.id} style={{ background: "#0f0f12", border: "1px solid #2a2418", borderRadius: 10, padding: "14px 16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontWeight: 700, fontSize: 15 }}>@{r.username}</span>
+                        <span style={{ ...badgeStyle("user"), fontSize: 10 }}>user → trainer</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#666" }}>{r.email ?? "no email on file"}</div>
+                      <div style={{ fontSize: 11, color: "#444", marginTop: 4 }}>
+                        {r.workoutLogs} workout logs · requested {r.requestedAt ? new Date(r.requestedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"}
+                      </div>
+                      {r.note && (
+                        <div style={{ marginTop: 10, padding: "10px 12px", background: "#161616", borderRadius: 8, borderLeft: "2px solid #fdcb6e", fontSize: 13, color: "#bbb", fontStyle: "italic", whiteSpace: "pre-wrap" }}>
+                          "{r.note}"
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <button
+                        onClick={() => reviewRequest(r.id, "approve-request")}
+                        disabled={reviewingId === r.id}
+                        style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #2a5a2a", background: "#0a1a0a", color: "#55efc4", fontSize: 12, fontWeight: 700, cursor: "pointer", letterSpacing: 0.5 }}
+                      >{reviewingId === r.id ? "…" : "✓ Approve"}</button>
+                      <button
+                        onClick={() => reviewRequest(r.id, "reject-request")}
+                        disabled={reviewingId === r.id}
+                        style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #3a1a1a", background: "#1a0a0a", color: "#ff6b6b", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                      >Reject</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Users search bar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#888", letterSpacing: 0.5 }}>USERS</div>
+          <input
+            type="text"
+            placeholder="Search by username or email…"
+            value={userSearch}
+            onChange={e => setUserSearch(e.target.value)}
+            style={{ flex: 1, padding: "8px 14px", borderRadius: 8, border: "1px solid #222", background: "#0f0f0f", color: "#f0f0f0", fontSize: 13, outline: "none" }}
+          />
+          {userSearch && <div style={{ fontSize: 12, color: "#555" }}>{filteredUsers.length} of {users.length}</div>}
         </div>
 
         {error && <div style={s.errMsg}>{error}</div>}
@@ -283,12 +392,15 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map(u => (
+              {filteredUsers.map(u => (
                 <tr key={u.id}>
                   <td style={s.td}>
                     <span style={{ fontWeight: 600 }}>@{u.username}</span>
                     {u.mustResetPassword && (
                       <span style={{ marginLeft: 8, fontSize: 11, color: "#fdcb6e" }}>must reset</span>
+                    )}
+                    {u.roleRequest && (
+                      <span style={{ marginLeft: 8, fontSize: 10, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", padding: "1px 6px", borderRadius: 4 }}>pending {u.roleRequest}</span>
                     )}
                   </td>
                   <td style={{ ...s.td, color: "#666" }}>{u.email ?? "—"}</td>

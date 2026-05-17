@@ -14,6 +14,9 @@ model User {
   passwordHash      String?
   mustResetPassword Boolean          @default(false)
   role              String           @default("user")
+  roleRequest       String?          // pending role upgrade request, e.g. "trainer"
+  roleRequestNote   String?          // optional note submitted by the user
+  roleRequestAt     DateTime?
   createdAt         DateTime         @default(now())
   workoutLogs       WorkoutLog[]
   profile           UserProfile?
