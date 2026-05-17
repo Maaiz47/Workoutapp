@@ -281,7 +281,7 @@ function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: s
 
 function getOverallStats(history: Record<string, any[]>) {
   let totalSessions = 0;
-  const exercisePRs: Record<string, { weight: number; date: string }> = {};
+  const exercisePRs: Record<string, { weight: number; reps: number; date: string }> = {};
   const allSessions: { date: string; duration: string }[] = [];
 
   for (const dayId in history) {
@@ -291,8 +291,9 @@ function getOverallStats(history: Record<string, any[]>) {
       const sets = s.sets as Record<string, { weight: number; reps: number }>;
       for (const k in sets) {
         const eid = k.split("-").slice(0, -1).join("-");
-        if (!exercisePRs[eid] || sets[k].weight > exercisePRs[eid].weight) {
-          exercisePRs[eid] = { weight: sets[k].weight, date: s.date };
+        const { weight, reps } = sets[k];
+        if (!exercisePRs[eid] || weight > exercisePRs[eid].weight || (weight === exercisePRs[eid].weight && reps > exercisePRs[eid].reps)) {
+          exercisePRs[eid] = { weight, reps, date: s.date };
         }
       }
     }
@@ -2653,7 +2654,7 @@ export default function HomePage() {
             {/* Personal Records */}
             {prList.length > 0 && (
               <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 14 }}>PERSONAL RECORDS</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 14 }}>PERSONAL BESTS</div>
                 {prList.map(([eid, pr], i) => (
                   <div key={eid} style={{
                     display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -2664,10 +2665,12 @@ export default function HomePage() {
                       <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{findExName(eid)}</div>
                       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>{pr.date}</div>
                     </div>
-                    <div style={{
-                      fontSize: 16, fontWeight: 700, color: "#f0c040",
-                      fontFamily: "'Space Mono', monospace",
-                    }}>{pr.weight}<span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>kg</span></div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>
+                        {pr.weight}<span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>kg</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", marginTop: 1 }}>× {pr.reps} reps</div>
+                    </div>
                   </div>
                 ))}
               </div>
