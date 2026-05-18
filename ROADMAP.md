@@ -4,6 +4,50 @@ This file captures the intended design for upcoming patches in enough detail tha
 
 ---
 
+## Patch 24 — Animated Workout-Type Icons
+
+### Overview
+Replace the plain colour-gradient workout cards on the home screen with animated SVG icons that show the target muscle group "exploding" — muscles pulse outward with an orange glow using CSS keyframe animation. Reuses the existing muscle diagram SVG path infrastructure so no new assets are needed.
+
+### Workout type → muscle mapping
+All 13 named workout types resolve to 7 unique muscle-group configurations:
+
+| Workout name(s) | Muscles to animate | Icon ID |
+|---|---|---|
+| Push Day — Heavy / Volume | chest, shoulders-front, triceps | `push` |
+| Pull Day — Width / Thickness | back-lats, biceps, shoulders-rear | `pull` |
+| Leg Day / Leg Day — Foundation | quads, hamstrings, glutes, calves | `legs` |
+| Upper Body A / B | chest, back, shoulders, biceps, triceps | `upper` |
+| Lower Body A / B | quads, hamstrings, glutes, calves | `lower` |
+| Full Body A / B / C | every muscle, staggered 80ms per group | `fullbody` |
+| Cardio & Conditioning | full body pulse (heartbeat timing, 0.6s) | `cardio` |
+
+### `WorkoutTypeIcon` component
+- Props: `title: string` (the workout day title), `size?: number`
+- Maps title → `iconId` using prefix match ("Push Day" → `push`, "Full Body" → `fullbody`, etc.)
+- Renders a miniature (80×120px default) version of the front+back SVG body diagram
+- Inactive muscles: dim fill (`rgba(255,255,255,0.06)`)
+- Active muscles: CSS class `muscle-active` → keyframe animation `muscleExplode`
+
+### CSS animation
+```css
+@keyframes muscleExplode {
+  0%   { fill: rgba(255,100,68,0.25); filter: none; }
+  50%  { fill: rgba(255,100,68,0.75); filter: drop-shadow(0 0 5px #ff6444); }
+  100% { fill: rgba(255,100,68,0.25); filter: none; }
+}
+.muscle-active { animation: muscleExplode 1.8s ease-in-out infinite; }
+```
+
+For `fullbody`/`cardio`, apply `animation-delay` staggered per muscle group (0ms, 80ms, 160ms …).
+
+### Integration
+- Import `WorkoutTypeIcon` into the workout day card on the home screen
+- Rendered in the top-right or top-left corner of each card (replaces or overlays the gradient block)
+- On the active workout header, show the icon at 40×60px alongside the workout name
+
+---
+
 ## Patch 6 — Trainer System
 
 ### Overview

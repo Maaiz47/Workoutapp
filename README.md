@@ -69,6 +69,14 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Share a routine to any user by exact username — appears in their saved routines with attribution
 - List is collapsed by default to prevent accidental restores; count badge shows how many are saved
 
+### Muscle Diagram
+- Anatomical SVG body diagram (front + back view) rendered entirely in-app — no images
+- Every muscle group drawn with bezier-curve paths matching real anatomy: pec fan, lat triangle, deltoid heads, bicep/tricep heads, VMO teardrop, etc.
+- Fiber direction lines overlay each muscle to show grain and pennation angle
+- **Sub-muscle zone detail:** per-exercise targeting data (e.g. "Upper Chest", "Lateral Delt", "Long Head") shown as a labelled legend below the diagram
+- Zones rendered in three layers: dim background → orange secondary → red primary with glow
+- Covers 60+ exercises via `lib/muscleDetail.ts`; fallback derivation for exercise names not in the exercise library
+
 ### Progress
 - **Dashboard tab:** 28-day activity calendar, weekly streak, average session time, Personal Bests per exercise (best weight + reps achieved)
 - **Exercises tab:** per-exercise analytics — avg weight, avg reps, PB, weight trend chart, full session history
@@ -256,6 +264,7 @@ public/
 |---|---|
 | Swap rule-based plan generator → Claude API | Blocked: Anthropic credits |
 | DMARC DNS record for revtech.com.mv | Blocked: Dhiraagu registrar access |
-| GIF exercise demo icons | Not started |
+| Animated workout-type icons (per-split muscle explode) | Not started |
+| Exercise form demo GIFs | Done — JPG start/end animation added in Patch 21 |
 
 See `PATCHLOG.md` for full history.

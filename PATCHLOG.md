@@ -33,6 +33,47 @@ Generate VAPID keys: `npx web-push generate-vapid-keys`
 
 ---
 
+## Patch 23 · 2026-05-18
+**Anatomical Muscle Diagram + Sub-Muscle Detail System**
+
+### Anatomical SVG body diagram
+- Complete redesign of the front/back body diagram using bezier-curve anatomical paths — no more rectangles or ovals
+- Every muscle group drawn to match real anatomy:
+  - Pectorals: three-zone fan (upper/mid/lower + inner head strip)
+  - Deltoids: lateral cap + anterior/posterior heads as distinct sub-zones
+  - Latissimus dorsi: rounded triangle from armpit corner to lower-back point with concave outer edges
+  - Trapezius: wider diamond reaching the acromion on both sides
+  - Biceps: long head + short head + brachialis
+  - Triceps: lateral head + long head + medial head
+  - Quads: vastus lateralis, rectus femoris, VMO teardrop
+  - Hamstrings, glutes, calves, forearms all redrawn proportionally
+- `FiberGroup` renders thin stroke-only lines over each muscle to indicate fiber direction and grain
+- Body figure proportioned with: arms spread wider from torso, legs spread at feet, calves shifted outward, deltoids laterally positioned so they no longer overlap the pectorals
+
+### Sub-muscle zone detail
+- New `lib/muscleDetail.ts` — `MUSCLE_DETAIL` map covering 60+ exercises with primary (`p`) and secondary (`s`) sub-muscle keys (e.g. `"chest-upper"`, `"biceps-long"`, `"shoulders-side"`)
+- `lookupMuscleDetail(id?, name?)` resolves by exercise ID, then name alias, then substring match
+- `MuscleDiagram` renders sub-zone fills: dim for all zones, orange for secondary, red + glow for primary
+- `SUB_MUSCLE_LABELS` maps keys to display names shown as a legend under the diagram (e.g. "Lateral Delt", "Long Head", "Upper Chest")
+
+### Bug fix: sub-muscle detail for exercises not in the EXERCISES library
+- Exercises with custom or variant names (e.g. "Cable Flyes (Low-to-High)") previously showed no muscles in the workout modal because `lookupExMuscles` returned empty
+- Fix: if `rawPrimary` is empty, `lookupMuscleDetail` is called and broad muscle names are derived by splitting sub-muscle keys on `"-"` (e.g. `"chest-inner"` → `"chest"`)
+
+---
+
+## Patch 22 · 2026-05-18
+**UI Fixes — Split Date, Profile Format, History Labels, Chat, Sub-Muscle Names, Form Modal**
+
+- Workout card last-done date now renders on its own line instead of inline with the subtitle
+- Profile header stats formatting corrected (spacing, units)
+- History tab session group labels fixed
+- Chat / conversation link resolution fixed
+- Sub-muscle detail names now display correctly in the diagram legend
+- Form preview modal (FORM button) now accessible from the plan editor (Customise → Add Exercise browser), not only from the active workout view
+
+---
+
 ## Patch 21 · 2026-05-17
 **Exercise Form Preview Modal**
 
