@@ -2210,15 +2210,26 @@ export default function HomePage() {
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>{editingDay.focus}</div>
 
             {exs.map((ex: any, i: number) => (
-              <div key={ex.id ?? i} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", marginTop: 3 }}>{ex.sets} × {ex.reps} · {ex.rest}s</div>
+              <div key={ex.id ?? i} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 16px", marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", marginTop: 3 }}>{ex.sets} × {ex.reps}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={async () => { const moved = moveExercise(exs, i, i - 1); if (i > 0) await saveDay(editingDay, moved); }} disabled={i === 0} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === 0 ? "default" : "pointer", fontSize: 14 }}>↑</button>
+                    <button onClick={async () => { const moved = moveExercise(exs, i, i + 1); if (i < exs.length - 1) await saveDay(editingDay, moved); }} disabled={i === exs.length - 1} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === exs.length - 1 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === exs.length - 1 ? "default" : "pointer", fontSize: 14 }}>↓</button>
+                    <button onClick={async () => { const updated = exs.filter((_: any, j: number) => j !== i); await saveDay(editingDay, updated); }} style={{ background: "rgba(255,107,107,0.1)", border: "none", borderRadius: 6, color: "#FF6B6B", width: 28, height: 28, cursor: "pointer", fontSize: 14 }}>✕</button>
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={async () => { const moved = moveExercise(exs, i, i - 1); if (i > 0) await saveDay(editingDay, moved); }} disabled={i === 0} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === 0 ? "default" : "pointer", fontSize: 14 }}>↑</button>
-                  <button onClick={async () => { const moved = moveExercise(exs, i, i + 1); if (i < exs.length - 1) await saveDay(editingDay, moved); }} disabled={i === exs.length - 1} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === exs.length - 1 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === exs.length - 1 ? "default" : "pointer", fontSize: 14 }}>↓</button>
-                  <button onClick={async () => { const updated = exs.filter((_: any, j: number) => j !== i); await saveDay(editingDay, updated); }} style={{ background: "rgba(255,107,107,0.1)", border: "none", borderRadius: 6, color: "#FF6B6B", width: 28, height: 28, cursor: "pointer", fontSize: 14 }}>✕</button>
+                <div style={{ display: "flex", gap: 5, marginTop: 10, alignItems: "center" }}>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>REST</span>
+                  {[30, 45, 60, 75, 90, 120, 180].map(s => (
+                    <button key={s} onClick={async () => {
+                      const updated = exs.map((x: any, j: number) => j === i ? { ...x, rest: s } : x);
+                      await saveDay(editingDay, updated);
+                    }} style={{ padding: "3px 8px", borderRadius: 12, fontSize: 10, background: ex.rest === s ? "rgba(255,107,107,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${ex.rest === s ? "rgba(255,107,107,0.45)" : "rgba(255,255,255,0.08)"}`, color: ex.rest === s ? "#FF6B6B" : "rgba(255,255,255,0.28)", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{s}s</button>
+                  ))}
                 </div>
               </div>
             ))}
@@ -2806,40 +2817,53 @@ export default function HomePage() {
                             <span style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{d.title}</span>
                           </div>
                           {d.exercises.map((ex: any, ei: number) => (
-                            <div key={ei} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 12px" }}>
-                              <div style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{ex.name}</div>
-                              <input
-                                type="number"
-                                value={ex.sets}
-                                min={1} max={20}
-                                onChange={e => {
-                                  const val = parseInt(e.target.value) || 1;
+                            <div key={ei} style={{ marginBottom: 8, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 12px" }}>
+                              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                <div style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{ex.name}</div>
+                                <input
+                                  type="number"
+                                  value={ex.sets}
+                                  min={1} max={20}
+                                  onChange={e => {
+                                    const val = parseInt(e.target.value) || 1;
+                                    setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
+                                      ...day,
+                                      exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, sets: val }),
+                                    }));
+                                  }}
+                                  style={{ width: 40, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#fff", fontSize: 12, textAlign: "center", padding: "4px", fontFamily: "'Space Mono', monospace" }}
+                                />
+                                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>×</span>
+                                <input
+                                  type="text"
+                                  value={ex.reps}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
+                                      ...day,
+                                      exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, reps: val }),
+                                    }));
+                                  }}
+                                  style={{ width: 52, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#fff", fontSize: 12, textAlign: "center", padding: "4px", fontFamily: "'Space Mono', monospace" }}
+                                />
+                                <button onClick={() => {
                                   setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
                                     ...day,
-                                    exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, sets: val }),
+                                    exercises: day.exercises.filter((_: any, ej: number) => ej !== ei),
                                   }));
-                                }}
-                                style={{ width: 40, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#fff", fontSize: 12, textAlign: "center", padding: "4px", fontFamily: "'Space Mono', monospace" }}
-                              />
-                              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>×</span>
-                              <input
-                                type="text"
-                                value={ex.reps}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
-                                    ...day,
-                                    exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, reps: val }),
-                                  }));
-                                }}
-                                style={{ width: 52, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#fff", fontSize: 12, textAlign: "center", padding: "4px", fontFamily: "'Space Mono', monospace" }}
-                              />
-                              <button onClick={() => {
-                                setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
-                                  ...day,
-                                  exercises: day.exercises.filter((_: any, ej: number) => ej !== ei),
-                                }));
-                              }} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.5)", fontSize: 14, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>×</button>
+                                }} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.5)", fontSize: 14, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>×</button>
+                              </div>
+                              <div style={{ display: "flex", gap: 4, marginTop: 8, alignItems: "center" }}>
+                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>REST</span>
+                                {[30, 45, 60, 75, 90, 120, 180].map(s => (
+                                  <button key={s} onClick={() => {
+                                    setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
+                                      ...day,
+                                      exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, rest: s }),
+                                    }));
+                                  }} style={{ padding: "2px 7px", borderRadius: 10, fontSize: 10, background: ex.rest === s ? "rgba(78,205,196,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${ex.rest === s ? "rgba(78,205,196,0.45)" : "rgba(255,255,255,0.08)"}`, color: ex.rest === s ? "#4ECDC4" : "rgba(255,255,255,0.28)", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{s}s</button>
+                                ))}
+                              </div>
                             </div>
                           ))}
                         </div>
