@@ -1922,7 +1922,9 @@ export default function HomePage() {
         <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, color: "#fff", marginBottom: 4 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, marginBottom: 4, overflow: "visible" }}>
+            <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+          </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 24 }}>LIFT · TRACK · PROGRESS</div>
           <div style={{ minHeight: 20, marginBottom: 40 }}>
             <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
