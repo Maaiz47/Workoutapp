@@ -114,6 +114,9 @@ model PlanExercise {
   reps       String
   rest       Int
   notes      String?
+  groupId    String?
+  groupType  String?
+  dropSets   Int     @default(0)
   day        PlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
 
   @@index([dayId])

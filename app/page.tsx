@@ -1003,6 +1003,9 @@ export default function HomePage() {
   const [history, setHistory] = useState<Record<string, any[]>>({});
   const [openHist, setOpenHist] = useState<string | null>(null);
   const [warmupDone, setWarmupDone] = useState<Record<string, boolean>>({});
+  const [pendingDrop, setPendingDrop] = useState<{ exId: string; setNum: number; dropNum: number } | null>(null);
+  const [dropWInput, setDropWInput] = useState("");
+  const [dropRInput, setDropRInput] = useState("");
   const [editEx, setEditEx] = useState<string | null>(null);
   const [editSets, setEditSets] = useState<Record<string, { weight: number; reps: number }>>({});
   const [showFinishPrompt, setShowFinishPrompt] = useState(false);
@@ -1026,6 +1029,8 @@ export default function HomePage() {
 
   // ── Customise ──
   const [editingDay, setEditingDay] = useState<any | null>(null);
+  const [superSelection, setSuperSelection] = useState<string[]>([]);
+  const [trainerSuperSel, setTrainerSuperSel] = useState<{ dayIdx: number; exIds: string[] } | null>(null);
   const [exSearch, setExSearch] = useState("");
   const [exFilterLoc, setExFilterLoc] = useState("all");
   const [exFilterMove, setExFilterMove] = useState("all");
@@ -1384,7 +1389,7 @@ export default function HomePage() {
     focus: day.focus,
     sections: [{ name: "Main", type: "main" as const, exercises: day.exercises.map((ex: any) => {
       const meta = (EXERCISES as any[]).find((e: any) => e.id === ex.exerciseId);
-      return { id: ex.exerciseId, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest, note: ex.notes ?? undefined, type: meta?.type ?? "compound" };
+      return { id: ex.exerciseId, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest, note: ex.notes ?? undefined, type: meta?.type ?? "compound", groupId: ex.groupId ?? undefined, groupType: ex.groupType ?? undefined, dropSets: ex.dropSets ?? 0 };
     }) }],
   });
 
@@ -1801,8 +1806,9 @@ export default function HomePage() {
     } catch {}
   };
 
-  const logSet = (eid: string, sn: number, w: string, r: string) => {
-    const newLog = { ...log, [`${eid}-${sn}`]: { weight: parseFloat(w) || 0, reps: parseInt(r) || 0 } };
+  const logSet = (eid: string, sn: number, w: string, r: string, dropNum?: number) => {
+    const key = dropNum ? `${eid}-${sn}-d${dropNum}` : `${eid}-${sn}`;
+    const newLog = { ...log, [key]: { weight: parseFloat(w) || 0, reps: parseInt(r) || 0 } };
     setLog(newLog);
     try {
       const saved = localStorage.getItem("ironlog-session");
@@ -2222,19 +2228,86 @@ export default function HomePage() {
             <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{editingDay.title}</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>{editingDay.focus}</div>
 
-            {exs.map((ex: any, i: number) => (
-              <div key={ex.id ?? i} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", marginTop: 3 }}>{ex.sets} × {ex.reps} · {ex.rest}s</div>
+            {exs.map((ex: any, i: number) => {
+              const exKey = ex.exerciseId ?? ex.id ?? String(i);
+              const isSel = superSelection.includes(exKey);
+              const inGroup = !!ex.groupId;
+              return (
+              <div key={ex.id ?? i} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${isSel ? "rgba(255,107,107,0.4)" : inGroup ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button onClick={() => setSuperSelection(s => s.includes(exKey) ? s.filter(id => id !== exKey) : [...s, exKey])} style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isSel ? "#FF6B6B" : "rgba(255,255,255,0.18)"}`, background: isSel ? "#FF6B6B" : "transparent", flexShrink: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", transition: "all 0.15s" }}>{isSel ? "✓" : ""}</button>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
+                      {inGroup && <span style={{ fontSize: 8, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px" }}>SUPER</span>}
+                    </div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", marginTop: 3 }}>{ex.sets} × {ex.reps}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={async () => { const moved = moveExercise(exs, i, i - 1); if (i > 0) await saveDay(editingDay, moved); }} disabled={i === 0} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === 0 ? "default" : "pointer", fontSize: 14 }}>↑</button>
+                    <button onClick={async () => { const moved = moveExercise(exs, i, i + 1); if (i < exs.length - 1) await saveDay(editingDay, moved); }} disabled={i === exs.length - 1} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === exs.length - 1 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === exs.length - 1 ? "default" : "pointer", fontSize: 14 }}>↓</button>
+                    <button onClick={async () => { const updated = exs.filter((_: any, j: number) => j !== i); await saveDay(editingDay, updated); }} style={{ background: "rgba(255,107,107,0.1)", border: "none", borderRadius: 6, color: "#FF6B6B", width: 28, height: 28, cursor: "pointer", fontSize: 14 }}>✕</button>
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={async () => { const moved = moveExercise(exs, i, i - 1); if (i > 0) await saveDay(editingDay, moved); }} disabled={i === 0} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === 0 ? "default" : "pointer", fontSize: 14 }}>↑</button>
-                  <button onClick={async () => { const moved = moveExercise(exs, i, i + 1); if (i < exs.length - 1) await saveDay(editingDay, moved); }} disabled={i === exs.length - 1} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === exs.length - 1 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === exs.length - 1 ? "default" : "pointer", fontSize: 14 }}>↓</button>
-                  <button onClick={async () => { const updated = exs.filter((_: any, j: number) => j !== i); await saveDay(editingDay, updated); }} style={{ background: "rgba(255,107,107,0.1)", border: "none", borderRadius: 6, color: "#FF6B6B", width: 28, height: 28, cursor: "pointer", fontSize: 14 }}>✕</button>
+                {(() => {
+                  const REST_PRESETS = [0, 30, 45, 60, 75, 90, 120, 180];
+                  const restChips = REST_PRESETS.includes(ex.rest) ? REST_PRESETS : [...REST_PRESETS, ex.rest].sort((a, b) => a - b);
+                  return (
+                    <div style={{ display: "flex", gap: 5, marginTop: 10, alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
+                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>REST</span>
+                      {restChips.map(s => {
+                        const active = ex.rest === s;
+                        return <button key={s} onClick={async () => { const updated = exs.map((x: any, j: number) => j === i ? { ...x, rest: s } : x); await saveDay(editingDay, updated); }} style={{ padding: "3px 8px", borderRadius: 12, fontSize: 10, background: active ? "rgba(255,107,107,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(255,107,107,0.45)" : "rgba(255,255,255,0.08)"}`, color: active ? "#FF6B6B" : "rgba(255,255,255,0.28)", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{s === 0 ? "SKIP" : `${s}s`}</button>;
+                      })}
+                    </div>
+                  );
+                })()}
+                <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+                  {inGroup && (
+                    <button onClick={async () => {
+                      const gid = ex.groupId;
+                      const updated = exs.map((x: any) => x.groupId === gid ? { ...x, groupId: undefined, groupType: undefined } : x);
+                      await saveDay(editingDay, updated);
+                    }} style={{ padding: "3px 10px", borderRadius: 10, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.1)", border: "1px solid rgba(255,230,109,0.3)", color: "#FFE66D" }}>UNGROUP ×</button>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
+                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>DROPS</span>
+                    {[{ v: 0, l: "NONE" }, { v: 1, l: "×1" }, { v: 2, l: "×2" }, { v: 3, l: "×3" }].map(({ v, l }) => {
+                      const active = (ex.dropSets ?? 0) === v;
+                      return <button key={v} onClick={async () => { const updated = exs.map((x: any, j: number) => j === i ? { ...x, dropSets: v } : x); await saveDay(editingDay, updated); }} style={{ padding: "3px 8px", borderRadius: 10, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", background: active ? "rgba(255,107,107,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.08)"}`, color: active ? "#FF6B6B" : "rgba(255,255,255,0.25)" }}>{l}</button>;
+                    })}
+                  </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
+
+            {/* Superset creation CTA */}
+            {superSelection.length >= 2 && (
+              <div style={{ background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.3)", borderRadius: 12, padding: "12px 16px", marginBottom: 10, display: "flex", gap: 10, alignItems: "center" }}>
+                <button onClick={async () => {
+                  const gid = Math.random().toString(36).slice(2);
+                  const selSet = new Set(superSelection);
+                  const selIdx = exs.map((e: any, idx: number) => selSet.has(e.exerciseId ?? e.id ?? String(idx)) ? idx : -1).filter((idx: number) => idx >= 0).sort((a: number, b: number) => a - b);
+                  const selExs = selIdx.map((idx: number) => exs[idx]);
+                  const restExs = exs.filter((_: any, idx: number) => !selIdx.includes(idx));
+                  const insertAt = selIdx[0];
+                  const newExs = [
+                    ...restExs.slice(0, insertAt),
+                    ...selExs.map((e: any) => ({ ...e, groupId: gid, groupType: "superset" })),
+                    ...restExs.slice(insertAt),
+                  ];
+                  await saveDay(editingDay, newExs);
+                  setSuperSelection([]);
+                }} style={{ flex: 1, padding: "10px", background: "rgba(255,107,107,0.15)", border: "1px solid rgba(255,107,107,0.4)", borderRadius: 10, color: "#FF6B6B", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                  ⟳ CREATE SUPERSET · {superSelection.length} EXERCISES
+                </button>
+                <button onClick={() => setSuperSelection([])} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 16, cursor: "pointer", padding: "0 4px" }}>✕</button>
+              </div>
+            )}
+            {superSelection.length === 1 && (
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", textAlign: "center", fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>SELECT ONE MORE EXERCISE TO CREATE A SUPERSET</div>
+            )}
 
             {/* Add exercise */}
             {!showExBrowser ? (
@@ -2819,40 +2892,83 @@ export default function HomePage() {
                             <span style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{d.title}</span>
                           </div>
                           {d.exercises.map((ex: any, ei: number) => (
-                            <div key={ei} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 12px" }}>
-                              <div style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{ex.name}</div>
-                              <input
-                                type="number"
-                                value={ex.sets}
-                                min={1} max={20}
-                                onChange={e => {
-                                  const val = parseInt(e.target.value) || 1;
+                            <div key={ei} style={{ marginBottom: 8, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 12px" }}>
+                              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                <div style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{ex.name}</div>
+                                <input
+                                  type="number"
+                                  value={ex.sets}
+                                  min={1} max={20}
+                                  onChange={e => {
+                                    const val = parseInt(e.target.value) || 1;
+                                    setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
+                                      ...day,
+                                      exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, sets: val }),
+                                    }));
+                                  }}
+                                  style={{ width: 40, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#fff", fontSize: 12, textAlign: "center", padding: "4px", fontFamily: "'Space Mono', monospace" }}
+                                />
+                                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>×</span>
+                                <input
+                                  type="text"
+                                  value={ex.reps}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
+                                      ...day,
+                                      exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, reps: val }),
+                                    }));
+                                  }}
+                                  style={{ width: 52, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#fff", fontSize: 12, textAlign: "center", padding: "4px", fontFamily: "'Space Mono', monospace" }}
+                                />
+                                <button onClick={() => {
                                   setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
                                     ...day,
-                                    exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, sets: val }),
+                                    exercises: day.exercises.filter((_: any, ej: number) => ej !== ei),
                                   }));
-                                }}
-                                style={{ width: 40, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#fff", fontSize: 12, textAlign: "center", padding: "4px", fontFamily: "'Space Mono', monospace" }}
-                              />
-                              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>×</span>
-                              <input
-                                type="text"
-                                value={ex.reps}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
-                                    ...day,
-                                    exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, reps: val }),
-                                  }));
-                                }}
-                                style={{ width: 52, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#fff", fontSize: 12, textAlign: "center", padding: "4px", fontFamily: "'Space Mono', monospace" }}
-                              />
-                              <button onClick={() => {
-                                setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
-                                  ...day,
-                                  exercises: day.exercises.filter((_: any, ej: number) => ej !== ei),
-                                }));
-                              }} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.5)", fontSize: 14, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>×</button>
+                                }} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.5)", fontSize: 14, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>×</button>
+                              </div>
+                              {(() => {
+                                const REST_PRESETS = [0, 30, 45, 60, 75, 90, 120, 180];
+                                const restChips = REST_PRESETS.includes(ex.rest) ? REST_PRESETS : [...REST_PRESETS, ex.rest].sort((a, b) => a - b);
+                                return (
+                                  <div style={{ display: "flex", gap: 4, marginTop: 8, alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
+                                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>REST</span>
+                                    {restChips.map(s => {
+                                      const active = ex.rest === s;
+                                      return <button key={s} onClick={() => { setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : { ...day, exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, rest: s }) })); }} style={{ padding: "2px 7px", borderRadius: 10, fontSize: 9, background: active ? "rgba(78,205,196,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(78,205,196,0.45)" : "rgba(255,255,255,0.08)"}`, color: active ? "#4ECDC4" : "rgba(255,255,255,0.28)", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{s === 0 ? "SKIP" : `${s}s`}</button>;
+                                    })}
+                                  </div>
+                                );
+                              })()}
+                              <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center" }}>
+                                {(() => {
+                                  const tss = trainerSuperSel;
+                                  const exKey = ex.exerciseId ?? String(ei);
+                                  const isSel = tss?.dayIdx === di && tss.exIds.includes(exKey);
+                                  const inGrp = !!ex.groupId;
+                                  return (
+                                    <>
+                                      <button onClick={() => {
+                                        setTrainerSuperSel(prev => {
+                                          if (prev?.dayIdx !== di) return { dayIdx: di, exIds: [exKey] };
+                                          const already = prev.exIds.includes(exKey);
+                                          const next = already ? prev.exIds.filter(id => id !== exKey) : [...prev.exIds, exKey];
+                                          return next.length === 0 ? null : { dayIdx: di, exIds: next };
+                                        });
+                                      }} style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isSel ? "#4ECDC4" : "rgba(255,255,255,0.18)"}`, background: isSel ? "#4ECDC4" : "transparent", flexShrink: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#000" }}>{isSel ? "✓" : ""}</button>
+                                      {inGrp && <button onClick={() => { const gid = ex.groupId; setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : { ...day, exercises: day.exercises.map((x: any) => x.groupId === gid ? { ...x, groupId: undefined, groupType: undefined } : x) })); }} style={{ padding: "2px 8px", borderRadius: 8, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.1)", border: "1px solid rgba(255,230,109,0.3)", color: "#FFE66D" }}>UNGROUP ×</button>}
+                                    </>
+                                  );
+                                })()}
+                                <div style={{ display: "flex", alignItems: "center", gap: 3, marginLeft: "auto" }}>
+                                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>DROPS</span>
+                                  {[{ v: 0, l: "NONE" }, { v: 1, l: "×1" }, { v: 2, l: "×2" }, { v: 3, l: "×3" }].map(({ v, l }) => {
+                                    const active = (ex.dropSets ?? 0) === v;
+                                    return <button key={v} onClick={() => { setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : { ...day, exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, dropSets: v }) })); }} style={{ padding: "2px 6px", borderRadius: 8, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", background: active ? "rgba(78,205,196,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, color: active ? "#4ECDC4" : "rgba(255,255,255,0.25)" }}>{l}</button>;
+                                  })}
+                                </div>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -2860,6 +2976,29 @@ export default function HomePage() {
                     </div>
                   );
                 })}
+                {/* Trainer superset CTA */}
+                {trainerSuperSel && trainerSuperSel.exIds.length >= 2 && (
+                  <div style={{ background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 12, padding: "12px 16px", marginBottom: 10, display: "flex", gap: 10, alignItems: "center" }}>
+                    <button onClick={() => {
+                      const { dayIdx: tdi, exIds } = trainerSuperSel;
+                      const gid = Math.random().toString(36).slice(2);
+                      const selSet = new Set(exIds);
+                      setEditedPlanDays(prev => prev!.map((day, dj) => {
+                        if (dj !== tdi) return day;
+                        const exArr = day.exercises;
+                        const selIdxs = exArr.map((e: any, idx: number) => selSet.has(e.exerciseId ?? String(idx)) ? idx : -1).filter((idx: number) => idx >= 0).sort((a: number, b: number) => a - b);
+                        const selExs = selIdxs.map((idx: number) => ({ ...exArr[idx], groupId: gid, groupType: "superset" }));
+                        const restExs = exArr.filter((_: any, idx: number) => !selIdxs.includes(idx));
+                        const insertAt = selIdxs[0];
+                        return { ...day, exercises: [...restExs.slice(0, insertAt), ...selExs, ...restExs.slice(insertAt)] };
+                      }));
+                      setTrainerSuperSel(null);
+                    }} style={{ flex: 1, padding: "10px", background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.4)", borderRadius: 10, color: "#4ECDC4", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                      ⟳ CREATE SUPERSET · {trainerSuperSel.exIds.length} EXERCISES
+                    </button>
+                    <button onClick={() => setTrainerSuperSel(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 16, cursor: "pointer" }}>✕</button>
+                  </div>
+                )}
                 <button
                   onClick={proposePlan}
                   disabled={proposingPlan}
@@ -4239,161 +4378,204 @@ export default function HomePage() {
         {activeDay.sections.map((sec, si) => (
           <div key={si}>
             <div style={{ fontSize: 10, letterSpacing: 4, color: "rgba(255,255,255,0.3)", padding: "22px 20px 10px", fontWeight: 600, fontFamily: "'Space Mono', monospace" }}>{sec.name.toUpperCase()}</div>
-            {sec.exercises.map(ex => {
-              const trackable = ex.trackable !== false;
-              const done = doneCount(ex.id, ex.sets);
-              const allDone = done >= ex.sets;
-              const ns = nextSetNum(ex.id, ex.sets);
-              const isExp = expanded === ex.id;
-              const { weight: lw, reps: lr } = lastSessionBest(ex.id);
-              const wuDone = !trackable && warmupDone[ex.id];
+            {(() => {
+              // Group exercises: singles pass through; consecutive exercises sharing a groupId become a superset block
+              type ExItem = { kind: "single"; ex: typeof sec.exercises[0] } | { kind: "superset"; group: typeof sec.exercises; groupId: string };
+              const items: ExItem[] = [];
+              let j = 0;
+              while (j < sec.exercises.length) {
+                const ex = sec.exercises[j];
+                if (ex.groupId && ex.groupType === "superset") {
+                  const grp = [ex]; j++;
+                  while (j < sec.exercises.length && sec.exercises[j].groupId === ex.groupId) { grp.push(sec.exercises[j]); j++; }
+                  items.push({ kind: "superset", group: grp, groupId: ex.groupId });
+                } else { items.push({ kind: "single", ex }); j++; }
+              }
 
-              return (
-                <div key={ex.id} className="fade-in">
-                  <div onClick={() => {
-                    if (!trackable) { setWarmupDone(prev => ({ ...prev, [ex.id]: !prev[ex.id] })); return; }
-                    if (allDone) return;
-                    setExpanded(isExp ? null : ex.id);
-                    setWInput(lw ? String(lw) : "");
-                    setRInput(lr ? String(lr) : "");
-                  }}
-                    style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: (allDone || wuDone) ? 0.3 : 1, cursor: "pointer", transition: "opacity 0.3s" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
-                        {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? (
-                          <img src={tu[0]} alt="" onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }}
-                            style={{ width: 38, height: 38, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "#1a1a1a", cursor: "pointer" }}
-                            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                        ) : null; })()}
-                        <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</span>
-                        {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1, flexShrink: 0 }}>{ex.type.toUpperCase()}</span>}
-                        <button
-                          onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }}
-                          style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginLeft: 6, flexShrink: 0 }}
-                        >FORM</button>
+              const renderEx = (ex: typeof sec.exercises[0], superCtx?: { group: typeof sec.exercises; idx: number }) => {
+                const trackable = ex.trackable !== false;
+                const done = doneCount(ex.id, ex.sets);
+                const allDone = done >= ex.sets;
+                const ns = nextSetNum(ex.id, ex.sets);
+                const isExp = expanded === ex.id;
+                const hasDrop = pendingDrop?.exId === ex.id;
+                const { weight: lw, reps: lr } = lastSessionBest(ex.id);
+                const wuDone = !trackable && warmupDone[ex.id];
+                const dropCount = ex.dropSets ?? 0;
+
+                const handleLog = () => {
+                  if (!ns) return;
+                  if (superCtx && superCtx.idx < superCtx.group.length - 1) {
+                    logSet(ex.id, ns, wInput, rInput);
+                    const nextEx = superCtx.group[superCtx.idx + 1];
+                    const { weight: nw, reps: nr } = lastSessionBest(nextEx.id);
+                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : "");
+                  } else if (dropCount > 0) {
+                    logSet(ex.id, ns, wInput, rInput);
+                    const w = parseFloat(wInput) || 0;
+                    setPendingDrop({ exId: ex.id, setNum: ns, dropNum: 1 });
+                    setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput("");
+                  } else {
+                    logSet(ex.id, ns, wInput, rInput);
+                    if (ns + 1 > ex.sets) setExpanded(null);
+                    if (ex.rest) rest.start(ex.rest);
+                  }
+                };
+
+                let lastSetN = 0;
+                for (let i = ex.sets; i >= 1; i--) { if (log[`${ex.id}-${i}`]) { lastSetN = i; break; } }
+                const lastLogged = lastSetN > 0 ? log[`${ex.id}-${lastSetN}`] : null;
+
+                const wDiff = (cur: number) => {
+                  const tags: React.ReactNode[] = [];
+                  if (!cur) return null;
+                  if (lastLogged) { const d = +(cur - lastLogged.weight).toFixed(2); tags.push(d === 0 ? <span key="prev" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= S{lastSetN}</span> : <span key="prev" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)}kg vs S{lastSetN}</span>); }
+                  if (lw > 0) { const d = +(cur - lw).toFixed(2); tags.push(d === 0 ? <span key="last" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= last session</span> : <span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)}kg vs last session</span>); }
+                  return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
+                };
+                const rDiff = (cur: number) => {
+                  const tags: React.ReactNode[] = [];
+                  if (!cur) return null;
+                  if (lastLogged) { const d = cur - lastLogged.reps; tags.push(d === 0 ? <span key="prev" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= S{lastSetN}</span> : <span key="prev" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs S{lastSetN}</span>); }
+                  if (lr > 0) { const d = cur - lr; tags.push(d === 0 ? <span key="last" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= last session</span> : <span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs last session</span>); }
+                  return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
+                };
+
+                const isLastInSuper = superCtx && superCtx.idx === superCtx.group.length - 1;
+                const logBtnLabel = superCtx && !isLastInSuper ? `LOG SET ${ns} → NEXT` : `LOG SET ${ns}`;
+
+                return (
+                  <div key={ex.id} className="fade-in">
+                    <div onClick={() => {
+                      if (!trackable) { setWarmupDone(prev => ({ ...prev, [ex.id]: !prev[ex.id] })); return; }
+                      if (allDone) return;
+                      setExpanded(isExp ? null : ex.id);
+                      setWInput(lw ? String(lw) : "");
+                      setRInput(lr ? String(lr) : "");
+                    }}
+                      style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: (allDone || wuDone) ? 0.3 : 1, cursor: "pointer", transition: "opacity 0.3s" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+                          {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? (
+                            <img src={tu[0]} alt="" onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }}
+                              style={{ width: 38, height: 38, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "#1a1a1a", cursor: "pointer" }}
+                              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                          ) : null; })()}
+                          <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</span>
+                          {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1, flexShrink: 0 }}>{ex.type.toUpperCase()}</span>}
+                          {dropCount > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: "#FFE66D", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>DROP×{dropCount}</span>}
+                          <button onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }} style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginLeft: 6, flexShrink: 0 }}>FORM</button>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {trackable && done > 0 && (
+                            <button onClick={(e) => { e.stopPropagation(); openEditModal(ex.id); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>EDIT</button>
+                          )}
+                          {(allDone || wuDone) && <span style={{ fontSize: 16, color: "#2ecc71" }}>✓</span>}
+                          {!trackable && !wuDone && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>TAP TO MARK DONE</span>}
+                        </div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        {trackable && done > 0 && (
-                          <button onClick={(e) => { e.stopPropagation(); openEditModal(ex.id); }}
-                            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>EDIT</button>
-                        )}
-                        {(allDone || wuDone) && <span style={{ fontSize: 16, color: "#2ecc71" }}>✓</span>}
-                        {!trackable && !wuDone && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>TAP TO MARK DONE</span>}
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>
+                        {trackable ? `${ex.sets} × ${ex.reps}` : ex.reps}{ex.rest ? ` · ${ex.rest}s rest` : ""}
                       </div>
+                      {ex.note && <div style={{ fontSize: 11, color: "#f0c040", marginTop: 5, fontStyle: "italic", opacity: 0.8 }}>{ex.note}</div>}
+                      {trackable && lw > 0 && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace" }}>Last session: {lw}kg × {lr || "?"}</div>}
+                      {trackable && (
+                        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                          {Array.from({ length: ex.sets }, (_, i) => {
+                            const d = !!log[`${ex.id}-${i + 1}`], c = i + 1 === ns;
+                            return <div key={i} style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace", background: d ? "#2ecc7120" : c ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)", color: d ? "#2ecc71" : c ? "#fff" : "rgba(255,255,255,0.25)", border: c ? "1px solid rgba(255,255,255,0.15)" : "1px solid transparent" }}>{d ? "✓" : i + 1}</div>;
+                          })}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>
-                      {trackable ? `${ex.sets} × ${ex.reps}` : ex.reps}{ex.rest ? ` · ${ex.rest}s rest` : ""}
-                    </div>
-                    {ex.note && <div style={{ fontSize: 11, color: "#f0c040", marginTop: 5, fontStyle: "italic", opacity: 0.8 }}>{ex.note}</div>}
-                    {trackable && lw > 0 && (
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace" }}>
-                        Last session: {lw}kg × {lr || "?"}
+
+                    {/* Drop set panel */}
+                    {hasDrop && (
+                      <div className="fade-in" style={{ padding: "14px 16px", background: "rgba(255,230,109,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)", borderLeft: "3px solid rgba(255,230,109,0.3)" }}>
+                        <div style={{ fontSize: 11, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 2, marginBottom: 12 }}>DROP SET {pendingDrop!.dropNum} / {dropCount} · REDUCE WEIGHT &amp; GO</div>
+                        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>WEIGHT (kg)</div>
+                            <div style={{ display: "flex", alignItems: "center" }}>
+                              <button onClick={() => setDropWInput(String(Math.max(0, (parseFloat(dropWInput) || 0) - 1.25)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                              <input type="number" inputMode="decimal" value={dropWInput} onChange={e => setDropWInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                              <button onClick={() => setDropWInput(String((parseFloat(dropWInput) || 0) + 1.25))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                            </div>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>REPS</div>
+                            <div style={{ display: "flex", alignItems: "center" }}>
+                              <button onClick={() => setDropRInput(String(Math.max(0, (parseInt(dropRInput) || 0) - 1)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                              <input type="number" inputMode="numeric" value={dropRInput} onChange={e => setDropRInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                              <button onClick={() => setDropRInput(String((parseInt(dropRInput) || 0) + 1))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                            </div>
+                          </div>
+                        </div>
+                        <button onClick={() => {
+                          logSet(ex.id, pendingDrop!.setNum, dropWInput, dropRInput, pendingDrop!.dropNum);
+                          if (pendingDrop!.dropNum < dropCount) {
+                            const w = parseFloat(dropWInput) || 0;
+                            setPendingDrop({ ...pendingDrop!, dropNum: pendingDrop!.dropNum + 1 });
+                            setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput("");
+                          } else {
+                            setPendingDrop(null);
+                            if (pendingDrop!.setNum + 1 > ex.sets) setExpanded(null);
+                            if (ex.rest) rest.start(ex.rest);
+                          }
+                        }} style={{ width: "100%", padding: "14px", background: "rgba(255,230,109,0.15)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 10, color: "#FFE66D", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                          LOG DROP {pendingDrop!.dropNum}
+                        </button>
                       </div>
                     )}
-                    {trackable && (
-                      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                        {Array.from({ length: ex.sets }, (_, i) => {
-                          const d = !!log[`${ex.id}-${i + 1}`], c = i + 1 === ns;
-                          return <div key={i} style={{
-                            width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace",
-                            background: d ? "#2ecc7120" : c ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)",
-                            color: d ? "#2ecc71" : c ? "#fff" : "rgba(255,255,255,0.25)",
-                            border: c ? "1px solid rgba(255,255,255,0.15)" : "1px solid transparent",
-                          }}>{d ? "✓" : i + 1}</div>;
-                        })}
-                      </div>
-                    )}
-                  </div>
 
-                  {isExp && trackable && ns && (() => {
-                    // Find the highest-numbered set that's actually been logged
-                    let lastSetN = 0;
-                    for (let i = ex.sets; i >= 1; i--) { if (log[`${ex.id}-${i}`]) { lastSetN = i; break; } }
-                    const lastLogged = lastSetN > 0 ? log[`${ex.id}-${lastSetN}`] : null;
-
-                    const wDiff = (cur: number) => {
-                      const tags: React.ReactNode[] = [];
-                      if (!cur) return null;
-                      if (lastLogged) {
-                        const d = +(cur - lastLogged.weight).toFixed(2);
-                        tags.push(d === 0
-                          ? <span key="prev" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= S{lastSetN}</span>
-                          : <span key="prev" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)}kg vs S{lastSetN}</span>
-                        );
-                      }
-                      if (lw > 0) {
-                        const d = +(cur - lw).toFixed(2);
-                        tags.push(d === 0
-                          ? <span key="last" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= last session</span>
-                          : <span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)}kg vs last session</span>
-                        );
-                      }
-                      return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
-                    };
-
-                    const rDiff = (cur: number) => {
-                      const tags: React.ReactNode[] = [];
-                      if (!cur) return null;
-                      if (lastLogged) {
-                        const d = cur - lastLogged.reps;
-                        tags.push(d === 0
-                          ? <span key="prev" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= S{lastSetN}</span>
-                          : <span key="prev" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs S{lastSetN}</span>
-                        );
-                      }
-                      if (lr > 0) {
-                        const d = cur - lr;
-                        tags.push(d === 0
-                          ? <span key="last" style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", padding: "2px 5px", borderRadius: 4 }}>= last session</span>
-                          : <span key="last" style={{ fontSize: 10, fontWeight: 600, fontFamily: "'Space Mono', monospace", color: d > 0 ? "#2ecc71" : "#FF6B6B", background: d > 0 ? "#2ecc7115" : "#FF6B6B15", padding: "2px 5px", borderRadius: 4 }}>{d > 0 ? "▲" : "▼"} {Math.abs(d)} rep{Math.abs(d) !== 1 ? "s" : ""} vs last session</span>
-                        );
-                      }
-                      return tags.length > 0 ? <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>{tags}</div> : null;
-                    };
-
-                    return (
+                    {/* Regular set input */}
+                    {isExp && trackable && ns && !hasDrop && (
                       <div className="fade-in" style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 12, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span>Set {ns} of {ex.sets}</span>
-                          {lw > 0 && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>Last session: {lw}kg × {lr}</span>}
+                          <span>Set {ns} of {ex.sets}{superCtx && !isLastInSuper ? ` · then ${superCtx.group[superCtx.idx + 1].name}` : ""}</span>
+                          {lw > 0 && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>Last: {lw}kg × {lr}</span>}
                         </div>
                         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>WEIGHT (kg)</div>
                             <div style={{ display: "flex", alignItems: "center" }}>
-                              <button onClick={() => setWInput(String(Math.max(0, (parseFloat(wInput) || 0) - 1.25)))}
-                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                              <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0"
-                                style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
-                              <button onClick={() => setWInput(String((parseFloat(wInput) || 0) + 1.25))}
-                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                              <button onClick={() => setWInput(String(Math.max(0, (parseFloat(wInput) || 0) - 1.25)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                              <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                              <button onClick={() => setWInput(String((parseFloat(wInput) || 0) + 1.25))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                             </div>
                             {wDiff(parseFloat(wInput))}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>REPS DONE</div>
                             <div style={{ display: "flex", alignItems: "center" }}>
-                              <button onClick={() => setRInput(String(Math.max(0, (parseInt(rInput) || 0) - 1)))}
-                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                              <input type="number" inputMode="numeric" value={rInput} onChange={e => setRInput(e.target.value)} placeholder="0"
-                                style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
-                              <button onClick={() => setRInput(String((parseInt(rInput) || 0) + 1))}
-                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                              <button onClick={() => setRInput(String(Math.max(0, (parseInt(rInput) || 0) - 1)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                              <input type="number" inputMode="numeric" value={rInput} onChange={e => setRInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                              <button onClick={() => setRInput(String((parseInt(rInput) || 0) + 1))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                             </div>
                             {rDiff(parseInt(rInput))}
                           </div>
                         </div>
-                        <button onClick={() => { logSet(ex.id, ns, wInput, rInput); if (ns + 1 > ex.sets) setExpanded(null); if (ex.rest) rest.start(ex.rest); }}
-                          style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: (!wInput && !rInput) ? 0.4 : 1 }}>
-                          LOG SET {ns}
+                        <button onClick={handleLog} style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: (!wInput && !rInput) ? 0.4 : 1 }}>
+                          {logBtnLabel}
                         </button>
                       </div>
-                    );
-                  })()}
-                </div>
-              );
-            })}
+                    )}
+                  </div>
+                );
+              };
+
+              return items.map((item, itemIdx) => {
+                if (item.kind === "single") return renderEx(item.ex);
+                return (
+                  <div key={item.groupId} style={{ borderLeft: "2px solid rgba(255,230,109,0.2)", marginLeft: 12 }}>
+                    <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 9, letterSpacing: 3, color: "#FFE66D", fontWeight: 700, fontFamily: "'Space Mono', monospace", opacity: 0.7 }}>⟳ SUPERSET</span>
+                    </div>
+                    {item.group.map((ex, idx) => renderEx(ex, { group: item.group, idx }))}
+                  </div>
+                );
+              });
+            })()}
           </div>
         ))}
 

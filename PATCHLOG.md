@@ -29,11 +29,86 @@ Generate VAPID keys: `npx web-push generate-vapid-keys`
 |---|---|
 | Swap rule-based plan generator → Claude API | Anthropic checkout unavailable |
 | DMARC DNS record for revtech.com.mv | Dhiraagu portal access |
-| GIF exercise demo icons | — |
 
 ---
 
-## Patch 23 · 2026-05-18
+## Patch 27 · 2026-05-18
+**Supersets and Drop Sets**
+
+### Supersets
+- Any two consecutive exercises in the customize view can be paired as a superset using the new `⟳ SUPER` toggle (appears below the REST chips row on each exercise card)
+- Paired exercises share a `groupId` and render as a visually connected block in the workout view — a `⟳ SUPERSET` bracket with a gold left border connects them
+- Logging a set in a superset auto-advances to the next exercise in the pair with no rest in between — the LOG SET button shows `→ NEXT` as a hint; the input header names the coming exercise
+- Rest timer fires only after the last exercise in the group completes its set for that round
+- Unpairing: tapping `⟳ SUPER ✓` again removes the groupId from both exercises and restores independent behaviour
+
+### Drop sets
+- Each exercise can be assigned 0–3 drop sets via a `DROP +/-` counter (also below the REST chips row)
+- A `DROP×N` badge appears on the exercise header in the workout view so users see the expectation before logging
+- After logging the main set, a yellow-accented drop set panel slides in immediately (no rest)
+- Weight is pre-reduced by ~20% each drop as a starting suggestion — fully adjustable with the same ± steppers
+- Rest timer only fires after all drops are completed
+- Drop sets can coexist with supersets (drops apply to the last exercise in a superset after the group round completes)
+
+### Data model
+- `PlanExercise`: added `groupId String?`, `groupType String?`, `dropSets Int @default(0)`
+- Migration: `prisma/migrations/20260518_superset_dropset/migration.sql`
+- `PUT /api/plan` updated to persist all three new fields
+
+### Workout log
+- Drop set entries keyed as `{exerciseId}-{setNum}-d{dropNum}` — backward compatible with existing log format
+
+---
+
+## Patch 26 · 2026-05-18
+**Custom Rest Times per Exercise**
+
+- Each exercise card in the user customize view now shows a row of preset rest chips: `30s / 45s / 60s / 75s / 90s / 120s / 180s`
+- The plan-generated default is pre-highlighted in red — no action needed to keep it, one tap to override
+- Changes are saved immediately to the database via the existing `PUT /api/plan` endpoint
+- The same chip row is present in the trainer inline plan editor (chips highlighted in teal to match the trainer colour scheme)
+- Rest time is still shown during the workout view exactly as before (`· {rest}s rest` on the exercise subtitle)
+
+---
+
+## Patch 25 · 2026-05-18
+**Form Cues, Trainer MESSAGE Button, Equipment Display**
+
+### Per-exercise form cues
+- New `lib/formCues.ts` — 119 exercises covered, 2–3 cues each focused on muscle activation and correct form
+- `getFormCues(exerciseId?, exerciseName?)` resolves by exercise ID first, then by normalised name match (substring/alias fallback)
+- Cues render below the form demo image in the exercise form modal (slide 0) as numbered badges (1 / 2 / 3 in `#FF6644`) with cue text at 12px / 1.55 line height
+- Visible in both the workout view FORM modal and the exercise browser FORM modal in the customise view
+
+### Trainer MESSAGE button
+- A `MESSAGE` button (teal, monospace, 11px) now appears next to the client username in the trainer's client detail header
+- Tapping it opens the direct conversation with that client immediately via `openConversation({ id, username })`
+- Removes the need to navigate back to the messages list to initiate a conversation from a client profile
+
+### Equipment display fix (client profile tab)
+- Equipment in the client's PROFILE tab previously rendered as a comma-joined string that overflowed into the label
+- Now renders as a vertical per-item list — one line per equipment item — with the "Equipment" label above it
+
+---
+
+## Patch 24 · 2026-05-18
+**Animated Workout-Type Icons**
+
+### WorkoutTypeIcon component
+- New `WorkoutTypeIcon` component renders a front-and-back block-figure SVG (200×168 viewBox, default height 62px) on each home screen workout card
+- Title-based mapping: "Push" → chest + shoulders + triceps; "Pull" → back + biceps + rear shoulders; "Leg" / "Lower" → quads + glutes + hamstrings + calves; "Upper" → chest + shoulders + biceps + back + triceps; "Full Body" → all groups; "Cardio" / "HIIT" → full-body cardio pattern
+- Block-figure style: `<rect rx>` shapes for clean rendering at small sizes — head, neck, torso, arms, forearms, thighs, shins drawn as rounded rectangles
+- Front and back views separated by a hairline divider at the centre of the SVG
+
+### CSS explosion animation
+- `globals.css`: `@keyframes muscleExplode` — opacity 0.28 → 1 → 0.82 → 0.28 with `filter: drop-shadow` glow at peak using `var(--mc)` (the per-instance colour CSS custom property)
+- `.ma` class applies the animation; `.md` is the dim default fill for inactive muscles
+- Per-muscle stagger delays (`animation-delay`) so each muscle group fires in sequence — full-body workouts cascade visibly through every muscle
+- CSS variable `--mc` set on the SVG element propagates to all child shapes sharing the same keyframe without duplication
+
+---
+
+
 **Anatomical Muscle Diagram + Sub-Muscle Detail System**
 
 ### Anatomical SVG body diagram
