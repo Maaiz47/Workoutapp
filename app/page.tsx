@@ -1007,6 +1007,7 @@ export default function HomePage() {
   const [user, setUser] = useState<{ id: string; username: string; role: string; roleRequest?: string | null } | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
+  const [splashDone, setSplashDone] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authStep, setAuthStep] = useState<"username" | "register" | "setup" | "password" | "forgot">("username");
   const [emailInput, setEmailInput] = useState("");
@@ -1218,6 +1219,12 @@ export default function HomePage() {
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [refreshUser]);
+
+  // Minimum splash duration so the fall animation completes
+  useEffect(() => {
+    const t = setTimeout(() => setSplashDone(true), 1400);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -1901,12 +1908,18 @@ export default function HomePage() {
   const toggleEquip = (id: string) => setOb(o => ({ ...o, equipment: o.equipment.includes(id) ? o.equipment.filter(e => e !== id) : [...o.equipment, id] }));
 
   // ─── LOADING ────────────────────────────────────────────────────────
-  if (authLoading) return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: 18 }}>
-      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, letterSpacing: 6, color: "rgba(255,255,255,0.55)", animation: "breathe 1.8s ease infinite" }}>
-        IRON<span style={{ color: "#FF6B6B" }}>LOG</span>
+  if (authLoading || !splashDone) return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.09) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", top: "55%", left: "50%", transform: "translate(-50%,-50%)", width: "40vw", height: "40vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.05) 0%, transparent 70%)", animation: "breathe 2.4s ease infinite", pointerEvents: "none" }} />
+      <div style={{ textAlign: "center", zIndex: 1 }}>
+        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 44, fontWeight: 700, letterSpacing: 8, marginBottom: 6, overflow: "visible" }}>
+          <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+        </div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginBottom: 48, animation: "fadeIn 0.5s ease 0.85s both" }}>LIFT · TRACK · PROGRESS</div>
+        <div style={{ width: 180, height: 2, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.55), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite", margin: "0 auto" }} />
       </div>
-      <div style={{ width: 80, height: 2, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.4), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite" }}/>
     </div>
   );
 
@@ -1923,13 +1936,7 @@ export default function HomePage() {
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, marginBottom: 4, overflow: "visible" }}>
-            <span className="logo-iron" style={{ color: "#fff" }}>
-              <svg viewBox="0 0 26 38" width="22" height="34" style={{ display: "inline-block", verticalAlign: "middle", marginBottom: 5, marginRight: 8, fill: "#fff" }} aria-hidden>
-                <ellipse cx="13" cy="7" rx="13" ry="7"/>
-                <rect x="10" y="7" width="6" height="24"/>
-                <ellipse cx="13" cy="31" rx="13" ry="7"/>
-              </svg>RON
-            </span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+            <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 24 }}>LIFT · TRACK · PROGRESS</div>
           <div style={{ minHeight: 20, marginBottom: 40 }}>
