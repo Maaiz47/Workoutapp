@@ -5,6 +5,7 @@ import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 import { EXERCISES } from "../lib/exercises";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
 import { MUSCLE_DETAIL, lookupMuscleDetail } from "../lib/muscleDetail";
+import { getFormCues } from "../lib/formCues";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -2319,14 +2320,31 @@ export default function HomePage() {
                   <button onClick={() => setFormPreview(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", lineHeight: 1, padding: "0 0 0 12px" }}>×</button>
                 </div>
                 {modalSlide === 0 ? (
-                  urls && !formImgError ? (
-                    <div style={{ position: "relative", width: "100%", borderRadius: 14, overflow: "hidden", background: "#111" }}>
-                      <img key={urls[formFrame]} src={urls[formFrame]} alt={formPreview.name} style={{ width: "100%", display: "block", minHeight: 220, objectFit: "cover" }} onError={() => setFormImgError(true)} />
-                      <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
-                    </div>
-                  ) : (
-                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No form demo available</div>
-                  )
+                  <>
+                    {urls && !formImgError ? (
+                      <div style={{ position: "relative", width: "100%", borderRadius: 14, overflow: "hidden", background: "#111" }}>
+                        <img key={urls[formFrame]} src={urls[formFrame]} alt={formPreview.name} style={{ width: "100%", display: "block", minHeight: 220, objectFit: "cover" }} onError={() => setFormImgError(true)} />
+                        <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
+                      </div>
+                    ) : (
+                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No form demo available</div>
+                    )}
+                    {(() => {
+                      const cues = getFormCues(formPreview.id, formPreview.name);
+                      if (!cues) return null;
+                      return (
+                        <div style={{ marginTop: 14, background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div style={{ fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", marginBottom: 2 }}>FORM CUES</div>
+                          {cues.map((cue, i) => (
+                            <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                              <div style={{ width: 18, height: 18, borderRadius: 9, background: "rgba(255,100,68,0.15)", border: "1px solid rgba(255,100,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 9, fontWeight: 700, color: "#FF6644", fontFamily: "'Space Mono', monospace", marginTop: 1 }}>{i + 1}</div>
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.55 }}>{cue}</div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </>
                 ) : (
                   <div style={{ background: "#0b0b0b", borderRadius: 14, overflow: "hidden", padding: "10px 8px 4px" }}>
                     <MuscleDiagram primary={primary} secondary={secondary} exerciseId={formPreview.id} exerciseName={formPreview.name}/>
@@ -4105,25 +4123,42 @@ export default function HomePage() {
 
                 {/* Slide content */}
                 {modalSlide === 0 ? (
-                  urls && !formImgError ? (
-                    <div style={{ position: "relative", width: "100%", borderRadius: 14, overflow: "hidden", background: "#111" }}>
-                      <img key={urls[formFrame]} src={urls[formFrame]} alt={formPreview.name}
-                        style={{ width: "100%", display: "block", minHeight: 220, objectFit: "cover" }}
-                        onError={() => setFormImgError(true)}
-                      />
-                      <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
-                      <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", gap: 4 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: formFrame === 0 ? "#fff" : "rgba(255,255,255,0.25)", transition: "background 0.3s" }}/>
-                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: formFrame === 1 ? "#fff" : "rgba(255,255,255,0.25)", transition: "background 0.3s" }}/>
+                  <>
+                    {urls && !formImgError ? (
+                      <div style={{ position: "relative", width: "100%", borderRadius: 14, overflow: "hidden", background: "#111" }}>
+                        <img key={urls[formFrame]} src={urls[formFrame]} alt={formPreview.name}
+                          style={{ width: "100%", display: "block", minHeight: 220, objectFit: "cover" }}
+                          onError={() => setFormImgError(true)}
+                        />
+                        <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
+                        <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", gap: 4 }}>
+                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: formFrame === 0 ? "#fff" : "rgba(255,255,255,0.25)", transition: "background 0.3s" }}/>
+                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: formFrame === 1 ? "#fff" : "rgba(255,255,255,0.25)", transition: "background 0.3s" }}/>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                      <div style={{ fontSize: 32, opacity: 0.3 }}>🏋️</div>
-                      <div>No form demo available</div>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.15)" }}>Search YouTube for &ldquo;{formPreview.name} form&rdquo;</div>
-                    </div>
-                  )
+                    ) : (
+                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 32, opacity: 0.3 }}>🏋️</div>
+                        <div>No form demo available</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.15)" }}>Search YouTube for &ldquo;{formPreview.name} form&rdquo;</div>
+                      </div>
+                    )}
+                    {(() => {
+                      const cues = getFormCues(formPreview.id, formPreview.name);
+                      if (!cues) return null;
+                      return (
+                        <div style={{ marginTop: 14, background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div style={{ fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", marginBottom: 2 }}>FORM CUES</div>
+                          {cues.map((cue, i) => (
+                            <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                              <div style={{ width: 18, height: 18, borderRadius: 9, background: "rgba(255,100,68,0.15)", border: "1px solid rgba(255,100,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 9, fontWeight: 700, color: "#FF6644", fontFamily: "'Space Mono', monospace", marginTop: 1 }}>{i + 1}</div>
+                              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.55 }}>{cue}</div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </>
                 ) : (
                   <div style={{ background: "#0b0b0b", borderRadius: 14, overflow: "hidden", padding: "10px 8px 4px" }}>
                     <MuscleDiagram primary={primary} secondary={secondary} exerciseId={formPreview.id} exerciseName={formPreview.name}/>
