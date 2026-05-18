@@ -1923,7 +1923,13 @@ export default function HomePage() {
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, marginBottom: 4, overflow: "visible" }}>
-            <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+            <span className="logo-iron" style={{ color: "#fff" }}>
+              <svg viewBox="0 0 26 34" width="26" height="34" style={{ display: "inline-block", verticalAlign: "middle", marginBottom: 5, marginRight: 8, fill: "#fff" }} aria-hidden>
+                <rect x="0" y="0" width="26" height="9" rx="3.5"/>
+                <rect x="9" y="9" width="8" height="16"/>
+                <rect x="0" y="25" width="26" height="9" rx="3.5"/>
+              </svg>RON
+            </span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 24 }}>LIFT · TRACK · PROGRESS</div>
           <div style={{ minHeight: 20, marginBottom: 40 }}>
