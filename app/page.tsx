@@ -1155,7 +1155,19 @@ export default function HomePage() {
 
   const rest = useCountdown();
   const timer = useTimer();
-  const phrase = useMemo(() => PHRASES[Math.floor(Math.random() * PHRASES.length)], []);
+  const [phraseIdx, setPhraseIdx] = useState(() => Math.floor(Math.random() * PHRASES.length));
+  const [phraseVisible, setPhraseVisible] = useState(true);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPhraseVisible(false);
+      setTimeout(() => {
+        setPhraseIdx(i => (i + 1 + Math.floor(Math.random() * (PHRASES.length - 1))) % PHRASES.length);
+        setPhraseVisible(true);
+      }, 320);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
+  const phrase = PHRASES[phraseIdx];
 
   const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "workout"]);
   useSwipeBack(() => {
@@ -1912,14 +1924,8 @@ export default function HomePage() {
         <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, color: "#fff", marginBottom: 4 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 24 }}>LIFT · TRACK · PROGRESS</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", marginBottom: 32, fontFamily: "'DM Sans', sans-serif", minHeight: 18 }}>{phrase}</div>
-          <div style={{ display: "flex", justifyContent: "center", gap: 20, marginBottom: 40 }}>
-            {[["📈","Progress"],["🏋️","Strength"],["🔥","Fat Loss"]].map(([icon, label]) => (
-              <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-                <div style={{ fontSize: 22 }}>{icon}</div>
-                <div style={{ fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>{label.toUpperCase()}</div>
-              </div>
-            ))}
+          <div style={{ minHeight: 20, marginBottom: 40 }}>
+            <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
           </div>
 
           {/* ── Step: username ── */}
@@ -2661,7 +2667,7 @@ export default function HomePage() {
       )}
       <div style={{ padding: "20px 20px 0", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
+        <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
       </div>
       <div style={{ padding: "20px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
