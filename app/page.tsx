@@ -34,9 +34,13 @@ function urlBase64ToUint8Array(base64String: string) {
 async function subscribeToPush(): Promise<"granted" | "denied" | "unsupported" | "error"> {
   try {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
-    const permission = await Notification.requestPermission();
+    // Only request permission if not already decided — avoids mobile browsers rejecting
+    // programmatic calls outside a user gesture when permission is already granted
+    let permission = Notification.permission as NotificationPermission;
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
+    }
     if (permission !== "granted") return "denied";
-    // Ensure SW is registered (safe to call if already registered)
     await navigator.serviceWorker.register("/sw.js");
     const reg = await navigator.serviceWorker.ready;
     const existing = await reg.pushManager.getSubscription();
@@ -1187,12 +1191,11 @@ export default function HomePage() {
     }
     if (Notification.permission === "denied") { setNotifStatus("denied"); return; }
     if (Notification.permission === "granted") {
-      // Re-save subscription in case it wasn't stored yet (e.g. first deploy with push)
+      // Re-register subscription silently on every app open (handles cache-cleared subscriptions)
       subscribeToPush().then(s => setNotifStatus(s));
     } else if (Notification.permission === "default") {
-      // Show banner unless user previously dismissed it
-      const dismissed = localStorage.getItem("ironlog-notif-dismissed");
-      if (!dismissed) setShowNotifBanner(true);
+      // Always show banner until user explicitly allows or blocks via native prompt
+      setShowNotifBanner(true);
     }
   }, []);
 
@@ -1383,7 +1386,7 @@ export default function HomePage() {
       const data = await authPost({ action: "register", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
       setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
-      setShowNotifBanner(!localStorage.getItem("ironlog-notif-dismissed"));
+      if (typeof Notification !== "undefined" && Notification.permission === "default") setShowNotifBanner(true);
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -1394,7 +1397,7 @@ export default function HomePage() {
       const data = await authPost({ action: "setup", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
       setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
-      setShowNotifBanner(!localStorage.getItem("ironlog-notif-dismissed"));
+      if (typeof Notification !== "undefined" && Notification.permission === "default") setShowNotifBanner(true);
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -2676,7 +2679,7 @@ export default function HomePage() {
               const s = await subscribeToPush();
               setNotifStatus(s);
             }} style={{ background: "#4ECDC4", border: "none", borderRadius: 8, padding: "7px 14px", color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>ENABLE</button>
-            <button onClick={() => { localStorage.setItem("ironlog-notif-dismissed", "1"); setShowNotifBanner(false); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: "2px 0", textAlign: "center" }}>Not now</button>
+            <button onClick={() => setShowNotifBanner(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: "2px 0", textAlign: "center" }}>Not now</button>
           </div>
         </div>
       )}
