@@ -195,3 +195,92 @@ export const MUSCLE_DETAIL: Record<string, { p: string[]; s: string[] }> = {
   "dead-bug":           { p: ["core-abs-lower"], s: ["core-abs-upper"] },
   "bird-dog":           { p: ["back-lower", "core-abs-upper"], s: ["glutes-max"] },
 };
+
+// Normalized name → MUSCLE_DETAIL key aliases for exercises whose display names
+// don't match any EXERCISES library ID (e.g. workout-plan exercises).
+const NAME_ALIASES: Record<string, string> = {
+  // Cable
+  "cableflyeslowtohigh":        "cable-crossover",
+  "cableflyeshightolw":         "cable-crossover",
+  "cableflyeshightolow":        "cable-crossover",
+  "cableflyes":                 "cable-crossover",
+  "cablecurlrope":              "cable-curl",
+  "cablecurlwrope":             "cable-curl",
+  // Triceps
+  "tricepropepushdowns":        "tricep-pushdown",
+  "tricepropepushdown":         "tricep-pushdown",
+  "tricepdipsorchine":          "tricep-dips",
+  "tricepdipsmachine":          "tricep-dips",
+  "overheadtricepextension":    "overhead-tricep-extension",
+  "overheadtricepdumbbellext":  "overhead-tricep-extension",
+  // Back
+  "barbellbentoverrow":         "barbell-row",
+  "barbellbentrow":             "barbell-row",
+  "bentoverrow":                "barbell-row",
+  "tbarrowchestsupportedrow":   "t-bar-row",
+  "chestsupportedrow":          "t-bar-row",
+  "latpulldownwide":            "wide-grip-lat-pulldown",
+  "widegriplatpulldown":        "wide-grip-lat-pulldown",
+  "seatedcablerowclose":        "seated-cable-row",
+  "straightarmpulldown":        "straight-arm-pulldown",
+  // Squats & legs
+  "barbellbacksquat":           "barbell-squat",
+  "backsquat":                  "barbell-squat",
+  "legcurlmachine":             "leg-curl",
+  "seatedlegcurl":              "leg-curl",
+  "lyinglegcurl":               "leg-curl",
+  "standingcalfraises":         "standing-calf-raise",
+  "standingcalfraising":        "standing-calf-raise",
+  // Press
+  "inclinebarbellbenchpress":   "incline-barbell-press",
+  "flatbarbellbenchpress":      "barbell-bench-press",
+  "flatdumbbellpress":          "dumbbell-bench-press",
+  "pecdeckmachinefly":          "pec-deck",
+  "pecdeckmachineflyes":        "pec-deck",
+  "pecdeck":                    "pec-deck",
+  "machinefly":                 "pec-deck",
+  "closegripbenchpress":        "close-grip-bench",
+  // Curls
+  "inclinedbcurl":              "incline-dumbbell-curl",
+  "ezbarcurl":                  "ez-bar-curl",
+  // Pulls
+  "pullupsassistedpullups":     "pullups",
+  "assistedpullups":            "pullups",
+  // Misc
+  "hanginglegraises":           "hanging-leg-raise",
+  "facepulls":                  "face-pull",
+  "hammercurls":                "hammer-curl",
+  "lateralraises":              "lateral-raise",
+  "bulgariansplitsquat":        "bulgarian-split-squat",
+  "legpress":                   "leg-press",
+  "romaniandeadlift":           "romanian-deadlift",
+  "barbellcurl":                "barbell-curl",
+};
+
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * Resolve sub-muscle detail by exercise ID first, then by exercise name.
+ * Handles workout-plan exercises whose IDs ("a3", "b4"…) don't exist in MUSCLE_DETAIL.
+ */
+export function lookupMuscleDetail(
+  exerciseId?: string,
+  exerciseName?: string
+): { p: string[]; s: string[] } | null {
+  if (exerciseId && MUSCLE_DETAIL[exerciseId]) return MUSCLE_DETAIL[exerciseId];
+
+  if (!exerciseName) return null;
+  const key = norm(exerciseName);
+
+  // Explicit alias first
+  const aliasId = NAME_ALIASES[key];
+  if (aliasId && MUSCLE_DETAIL[aliasId]) return MUSCLE_DETAIL[aliasId];
+
+  // Auto-resolve: normalized MUSCLE_DETAIL key matches or is substring of name
+  for (const [id, data] of Object.entries(MUSCLE_DETAIL)) {
+    const idKey = norm(id);
+    if (key === idKey || key.includes(idKey) || idKey.includes(key)) return data;
+  }
+
+  return null;
+}
