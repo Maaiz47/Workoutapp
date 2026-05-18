@@ -2690,7 +2690,15 @@ export default function HomePage() {
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         </div>
         <div style={{ padding: "0 20px 0" }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>@{activeClient.username}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>@{activeClient.username}</div>
+            <button
+              onClick={() => openConversation({ id: activeClient.id, username: activeClient.username })}
+              style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, padding: "5px 10px", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+            >
+              MESSAGE
+            </button>
+          </div>
           {clientData?.profile && (
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
               {clientData.profile.goal?.replace(/_/g, " ")} · {clientData.profile.fitnessLevel}
