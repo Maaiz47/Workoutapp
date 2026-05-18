@@ -499,40 +499,78 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
     </>
   );
 
+  // Fiber direction lines rendered on top of fills — make muscles look anatomical not blobby.
+  const FiberGroup = ({ paths, parent, k }: { paths: { d: string; sub: string }[]; parent: string; k: string }) => (
+    <>
+      {paths.map((fp, i) => {
+        const st = subSt(fp.sub, parent);
+        const op = st === "p" ? 0.32 : st === "s" ? 0.16 : 0.036;
+        return <path key={`${k}f${i}`} d={fp.d} fill="none" stroke="rgba(255,255,255,0.88)" strokeWidth={0.38} opacity={op} strokeLinecap="round"/>;
+      })}
+    </>
+  );
+
   const seg = "rgba(0,0,0,0.3)";
 
   // ─── FRONT VIEW path arrays (cx=75) ───────────────────────────────────
+
+  // Pec: true fan converging at armpit (~42,65). Each zone is a horizontal slice of the fan.
   const chestF = [
-    // LEFT pec — fan from sternum/clavicle radiating to armpit (x≈44,y≈60)
-    { sub: "chest-upper", d: "M75,51 C68,47 56,45 46,49 C41,52 38,59 38,67 C49,69 62,69 75,68 Z" },
-    { sub: "chest-mid",   d: "M75,68 C62,69 49,69 38,67 C37,74 38,81 41,87 C53,87 65,87 75,86 Z" },
-    { sub: "chest-lower", d: "M75,86 C65,87 53,87 41,87 C44,94 49,100 56,104 C63,106 70,105 75,103 Z" },
-    { sub: "chest-inner", d: "M75,51 C73,54 71,63 71,71 C71,84 72,96 75,103 C77,96 78,84 78,71 C78,63 77,54 75,51 Z" },
-    // RIGHT pec (mirror)
-    { sub: "chest-upper", d: "M75,51 C82,47 94,45 104,49 C109,52 112,59 112,67 C101,69 88,69 75,68 Z" },
-    { sub: "chest-mid",   d: "M75,68 C88,69 101,69 112,67 C113,74 112,81 109,87 C97,87 85,87 75,86 Z" },
-    { sub: "chest-lower", d: "M75,86 C85,87 97,87 109,87 C106,94 101,100 94,104 C87,106 80,105 75,103 Z" },
-    { sub: "chest-inner", d: "M75,51 C77,54 79,63 79,71 C79,84 78,96 75,103 C73,96 72,84 72,71 C72,63 73,54 75,51 Z" },
+    // LEFT — clavicular head (upper), sternocostal (mid/lower), sternal fibers (inner)
+    { sub: "chest-upper", d: "M75,50 C70,47 60,44 50,46 C44,47 38,52 36,59 C36,64 37,69 41,70 C52,72 65,71 75,70 Z" },
+    { sub: "chest-mid",   d: "M75,70 C65,71 52,72 41,70 C37,74 37,81 40,87 C42,90 47,91 53,91 C63,91 70,89 75,88 Z" },
+    { sub: "chest-lower", d: "M75,88 C70,89 63,91 53,91 C46,91 42,94 42,99 C44,104 50,108 58,109 C65,110 72,108 75,106 Z" },
+    { sub: "chest-inner", d: "M75,50 C73,53 72,62 71,71 C71,84 72,96 75,106 C77,96 78,84 78,71 C78,62 77,53 75,50 Z" },
+    // RIGHT (mirror)
+    { sub: "chest-upper", d: "M75,50 C80,47 90,44 100,46 C106,47 112,52 114,59 C114,64 113,69 109,70 C98,72 85,71 75,70 Z" },
+    { sub: "chest-mid",   d: "M75,70 C85,71 98,72 109,70 C113,74 113,81 110,87 C108,90 103,91 97,91 C87,91 80,89 75,88 Z" },
+    { sub: "chest-lower", d: "M75,88 C80,89 87,91 97,91 C104,91 108,94 108,99 C106,104 100,108 92,109 C85,110 78,108 75,106 Z" },
+    { sub: "chest-inner", d: "M75,50 C77,53 78,62 79,71 C79,84 78,96 75,106 C73,96 72,84 72,71 C72,62 73,53 75,50 Z" },
   ];
 
+  // Pec fiber lines — radiate from armpit (~42,66) toward sternum/clavicle
+  const chestFibersF = [
+    { sub: "chest-upper", d: "M42,60 L74,52" }, { sub: "chest-upper", d: "M41,64 L74,59" }, { sub: "chest-upper", d: "M41,67 L74,66" },
+    { sub: "chest-mid",   d: "M41,67 L74,72" }, { sub: "chest-mid",   d: "M42,71 L74,79" }, { sub: "chest-mid",   d: "M43,75 L74,86" },
+    { sub: "chest-lower", d: "M44,79 L74,91" }, { sub: "chest-lower", d: "M46,84 L68,106" }, { sub: "chest-lower", d: "M49,90 L59,108" },
+    // Right mirror
+    { sub: "chest-upper", d: "M108,60 L76,52" }, { sub: "chest-upper", d: "M109,64 L76,59" }, { sub: "chest-upper", d: "M109,67 L76,66" },
+    { sub: "chest-mid",   d: "M109,67 L76,72" }, { sub: "chest-mid",   d: "M108,71 L76,79" }, { sub: "chest-mid",   d: "M107,75 L76,86" },
+    { sub: "chest-lower", d: "M106,79 L76,91" }, { sub: "chest-lower", d: "M104,84 L82,106" }, { sub: "chest-lower", d: "M101,90 L91,108" },
+  ];
+
+  // Deltoid: thick spherical cap. Lateral = outer dome. Anterior = forward face blending with pec.
   const shouldersF = [
-    // LEFT shoulder: rounded deltoid cap — lateral head is outer sphere, anterior blends with upper pec
-    { sub: "shoulders-side",  d: "M38,46 C31,52 27,66 29,80 C31,89 37,93 44,90 C46,79 45,62 42,48 Z" },
-    { sub: "shoulders-front", d: "M42,48 C45,62 46,79 44,90 C49,91 55,87 58,79 C60,67 58,53 52,47 C48,44 44,44 42,48 Z" },
-    // RIGHT shoulder
-    { sub: "shoulders-side",  d: "M112,46 C119,52 123,66 121,80 C119,89 113,93 106,90 C104,79 105,62 108,48 Z" },
-    { sub: "shoulders-front", d: "M108,48 C105,62 104,79 106,90 C101,91 95,87 92,79 C90,67 92,53 98,47 C102,44 106,44 108,48 Z" },
+    { sub: "shoulders-side",  d: "M37,44 C29,50 24,65 26,81 C28,92 35,96 43,94 C46,84 45,66 42,50 C40,46 38,44 37,44 Z" },
+    { sub: "shoulders-front", d: "M42,50 C45,66 46,84 43,94 C50,96 57,92 61,82 C64,70 62,55 55,47 C50,44 45,47 42,50 Z" },
+    { sub: "shoulders-side",  d: "M113,44 C121,50 126,65 124,81 C122,92 115,96 107,94 C104,84 105,66 108,50 C110,46 112,44 113,44 Z" },
+    { sub: "shoulders-front", d: "M108,50 C105,66 104,84 107,94 C100,96 93,92 89,82 C86,70 88,55 95,47 C100,44 105,47 108,50 Z" },
   ];
 
+  // Shoulder fiber lines — arc from top to bottom, following deltoid fiber direction
+  const shoulderFibersF = [
+    { sub: "shoulders-side",  d: "M27,68 C28,76 31,85 34,91" }, { sub: "shoulders-side",  d: "M31,62 C32,72 35,82 38,90" }, { sub: "shoulders-side",  d: "M35,57 C36,68 38,79 41,88" },
+    { sub: "shoulders-front", d: "M49,51 C50,62 51,75 50,87" }, { sub: "shoulders-front", d: "M53,50 C54,61 55,74 54,86" }, { sub: "shoulders-front", d: "M57,51 C57,62 57,75 56,86" },
+    { sub: "shoulders-side",  d: "M123,68 C122,76 119,85 116,91" }, { sub: "shoulders-side",  d: "M119,62 C118,72 115,82 112,90" }, { sub: "shoulders-side",  d: "M115,57 C114,68 112,79 109,88" },
+    { sub: "shoulders-front", d: "M101,51 C100,62 99,75 100,87" }, { sub: "shoulders-front", d: "M97,50 C96,61 95,74 96,86" }, { sub: "shoulders-front", d: "M93,51 C93,62 93,75 94,86" },
+  ];
+
+  // Biceps: long head = outer peaked teardrop, short head = broader inner, brachialis = lower bump
   const bicepsF = [
-    // LEFT biceps: long head (outer/peak), short head (inner/broader), brachialis (lower)
-    { sub: "biceps-long",  d: "M30,72 C26,84 26,102 29,116 C31,125 37,128 41,126 C43,115 42,97 41,83 C39,74 34,70 30,72 Z" },
-    { sub: "biceps-short", d: "M41,83 C42,97 43,115 41,126 C44,128 48,128 51,125 C53,119 53,107 52,94 C50,82 45,73 41,75 C41,78 41,81 41,83 Z" },
-    { sub: "brachialis",   d: "M38,120 C35,127 35,133 39,135 C43,136 47,134 47,130 C47,125 44,119 41,118 Z" },
-    // RIGHT biceps (mirror)
-    { sub: "biceps-long",  d: "M120,72 C124,84 124,102 121,116 C119,125 113,128 109,126 C107,115 108,97 109,83 C111,74 116,70 120,72 Z" },
-    { sub: "biceps-short", d: "M109,83 C108,97 107,115 109,126 C106,128 102,128 99,125 C97,119 97,107 98,94 C100,82 105,73 109,75 C109,78 109,81 109,83 Z" },
-    { sub: "brachialis",   d: "M112,120 C115,127 115,133 111,135 C107,136 103,134 103,130 C103,125 106,119 109,118 Z" },
+    { sub: "biceps-long",  d: "M29,72 C25,85 24,104 27,118 C29,127 36,130 40,128 C42,117 41,98 40,83 C38,74 33,70 29,72 Z" },
+    { sub: "biceps-short", d: "M40,83 C41,98 42,117 40,128 C44,130 48,130 52,127 C54,120 54,108 52,94 C50,82 44,73 40,75 C40,78 40,81 40,83 Z" },
+    { sub: "brachialis",   d: "M36,122 C33,129 34,136 38,138 C43,139 47,136 47,132 C47,127 44,121 40,120 Z" },
+    { sub: "biceps-long",  d: "M121,72 C125,85 126,104 123,118 C121,127 114,130 110,128 C108,117 109,98 110,83 C112,74 117,70 121,72 Z" },
+    { sub: "biceps-short", d: "M110,83 C109,98 108,117 110,128 C106,130 102,130 98,127 C96,120 96,108 98,94 C100,82 106,73 110,75 C110,78 110,81 110,83 Z" },
+    { sub: "brachialis",   d: "M114,122 C117,129 116,136 112,138 C107,139 103,136 103,132 C103,127 106,121 110,120 Z" },
+  ];
+
+  // Bicep fiber lines — longitudinal along each head
+  const bicepFibersF = [
+    { sub: "biceps-long",  d: "M29,76 C28,94 28,111 30,122" }, { sub: "biceps-long",  d: "M33,74 C32,92 32,109 33,121" }, { sub: "biceps-long",  d: "M36,73 C35,91 35,108 37,120" },
+    { sub: "biceps-short", d: "M41,78 C41,95 41,112 41,126" }, { sub: "biceps-short", d: "M44,76 C44,93 44,110 44,124" }, { sub: "biceps-short", d: "M47,77 C47,94 47,110 46,123" },
+    { sub: "biceps-long",  d: "M121,76 C122,94 122,111 120,122" }, { sub: "biceps-long",  d: "M117,74 C118,92 118,109 117,121" }, { sub: "biceps-long",  d: "M114,73 C115,91 115,108 113,120" },
+    { sub: "biceps-short", d: "M109,78 C109,95 109,112 109,126" }, { sub: "biceps-short", d: "M106,76 C106,93 106,110 106,124" }, { sub: "biceps-short", d: "M103,77 C103,94 103,110 104,123" },
   ];
 
   const forearmsF = [
@@ -556,58 +594,101 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
 
   const quadsF = [
     // LEFT thigh: vastus lateralis (long outer teardrop), rectus femoris (central spindle), VMO (teardrop above knee)
-    { sub: "quads-outer",  d: "M47,197 C43,213 42,235 45,253 C47,267 54,275 61,275 C65,272 66,263 64,249 C62,233 56,213 50,197 Z" },
-    { sub: "quads-rectus", d: "M56,197 C53,213 52,235 54,253 C57,265 63,272 68,271 C71,268 72,258 70,244 C68,228 63,210 58,197 Z" },
-    { sub: "quads-inner",  d: "M55,259 C52,266 53,275 58,279 C63,281 69,279 71,274 C72,268 70,260 65,257 C61,254 57,255 55,259 Z" },
+    { sub: "quads-outer",  d: "M46,197 C42,215 41,238 45,257 C47,271 55,278 62,278 C66,275 67,265 65,250 C63,234 56,214 50,197 Z" },
+    { sub: "quads-rectus", d: "M56,197 C52,215 51,238 54,256 C57,268 64,274 69,273 C72,270 73,260 71,245 C69,228 63,210 58,197 Z" },
+    { sub: "quads-inner",  d: "M55,260 C52,268 53,278 59,282 C65,284 71,281 72,275 C73,269 70,261 64,258 C60,255 57,257 55,260 Z" },
     // RIGHT thigh
-    { sub: "quads-outer",  d: "M103,197 C107,213 108,235 105,253 C103,267 96,275 89,275 C85,272 84,263 86,249 C88,233 94,213 100,197 Z" },
-    { sub: "quads-rectus", d: "M94,197 C97,213 98,235 96,253 C93,265 87,272 82,271 C79,268 78,258 80,244 C82,228 87,210 92,197 Z" },
-    { sub: "quads-inner",  d: "M95,259 C98,266 97,275 92,279 C87,281 81,279 79,274 C78,268 80,260 85,257 C89,254 93,255 95,259 Z" },
+    { sub: "quads-outer",  d: "M104,197 C108,215 109,238 105,257 C103,271 95,278 88,278 C84,275 83,265 85,250 C87,234 94,214 100,197 Z" },
+    { sub: "quads-rectus", d: "M94,197 C98,215 99,238 96,256 C93,268 86,274 81,273 C78,270 77,260 79,245 C81,228 87,210 92,197 Z" },
+    { sub: "quads-inner",  d: "M95,260 C98,268 97,278 91,282 C85,284 79,281 78,275 C77,269 80,261 86,258 C90,255 93,257 95,260 Z" },
+  ];
+
+  // Quad fiber lines — vertical along each head
+  const quadFibersF = [
+    { sub: "quads-outer",  d: "M47,200 C46,228 46,252 47,268" }, { sub: "quads-outer",  d: "M50,200 C49,228 49,252 50,268" }, { sub: "quads-outer",  d: "M53,200 C52,228 52,250 53,266" },
+    { sub: "quads-rectus", d: "M58,200 C57,228 57,252 58,268" }, { sub: "quads-rectus", d: "M61,200 C60,228 60,252 61,268" }, { sub: "quads-rectus", d: "M64,200 C63,228 63,250 64,266" },
+    { sub: "quads-inner",  d: "M57,263 C56,269 57,276 60,280" }, { sub: "quads-inner",  d: "M62,262 C61,268 62,275 65,279" },
+    { sub: "quads-outer",  d: "M103,200 C104,228 104,252 103,268" }, { sub: "quads-outer",  d: "M100,200 C101,228 101,252 100,268" }, { sub: "quads-outer",  d: "M97,200 C98,228 98,250 97,266" },
+    { sub: "quads-rectus", d: "M92,200 C93,228 93,252 92,268" }, { sub: "quads-rectus", d: "M89,200 C90,228 90,252 89,268" }, { sub: "quads-rectus", d: "M86,200 C87,228 87,250 86,266" },
+    { sub: "quads-inner",  d: "M93,263 C94,269 93,276 90,280" }, { sub: "quads-inner",  d: "M88,262 C89,268 88,275 85,279" },
   ];
 
   const calvesF = [
-    // Front view shows outer edge of gastroc + tibialis
-    { sub: "calves-gastroc", d: "M47,284 C43,297 43,313 46,325 C49,331 55,332 58,328 C59,320 57,306 54,294 Z" },
-    { sub: "calves-soleus",  d: "M46,323 C44,331 46,340 51,342 C56,343 60,340 60,335 C59,330 56,325 51,323 Z" },
-    { sub: "calves-gastroc", d: "M103,284 C107,297 107,313 104,325 C101,331 95,332 92,328 C91,320 93,306 96,294 Z" },
-    { sub: "calves-soleus",  d: "M104,323 C106,331 104,340 99,342 C94,343 90,340 90,335 C91,330 94,325 99,323 Z" },
+    // Front view shows outer edge of gastroc bulge
+    { sub: "calves-gastroc", d: "M46,285 C42,299 42,316 46,328 C49,334 55,335 59,331 C60,323 58,308 55,296 Z" },
+    { sub: "calves-soleus",  d: "M46,326 C44,334 46,343 51,345 C57,346 61,343 61,338 C60,333 57,328 52,327 Z" },
+    { sub: "calves-gastroc", d: "M104,285 C108,299 108,316 104,328 C101,334 95,335 91,331 C90,323 92,308 95,296 Z" },
+    { sub: "calves-soleus",  d: "M104,326 C106,334 104,343 99,345 C93,346 89,343 89,338 C90,333 93,328 98,327 Z" },
   ];
 
   // ─── BACK VIEW path arrays (cx=225) ───────────────────────────────────
+
+  // Deltoid cap (back view): same thick rounded shape, now with rear head visible
   const shouldersB = [
-    // LEFT: rounded deltoid cap — lateral outer sphere, posterior blends with upper back
-    { sub: "shoulders-side", d: "M190,46 C183,52 179,66 181,80 C183,89 189,93 196,91 C197,80 196,63 193,48 Z" },
-    { sub: "shoulders-rear", d: "M193,48 C196,63 197,80 196,91 C201,92 207,88 210,80 C212,68 210,53 205,47 C200,44 196,44 193,48 Z" },
-    // RIGHT
-    { sub: "shoulders-side", d: "M260,46 C267,52 271,66 269,80 C267,89 261,93 254,91 C253,80 254,63 257,48 Z" },
-    { sub: "shoulders-rear", d: "M257,48 C254,63 253,80 254,91 C249,92 243,88 240,80 C238,68 240,53 245,47 C250,44 254,44 257,48 Z" },
+    { sub: "shoulders-side", d: "M187,44 C179,50 174,65 176,81 C178,92 185,96 193,94 C196,84 195,66 192,50 C190,46 188,44 187,44 Z" },
+    { sub: "shoulders-rear", d: "M192,50 C195,66 196,84 193,94 C200,96 207,92 211,82 C214,70 212,55 205,47 C200,44 195,47 192,50 Z" },
+    { sub: "shoulders-side", d: "M263,44 C271,50 276,65 274,81 C272,92 265,96 257,94 C254,84 255,66 258,50 C260,46 262,44 263,44 Z" },
+    { sub: "shoulders-rear", d: "M258,50 C255,66 254,84 257,94 C250,96 243,92 239,82 C236,70 238,55 245,47 C250,44 255,47 258,50 Z" },
+  ];
+
+  // Shoulder fiber lines (back view)
+  const shoulderFibersB = [
+    { sub: "shoulders-side", d: "M175,68 C177,77 180,87 183,93" }, { sub: "shoulders-side", d: "M179,62 C181,73 184,83 186,91" }, { sub: "shoulders-side", d: "M183,58 C185,69 188,80 190,89" },
+    { sub: "shoulders-rear", d: "M198,52 C199,63 200,76 200,88" }, { sub: "shoulders-rear", d: "M202,51 C203,62 204,75 204,87" }, { sub: "shoulders-rear", d: "M206,52 C207,63 207,76 207,87" },
+    { sub: "shoulders-side", d: "M275,68 C273,77 270,87 267,93" }, { sub: "shoulders-side", d: "M271,62 C269,73 266,83 264,91" }, { sub: "shoulders-side", d: "M267,58 C265,69 262,80 260,89" },
+    { sub: "shoulders-rear", d: "M252,52 C251,63 250,76 250,88" }, { sub: "shoulders-rear", d: "M248,51 C247,62 246,75 246,87" }, { sub: "shoulders-rear", d: "M244,52 C243,63 243,76 243,87" },
   ];
 
   const backB = [
-    // Upper trapezius — broad diamond from base of neck to acromions
-    { sub: "back-traps-upper", d: "M225,40 C213,44 200,52 192,63 C190,69 192,76 198,78 C208,80 218,76 225,70 C232,76 242,80 252,78 C258,76 260,69 258,63 C250,52 237,44 225,40 Z" },
-    // Mid trapezius + rhomboids — between shoulder blades, diamond shape
-    { sub: "back-traps-mid",   d: "M200,76 C197,87 197,100 202,110 C207,118 213,121 220,119 C222,115 224,108 225,102 C226,108 228,115 230,119 C237,121 243,118 248,110 C253,100 253,87 250,76 C240,80 231,82 226,78 C225,76 225,76 224,78 C219,82 210,80 200,76 Z" },
-    // Teres major — small oval at upper outer back (armpit region)
-    { sub: "back-teres",       d: "M192,74 C187,79 186,87 190,92 C196,94 202,91 203,84 C203,78 197,72 192,74 Z" },
-    { sub: "back-teres",       d: "M258,74 C263,79 264,87 260,92 C254,94 248,91 247,84 C247,78 253,72 258,74 Z" },
+    // Upper trapezius — kite/diamond shape from neck to acromions
+    { sub: "back-traps-upper", d: "M225,40 C212,44 199,53 190,64 C188,71 190,78 198,80 C208,82 218,78 225,72 C232,78 242,82 252,80 C260,78 262,71 260,64 C251,53 238,44 225,40 Z" },
+    // Mid trapezius + rhomboids
+    { sub: "back-traps-mid",   d: "M200,77 C196,89 196,103 202,113 C207,121 214,124 221,122 C223,118 224,111 225,104 C226,111 227,118 229,122 C236,124 243,121 248,113 C254,103 254,89 250,77 C240,82 231,84 226,80 C225,78 225,78 224,80 C219,84 210,82 200,77 Z" },
+    // Teres major — small oval at armpit
+    { sub: "back-teres",       d: "M191,76 C186,81 185,90 190,95 C196,97 203,94 204,87 C204,81 198,74 191,76 Z" },
+    { sub: "back-teres",       d: "M259,76 C264,81 265,90 260,95 C254,97 247,94 246,87 C246,81 252,74 259,76 Z" },
     // Latissimus dorsi — dramatic V-wings from armpit to lower back
-    { sub: "back-lats",        d: "M192,78 C188,92 187,112 189,132 C191,148 197,160 204,164 C209,167 215,165 218,158 C221,150 221,136 218,120 C215,103 209,86 203,78 C199,73 194,72 192,78 Z" },
-    { sub: "back-lats",        d: "M258,78 C262,92 263,112 261,132 C259,148 253,160 246,164 C241,167 235,165 232,158 C229,150 229,136 232,120 C235,103 241,86 247,78 C251,73 256,72 258,78 Z" },
-    // Erector spinae — paraspinal columns flanking the spine
-    { sub: "back-lower",       d: "M219,110 C216,122 215,140 217,155 C219,164 222,169 225,170 C225,161 224,143 224,128 C224,118 221,110 219,110 Z" },
-    { sub: "back-lower",       d: "M231,110 C234,122 235,140 233,155 C231,164 228,169 225,170 C225,161 226,143 226,128 C226,118 229,110 231,110 Z" },
+    { sub: "back-lats",        d: "M191,80 C186,95 184,117 187,139 C189,156 196,167 204,171 C210,173 216,171 219,163 C222,154 222,139 219,123 C216,105 210,87 204,80 C199,74 194,73 191,80 Z" },
+    { sub: "back-lats",        d: "M259,80 C264,95 266,117 263,139 C261,156 254,167 246,171 C240,173 234,171 231,163 C228,154 228,139 231,123 C234,105 240,87 246,80 C251,74 256,73 259,80 Z" },
+    // Erector spinae — twin columns flanking spine
+    { sub: "back-lower",       d: "M220,112 C217,124 216,143 218,158 C220,167 223,172 225,173 C225,165 224,147 224,131 C224,121 222,112 220,112 Z" },
+    { sub: "back-lower",       d: "M230,112 C233,124 234,143 232,158 C230,167 227,172 225,173 C225,165 226,147 226,131 C226,121 228,112 230,112 Z" },
   ];
 
+  // Back fiber lines
+  const backFibersB = [
+    // Upper traps — diagonal from spine to acromion
+    { sub: "back-traps-upper", d: "M225,43 C218,53 210,62 200,78" }, { sub: "back-traps-upper", d: "M225,43 C232,53 240,62 250,78" },
+    { sub: "back-traps-upper", d: "M225,45 C220,55 213,63 204,77" }, { sub: "back-traps-upper", d: "M225,45 C230,55 237,63 246,77" },
+    // Mid traps/rhomboids — toward scapula
+    { sub: "back-traps-mid",   d: "M207,85 C214,90 218,97 221,106" }, { sub: "back-traps-mid",   d: "M205,92 C212,94 216,101 219,111" },
+    { sub: "back-traps-mid",   d: "M243,85 C236,90 232,97 229,106" }, { sub: "back-traps-mid",   d: "M245,92 C238,94 234,101 231,111" },
+    // Lats — diagonal from upper-outer to lower-inner
+    { sub: "back-lats", d: "M194,84 C201,107 208,133 213,163" }, { sub: "back-lats", d: "M198,85 C205,108 211,134 216,161" },
+    { sub: "back-lats", d: "M202,86 C208,109 214,134 218,158" }, { sub: "back-lats", d: "M206,87 C211,109 216,133 220,154" },
+    { sub: "back-lats", d: "M256,84 C249,107 242,133 237,163" }, { sub: "back-lats", d: "M252,85 C245,108 239,134 234,161" },
+    { sub: "back-lats", d: "M248,86 C242,109 236,134 232,158" }, { sub: "back-lats", d: "M244,87 C239,109 234,133 230,154" },
+    // Erectors — vertical
+    { sub: "back-lower", d: "M222,114 C222,132 222,149 222,164" }, { sub: "back-lower", d: "M224,114 C224,132 224,149 224,164" },
+    { sub: "back-lower", d: "M226,114 C226,132 226,149 226,164" }, { sub: "back-lower", d: "M228,114 C228,132 228,149 228,164" },
+  ];
+
+  // Triceps: lateral (outer strip) + long (inner strip) form horseshoe. Medial = elbow bump.
   const tricepsB = [
-    // LEFT triceps: horseshoe — lateral head (outer), long head (inner), medial near elbow
-    { sub: "triceps-long",    d: "M194,64 C191,75 190,94 192,112 C193,124 198,129 203,127 C204,115 203,96 202,81 C200,71 197,63 194,64 Z" },
-    { sub: "triceps-lateral", d: "M182,64 C179,75 177,94 179,112 C181,124 186,129 191,127 C192,114 192,95 190,81 C189,70 185,63 182,64 Z" },
-    { sub: "triceps-medial",  d: "M184,118 C182,124 183,130 187,132 C191,134 195,131 196,127 C196,122 193,116 189,115 Z" },
-    // RIGHT triceps
-    { sub: "triceps-long",    d: "M256,64 C259,75 260,94 258,112 C257,124 252,129 247,127 C246,115 247,96 248,81 C250,71 253,63 256,64 Z" },
-    { sub: "triceps-lateral", d: "M268,64 C271,75 273,94 271,112 C269,124 264,129 259,127 C258,114 258,95 260,81 C261,70 265,63 268,64 Z" },
-    { sub: "triceps-medial",  d: "M266,118 C268,124 267,130 263,132 C259,134 255,131 254,127 C254,122 257,116 261,115 Z" },
+    { sub: "triceps-long",    d: "M195,66 C192,77 191,97 193,115 C194,127 200,132 205,130 C206,118 205,98 204,83 C202,72 198,65 195,66 Z" },
+    { sub: "triceps-lateral", d: "M182,66 C179,77 177,97 179,115 C181,127 187,132 193,130 C194,117 193,97 192,83 C190,72 186,64 182,66 Z" },
+    { sub: "triceps-medial",  d: "M183,121 C181,127 182,134 187,136 C191,138 196,135 197,131 C197,126 194,119 190,118 Z" },
+    { sub: "triceps-long",    d: "M255,66 C258,77 259,97 257,115 C256,127 250,132 245,130 C244,118 245,98 246,83 C248,72 252,65 255,66 Z" },
+    { sub: "triceps-lateral", d: "M268,66 C271,77 273,97 271,115 C269,127 263,132 257,130 C256,117 257,97 258,83 C260,72 264,64 268,66 Z" },
+    { sub: "triceps-medial",  d: "M267,121 C269,127 268,134 263,136 C259,138 254,135 253,131 C253,126 256,119 260,118 Z" },
+  ];
+
+  // Tricep fiber lines — longitudinal along each head (horseshoe direction)
+  const tricepFibersB = [
+    { sub: "triceps-lateral", d: "M183,69 L184,123" }, { sub: "triceps-lateral", d: "M186,68 L187,123" }, { sub: "triceps-lateral", d: "M189,68 L190,123" },
+    { sub: "triceps-long",    d: "M196,69 L196,124" }, { sub: "triceps-long",    d: "M199,69 L199,123" }, { sub: "triceps-long",    d: "M202,69 L202,122" },
+    { sub: "triceps-lateral", d: "M267,69 L266,123" }, { sub: "triceps-lateral", d: "M264,68 L263,123" }, { sub: "triceps-lateral", d: "M261,68 L260,123" },
+    { sub: "triceps-long",    d: "M254,69 L254,124" }, { sub: "triceps-long",    d: "M251,69 L251,123" }, { sub: "triceps-long",    d: "M248,69 L248,122" },
   ];
 
   const forearmsB = [
@@ -615,31 +696,53 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
     { sub: "forearm-extensor", d: "M272,138 C275,146 276,157 274,167 C272,175 267,180 262,178 C257,176 255,167 256,157 C257,147 261,139 266,136 Z" },
   ];
 
+  // Glutes: maximus is a large rounded fan, medius visible upper-outer
   const glutesB = [
-    // Gluteus medius — upper-outer hip, visible above gluteus maximus
-    { sub: "glutes-med", d: "M196,185 C191,191 190,201 195,207 C201,210 209,208 212,201 C213,193 208,184 202,183 Z" },
-    { sub: "glutes-med", d: "M254,185 C259,191 260,201 255,207 C249,210 241,208 238,201 C237,193 242,184 248,183 Z" },
-    // Gluteus maximus — large rounded mass
-    { sub: "glutes-max", d: "M196,191 C191,203 189,220 193,235 C197,247 207,254 216,252 C222,249 225,240 223,227 C220,212 214,199 207,192 Z" },
-    { sub: "glutes-max", d: "M254,191 C259,203 261,220 257,235 C253,247 243,254 234,252 C228,249 225,240 227,227 C230,212 236,199 243,192 Z" },
+    { sub: "glutes-med", d: "M195,184 C189,191 188,202 194,209 C201,212 210,210 213,203 C215,195 210,184 204,182 Z" },
+    { sub: "glutes-med", d: "M255,184 C261,191 262,202 256,209 C249,212 240,210 237,203 C235,195 240,184 246,182 Z" },
+    { sub: "glutes-max", d: "M195,192 C189,205 187,223 191,239 C195,253 206,261 217,259 C223,256 226,246 224,232 C221,216 215,202 207,193 Z" },
+    { sub: "glutes-max", d: "M255,192 C261,205 263,223 259,239 C255,253 244,261 233,259 C227,256 224,246 226,232 C229,216 235,202 243,193 Z" },
+  ];
+
+  // Glute fiber lines — diagonal (gluteus fibers run diagonally)
+  const gluteFibersB = [
+    { sub: "glutes-max", d: "M197,196 C202,211 208,228 212,243" }, { sub: "glutes-max", d: "M202,194 C207,209 213,226 216,241" },
+    { sub: "glutes-max", d: "M207,193 C212,208 217,224 219,238" }, { sub: "glutes-max", d: "M212,194 C216,208 219,223 220,236" },
+    { sub: "glutes-max", d: "M253,196 C248,211 242,228 238,243" }, { sub: "glutes-max", d: "M248,194 C243,209 237,226 234,241" },
+    { sub: "glutes-max", d: "M243,193 C238,208 233,224 231,238" }, { sub: "glutes-max", d: "M238,194 C234,208 231,223 230,236" },
+    { sub: "glutes-med", d: "M197,188 C201,196 205,203 207,208" }, { sub: "glutes-med", d: "M253,188 C249,196 245,203 243,208" },
   ];
 
   const hamstringsB = [
-    // LEFT: biceps femoris (outer) + semimembranosus/semitendinosus (inner)
-    { sub: "hamstrings-outer", d: "M196,250 C192,265 191,286 195,305 C198,318 206,325 213,324 C218,322 219,311 217,295 C215,279 208,261 202,249 Z" },
-    { sub: "hamstrings-inner", d: "M213,250 C217,265 218,286 216,305 C213,318 205,324 200,323 C196,321 195,311 197,295 C199,279 206,261 212,250 Z" },
-    // RIGHT
-    { sub: "hamstrings-outer", d: "M254,250 C258,265 259,286 255,305 C252,318 244,325 237,324 C232,322 231,311 233,295 C235,279 242,261 248,249 Z" },
-    { sub: "hamstrings-inner", d: "M237,250 C233,265 232,286 234,305 C237,318 245,324 250,323 C254,321 255,311 253,295 C251,279 244,261 238,250 Z" },
+    // Biceps femoris (outer) + semimembranosus/semitendinosus (inner)
+    { sub: "hamstrings-outer", d: "M196,252 C191,268 190,290 194,310 C197,323 206,330 214,329 C219,327 220,316 218,299 C215,282 208,264 202,251 Z" },
+    { sub: "hamstrings-inner", d: "M214,252 C218,268 219,290 217,310 C214,323 205,329 200,328 C196,326 195,315 197,299 C199,282 206,264 213,252 Z" },
+    { sub: "hamstrings-outer", d: "M254,252 C259,268 260,290 256,310 C253,323 244,330 236,329 C231,327 230,316 232,299 C235,282 242,264 248,251 Z" },
+    { sub: "hamstrings-inner", d: "M236,252 C232,268 231,290 233,310 C236,323 245,329 250,328 C254,326 255,315 253,299 C251,282 244,264 237,252 Z" },
   ];
 
+  // Hamstring fiber lines — longitudinal
+  const hamFibersB = [
+    { sub: "hamstrings-outer", d: "M197,257 C196,282 196,306 197,320" }, { sub: "hamstrings-outer", d: "M200,256 C199,281 199,305 200,319" }, { sub: "hamstrings-outer", d: "M203,256 C202,281 202,305 203,319" },
+    { sub: "hamstrings-inner", d: "M211,256 C211,281 211,305 211,319" }, { sub: "hamstrings-inner", d: "M214,256 C214,281 214,305 214,319" }, { sub: "hamstrings-inner", d: "M217,256 C216,281 216,305 216,318" },
+    { sub: "hamstrings-outer", d: "M253,257 C254,282 254,306 253,320" }, { sub: "hamstrings-outer", d: "M250,256 C251,281 251,305 250,319" }, { sub: "hamstrings-outer", d: "M247,256 C248,281 248,305 247,319" },
+    { sub: "hamstrings-inner", d: "M239,256 C239,281 239,305 239,319" }, { sub: "hamstrings-inner", d: "M236,256 C236,281 236,305 236,319" }, { sub: "hamstrings-inner", d: "M233,256 C234,281 234,305 233,318" },
+  ];
+
+  // Gastrocnemius: classic diamond/kite shape from behind. Two heads converging.
   const calvesB = [
-    // LEFT: gastrocnemius (diamond/kite shape from behind), soleus peeking below
-    { sub: "calves-gastroc", d: "M200,286 C195,300 194,318 198,332 C202,340 210,342 216,339 C218,334 218,323 216,311 C213,298 208,285 203,283 Z" },
-    { sub: "calves-soleus",  d: "M198,330 C195,338 198,346 203,348 C210,349 217,345 218,339 C215,334 209,330 202,330 Z" },
-    // RIGHT
-    { sub: "calves-gastroc", d: "M250,286 C255,300 256,318 252,332 C248,340 240,342 234,339 C232,334 232,323 234,311 C237,298 242,285 247,283 Z" },
-    { sub: "calves-soleus",  d: "M252,330 C255,338 252,346 247,348 C240,349 233,345 232,339 C235,334 241,330 248,330 Z" },
+    { sub: "calves-gastroc", d: "M200,288 C194,303 193,321 197,336 C201,344 210,347 217,344 C219,339 219,328 217,315 C214,301 208,287 203,284 Z" },
+    { sub: "calves-soleus",  d: "M198,334 C195,342 197,351 203,353 C211,354 218,350 219,344 C216,339 209,334 202,334 Z" },
+    { sub: "calves-gastroc", d: "M250,288 C256,303 257,321 253,336 C249,344 240,347 233,344 C231,339 231,328 233,315 C236,301 242,287 247,284 Z" },
+    { sub: "calves-soleus",  d: "M252,334 C255,342 253,351 247,353 C239,354 232,350 231,344 C234,339 241,334 248,334 Z" },
+  ];
+
+  // Calf fiber lines — vertical along the gastroc belly
+  const calveFibersB = [
+    { sub: "calves-gastroc", d: "M200,291 C199,311 199,330 201,338" }, { sub: "calves-gastroc", d: "M204,290 C203,310 203,329 205,337" },
+    { sub: "calves-gastroc", d: "M208,290 C207,310 207,329 209,337" }, { sub: "calves-gastroc", d: "M212,291 C211,311 211,330 213,337" },
+    { sub: "calves-gastroc", d: "M250,291 C251,311 251,330 249,338" }, { sub: "calves-gastroc", d: "M246,290 C247,310 247,329 245,337" },
+    { sub: "calves-gastroc", d: "M242,290 C243,310 243,329 241,337" }, { sub: "calves-gastroc", d: "M238,291 C239,311 239,330 237,337" },
   ];
 
   return (
@@ -677,13 +780,17 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
 
       {/* Muscle overlays — z-ordered so primary always paints on top of dim */}
       <Group paths={shouldersF} parent="shoulders" k="shF"/>
+      <FiberGroup paths={shoulderFibersF} parent="shoulders" k="shF"/>
       <Group paths={chestF}     parent="chest"     k="chF"/>
-      <line x1={75} y1={55} x2={75} y2={103} stroke={seg} strokeWidth={0.5}/>
+      <FiberGroup paths={chestFibersF}    parent="chest"     k="chF"/>
+      <line x1={75} y1={55} x2={75} y2={106} stroke={seg} strokeWidth={0.5}/>
       <Group paths={bicepsF}    parent="biceps"    k="biF"/>
+      <FiberGroup paths={bicepFibersF}    parent="biceps"    k="biF"/>
       <Group paths={forearmsF}  parent="forearms"  k="faF"/>
       <Group paths={coreF}      parent="core"      k="coF"/>
-      <line x1={75} y1={104} x2={75} y2={159} stroke={seg} strokeWidth={0.5}/>
+      <line x1={75} y1={107} x2={75} y2={159} stroke={seg} strokeWidth={0.5}/>
       <Group paths={quadsF}     parent="quads"     k="qdF"/>
+      <FiberGroup paths={quadFibersF}     parent="quads"     k="qdF"/>
       <Group paths={calvesF}    parent="calves"    k="cvF"/>
 
       <text x={75} y={358} textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.25)" fontFamily="monospace" letterSpacing={2}>FRONT</text>
@@ -704,14 +811,20 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
       <path d="M254,281 C257,292 257,310 255,324 C253,336 247,344 240,345 C234,345 229,340 227,332 C225,322 225,306 228,292 C230,281 235,276 241,277 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
 
       <Group paths={shouldersB}  parent="shoulders"  k="shB"/>
+      <FiberGroup paths={shoulderFibersB} parent="shoulders" k="shB"/>
       <Group paths={backB}       parent="back"       k="bkB"/>
-      <line x1={225} y1={74} x2={225} y2={167} stroke={seg} strokeWidth={0.5}/>
+      <FiberGroup paths={backFibersB}     parent="back"      k="bkB"/>
+      <line x1={225} y1={74} x2={225} y2={170} stroke={seg} strokeWidth={0.5}/>
       <Group paths={tricepsB}    parent="triceps"    k="trB"/>
+      <FiberGroup paths={tricepFibersB}   parent="triceps"   k="trB"/>
       <Group paths={forearmsB}   parent="forearms"   k="faB"/>
       <Group paths={glutesB}     parent="glutes"     k="glB"/>
-      <line x1={225} y1={190} x2={225} y2={243} stroke={seg} strokeWidth={0.5}/>
+      <FiberGroup paths={gluteFibersB}    parent="glutes"    k="glB"/>
+      <line x1={225} y1={190} x2={225} y2={252} stroke={seg} strokeWidth={0.5}/>
       <Group paths={hamstringsB} parent="hamstrings" k="hmB"/>
+      <FiberGroup paths={hamFibersB}      parent="hamstrings" k="hmB"/>
       <Group paths={calvesB}     parent="calves"     k="cvB"/>
+      <FiberGroup paths={calveFibersB}    parent="calves"    k="cvB"/>
 
       <text x={225} y={358} textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.25)" fontFamily="monospace" letterSpacing={2}>BACK</text>
     </svg>
