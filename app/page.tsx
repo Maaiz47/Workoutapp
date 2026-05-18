@@ -473,81 +473,124 @@ function Trend({ current, previous, unit = "kg" }: { current: number; previous: 
 }
 
 // ─── WORKOUT TYPE ICON ───────────────────────────────────────────────────────
-function WorkoutTypeIcon({ title, color, size = 60 }: { title: string; color: string; size?: number }) {
+// Block-figure dual view. Muscle groups rendered as rounded rects with CSS
+// drop-shadow explosion animation. Front at cx=50, back at cx=150.
+// ViewBox 0 0 200 168. Animation driven by globals.css .ma / .md classes.
+function WorkoutTypeIcon({ title, color, size = 62 }: { title: string; color: string; size?: number }) {
   const t = title.toLowerCase();
   let fA: string[] = [], bA: string[] = [];
 
-  if (t.startsWith("push"))                                      { fA = ["ch","sh"];            bA = ["tr","sh"]; }
-  else if (t.startsWith("pull"))                                 { fA = ["bi"];                 bA = ["bk","sh"]; }
-  else if (t.startsWith("leg") || t.startsWith("lower"))        { fA = ["qd","cv"];             bA = ["gl","hm","cv"]; }
-  else if (t.startsWith("upper"))                                { fA = ["ch","sh","bi"];        bA = ["bk","sh","tr"]; }
-  else if (t.startsWith("full"))                                 { fA = ["ch","sh","bi","co","qd","cv"]; bA = ["bk","sh","tr","gl","hm","cv"]; }
-  else if (t.includes("chest"))                                  { fA = ["ch"]; }
-  else if (t.includes("shoulder"))                               { fA = ["sh"];                 bA = ["sh"]; }
-  else if (t.includes("arm"))                                    { fA = ["bi"];                 bA = ["tr"]; }
-  else if (t.includes("back") && !t.includes("activ") && !t.includes("recov")) { bA = ["bk"]; }
+  if (t.startsWith("push"))                                                     { fA = ["ch","sh"];                    bA = ["tr","sh"]; }
+  else if (t.startsWith("pull"))                                                { fA = ["bi"];                         bA = ["bk","sh"]; }
+  else if (t.startsWith("leg") || t.startsWith("lower"))                       { fA = ["qd","cv"];                    bA = ["gl","hm","cv"]; }
+  else if (t.startsWith("upper"))                                               { fA = ["ch","sh","bi"];               bA = ["bk","sh","tr"]; }
+  else if (t.startsWith("full"))                                                { fA = ["ch","sh","bi","co","qd","cv"]; bA = ["bk","sh","tr","gl","hm","cv"]; }
+  else if (t.includes("chest"))                                                 { fA = ["ch"]; }
+  else if (t.includes("shoulder"))                                              { fA = ["sh"];  bA = ["sh"]; }
+  else if (t.includes("arm"))                                                   { fA = ["bi"];  bA = ["tr"]; }
+  else if (t.includes("back") && !t.includes("activ") && !t.includes("recov")) {               bA = ["bk"]; }
   else if (t.includes("cardio") || t.includes("hiit") || t.includes("conditio")) { fA = ["co","qd","cv"]; bA = ["hm","gl","cv"]; }
 
   const ff = (m: string) => fA.includes(m);
   const fb = (m: string) => bA.includes(m);
-  const sk = "#14141e";
-  const dim = "rgba(255,255,255,0.05)";
-  const w = Math.round(size * 300 / 365);
+  const w  = Math.round(size * 200 / 168);
+  const sk = "#111118";
+  const so = "rgba(255,255,255,0.13)";
+  // per-muscle stagger (seconds) for full-body cascade feel
+  const D: Record<string,number> = { ch:0, sh:0.18, bi:0.36, co:0.54, qd:0.09, cv:0.62, bk:0.04, tr:0.38, gl:0.22, hm:0.13 };
+  const cls = (on: boolean) => on ? "ma" : "md";
+  const st  = (key: string, on: boolean): React.CSSProperties => on ? { animationDelay: `${D[key]}s` } : {};
 
-  const M = ({ d, on }: { d: string; on: boolean }) => on ? (
-    <path d={d} fill={color} opacity={0.75}>
-      <animate attributeName="opacity" values="0.6;0.95;0.6" dur="1.8s" repeatCount="indefinite"/>
-    </path>
-  ) : <path d={d} fill={dim}/>;
+  // Rect shorthand: x,y,w,h,rx
+  const B = (x: number, y: number, w: number, h: number, rx: number, fill: string, stroke?: string) => (
+    <rect x={x} y={y} width={w} height={h} rx={rx} fill={fill} stroke={stroke} strokeWidth={stroke ? 0.6 : 0}/>
+  );
+  const M = (x: number, y: number, w: number, h: number, rx: number, key: string, on: boolean) => (
+    <rect x={x} y={y} width={w} height={h} rx={rx} className={cls(on)} style={st(key, on)}/>
+  );
 
   return (
-    <svg viewBox="0 0 300 365" width={w} height={size} style={{ flexShrink: 0 }}>
-      {/* FRONT silhouette */}
-      <circle cx={75} cy={19} r={14} fill={sk}/>
-      <path d="M69,32 Q75,37 81,32 L80,46 Q75,49 70,46 Z" fill={sk}/>
-      <path d="M38,50 C35,62 34,84 35,110 C36,132 40,152 47,164 C52,174 62,181 75,182 C88,181 98,174 103,164 C110,152 114,132 115,110 C116,84 115,62 112,50 C103,44 90,40 75,40 C60,40 47,44 38,50 Z" fill={sk}/>
-      <path d="M9,52 C5,62 3,80 6,100 C9,116 14,128 19,130 C23,133 31,131 37,126 C39,118 40,102 40,85 C36,69 29,57 15,52 Z" fill={sk}/>
-      <path d="M141,52 C144,62 147,80 142,100 C137,116 133,128 128,130 C124,133 116,131 110,126 C109,118 108,102 110,85 C116,69 125,57 135,52 Z" fill={sk}/>
-      <path d="M12,131 C8,138 6,150 7,160 C8,168 13,175 19,175 C25,175 29,168 30,158 C30,148 27,138 22,133 Z" fill={sk}/>
-      <path d="M138,131 C142,138 144,150 143,160 C142,168 137,175 131,175 C125,175 121,168 120,158 C120,148 123,138 128,133 Z" fill={sk}/>
-      <path d="M48,194 C43,206 39,226 38,248 C37,265 41,276 49,279 C55,281 64,279 69,273 C74,265 75,251 74,233 C73,214 69,198 63,194 Z" fill={sk}/>
-      <path d="M102,194 C107,206 111,226 112,248 C113,265 109,276 101,279 C95,281 86,279 81,273 C76,265 75,251 76,233 C77,214 81,198 87,194 Z" fill={sk}/>
-      <path d="M28,281 C25,292 25,310 27,324 C29,336 35,344 42,345 C48,345 53,340 55,332 C57,322 57,306 54,292 C52,281 47,276 41,277 Z" fill={sk}/>
-      <path d="M122,281 C125,292 125,310 123,324 C121,336 115,344 108,345 C102,345 97,340 95,332 C93,322 93,306 96,292 C98,281 103,276 109,277 Z" fill={sk}/>
-      {/* FRONT muscles */}
-      <M d="M75,50 C60,44 36,51 36,68 C36,84 44,100 75,97 C106,100 114,84 114,68 C114,51 90,44 75,50 Z" on={ff("ch")}/>
-      <M d="M17,52 C8,58 2,70 3,80 C7,88 17,88 26,83 C31,76 30,64 25,54 Z" on={ff("sh")}/>
-      <M d="M133,52 C142,58 148,70 147,80 C143,88 133,88 124,83 C119,76 120,64 125,54 Z" on={ff("sh")}/>
-      <M d="M9,77 C5,92 4,112 7,124 C10,130 18,132 26,128 C29,120 29,105 27,90 C24,77 16,72 9,77 Z" on={ff("bi")}/>
-      <M d="M141,77 C145,92 146,112 143,124 C140,130 132,132 124,128 C121,120 121,105 123,90 C126,77 134,72 141,77 Z" on={ff("bi")}/>
-      <M d="M48,98 C45,118 46,142 52,158 C58,166 74,168 76,166 C78,168 92,166 98,158 C104,142 105,118 102,98 Z" on={ff("co")}/>
-      <M d="M48,196 C44,222 44,255 50,274 C56,282 66,283 73,278 C73,264 71,240 68,218 C64,200 54,193 48,196 Z" on={ff("qd")}/>
-      <M d="M102,196 C106,222 106,255 100,274 C94,282 84,283 77,278 C77,264 79,240 82,218 C86,200 96,193 102,196 Z" on={ff("qd")}/>
-      <M d="M46,285 C42,306 43,328 49,340 C54,345 62,345 65,340 C67,330 66,312 62,295 C58,284 50,280 46,285 Z" on={ff("cv")}/>
-      <M d="M104,285 C108,306 107,328 101,340 C96,345 88,345 85,340 C83,330 84,312 88,295 C92,284 100,280 104,285 Z" on={ff("cv")}/>
-      {/* BACK silhouette */}
-      <circle cx={225} cy={19} r={14} fill={sk}/>
-      <path d="M219,32 Q225,37 231,32 L230,46 Q225,49 220,46 Z" fill={sk}/>
-      <path d="M188,50 C185,62 184,84 185,110 C186,132 190,152 197,164 C202,174 212,181 225,182 C238,181 248,174 253,164 C260,152 264,132 265,110 C266,84 265,62 262,50 C253,44 240,40 225,40 C210,40 197,44 188,50 Z" fill={sk}/>
-      <path d="M159,52 C155,62 151,80 157,100 C161,116 165,128 170,130 C174,133 181,131 187,126 C190,118 191,102 190,85 C184,69 177,57 163,52 Z" fill={sk}/>
-      <path d="M291,52 C295,62 299,80 293,100 C289,116 285,128 280,130 C276,133 269,131 263,126 C260,118 259,102 260,85 C266,69 273,57 287,52 Z" fill={sk}/>
-      <path d="M162,131 C158,138 156,150 157,160 C158,168 163,175 169,175 C175,175 179,168 180,158 C180,148 177,138 172,133 Z" fill={sk}/>
-      <path d="M288,131 C292,138 294,150 293,160 C292,168 287,175 281,175 C275,175 271,168 270,158 C270,148 273,138 278,133 Z" fill={sk}/>
-      <path d="M198,194 C193,206 189,226 188,248 C187,265 191,276 199,279 C205,281 214,279 219,273 C224,265 225,251 224,233 C223,214 219,198 213,194 Z" fill={sk}/>
-      <path d="M252,194 C257,206 261,226 262,248 C263,265 259,276 251,279 C245,281 236,279 231,273 C226,265 225,251 226,233 C227,214 231,198 237,194 Z" fill={sk}/>
-      <path d="M178,281 C175,292 175,310 177,324 C179,336 185,344 192,345 C198,345 203,340 205,332 C207,322 207,306 204,292 C202,281 197,276 191,277 Z" fill={sk}/>
-      <path d="M272,281 C275,292 275,310 273,324 C271,336 265,344 258,345 C252,345 247,340 245,332 C243,322 243,306 246,292 C248,281 253,276 259,277 Z" fill={sk}/>
-      {/* BACK muscles */}
-      <M d="M188,50 C186,88 190,148 208,170 C215,174 225,175 225,175 C225,175 235,174 242,170 C260,148 264,88 262,50 C252,44 239,38 225,38 C211,38 198,44 188,50 Z" on={fb("bk")}/>
-      <M d="M163,52 C154,58 149,71 153,82 C159,88 171,87 180,78 C183,67 181,56 173,50 Z" on={fb("sh")}/>
-      <M d="M287,52 C296,58 301,71 297,82 C291,88 279,87 270,78 C267,67 269,56 277,50 Z" on={fb("sh")}/>
-      <M d="M161,68 C156,85 155,110 159,125 C163,132 172,134 179,130 C183,122 184,104 181,85 C178,70 169,64 161,68 Z" on={fb("tr")}/>
-      <M d="M289,68 C294,85 295,110 291,125 C287,132 278,134 271,130 C267,122 266,104 269,85 C272,70 281,64 289,68 Z" on={fb("tr")}/>
-      <M d="M193,184 C187,208 189,244 207,260 C215,266 235,266 243,260 C261,244 263,208 257,184 C248,178 237,176 225,176 C213,176 202,178 193,184 Z" on={fb("gl")}/>
-      <M d="M197,254 C192,278 193,308 200,326 C206,334 216,335 221,329 C222,317 220,292 217,270 C213,255 203,248 197,254 Z" on={fb("hm")}/>
-      <M d="M253,254 C258,278 257,308 250,326 C244,334 234,335 229,329 C228,317 230,292 233,270 C237,255 247,248 253,254 Z" on={fb("hm")}/>
-      <M d="M199,286 C194,309 197,333 203,346 C209,352 219,352 222,346 C223,336 221,314 217,295 C213,283 204,280 199,286 Z" on={fb("cv")}/>
-      <M d="M251,286 C256,309 253,333 247,346 C241,352 231,352 228,346 C227,336 229,314 233,295 C237,283 246,280 251,286 Z" on={fb("cv")}/>
+    <svg viewBox="0 0 200 168" width={w} height={size} style={{ flexShrink: 0, '--mc': color } as React.CSSProperties}>
+
+      {/* ── FRONT body fills ── */}
+      <circle cx={50} cy={13} r={9}  fill={sk} stroke={so} strokeWidth={0.6}/>
+      {B(47,21, 6, 7, 2, sk, so)}  {/* neck */}
+      {B(33,28,34,53, 5, sk, so)}  {/* torso */}
+      {B(21,30,11,31, 4, sk, so)}  {/* L upper arm */}
+      {B(68,30,11,31, 4, sk, so)}  {/* R upper arm */}
+      {B(22,62, 9,21, 3, sk, so)}  {/* L forearm */}
+      {B(69,62, 9,21, 3, sk, so)}  {/* R forearm */}
+      {B(34,83,13,44, 5, sk, so)}  {/* L thigh */}
+      {B(53,83,13,44, 5, sk, so)}  {/* R thigh */}
+      {B(35,129,11,31,4, sk, so)}  {/* L shin */}
+      {B(54,129,11,31,4, sk, so)}  {/* R shin */}
+
+      {/* ── FRONT muscles ── */}
+      {M(33,28,34,26, 5, "ch", ff("ch"))}   {/* chest  = upper torso */}
+      {M(33,54,34,27, 3, "co", ff("co"))}   {/* core   = lower torso */}
+      {M(21,30,11,14, 4, "sh", ff("sh"))}   {/* L shoulder cap */}
+      {M(68,30,11,14, 4, "sh", ff("sh"))}   {/* R shoulder cap */}
+      {M(21,44,11,17, 3, "bi", ff("bi"))}   {/* L bicep */}
+      {M(68,44,11,17, 3, "bi", ff("bi"))}   {/* R bicep */}
+      {M(34,83,13,28, 5, "qd", ff("qd"))}   {/* L quad */}
+      {M(53,83,13,28, 5, "qd", ff("qd"))}   {/* R quad */}
+      {M(35,129,11,31,4, "cv", ff("cv"))}   {/* L calf */}
+      {M(54,129,11,31,4, "cv", ff("cv"))}   {/* R calf */}
+
+      {/* ── FRONT body outlines on top ── */}
+      <circle cx={50} cy={13} r={9}  fill="none" stroke={so} strokeWidth={0.6}/>
+      {B(47,21, 6, 7, 2, "none", so)}
+      {B(33,28,34,53, 5, "none", so)}
+      {B(21,30,11,31, 4, "none", so)}
+      {B(68,30,11,31, 4, "none", so)}
+      {B(22,62, 9,21, 3, "none", so)}
+      {B(69,62, 9,21, 3, "none", so)}
+      {B(34,83,13,44, 5, "none", so)}
+      {B(53,83,13,44, 5, "none", so)}
+      {B(35,129,11,31,4, "none", so)}
+      {B(54,129,11,31,4, "none", so)}
+
+      {/* divider */}
+      <line x1={100} y1={8} x2={100} y2={162} stroke="rgba(255,255,255,0.07)" strokeWidth={0.5}/>
+
+      {/* ── BACK body fills ── */}
+      <circle cx={150} cy={13} r={9}  fill={sk} stroke={so} strokeWidth={0.6}/>
+      {B(147,21, 6, 7, 2, sk, so)}
+      {B(133,28,34,53, 5, sk, so)}
+      {B(121,30,11,31, 4, sk, so)}
+      {B(168,30,11,31, 4, sk, so)}
+      {B(122,62, 9,21, 3, sk, so)}
+      {B(169,62, 9,21, 3, sk, so)}
+      {B(134,83,13,44, 5, sk, so)}
+      {B(153,83,13,44, 5, sk, so)}
+      {B(135,129,11,31,4, sk, so)}
+      {B(154,129,11,31,4, sk, so)}
+
+      {/* ── BACK muscles ── */}
+      {M(133,28,34,53, 5, "bk", fb("bk"))}  {/* back = full torso back */}
+      {M(121,30,11,14, 4, "sh", fb("sh"))}  {/* L rear shoulder */}
+      {M(168,30,11,14, 4, "sh", fb("sh"))}  {/* R rear shoulder */}
+      {M(121,44,11,17, 3, "tr", fb("tr"))}  {/* L tricep */}
+      {M(168,44,11,17, 3, "tr", fb("tr"))}  {/* R tricep */}
+      {M(134,83,13,22, 5, "gl", fb("gl"))}  {/* L glute */}
+      {M(153,83,13,22, 5, "gl", fb("gl"))}  {/* R glute */}
+      {M(134,105,13,22,4, "hm", fb("hm"))}  {/* L hamstring */}
+      {M(153,105,13,22,4, "hm", fb("hm"))}  {/* R hamstring */}
+      {M(135,129,11,31,4, "cv", fb("cv"))}  {/* L calf back */}
+      {M(154,129,11,31,4, "cv", fb("cv"))}  {/* R calf back */}
+
+      {/* ── BACK body outlines on top ── */}
+      <circle cx={150} cy={13} r={9}  fill="none" stroke={so} strokeWidth={0.6}/>
+      {B(147,21, 6, 7, 2, "none", so)}
+      {B(133,28,34,53, 5, "none", so)}
+      {B(121,30,11,31, 4, "none", so)}
+      {B(168,30,11,31, 4, "none", so)}
+      {B(122,62, 9,21, 3, "none", so)}
+      {B(169,62, 9,21, 3, "none", so)}
+      {B(134,83,13,44, 5, "none", so)}
+      {B(153,83,13,44, 5, "none", so)}
+      {B(135,129,11,31,4, "none", so)}
+      {B(154,129,11,31,4, "none", so)}
     </svg>
   );
 }
