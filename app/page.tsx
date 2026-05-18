@@ -554,38 +554,38 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
     { sub: "chest-lower", d: "M107,73 L76,86" }, { sub: "chest-lower", d: "M106,77 L85,97" }, { sub: "chest-lower", d: "M103,83 L93,98" },
   ];
 
-  // Deltoid: shorter (y47→y83), wider outer edge (left x=11, right x=139)
+  // Deltoid: shorter (y47→y83), wider outer edge — arm attachment shifted 8px outward from torso
   const shouldersF = [
-    { sub: "shoulders-side",  d: "M30,47 C19,52 11,64 13,75 C15,82 23,86 33,83 C37,75 36,62 33,51 Z" },
-    { sub: "shoulders-front", d: "M33,51 C36,62 37,75 33,83 C41,87 50,85 56,76 C59,67 57,55 49,48 C44,45 38,47 33,51 Z" },
-    { sub: "shoulders-side",  d: "M120,47 C131,52 139,64 137,75 C135,82 127,86 117,83 C113,75 114,62 117,51 Z" },
-    { sub: "shoulders-front", d: "M117,51 C114,62 113,75 117,83 C109,87 100,85 94,76 C91,67 93,55 101,48 C106,45 112,47 117,51 Z" },
+    { sub: "shoulders-side",  d: "M22,47 C11,52 3,64 5,75 C7,82 15,86 25,83 C29,75 28,62 25,51 Z" },
+    { sub: "shoulders-front", d: "M25,51 C28,62 29,75 25,83 C33,87 42,85 47,76 C49,67 47,55 40,48 C36,45 30,47 25,51 Z" },
+    { sub: "shoulders-side",  d: "M128,47 C139,52 147,64 145,75 C143,82 135,86 125,83 C121,75 122,62 125,51 Z" },
+    { sub: "shoulders-front", d: "M125,51 C122,62 121,75 125,83 C117,87 108,85 103,76 C101,67 103,55 110,48 C114,45 120,47 125,51 Z" },
   ];
 
-  // Shoulder fiber lines — updated for new shorter/wider shoulder bounds (y47→y83)
+  // Shoulder fiber lines — shifted 8px outward with arm attachment
   const shoulderFibersF = [
-    { sub: "shoulders-side",  d: "M14,67 C16,73 20,79 24,82" }, { sub: "shoulders-side",  d: "M17,62 C19,68 23,74 27,79" }, { sub: "shoulders-side",  d: "M21,57 C23,63 27,70 30,76" },
-    { sub: "shoulders-front", d: "M39,52 C40,61 42,71 41,80" }, { sub: "shoulders-front", d: "M43,51 C44,60 46,71 45,79" }, { sub: "shoulders-front", d: "M47,51 C48,60 50,70 49,79" },
-    { sub: "shoulders-side",  d: "M136,67 C134,73 130,79 126,82" }, { sub: "shoulders-side",  d: "M133,62 C131,68 127,74 123,79" }, { sub: "shoulders-side",  d: "M129,57 C127,63 123,70 120,76" },
-    { sub: "shoulders-front", d: "M111,52 C110,61 108,71 109,80" }, { sub: "shoulders-front", d: "M107,51 C106,60 104,71 105,79" }, { sub: "shoulders-front", d: "M103,51 C102,60 100,70 101,79" },
+    { sub: "shoulders-side",  d: "M6,67 C8,73 12,79 16,82" },  { sub: "shoulders-side",  d: "M9,62 C11,68 15,74 19,79" },  { sub: "shoulders-side",  d: "M13,57 C15,63 19,70 22,76" },
+    { sub: "shoulders-front", d: "M31,52 C32,61 34,71 33,80" }, { sub: "shoulders-front", d: "M35,51 C36,60 38,71 37,79" }, { sub: "shoulders-front", d: "M39,51 C40,60 42,70 41,79" },
+    { sub: "shoulders-side",  d: "M144,67 C142,73 138,79 134,82" }, { sub: "shoulders-side",  d: "M141,62 C139,68 135,74 131,79" }, { sub: "shoulders-side",  d: "M137,57 C135,63 131,70 128,76" },
+    { sub: "shoulders-front", d: "M119,52 C118,61 116,71 117,80" }, { sub: "shoulders-front", d: "M115,51 C114,60 112,71 113,79" }, { sub: "shoulders-front", d: "M111,51 C110,60 108,70 109,79" },
   ];
 
-  // Biceps: shifted outward to match wider arm silhouette (left outer ~x=14, right ~x=136)
+  // Biceps: shifted 7px outward to follow new wider arm shoulder attachment
   const bicepsF = [
-    { sub: "biceps-long",  d: "M21,72 C17,85 16,104 19,118 C21,127 28,130 32,128 C34,117 33,98 32,83 C30,74 25,70 21,72 Z" },
-    { sub: "biceps-short", d: "M32,83 C33,98 34,117 32,128 C36,130 40,130 44,127 C46,120 46,108 44,94 C42,82 36,73 32,75 C32,78 32,81 32,83 Z" },
-    { sub: "brachialis",   d: "M28,122 C25,129 26,136 30,138 C35,139 39,136 39,132 C39,127 36,121 32,120 Z" },
-    { sub: "biceps-long",  d: "M129,72 C133,85 134,104 131,118 C129,127 122,130 118,128 C116,117 117,98 118,83 C120,74 125,70 129,72 Z" },
-    { sub: "biceps-short", d: "M118,83 C117,98 116,117 118,128 C114,130 110,130 106,127 C104,120 104,108 106,94 C108,82 114,73 118,75 C118,78 118,81 118,83 Z" },
-    { sub: "brachialis",   d: "M122,122 C125,129 124,136 120,138 C115,139 111,136 111,132 C111,127 114,121 118,120 Z" },
+    { sub: "biceps-long",  d: "M14,72 C10,85 9,104 12,118 C14,127 21,130 25,128 C27,117 26,98 25,83 C23,74 18,70 14,72 Z" },
+    { sub: "biceps-short", d: "M25,83 C26,98 27,117 25,128 C29,130 33,130 37,127 C39,120 39,108 37,94 C35,82 29,73 25,75 C25,78 25,81 25,83 Z" },
+    { sub: "brachialis",   d: "M21,122 C18,129 19,136 23,138 C28,139 32,136 32,132 C32,127 29,121 25,120 Z" },
+    { sub: "biceps-long",  d: "M136,72 C140,85 141,104 138,118 C136,127 129,130 125,128 C123,117 124,98 125,83 C127,74 132,70 136,72 Z" },
+    { sub: "biceps-short", d: "M125,83 C124,98 123,117 125,128 C121,130 117,130 113,127 C111,120 111,108 113,94 C115,82 121,73 125,75 C125,78 125,81 125,83 Z" },
+    { sub: "brachialis",   d: "M129,122 C132,129 131,136 127,138 C122,139 118,136 118,132 C118,127 121,121 125,120 Z" },
   ];
 
-  // Bicep fiber lines — shifted to match wider arm position
+  // Bicep fiber lines — shifted 7px outward with arm
   const bicepFibersF = [
-    { sub: "biceps-long",  d: "M21,76 C20,94 20,111 22,122" }, { sub: "biceps-long",  d: "M25,74 C24,92 24,109 25,121" }, { sub: "biceps-long",  d: "M28,73 C27,91 27,108 29,120" },
-    { sub: "biceps-short", d: "M33,78 C33,95 33,112 33,126" }, { sub: "biceps-short", d: "M36,76 C36,93 36,110 36,124" }, { sub: "biceps-short", d: "M39,77 C39,94 39,110 38,123" },
-    { sub: "biceps-long",  d: "M129,76 C130,94 130,111 128,122" }, { sub: "biceps-long",  d: "M125,74 C126,92 126,109 125,121" }, { sub: "biceps-long",  d: "M122,73 C123,91 123,108 121,120" },
-    { sub: "biceps-short", d: "M117,78 C117,95 117,112 117,126" }, { sub: "biceps-short", d: "M114,76 C114,93 114,110 114,124" }, { sub: "biceps-short", d: "M111,77 C111,94 111,110 112,123" },
+    { sub: "biceps-long",  d: "M14,76 C13,94 13,111 15,122" }, { sub: "biceps-long",  d: "M18,74 C17,92 17,109 18,121" }, { sub: "biceps-long",  d: "M21,73 C20,91 20,108 22,120" },
+    { sub: "biceps-short", d: "M26,78 C26,95 26,112 26,126" }, { sub: "biceps-short", d: "M29,76 C29,93 29,110 29,124" }, { sub: "biceps-short", d: "M32,77 C32,94 32,110 31,123" },
+    { sub: "biceps-long",  d: "M136,76 C137,94 137,111 135,122" }, { sub: "biceps-long",  d: "M132,74 C133,92 133,109 132,121" }, { sub: "biceps-long",  d: "M129,73 C130,91 130,108 128,120" },
+    { sub: "biceps-short", d: "M124,78 C124,95 124,112 124,126" }, { sub: "biceps-short", d: "M121,76 C121,93 121,110 121,124" }, { sub: "biceps-short", d: "M118,77 C118,94 118,110 119,123" },
   ];
 
   const forearmsF = [
@@ -638,20 +638,20 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
 
   // ─── BACK VIEW path arrays (cx=225) ───────────────────────────────────
 
-  // Deltoid cap (back view): shorter (y47→y83), wider outer (left x=161, right x=289)
+  // Deltoid cap (back view): shifted 8px outward to match wider arm attachment
   const shouldersB = [
-    { sub: "shoulders-side", d: "M180,47 C169,52 161,64 163,75 C165,82 173,86 183,83 C187,75 186,62 183,51 Z" },
-    { sub: "shoulders-rear", d: "M183,51 C186,62 187,75 183,83 C191,87 200,85 206,76 C209,67 207,55 199,48 C194,45 188,47 183,51 Z" },
-    { sub: "shoulders-side", d: "M270,47 C281,52 289,64 287,75 C285,82 277,86 267,83 C263,75 264,62 267,51 Z" },
-    { sub: "shoulders-rear", d: "M267,51 C264,62 263,75 267,83 C259,87 250,85 244,76 C241,67 243,55 251,48 C256,45 262,47 267,51 Z" },
+    { sub: "shoulders-side", d: "M172,47 C161,52 153,64 155,75 C157,82 165,86 175,83 C179,75 178,62 175,51 Z" },
+    { sub: "shoulders-rear", d: "M175,51 C178,62 179,75 175,83 C183,87 192,85 198,76 C201,67 199,55 191,48 C186,45 180,47 175,51 Z" },
+    { sub: "shoulders-side", d: "M278,47 C289,52 297,64 295,75 C293,82 285,86 275,83 C271,75 272,62 275,51 Z" },
+    { sub: "shoulders-rear", d: "M275,51 C272,62 271,75 275,83 C267,87 258,85 252,76 C249,67 251,55 259,48 C264,45 270,47 275,51 Z" },
   ];
 
-  // Shoulder fiber lines (back view) — updated for new shorter/wider bounds
+  // Shoulder fiber lines (back view) — shifted 8px outward with arm attachment
   const shoulderFibersB = [
-    { sub: "shoulders-side", d: "M164,67 C166,73 170,79 174,82" }, { sub: "shoulders-side", d: "M167,62 C169,68 173,74 177,79" }, { sub: "shoulders-side", d: "M171,57 C173,63 177,70 180,76" },
-    { sub: "shoulders-rear", d: "M189,52 C190,61 192,71 191,80" }, { sub: "shoulders-rear", d: "M193,51 C194,60 196,71 195,79" }, { sub: "shoulders-rear", d: "M197,51 C198,60 200,70 199,79" },
-    { sub: "shoulders-side", d: "M286,67 C284,73 280,79 276,82" }, { sub: "shoulders-side", d: "M283,62 C281,68 277,74 273,79" }, { sub: "shoulders-side", d: "M279,57 C277,63 273,70 270,76" },
-    { sub: "shoulders-rear", d: "M261,52 C260,61 258,71 259,80" }, { sub: "shoulders-rear", d: "M257,51 C256,60 254,71 255,79" }, { sub: "shoulders-rear", d: "M253,51 C252,60 250,70 251,79" },
+    { sub: "shoulders-side", d: "M156,67 C158,73 162,79 166,82" }, { sub: "shoulders-side", d: "M159,62 C161,68 165,74 169,79" }, { sub: "shoulders-side", d: "M163,57 C165,63 169,70 172,76" },
+    { sub: "shoulders-rear", d: "M181,52 C182,61 184,71 183,80" }, { sub: "shoulders-rear", d: "M185,51 C186,60 188,71 187,79" }, { sub: "shoulders-rear", d: "M189,51 C190,60 192,70 191,79" },
+    { sub: "shoulders-side", d: "M294,67 C292,73 288,79 284,82" }, { sub: "shoulders-side", d: "M291,62 C289,68 285,74 281,79" }, { sub: "shoulders-side", d: "M287,57 C285,63 281,70 278,76" },
+    { sub: "shoulders-rear", d: "M269,52 C268,61 266,71 267,80" }, { sub: "shoulders-rear", d: "M265,51 C264,60 262,71 263,79" }, { sub: "shoulders-rear", d: "M261,51 C260,60 258,70 259,79" },
   ];
 
   const backB = [
@@ -688,22 +688,22 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
     { sub: "back-lower", d: "M226,114 C226,132 226,149 226,164" }, { sub: "back-lower", d: "M228,114 C228,132 228,149 228,164" },
   ];
 
-  // Triceps: shifted outward to match wider back arm silhouette (left outer ~x=164, right ~x=286)
+  // Triceps: shifted 8px outward with new back arm attachment
   const tricepsB = [
-    { sub: "triceps-long",    d: "M192,66 C189,77 188,97 190,115 C191,127 197,132 202,130 C203,118 202,98 201,83 C199,72 195,65 192,66 Z" },
-    { sub: "triceps-lateral", d: "M176,66 C173,77 171,97 173,115 C175,127 181,132 187,130 C188,117 187,97 186,83 C184,72 180,64 176,66 Z" },
-    { sub: "triceps-medial",  d: "M177,121 C175,127 176,134 181,136 C185,138 190,135 191,131 C191,126 188,119 184,118 Z" },
-    { sub: "triceps-long",    d: "M258,66 C261,77 262,97 260,115 C259,127 253,132 248,130 C247,118 248,98 249,83 C251,72 255,65 258,66 Z" },
-    { sub: "triceps-lateral", d: "M274,66 C277,77 279,97 277,115 C275,127 269,132 263,130 C262,117 263,97 264,83 C266,72 270,64 274,66 Z" },
-    { sub: "triceps-medial",  d: "M273,121 C275,127 274,134 269,136 C265,138 260,135 259,131 C259,126 262,119 266,118 Z" },
+    { sub: "triceps-long",    d: "M184,66 C181,77 180,97 182,115 C183,127 189,132 194,130 C195,118 194,98 193,83 C191,72 187,65 184,66 Z" },
+    { sub: "triceps-lateral", d: "M168,66 C165,77 163,97 165,115 C167,127 173,132 179,130 C180,117 179,97 178,83 C176,72 172,64 168,66 Z" },
+    { sub: "triceps-medial",  d: "M169,121 C167,127 168,134 173,136 C177,138 182,135 183,131 C183,126 180,119 176,118 Z" },
+    { sub: "triceps-long",    d: "M266,66 C269,77 270,97 268,115 C267,127 261,132 256,130 C255,118 256,98 257,83 C259,72 263,65 266,66 Z" },
+    { sub: "triceps-lateral", d: "M282,66 C285,77 287,97 285,115 C283,127 277,132 271,130 C270,117 271,97 272,83 C274,72 278,64 282,66 Z" },
+    { sub: "triceps-medial",  d: "M281,121 C283,127 282,134 277,136 C273,138 268,135 267,131 C267,126 270,119 274,118 Z" },
   ];
 
-  // Tricep fiber lines — shifted to match wider back arm
+  // Tricep fiber lines — shifted 8px outward with arm attachment
   const tricepFibersB = [
-    { sub: "triceps-lateral", d: "M177,69 L178,123" }, { sub: "triceps-lateral", d: "M180,68 L181,123" }, { sub: "triceps-lateral", d: "M183,68 L184,123" },
-    { sub: "triceps-long",    d: "M193,69 L193,124" }, { sub: "triceps-long",    d: "M196,69 L196,123" }, { sub: "triceps-long",    d: "M199,69 L199,122" },
-    { sub: "triceps-lateral", d: "M273,69 L272,123" }, { sub: "triceps-lateral", d: "M270,68 L269,123" }, { sub: "triceps-lateral", d: "M267,68 L266,123" },
-    { sub: "triceps-long",    d: "M257,69 L257,124" }, { sub: "triceps-long",    d: "M254,69 L254,123" }, { sub: "triceps-long",    d: "M251,69 L251,122" },
+    { sub: "triceps-lateral", d: "M169,69 L170,123" }, { sub: "triceps-lateral", d: "M172,68 L173,123" }, { sub: "triceps-lateral", d: "M175,68 L176,123" },
+    { sub: "triceps-long",    d: "M185,69 L185,124" }, { sub: "triceps-long",    d: "M188,69 L188,123" }, { sub: "triceps-long",    d: "M191,69 L191,122" },
+    { sub: "triceps-lateral", d: "M281,69 L280,123" }, { sub: "triceps-lateral", d: "M278,68 L277,123" }, { sub: "triceps-lateral", d: "M275,68 L274,123" },
+    { sub: "triceps-long",    d: "M265,69 L265,124" }, { sub: "triceps-long",    d: "M262,69 L262,123" }, { sub: "triceps-long",    d: "M259,69 L259,122" },
   ];
 
   const forearmsB = [
@@ -784,8 +784,8 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
       <path d="M69,32 Q75,37 81,32 L80,46 Q75,49 70,46 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
       <path d="M38,50 C35,62 34,84 35,110 C36,132 40,152 47,164 C52,174 62,181 75,182 C88,181 98,174 103,164 C110,152 114,132 115,110 C116,84 115,62 112,50 C103,44 90,40 75,40 C60,40 47,44 38,50 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.8}/>
       <path d="M47,166 C46,172 46,178 49,183 C54,189 63,192 75,192 C87,192 96,189 101,183 C104,178 104,172 103,166 Z" fill="#141420" stroke="#2e2e40" strokeWidth={0.7}/>
-      <path d="M27,52 C20,62 14,80 14,100 C14,116 17,128 22,130 C26,133 34,131 40,126 C44,118 45,102 44,85 C43,69 39,57 33,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
-      <path d="M123,52 C130,62 136,80 136,100 C136,116 133,128 128,130 C124,133 116,131 110,126 C107,118 105,102 106,85 C107,69 111,57 117,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M19,52 C14,62 10,80 12,100 C13,116 17,128 22,130 C26,133 34,131 40,126 C41,118 42,102 42,85 C39,69 33,57 25,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M131,52 C136,62 140,80 138,100 C137,116 133,128 128,130 C124,133 116,131 110,126 C109,118 108,102 108,85 C111,69 117,57 125,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
       <path d="M12,131 C8,138 6,150 7,160 C8,168 13,175 19,175 C25,175 29,168 30,158 C30,148 27,138 22,133 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
       <path d="M138,131 C142,138 144,150 143,160 C142,168 137,175 131,175 C125,175 121,168 120,158 C120,148 123,138 128,133 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
       <path d="M48,194 C43,206 39,226 38,248 C37,265 41,276 49,279 C55,281 64,279 69,273 C74,265 75,251 74,233 C73,214 69,198 63,194 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
@@ -816,8 +816,8 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
       <path d="M219,32 Q225,37 231,32 L230,46 Q225,49 220,46 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
       <path d="M188,50 C185,62 184,84 185,110 C186,132 190,152 197,164 C202,174 212,181 225,182 C238,181 248,174 253,164 C260,152 264,132 265,110 C266,84 265,62 262,50 C253,44 240,40 225,40 C210,40 197,44 188,50 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.8}/>
       <path d="M197,166 C196,172 196,178 199,183 C204,189 213,192 225,192 C237,192 246,189 251,183 C254,178 254,172 253,166 Z" fill="#141420" stroke="#2e2e40" strokeWidth={0.7}/>
-      <path d="M177,52 C170,62 164,80 164,100 C164,116 167,128 172,130 C176,133 183,131 189,126 C192,118 193,102 192,85 C191,69 187,57 181,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
-      <path d="M273,52 C280,62 286,80 286,100 C286,116 283,128 278,130 C274,133 267,131 261,126 C258,118 257,102 258,85 C259,69 263,57 269,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M169,52 C163,62 158,80 160,100 C161,116 165,128 170,130 C174,133 181,131 187,126 C190,118 191,102 190,85 C189,69 185,57 173,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
+      <path d="M281,52 C287,62 292,80 290,100 C289,116 285,128 280,130 C276,133 269,131 263,126 C260,118 259,102 260,85 C261,69 265,57 277,52 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
       <path d="M162,131 C158,138 156,150 157,160 C158,168 163,175 169,175 C175,175 179,168 180,158 C180,148 177,138 172,133 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
       <path d="M288,131 C292,138 294,150 293,160 C292,168 287,175 281,175 C275,175 271,168 270,158 C270,148 273,138 278,133 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
       <path d="M198,194 C193,206 189,226 188,248 C187,265 191,276 199,279 C205,281 214,279 219,273 C224,265 225,251 224,233 C223,214 219,198 213,194 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
