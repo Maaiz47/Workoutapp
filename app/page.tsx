@@ -1016,6 +1016,8 @@ export default function HomePage() {
 
   // ── Customise ──
   const [editingDay, setEditingDay] = useState<any | null>(null);
+  const [superSelection, setSuperSelection] = useState<string[]>([]);
+  const [trainerSuperSel, setTrainerSuperSel] = useState<{ dayIdx: number; exIds: string[] } | null>(null);
   const [exSearch, setExSearch] = useState("");
   const [exFilterLoc, setExFilterLoc] = useState("all");
   const [exFilterMove, setExFilterMove] = useState("all");
@@ -2213,11 +2215,19 @@ export default function HomePage() {
             <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{editingDay.title}</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>{editingDay.focus}</div>
 
-            {exs.map((ex: any, i: number) => (
-              <div key={ex.id ?? i} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 16px", marginBottom: 8 }}>
+            {exs.map((ex: any, i: number) => {
+              const exKey = ex.exerciseId ?? ex.id ?? String(i);
+              const isSel = superSelection.includes(exKey);
+              const inGroup = !!ex.groupId;
+              return (
+              <div key={ex.id ?? i} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${isSel ? "rgba(255,107,107,0.4)" : inGroup ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button onClick={() => setSuperSelection(s => s.includes(exKey) ? s.filter(id => id !== exKey) : [...s, exKey])} style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isSel ? "#FF6B6B" : "rgba(255,255,255,0.18)"}`, background: isSel ? "#FF6B6B" : "transparent", flexShrink: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", transition: "all 0.15s" }}>{isSel ? "✓" : ""}</button>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
+                      {inGroup && <span style={{ fontSize: 8, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px" }}>SUPER</span>}
+                    </div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", marginTop: 3 }}>{ex.sets} × {ex.reps}</div>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -2226,40 +2236,65 @@ export default function HomePage() {
                     <button onClick={async () => { const updated = exs.filter((_: any, j: number) => j !== i); await saveDay(editingDay, updated); }} style={{ background: "rgba(255,107,107,0.1)", border: "none", borderRadius: 6, color: "#FF6B6B", width: 28, height: 28, cursor: "pointer", fontSize: 14 }}>✕</button>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 5, marginTop: 10, alignItems: "center" }}>
-                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>REST</span>
-                  {[30, 45, 60, 75, 90, 120, 180].map(s => (
-                    <button key={s} onClick={async () => {
-                      const updated = exs.map((x: any, j: number) => j === i ? { ...x, rest: s } : x);
-                      await saveDay(editingDay, updated);
-                    }} style={{ padding: "3px 8px", borderRadius: 12, fontSize: 10, background: ex.rest === s ? "rgba(255,107,107,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${ex.rest === s ? "rgba(255,107,107,0.45)" : "rgba(255,255,255,0.08)"}`, color: ex.rest === s ? "#FF6B6B" : "rgba(255,255,255,0.28)", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{s}s</button>
-                  ))}
-                </div>
+                {(() => {
+                  const REST_PRESETS = [0, 30, 45, 60, 75, 90, 120, 180];
+                  const restChips = REST_PRESETS.includes(ex.rest) ? REST_PRESETS : [...REST_PRESETS, ex.rest].sort((a, b) => a - b);
+                  return (
+                    <div style={{ display: "flex", gap: 5, marginTop: 10, alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
+                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>REST</span>
+                      {restChips.map(s => {
+                        const active = ex.rest === s;
+                        return <button key={s} onClick={async () => { const updated = exs.map((x: any, j: number) => j === i ? { ...x, rest: s } : x); await saveDay(editingDay, updated); }} style={{ padding: "3px 8px", borderRadius: 12, fontSize: 10, background: active ? "rgba(255,107,107,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(255,107,107,0.45)" : "rgba(255,255,255,0.08)"}`, color: active ? "#FF6B6B" : "rgba(255,255,255,0.28)", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{s === 0 ? "SKIP" : `${s}s`}</button>;
+                      })}
+                    </div>
+                  );
+                })()}
                 <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
-                  {i < exs.length - 1 && (() => {
-                    const isSuper = ex.groupId && ex.groupId === exs[i + 1]?.groupId;
-                    return (
-                      <button onClick={async () => {
-                        let updated: any[];
-                        if (isSuper) {
-                          updated = exs.map((x: any, j: number) => (j === i || j === i + 1) ? { ...x, groupId: undefined, groupType: undefined } : x);
-                        } else {
-                          const gid = Math.random().toString(36).slice(2);
-                          updated = exs.map((x: any, j: number) => (j === i || j === i + 1) ? { ...x, groupId: gid, groupType: "superset" } : x);
-                        }
-                        await saveDay(editingDay, updated);
-                      }} style={{ padding: "3px 10px", borderRadius: 10, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: isSuper ? "rgba(255,230,109,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${isSuper ? "rgba(255,230,109,0.38)" : "rgba(255,255,255,0.08)"}`, color: isSuper ? "#FFE66D" : "rgba(255,255,255,0.25)" }}>⟳ SUPER{isSuper ? " ✓" : ""}</button>
-                    );
-                  })()}
+                  {inGroup && (
+                    <button onClick={async () => {
+                      const gid = ex.groupId;
+                      const updated = exs.map((x: any) => x.groupId === gid ? { ...x, groupId: undefined, groupType: undefined } : x);
+                      await saveDay(editingDay, updated);
+                    }} style={{ padding: "3px 10px", borderRadius: 10, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.1)", border: "1px solid rgba(255,230,109,0.3)", color: "#FFE66D" }}>UNGROUP ×</button>
+                  )}
                   <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
-                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>DROP</span>
-                    <button onClick={async () => { if ((ex.dropSets ?? 0) <= 0) return; const updated = exs.map((x: any, j: number) => j === i ? { ...x, dropSets: (x.dropSets ?? 1) - 1 } : x); await saveDay(editingDay, updated); }} style={{ width: 20, height: 20, borderRadius: 6, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: (ex.dropSets ?? 0) > 0 ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)", fontSize: 12, cursor: (ex.dropSets ?? 0) > 0 ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                    <span style={{ fontSize: 11, color: (ex.dropSets ?? 0) > 0 ? "#FF6B6B" : "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", minWidth: 12, textAlign: "center" }}>{ex.dropSets ?? 0}</span>
-                    <button onClick={async () => { if ((ex.dropSets ?? 0) >= 3) return; const updated = exs.map((x: any, j: number) => j === i ? { ...x, dropSets: (x.dropSets ?? 0) + 1 } : x); await saveDay(editingDay, updated); }} style={{ width: 20, height: 20, borderRadius: 6, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: (ex.dropSets ?? 0) < 3 ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)", fontSize: 12, cursor: (ex.dropSets ?? 0) < 3 ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>DROPS</span>
+                    {[{ v: 0, l: "NONE" }, { v: 1, l: "×1" }, { v: 2, l: "×2" }, { v: 3, l: "×3" }].map(({ v, l }) => {
+                      const active = (ex.dropSets ?? 0) === v;
+                      return <button key={v} onClick={async () => { const updated = exs.map((x: any, j: number) => j === i ? { ...x, dropSets: v } : x); await saveDay(editingDay, updated); }} style={{ padding: "3px 8px", borderRadius: 10, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", background: active ? "rgba(255,107,107,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.08)"}`, color: active ? "#FF6B6B" : "rgba(255,255,255,0.25)" }}>{l}</button>;
+                    })}
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
+
+            {/* Superset creation CTA */}
+            {superSelection.length >= 2 && (
+              <div style={{ background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.3)", borderRadius: 12, padding: "12px 16px", marginBottom: 10, display: "flex", gap: 10, alignItems: "center" }}>
+                <button onClick={async () => {
+                  const gid = Math.random().toString(36).slice(2);
+                  const selSet = new Set(superSelection);
+                  const selIdx = exs.map((e: any, idx: number) => selSet.has(e.exerciseId ?? e.id ?? String(idx)) ? idx : -1).filter((idx: number) => idx >= 0).sort((a: number, b: number) => a - b);
+                  const selExs = selIdx.map((idx: number) => exs[idx]);
+                  const restExs = exs.filter((_: any, idx: number) => !selIdx.includes(idx));
+                  const insertAt = selIdx[0];
+                  const newExs = [
+                    ...restExs.slice(0, insertAt),
+                    ...selExs.map((e: any) => ({ ...e, groupId: gid, groupType: "superset" })),
+                    ...restExs.slice(insertAt),
+                  ];
+                  await saveDay(editingDay, newExs);
+                  setSuperSelection([]);
+                }} style={{ flex: 1, padding: "10px", background: "rgba(255,107,107,0.15)", border: "1px solid rgba(255,107,107,0.4)", borderRadius: 10, color: "#FF6B6B", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                  ⟳ CREATE SUPERSET · {superSelection.length} EXERCISES
+                </button>
+                <button onClick={() => setSuperSelection([])} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 16, cursor: "pointer", padding: "0 4px" }}>✕</button>
+              </div>
+            )}
+            {superSelection.length === 1 && (
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", textAlign: "center", fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>SELECT ONE MORE EXERCISE TO CREATE A SUPERSET</div>
+            )}
 
             {/* Add exercise */}
             {!showExBrowser ? (
@@ -2880,39 +2915,45 @@ export default function HomePage() {
                                   }));
                                 }} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.5)", fontSize: 14, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>×</button>
                               </div>
-                              <div style={{ display: "flex", gap: 4, marginTop: 8, alignItems: "center" }}>
-                                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>REST</span>
-                                {[30, 45, 60, 75, 90, 120, 180].map(s => (
-                                  <button key={s} onClick={() => {
-                                    setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : {
-                                      ...day,
-                                      exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, rest: s }),
-                                    }));
-                                  }} style={{ padding: "2px 7px", borderRadius: 10, fontSize: 10, background: ex.rest === s ? "rgba(78,205,196,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${ex.rest === s ? "rgba(78,205,196,0.45)" : "rgba(255,255,255,0.08)"}`, color: ex.rest === s ? "#4ECDC4" : "rgba(255,255,255,0.28)", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{s}s</button>
-                                ))}
-                              </div>
+                              {(() => {
+                                const REST_PRESETS = [0, 30, 45, 60, 75, 90, 120, 180];
+                                const restChips = REST_PRESETS.includes(ex.rest) ? REST_PRESETS : [...REST_PRESETS, ex.rest].sort((a, b) => a - b);
+                                return (
+                                  <div style={{ display: "flex", gap: 4, marginTop: 8, alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
+                                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>REST</span>
+                                    {restChips.map(s => {
+                                      const active = ex.rest === s;
+                                      return <button key={s} onClick={() => { setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : { ...day, exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, rest: s }) })); }} style={{ padding: "2px 7px", borderRadius: 10, fontSize: 9, background: active ? "rgba(78,205,196,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(78,205,196,0.45)" : "rgba(255,255,255,0.08)"}`, color: active ? "#4ECDC4" : "rgba(255,255,255,0.28)", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{s === 0 ? "SKIP" : `${s}s`}</button>;
+                                    })}
+                                  </div>
+                                );
+                              })()}
                               <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center" }}>
-                                {ei < d.exercises.length - 1 && (() => {
-                                  const nextEx = d.exercises[ei + 1];
-                                  const isSuper = ex.groupId && ex.groupId === nextEx?.groupId;
+                                {(() => {
+                                  const tss = trainerSuperSel;
+                                  const exKey = ex.exerciseId ?? String(ei);
+                                  const isSel = tss?.dayIdx === di && tss.exIds.includes(exKey);
+                                  const inGrp = !!ex.groupId;
                                   return (
-                                    <button onClick={() => {
-                                      setEditedPlanDays(prev => prev!.map((day, dj) => {
-                                        if (dj !== di) return day;
-                                        const gid = Math.random().toString(36).slice(2);
-                                        return { ...day, exercises: day.exercises.map((x: any, ej: number) => {
-                                          if (ej !== ei && ej !== ei + 1) return x;
-                                          return isSuper ? { ...x, groupId: undefined, groupType: undefined } : { ...x, groupId: gid, groupType: "superset" };
-                                        }) };
-                                      }));
-                                    }} style={{ padding: "2px 8px", borderRadius: 8, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: isSuper ? "rgba(255,230,109,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${isSuper ? "rgba(255,230,109,0.38)" : "rgba(255,255,255,0.08)"}`, color: isSuper ? "#FFE66D" : "rgba(255,255,255,0.25)" }}>⟳ SUPER{isSuper ? " ✓" : ""}</button>
+                                    <>
+                                      <button onClick={() => {
+                                        setTrainerSuperSel(prev => {
+                                          if (prev?.dayIdx !== di) return { dayIdx: di, exIds: [exKey] };
+                                          const already = prev.exIds.includes(exKey);
+                                          const next = already ? prev.exIds.filter(id => id !== exKey) : [...prev.exIds, exKey];
+                                          return next.length === 0 ? null : { dayIdx: di, exIds: next };
+                                        });
+                                      }} style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isSel ? "#4ECDC4" : "rgba(255,255,255,0.18)"}`, background: isSel ? "#4ECDC4" : "transparent", flexShrink: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#000" }}>{isSel ? "✓" : ""}</button>
+                                      {inGrp && <button onClick={() => { const gid = ex.groupId; setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : { ...day, exercises: day.exercises.map((x: any) => x.groupId === gid ? { ...x, groupId: undefined, groupType: undefined } : x) })); }} style={{ padding: "2px 8px", borderRadius: 8, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.1)", border: "1px solid rgba(255,230,109,0.3)", color: "#FFE66D" }}>UNGROUP ×</button>}
+                                    </>
                                   );
                                 })()}
-                                <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
-                                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>DROP</span>
-                                  <button onClick={() => { if ((ex.dropSets ?? 0) <= 0) return; setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : { ...day, exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, dropSets: (x.dropSets ?? 1) - 1 }) })); }} style={{ width: 18, height: 18, borderRadius: 5, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: (ex.dropSets ?? 0) > 0 ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)", fontSize: 11, cursor: (ex.dropSets ?? 0) > 0 ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                                  <span style={{ fontSize: 10, color: (ex.dropSets ?? 0) > 0 ? "#4ECDC4" : "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", minWidth: 10, textAlign: "center" }}>{ex.dropSets ?? 0}</span>
-                                  <button onClick={() => { if ((ex.dropSets ?? 0) >= 3) return; setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : { ...day, exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, dropSets: (x.dropSets ?? 0) + 1 }) })); }} style={{ width: 18, height: 18, borderRadius: 5, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: (ex.dropSets ?? 0) < 3 ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)", fontSize: 11, cursor: (ex.dropSets ?? 0) < 3 ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                                <div style={{ display: "flex", alignItems: "center", gap: 3, marginLeft: "auto" }}>
+                                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>DROPS</span>
+                                  {[{ v: 0, l: "NONE" }, { v: 1, l: "×1" }, { v: 2, l: "×2" }, { v: 3, l: "×3" }].map(({ v, l }) => {
+                                    const active = (ex.dropSets ?? 0) === v;
+                                    return <button key={v} onClick={() => { setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : { ...day, exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, dropSets: v }) })); }} style={{ padding: "2px 6px", borderRadius: 8, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", background: active ? "rgba(78,205,196,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, color: active ? "#4ECDC4" : "rgba(255,255,255,0.25)" }}>{l}</button>;
+                                  })}
                                 </div>
                               </div>
                             </div>
@@ -2922,6 +2963,29 @@ export default function HomePage() {
                     </div>
                   );
                 })}
+                {/* Trainer superset CTA */}
+                {trainerSuperSel && trainerSuperSel.exIds.length >= 2 && (
+                  <div style={{ background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 12, padding: "12px 16px", marginBottom: 10, display: "flex", gap: 10, alignItems: "center" }}>
+                    <button onClick={() => {
+                      const { dayIdx: tdi, exIds } = trainerSuperSel;
+                      const gid = Math.random().toString(36).slice(2);
+                      const selSet = new Set(exIds);
+                      setEditedPlanDays(prev => prev!.map((day, dj) => {
+                        if (dj !== tdi) return day;
+                        const exArr = day.exercises;
+                        const selIdxs = exArr.map((e: any, idx: number) => selSet.has(e.exerciseId ?? String(idx)) ? idx : -1).filter((idx: number) => idx >= 0).sort((a: number, b: number) => a - b);
+                        const selExs = selIdxs.map((idx: number) => ({ ...exArr[idx], groupId: gid, groupType: "superset" }));
+                        const restExs = exArr.filter((_: any, idx: number) => !selIdxs.includes(idx));
+                        const insertAt = selIdxs[0];
+                        return { ...day, exercises: [...restExs.slice(0, insertAt), ...selExs, ...restExs.slice(insertAt)] };
+                      }));
+                      setTrainerSuperSel(null);
+                    }} style={{ flex: 1, padding: "10px", background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.4)", borderRadius: 10, color: "#4ECDC4", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                      ⟳ CREATE SUPERSET · {trainerSuperSel.exIds.length} EXERCISES
+                    </button>
+                    <button onClick={() => setTrainerSuperSel(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 16, cursor: "pointer" }}>✕</button>
+                  </div>
+                )}
                 <button
                   onClick={proposePlan}
                   disabled={proposingPlan}
