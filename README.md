@@ -34,6 +34,8 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Comparison indicators on every set: **vs previous set** and **vs last session**
 - Warmup / cardio rows: tap to mark done, no data entry required
 - Active workout persists across navigation — leave to home, message, check progress, return anytime
+- **Supersets:** pair any two exercises; auto-advances between them with no rest, fires rest after the last in the group
+- **Drop sets:** assign 1–3 drops per exercise; drop panel appears immediately after the main set with weight pre-reduced ~20%, rest only after all drops complete
 
 ### Session Persistence
 - In-progress workouts saved to `localStorage` continuously
@@ -43,6 +45,7 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Edit any logged set mid-session via a dedicated overlay
 
 ### Home Screen
+- **Animated workout-type icons:** each workout card shows a front-and-back block-figure SVG with muscles animating (CSS `filter: drop-shadow` explosion) to indicate which muscle groups are targeted — push, pull, legs, upper, full body, cardio each have distinct patterns with per-muscle stagger delays
 - Active workout card shows live elapsed timer and "TAP TO RESUME →" when a session is in progress
 - Greyed-out cards prevent accidentally starting a second session
 - Notification permission banner (in-app) shown on first visit — "Not now" dismisses persistently
@@ -60,7 +63,10 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 ### Split Customisation
 - CUSTOMISE button opens a plan overview of all training days
 - Per-day editor: reorder exercises (↑↓), remove, and add from the full exercise browser
-- Searchable exercise browser (110+ exercises, filtered live by name)
+- Searchable exercise browser (110+ exercises, filtered live by name, filterable by location / push-pull-legs / muscle group)
+- **Custom rest times:** per-exercise rest chip selector (`30s – 180s`) — default pre-highlighted, one tap to override
+- **Supersets:** toggle to pair any two consecutive exercises as a superset
+- **Drop sets:** assign 0–3 drop sets per exercise
 - Changes saved to database instantly; reflected in the workout view
 
 ### Saved Routines
@@ -69,13 +75,14 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Share a routine to any user by exact username — appears in their saved routines with attribution
 - List is collapsed by default to prevent accidental restores; count badge shows how many are saved
 
-### Muscle Diagram
+### Muscle Diagram & Form Cues
 - Anatomical SVG body diagram (front + back view) rendered entirely in-app — no images
 - Every muscle group drawn with bezier-curve paths matching real anatomy: pec fan, lat triangle, deltoid heads, bicep/tricep heads, VMO teardrop, etc.
 - Fiber direction lines overlay each muscle to show grain and pennation angle
 - **Sub-muscle zone detail:** per-exercise targeting data (e.g. "Upper Chest", "Lateral Delt", "Long Head") shown as a labelled legend below the diagram
 - Zones rendered in three layers: dim background → orange secondary → red primary with glow
 - Covers 60+ exercises via `lib/muscleDetail.ts`; fallback derivation for exercise names not in the exercise library
+- **Form cues:** 2–3 activation-focused coaching cues per exercise shown below the form demo image in the FORM modal; covers 119 exercises via `lib/formCues.ts` with ID-first then name-match lookup
 
 ### Progress
 - **Dashboard tab:** 28-day activity calendar, weekly streak, average session time, Personal Bests per exercise (best weight + reps achieved)
@@ -99,9 +106,10 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Users accept/decline trainer requests from Settings
 - Accepted clients appear in the **MY CLIENTS** section on the trainer's home screen
 - Client detail view (3 tabs):
-  - **SPLIT** — view the client's current plan; trainers can edit exercises inline and propose changes
+  - **SPLIT** — view the client's current plan; trainers can edit sets, reps, rest times, supersets, and drop sets inline and propose changes
   - **HISTORY** — full session log; tap any session to see every exercise logged vs skipped, with weight × reps per set
-  - **PROFILE** — client's body stats and fitness profile
+  - **PROFILE** — client's body stats and fitness profile; equipment shown as a clean line-by-line list
+- **MESSAGE button** on the client detail header — opens a direct conversation with the client in one tap
 
 ### Plan Proposals (Trainer → Client)
 - Trainer edits client's plan inline and taps "PROPOSE CHANGES"
@@ -223,6 +231,9 @@ lib/
   crypto.ts             # scrypt password hashing
   email.ts              # Welcome + forgot password emails via Nodemailer
   exercises.ts          # 110+ exercise database + filterExercises()
+  exerciseImages.ts     # Exercise ID → free-exercise-db image URL mapping (~110 exercises)
+  formCues.ts           # Per-exercise form coaching cues (119 exercises, 2–3 cues each)
+  muscleDetail.ts       # Sub-muscle targeting data (60+ exercises) for the anatomy diagram
   planGenerator.ts      # Rule-based plan generation from user profile
   workouts.ts           # Default 5-day PPL split data + types
 
@@ -264,7 +275,5 @@ public/
 |---|---|
 | Swap rule-based plan generator → Claude API | Blocked: Anthropic credits |
 | DMARC DNS record for revtech.com.mv | Blocked: Dhiraagu registrar access |
-| Animated workout-type icons (per-split muscle explode) | Not started |
-| Exercise form demo GIFs | Done — JPG start/end animation added in Patch 21 |
 
-See `PATCHLOG.md` for full history.
+See `PATCHLOG.md` for full history and `ROADMAP.md` for future feature specs.
