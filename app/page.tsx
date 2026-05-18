@@ -1924,10 +1924,10 @@ export default function HomePage() {
         <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, marginBottom: 4, overflow: "visible" }}>
             <span className="logo-iron" style={{ color: "#fff" }}>
-              <svg viewBox="0 0 26 34" width="26" height="34" style={{ display: "inline-block", verticalAlign: "middle", marginBottom: 5, marginRight: 8, fill: "#fff" }} aria-hidden>
-                <rect x="0" y="0" width="26" height="9" rx="3.5"/>
-                <rect x="9" y="9" width="8" height="16"/>
-                <rect x="0" y="25" width="26" height="9" rx="3.5"/>
+              <svg viewBox="0 0 26 38" width="22" height="34" style={{ display: "inline-block", verticalAlign: "middle", marginBottom: 5, marginRight: 8, fill: "#fff" }} aria-hidden>
+                <ellipse cx="13" cy="7" rx="13" ry="7"/>
+                <rect x="10" y="7" width="6" height="24"/>
+                <ellipse cx="13" cy="31" rx="13" ry="7"/>
               </svg>RON
             </span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
           </div>
