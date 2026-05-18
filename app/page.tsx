@@ -1011,6 +1011,19 @@ export default function HomePage() {
   const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history" | "body">("dashboard");
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
 
+  // ── In-workout exercise addition ──
+  const [showAddInWorkout, setShowAddInWorkout] = useState(false);
+  const [aiWStep, setAiWStep] = useState<"browse" | "config">("browse");
+  const [aiWSearch, setAiWSearch] = useState("");
+  const [aiWFilterLoc, setAiWFilterLoc] = useState("all");
+  const [aiWFilterMove, setAiWFilterMove] = useState("all");
+  const [aiWFilterMuscle, setAiWFilterMuscle] = useState("all");
+  const [aiWEx, setAiWEx] = useState<any | null>(null);
+  const [aiWSets, setAiWSets] = useState(3);
+  const [aiWReps, setAiWReps] = useState("10-12");
+  const [aiWRest, setAiWRest] = useState(60);
+  const [aiWPermanent, setAiWPermanent] = useState(false);
+
   // ── Customise ──
   const [editingDay, setEditingDay] = useState<any | null>(null);
   const [exSearch, setExSearch] = useState("");
@@ -4384,9 +4397,208 @@ export default function HomePage() {
           </div>
         ))}
 
-        <div style={{ padding: 20 }}>
+        <div style={{ padding: "0 20px 12px" }}>
+          <button onClick={() => {
+            setShowAddInWorkout(true); setAiWStep("browse"); setAiWSearch(""); setAiWFilterLoc("all"); setAiWFilterMove("all"); setAiWFilterMuscle("all"); setAiWEx(null); setAiWSets(3); setAiWReps("10-12"); setAiWRest(60); setAiWPermanent(false);
+          }} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+            + ADD EXERCISE
+          </button>
+        </div>
+
+        <div style={{ padding: "0 20px 20px" }}>
           <button onClick={finish} style={{ width: "100%", padding: "16px", background: "rgba(46,204,113,0.15)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 12, color: "#2ecc71", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>FINISH & SAVE</button>
         </div>
+
+        {/* ── In-workout exercise add overlay ── */}
+        {showAddInWorkout && (() => {
+          const LIST = (EXERCISES as any[]);
+          const exMovement = (e: any): string => {
+            const pm: string[] = e.primaryMuscles;
+            if (pm.includes("cardio")) return "cardio";
+            if (pm.some((m: string) => ["chest","shoulders","triceps"].includes(m))) return "push";
+            if (pm.some((m: string) => ["back","biceps","forearms"].includes(m))) return "pull";
+            if (pm.some((m: string) => ["quads","hamstrings","glutes","calves"].includes(m))) return "legs";
+            return "core";
+          };
+          const filtered = LIST.filter((e: any) => {
+            if (aiWSearch && !e.name.toLowerCase().includes(aiWSearch.toLowerCase()) &&
+                !e.primaryMuscles.some((m: string) => m.toLowerCase().includes(aiWSearch.toLowerCase())) &&
+                !e.secondaryMuscles.some((m: string) => m.toLowerCase().includes(aiWSearch.toLowerCase()))) return false;
+            if (aiWFilterLoc !== "all") {
+              if (aiWFilterLoc === "bodyweight" && !e.equipment.every((eq: string) => ["bodyweight","resistance_band"].includes(eq))) return false;
+              else if (aiWFilterLoc === "gym" && e.location !== "gym") return false;
+              else if (aiWFilterLoc === "home" && e.location !== "home") return false;
+            }
+            if (aiWFilterMove !== "all" && exMovement(e) !== aiWFilterMove) return false;
+            if (aiWFilterMuscle !== "all" && !e.primaryMuscles.includes(aiWFilterMuscle) && !e.secondaryMuscles.includes(aiWFilterMuscle)) return false;
+            return true;
+          });
+          const chipStyle = (active: boolean, color?: string) => ({
+            padding: "5px 12px", borderRadius: 20, fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
+            border: active ? "1px solid transparent" : "1px solid rgba(255,255,255,0.1)",
+            background: active ? (color ?? "#fff") : "rgba(255,255,255,0.04)",
+            color: active ? "#000" : "rgba(255,255,255,0.5)",
+            cursor: "pointer", whiteSpace: "nowrap" as const, flexShrink: 0,
+          });
+          const row = { display: "flex", gap: 6, overflowX: "auto" as const, paddingBottom: 6, marginBottom: 4, scrollbarWidth: "none" as const };
+          const REST_PRESETS = [0, 30, 45, 60, 75, 90, 120, 180];
+          const restChips = REST_PRESETS.includes(aiWRest) ? REST_PRESETS : [...REST_PRESETS, aiWRest].sort((a, b) => a - b);
+
+          return (
+            <div style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+              <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)" }} onClick={() => setShowAddInWorkout(false)} />
+              <div style={{ position: "relative", background: "#111", borderRadius: "20px 20px 0 0", maxHeight: "85vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {/* Handle bar */}
+                <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 0" }}>
+                  <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)" }} />
+                </div>
+
+                {aiWStep === "browse" ? (
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", padding: "16px 20px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                      <div style={{ fontSize: 12, letterSpacing: 3, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>ADD EXERCISE</div>
+                      <button onClick={() => setShowAddInWorkout(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 18, cursor: "pointer", padding: 0 }}>✕</button>
+                    </div>
+                    <input value={aiWSearch} onChange={e => setAiWSearch(e.target.value)} placeholder="Search exercises..." autoFocus style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "12px 16px", outline: "none", boxSizing: "border-box", marginBottom: 10, flexShrink: 0 }} />
+                    <div style={{ flexShrink: 0, marginBottom: 6 }}>
+                      <div style={row}>
+                        {[["all","All"],["gym","Gym"],["home","Home"],["bodyweight","BW"]].map(([v,l]) => (
+                          <button key={v} onClick={() => setAiWFilterLoc(v)} style={chipStyle(aiWFilterLoc===v,"#4ECDC4")}>{l}</button>
+                        ))}
+                      </div>
+                      <div style={row}>
+                        {[["all","All"],["push","Push"],["pull","Pull"],["legs","Legs"],["core","Core"],["cardio","Cardio"]].map(([v,l]) => (
+                          <button key={v} onClick={() => setAiWFilterMove(v)} style={chipStyle(aiWFilterMove===v,"#FF6B6B")}>{l}</button>
+                        ))}
+                      </div>
+                      <div style={row}>
+                        {[["all","All"],["chest","Chest"],["back","Back"],["shoulders","Shoulders"],["biceps","Biceps"],["triceps","Triceps"],["quads","Quads"],["hamstrings","Hamstrings"],["glutes","Glutes"],["core","Core"]].map(([v,l]) => (
+                          <button key={v} onClick={() => setAiWFilterMuscle(v)} style={chipStyle(aiWFilterMuscle===v,"#FFE66D")}>{l}</button>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginBottom: 4 }}>{filtered.length} EXERCISES</div>
+                    </div>
+                    <div style={{ overflowY: "auto", flex: 1 }}>
+                      {filtered.map((ex: any) => (
+                        <div key={ex.id} onClick={() => { setAiWEx(ex); setAiWStep("config"); }} style={{ padding: "11px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)", marginBottom: 6, cursor: "pointer" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? <img src={tu[0]} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/> : null; })()}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
+                                <span style={{ color: "#FF6644" }}>{ex.primaryMuscles.join(" · ")}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {filtered.length === 0 && <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "12px 0" }}>No exercises match these filters</div>}
+                    </div>
+                  </div>
+                ) : aiWEx ? (
+                  <div style={{ overflowY: "auto", padding: "16px 20px 32px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                      <button onClick={() => setAiWStep("browse")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", padding: 0, fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
+                      <div style={{ flex: 1 }} />
+                      <button onClick={() => setShowAddInWorkout(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 18, cursor: "pointer", padding: 0 }}>✕</button>
+                    </div>
+
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 4, fontFamily: "'DM Sans', sans-serif" }}>{aiWEx.name}</div>
+                    <div style={{ fontSize: 11, color: "#FF6644", marginBottom: 20, fontFamily: "'DM Sans', sans-serif" }}>{(aiWEx.primaryMuscles as string[]).join(" · ")}</div>
+
+                    {/* Sets */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 10, letterSpacing: 3, color: "rgba(255,255,255,0.35)", marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>SETS</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <button onClick={() => setAiWSets(s => Math.max(1, s - 1))} style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 18, cursor: "pointer" }}>−</button>
+                        <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", minWidth: 32, textAlign: "center" }}>{aiWSets}</div>
+                        <button onClick={() => setAiWSets(s => Math.min(10, s + 1))} style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: 18, cursor: "pointer" }}>+</button>
+                      </div>
+                    </div>
+
+                    {/* Reps */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 10, letterSpacing: 3, color: "rgba(255,255,255,0.35)", marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>REPS</div>
+                      <input value={aiWReps} onChange={e => setAiWReps(e.target.value)} placeholder="e.g. 10-12" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 16, fontFamily: "'DM Sans', sans-serif", padding: "10px 14px", outline: "none", boxSizing: "border-box", width: "100%" }} />
+                    </div>
+
+                    {/* REST chips */}
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ fontSize: 10, letterSpacing: 3, color: "rgba(255,255,255,0.35)", marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>REST</div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {restChips.map(s => {
+                          const active = aiWRest === s;
+                          return (
+                            <button key={s} onClick={() => setAiWRest(s)} style={{ padding: "6px 12px", borderRadius: 20, fontSize: 11, fontFamily: "'Space Mono', monospace", border: active ? "1px solid #FF6B6B" : "1px solid rgba(255,255,255,0.1)", background: active ? "rgba(255,107,107,0.15)" : "rgba(255,255,255,0.04)", color: active ? "#FF6B6B" : "rgba(255,255,255,0.45)", cursor: "pointer" }}>
+                              {s === 0 ? "SKIP" : `${s}s`}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Permanent toggle */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "14px 16px", marginBottom: 24 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: "'DM Sans', sans-serif" }}>Save to plan</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'DM Sans', sans-serif", marginTop: 2 }}>Add permanently to this workout day</div>
+                      </div>
+                      <button onClick={() => setAiWPermanent(p => !p)} style={{ width: 44, height: 26, borderRadius: 13, border: "none", background: aiWPermanent ? "#FF6B6B" : "rgba(255,255,255,0.12)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
+                        <div style={{ position: "absolute", top: 3, left: aiWPermanent ? 21 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                      </button>
+                    </div>
+
+                    <button onClick={async () => {
+                      if (!aiWEx) return;
+                      const newEx = {
+                        id: aiWEx.id, name: aiWEx.name, sets: aiWSets, reps: aiWReps, rest: aiWRest,
+                        type: (aiWEx.type ?? "compound") as "compound" | "isolation" | "cardio",
+                        trackable: true,
+                      };
+                      // Add to active session
+                      setActiveDay(prev => {
+                        if (!prev) return prev;
+                        const addedIdx = prev.sections.findIndex(s => s.name === "Added");
+                        if (addedIdx >= 0) {
+                          const secs = prev.sections.map((s, i) => i === addedIdx ? { ...s, exercises: [...s.exercises, newEx] } : s);
+                          return { ...prev, sections: secs };
+                        }
+                        return { ...prev, sections: [...prev.sections, { name: "Added", type: "main" as const, exercises: [newEx] }] };
+                      });
+                      // Update localStorage
+                      try {
+                        const saved = localStorage.getItem("ironlog-session");
+                        if (saved) {
+                          const s = JSON.parse(saved);
+                          const addedIdx = (s.dayData?.sections ?? []).findIndex((sec: any) => sec.name === "Added");
+                          if (addedIdx >= 0) {
+                            s.dayData.sections[addedIdx].exercises.push(newEx);
+                          } else {
+                            s.dayData.sections = [...(s.dayData?.sections ?? []), { name: "Added", type: "main", exercises: [newEx] }];
+                          }
+                          localStorage.setItem("ironlog-session", JSON.stringify(s));
+                        }
+                      } catch {}
+                      // Save to plan permanently
+                      if (aiWPermanent && activeDay) {
+                        const planDay = customPlan?.find((d: any) => d.id === activeDay.id);
+                        if (planDay) {
+                          const exs: any[] = planDay.exercises ?? [];
+                          const payload = [...exs, { exerciseId: aiWEx.id, name: aiWEx.name, sets: aiWSets, reps: aiWReps, rest: aiWRest, notes: null, groupId: null, groupType: null, dropSets: 0 }];
+                          await fetch("/api/plan", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dayId: activeDay.id, exercises: payload }) });
+                          setCustomPlan((prev: any) => prev ? prev.map((d: any) => d.id === activeDay.id ? { ...d, exercises: payload } : d) : prev);
+                        }
+                      }
+                      setShowAddInWorkout(false);
+                    }} style={{ width: "100%", padding: "15px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                      {aiWPermanent ? "ADD & SAVE TO PLAN" : "ADD FOR THIS SESSION"}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   }
