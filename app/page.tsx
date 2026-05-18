@@ -2991,27 +2991,38 @@ export default function HomePage() {
                       if (loc.toLowerCase() === "both") return "Gym & Home";
                       return loc.charAt(0).toUpperCase() + loc.slice(1);
                     };
-                    const fmtEquipment = (items: string[]) => {
-                      if (!items?.length) return "—";
+                    const fmtEquipmentItems = (items: string[]): string[] => {
+                      if (!items?.length) return [];
                       const aliases: Record<string, string> = {
                         pullup_bar: "Pull-up Bar", dip_bar: "Dip Bar",
                         resistance_band: "Resistance Band", pull_up_bar: "Pull-up Bar",
                       };
-                      return items.map(e => aliases[e.toLowerCase()] ?? e.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())).join(", ");
+                      return items.map(e => aliases[e.toLowerCase()] ?? e.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()));
                     };
-                    return [
+                    const equipItems = fmtEquipmentItems(p.equipment as string[]);
+                    const rows = [
                       { label: "GOAL", value: p.goal?.replace(/_/g, " ") },
                       { label: "FITNESS LEVEL", value: p.fitnessLevel },
                       { label: "LOCATION", value: fmtLocation(p.location) },
-                      { label: "EQUIPMENT", value: fmtEquipment(p.equipment as string[]) },
                       { label: "TARGET AREA", value: p.targetArea && p.targetArea !== "none" ? p.targetArea : "—" },
                     ];
-                  })().map((row, i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>{row.label}</div>
-                      <div style={{ fontSize: 13, color: "#fff", textTransform: "capitalize" }}>{row.value || "—"}</div>
-                    </div>
-                  ))}
+                    return (
+                      <>
+                        {rows.map((row, i) => (
+                          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>{row.label}</div>
+                            <div style={{ fontSize: 13, color: "#fff", textTransform: "capitalize" }}>{row.value || "—"}</div>
+                          </div>
+                        ))}
+                        <div style={{ padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>EQUIPMENT</div>
+                          {equipItems.length ? equipItems.map((item, i) => (
+                            <div key={i} style={{ fontSize: 13, color: "#fff", lineHeight: 1.9 }}>{item}</div>
+                          )) : <div style={{ fontSize: 13, color: "#fff" }}>—</div>}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </>
               );
             })()}
