@@ -23,12 +23,97 @@ Generate VAPID keys: `npx web-push generate-vapid-keys`
 
 ---
 
-## Upcoming — Roadmap
+## Blocked / Pending
 
 | Item | Blocked by |
 |---|---|
-| Swap rule-based plan generator → Claude API | Anthropic checkout unavailable |
-| DMARC DNS record for revtech.com.mv | Dhiraagu portal access |
+| Swap rule-based plan generator → Claude API | Anthropic billing (checkout unavailable) |
+| DMARC DNS record for revtech.com.mv | Dhiraagu registrar portal access |
+
+See `ROADMAP.md` for the full future features list.
+
+---
+
+## Patch 30 · 2026-05-18
+**Visual Polish — Animated Login Logo, Rotating Phrase, Trainer Role Refresh**
+
+### Animated IRONLOG logo
+- On login page load, `IRON` drops from 180px above the viewport and lands with a squash-and-stretch impact keyframe (`logoFall`): overshoot → squash wide/short → bounce tall/narrow → settle
+- `LOG` follows 130ms later with the same animation so it lands as `IRON` finishes settling
+- Other auth-step logo instances (register, password, forgot) are plain static text — no re-trigger on step transitions
+
+### Dumbbell "I" glyph
+- The `I` in `IRON` is replaced by an inline SVG dumbbell — two 26×9 rounded-rect plates connected by an 8×16 bar, matching the 40px Space Mono cap height and fontWeight 700 weight
+- Falls as part of the `IRON` unit in the drop animation; `marginRight: 8` preserves the letterSpacing gap before `R`
+
+### Rotating motivational phrase
+- Static `useMemo` phrase replaced with a `phraseIdx` state that advances to a random non-repeating phrase every 5 seconds
+- Phrase transitions with `phraseOut` (slides up + fades, 300ms) then `phraseIn` (slides up from below + fades in, 400ms) — CSS keyframes in `globals.css`
+- Same rotating state shown on both login page and home screen
+
+### Login page improvements
+- Removed emoji feature-icon row (📈 Strength 🔥 Fat Loss) — cleaner, text-only layout
+- Tagline corrected to `LIFT · TRACK · PROGRESS` (was `TRACK · LIFT · PROGRESS`)
+- Motivational phrase sits between tagline and form as a single italic line
+
+### Home screen
+- Diagonal watermark phrase removed from behind workout cards — was distracting and illegible
+- Single italic phrase line now sits cleanly between `LIFT · TRACK · PROGRESS` and `YOUR SPLIT`
+
+### Trainer role refresh
+- Added `visibilitychange` listener on mount: re-fetches `/api/auth` whenever the tab regains focus
+- Trainer badge, `MY CLIENTS` section, and trainer-specific UI now reflect role changes (e.g. admin upgrade) without requiring a full page reload
+
+---
+
+## Patch 29 · 2026-05-18
+**Add Exercise During Active Session**
+
+- A `+ ADD EXERCISE` button appears above FINISH & SAVE during any active workout session
+- Tapping it opens a full-screen bottom sheet with two steps:
+  1. **Browse** — full 110+ exercise library with the same search + location / movement / muscle filters as the Customise view
+  2. **Configure** — exercise name, sets (stepper 1–10, default 3), reps (text, default "10-12"), REST chips (SKIP / 30s–180s, default 60s)
+- **"Save to plan" toggle**: OFF adds the exercise only to the current session (not persisted to the plan); ON also calls `PUT /api/plan` to permanently append it to the day
+- Added exercise appears in a new **"Added"** section below the main workout sections and is written into `localStorage` so it survives mid-session navigation
+- Bottom sheet dismisses on backdrop tap or ✕
+
+---
+
+## Patch 28 · 2026-05-18
+**Customise Multi-Select, Superset-from-Library, Client Routine Share, Drop-Set Simplification**
+
+### Multi-select mode in Customise
+- New **SELECT** toggle button in the day editor header enters multi-select mode (CANCEL exits)
+- In multi-select mode: circular checkboxes appear on each exercise card; ↑↓ and individual × buttons are hidden
+- Bottom action bar shows contextual CTAs based on the current selection:
+  - **DELETE (N)** — removes all selected exercises in one save (any number selected)
+  - **⟳ SUPERSET** — groups selected exercises as a superset (requires ≥ 2 selected)
+  - **DROP SET** — sets `rest = 0` on all selected exercises, marking them as drop sets
+- `+ Add Exercise` button remains accessible while in multi-select mode
+
+### Superset button behaviour
+- The **⟳ SUPERSET** button at the bottom of the exercise list now reacts to selection state:
+  - 0 selected → opens the exercise browser in superset-pick mode (unchanged)
+  - 1 selected → button reads `⟳ +1 MORE` with a hint styling
+  - ≥ 2 selected → button lights up gold, reads `⟳ SUPERSET (N)`, and creates the superset directly on tap without opening the browser
+
+### Add as Superset from library
+- New **⟳ SUPERSET** shortcut button beside `+ Add Exercise` opens the browser in **superset mode**
+- A gold "SUPERSET MODE" banner explains the flow; clicking exercises toggles selection
+- `⟳ ADD N AS SUPERSET` CTA appears once ≥ 2 are selected; tapping it adds all as a new superset group to the plan
+- Already-in-plan exercises are marked `IN PLAN` and dimmed in normal mode
+
+### Drop sets via rest = 0
+- Removed explicit NONE / ×1 / ×2 / ×3 drop chip row from each exercise card
+- Drop sets are now signalled by setting rest to **0 (SKIP)** — the REST chip row is still present
+- In the workout view: exercises with `rest === 0` automatically trigger the drop set panel after the main set logs (same weight pre-reduction, same yellow panel)
+- `DROP` badge appears on exercise name header when `rest === 0`
+- Legacy `dropSets > 0` values also trigger the drop panel for backward compatibility
+
+### Multi-client routine share
+- Sharing panel now shows the trainer's client list as selectable chips when `role === "trainer"` and accepted clients exist
+- Multi-select chips → `SEND TO N CLIENTS` button loops through each and calls `POST /api/routines/:id/share`
+- Username text input remains available below (separated by an "OR BY USERNAME" divider) for sharing with non-clients
 
 ---
 
