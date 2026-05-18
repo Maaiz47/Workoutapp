@@ -165,6 +165,9 @@ export async function PUT(req: NextRequest) {
         reps: ex.reps,
         rest: ex.rest,
         notes: ex.notes ?? null,
+        groupId: ex.groupId ?? null,
+        groupType: ex.groupType ?? null,
+        dropSets: ex.dropSets ?? 0,
       })),
     });
 

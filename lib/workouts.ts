@@ -2,6 +2,7 @@ export type Exercise = {
   id: string; name: string; sets: number; reps: string;
   type: "compound" | "isolation" | "cardio";
   rest?: number; note?: string; trackable?: boolean;
+  groupId?: string; groupType?: string; dropSets?: number;
 };
 
 export type Section = { name: string; type?: "main" | "warmup" | "cardio"; exercises: Exercise[] };
