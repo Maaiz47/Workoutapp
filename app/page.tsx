@@ -1183,12 +1183,11 @@ export default function HomePage() {
     }
   }, []);
 
-  useEffect(() => {
+  const refreshUser = useCallback(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
       if (data.user) {
         setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user", roleRequest: data.user.roleRequest ?? null });
         if (data.user.mustReset) setMustResetPassword(true);
-        // Only silently re-save subscription if permission already granted — never prompt here
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           subscribeToPush().then(s => setNotifStatus(s));
         }
@@ -1196,6 +1195,17 @@ export default function HomePage() {
       setAuthLoading(false);
     }).catch(() => setAuthLoading(false));
   }, []);
+
+  useEffect(() => {
+    refreshUser();
+  }, []);
+
+  // Re-check role when tab regains focus — catches admin role changes without requiring a full reload
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") refreshUser(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refreshUser]);
 
   useEffect(() => {
     if (user) {
@@ -1901,7 +1911,16 @@ export default function HomePage() {
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, color: "#fff", marginBottom: 4 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>TRACK · LIFT · PROGRESS</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 24 }}>LIFT · TRACK · PROGRESS</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", marginBottom: 32, fontFamily: "'DM Sans', sans-serif", minHeight: 18 }}>{phrase}</div>
+          <div style={{ display: "flex", justifyContent: "center", gap: 20, marginBottom: 40 }}>
+            {[["📈","Progress"],["🏋️","Strength"],["🔥","Fat Loss"]].map(([icon, label]) => (
+              <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+                <div style={{ fontSize: 22 }}>{icon}</div>
+                <div style={{ fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>{label.toUpperCase()}</div>
+              </div>
+            ))}
+          </div>
 
           {/* ── Step: username ── */}
           {authStep === "username" && (<>
@@ -1973,7 +1992,7 @@ export default function HomePage() {
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, color: "#fff", marginBottom: 4 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>TRACK · LIFT · PROGRESS</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>LIFT · TRACK · PROGRESS</div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Welcome, <strong style={{ color: "#fff" }}>{user.username}</strong></div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 24 }}>Set a new password to continue</div>
           <input value={newPasswordInput} onChange={e => setNewPasswordInput(e.target.value)} placeholder="New password" type="password" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
@@ -2367,7 +2386,29 @@ export default function HomePage() {
             {!showExBrowser ? (
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button onClick={() => { setShowExBrowser(true); setExSearch(""); setBrowserSupersetMode(false); setBrowserSuperSel([]); }} style={{ flex: 1, padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>+ Add Exercise</button>
-                <button onClick={() => { setShowExBrowser(true); setExSearch(""); setBrowserSupersetMode(true); setBrowserSuperSel([]); }} style={{ padding: "14px 16px", background: "rgba(255,230,109,0.07)", border: "1px dashed rgba(255,230,109,0.25)", borderRadius: 12, color: "rgba(255,230,109,0.6)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>⟳ SUPERSET</button>
+                {(() => {
+                  const canSuper = superSelection.length >= 2;
+                  const needOne = superSelection.length === 1;
+                  return (
+                    <button onClick={async () => {
+                      if (canSuper) {
+                        const gid = Math.random().toString(36).slice(2);
+                        const selSet = new Set(superSelection);
+                        const selIdx = exs.map((e: any, idx: number) => selSet.has(e.exerciseId ?? e.id ?? String(idx)) ? idx : -1).filter((idx: number) => idx >= 0).sort((a: number, b: number) => a - b);
+                        const selExs = selIdx.map((idx: number) => exs[idx]);
+                        const restExs = exs.filter((_: any, idx: number) => !selIdx.includes(idx));
+                        const insertAt = selIdx[0];
+                        const newExs = [...restExs.slice(0, insertAt), ...selExs.map((e: any) => ({ ...e, groupId: gid, groupType: "superset" })), ...restExs.slice(insertAt)];
+                        await saveDay(editingDay, newExs);
+                        setSuperSelection([]); setCustomMultiMode(false);
+                      } else {
+                        setShowExBrowser(true); setExSearch(""); setBrowserSupersetMode(true); setBrowserSuperSel([]);
+                      }
+                    }} style={{ padding: "14px 16px", background: canSuper ? "rgba(255,230,109,0.15)" : "rgba(255,230,109,0.07)", border: `1px ${canSuper ? "solid" : "dashed"} ${canSuper ? "rgba(255,230,109,0.6)" : "rgba(255,230,109,0.25)"}`, borderRadius: 12, color: canSuper ? "#FFE66D" : needOne ? "rgba(255,230,109,0.5)" : "rgba(255,230,109,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, position: "relative" as const }}>
+                      {canSuper ? `⟳ SUPERSET (${superSelection.length})` : needOne ? "⟳ +1 MORE" : "⟳ SUPERSET"}
+                    </button>
+                  );
+                })()}
               </div>
             ) : (
               <div style={{ marginTop: 16 }}>
@@ -2588,12 +2629,6 @@ export default function HomePage() {
   // ─── HOME ───────────────────────────────────────────────────────────
   if (view === "home") return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
-      {/* Watermark */}
-      <div aria-hidden style={{ position: "absolute", top: "15%", left: "-20%", right: "-20%", pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-        {[0, 1, 2, 3].map(n => (
-          <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.025, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
-        ))}
-      </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px 20px 0" }}>
         <button onClick={() => setView("settings")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "10px 14px" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 300, letterSpacing: 1 }}>Welcome back</div>
@@ -2626,6 +2661,7 @@ export default function HomePage() {
       )}
       <div style={{ padding: "20px 20px 0", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
       </div>
       <div style={{ padding: "20px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
