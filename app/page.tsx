@@ -8,6 +8,21 @@ import { MUSCLE_DETAIL, lookupMuscleDetail } from "../lib/muscleDetail";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
+const SUB_MUSCLE_LABELS: Record<string, string> = {
+  "chest-upper": "Upper Chest", "chest-mid": "Mid Chest", "chest-lower": "Lower Chest", "chest-inner": "Inner Chest",
+  "shoulders-front": "Anterior Delt", "shoulders-side": "Lateral Delt", "shoulders-rear": "Posterior Delt",
+  "biceps-long": "Long Head", "biceps-short": "Short Head", "brachialis": "Brachialis",
+  "back-lats": "Latissimus Dorsi", "back-traps-upper": "Upper Trapezius", "back-traps-mid": "Mid Traps",
+  "back-lower": "Erector Spinae", "back-teres": "Teres Major",
+  "triceps-long": "Long Head", "triceps-lateral": "Lateral Head", "triceps-medial": "Medial Head",
+  "quads-outer": "Vastus Lateralis", "quads-rectus": "Rectus Femoris", "quads-inner": "VMO",
+  "hamstrings-outer": "Biceps Femoris", "hamstrings-inner": "Semimembranosus",
+  "calves-gastroc": "Gastrocnemius", "calves-soleus": "Soleus",
+  "glutes-max": "Gluteus Maximus", "glutes-med": "Gluteus Medius",
+  "core-abs-upper": "Upper Abs", "core-abs-lower": "Lower Abs", "core-obliques": "Obliques", "core-serratus": "Serratus",
+  "forearm-flexor": "Flexors", "forearm-extensor": "Extensors",
+};
+
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -2060,6 +2075,7 @@ export default function HomePage() {
       }).slice(0, 60);
 
       return (
+        <>
         <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "0 0 100px" }}>
           <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
             <button onClick={() => { setEditingDay(null); setShowExBrowser(false); setExSearch(""); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
@@ -2157,6 +2173,69 @@ export default function HomePage() {
             )}
           </div>
         </div>
+        {formPreview && (() => {
+          const urls = getExerciseImageUrls(formPreview.id, formPreview.name);
+          const primary = formPreview.muscles; const secondary = formPreview.secondaryMuscles ?? [];
+          const allMuscles = [...primary, ...secondary].filter((m, i, a) => a.indexOf(m) === i);
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.93)", zIndex: 400, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setFormPreview(null)}>
+              <div style={{ width: "100%", maxWidth: 420 }} onClick={e => e.stopPropagation()}
+                onTouchStart={e => { swipeTouchX.current = e.touches[0].clientX; }}
+                onTouchEnd={e => { const dx = e.changedTouches[0].clientX - swipeTouchX.current; if (Math.abs(dx) > 50) setModalSlide(dx < 0 ? 1 : 0); }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 3 }}>{formPreview.name}</div>
+                    {allMuscles.length > 0 && (
+                      <div style={{ fontSize: 10, letterSpacing: 1 }}>
+                        {primary.map((m, i) => <span key={m} style={{ color: "#FF6644" }}>{i > 0 ? " · " : ""}{m.toUpperCase()}</span>)}
+                        {secondary.map((m, i) => <span key={m} style={{ color: "rgba(255,255,255,0.35)" }}>{(i > 0 || primary.length > 0) ? " · " : ""}{m.toUpperCase()}</span>)}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => setFormPreview(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", lineHeight: 1, padding: "0 0 0 12px" }}>×</button>
+                </div>
+                {modalSlide === 0 ? (
+                  urls && !formImgError ? (
+                    <div style={{ position: "relative", width: "100%", borderRadius: 14, overflow: "hidden", background: "#111" }}>
+                      <img key={urls[formFrame]} src={urls[formFrame]} alt={formPreview.name} style={{ width: "100%", display: "block", minHeight: 220, objectFit: "cover" }} onError={() => setFormImgError(true)} />
+                      <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
+                    </div>
+                  ) : (
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No form demo available</div>
+                  )
+                ) : (
+                  <div style={{ background: "#0b0b0b", borderRadius: 14, overflow: "hidden", padding: "10px 8px 4px" }}>
+                    <MuscleDiagram primary={primary} secondary={secondary} exerciseId={formPreview.id} exerciseName={formPreview.name}/>
+                    {allMuscles.length > 0 && (() => {
+                      const det = lookupMuscleDetail(formPreview.id, formPreview.name);
+                      const pNames = det ? det.p.filter((k, i, a) => a.indexOf(k) === i).map((k: string) => SUB_MUSCLE_LABELS[k] ?? k) : [];
+                      const sNames = det ? det.s.filter((k, i, a) => a.indexOf(k) === i).map((k: string) => SUB_MUSCLE_LABELS[k] ?? k) : [];
+                      return (
+                        <div style={{ textAlign: "center", padding: "6px 8px 8px" }}>
+                          <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: "#FF4422" }}/><span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>PRIMARY</span></div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: "#FF9900" }}/><span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>SECONDARY</span></div>
+                          </div>
+                          {pNames.length > 0 && <div style={{ fontSize: 11, color: "#FF6644" }}>{pNames.join("  ·  ")}</div>}
+                          {sNames.length > 0 && <div style={{ fontSize: 10, color: "rgba(255,200,100,0.6)", marginTop: 2 }}>{sNames.join("  ·  ")}</div>}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+                <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 10 }}>
+                  <button onClick={() => setModalSlide(0)} style={{ width: modalSlide === 0 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 0 ? "#fff" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
+                  <button onClick={() => setModalSlide(1)} style={{ width: modalSlide === 1 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 1 ? "#FF6644" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.18)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                  {modalSlide === 0 ? "SWIPE LEFT · MUSCLES MAP" : "SWIPE RIGHT · FORM DEMO"} · TAP OUTSIDE TO CLOSE
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+        </>
       );
     }
 
@@ -2477,6 +2556,11 @@ export default function HomePage() {
           .sort((a, b) => b.date.localeCompare(a.date))
       : [];
 
+    const lastWorkoutByDay: Record<string, string> = {};
+    for (const s of flatHistory) {
+      if (!lastWorkoutByDay[s.dayId]) lastWorkoutByDay[s.dayId] = s.date;
+    }
+
     return (
       <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
         <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -2531,9 +2615,14 @@ export default function HomePage() {
                     <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", position: "relative", overflow: "hidden" }}>
                       <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: d.gradient, borderRadius: "14px 0 0 14px" }} />
                       <div style={{ paddingLeft: 10 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: d.color, fontWeight: 700, opacity: 0.8 }}>{d.label}</span>
-                          <span style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>{d.title}</span>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: d.color, fontWeight: 700, opacity: 0.8 }}>{d.label}</span>
+                            <span style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>{d.title}</span>
+                          </div>
+                          {lastWorkoutByDay[d.id] && (
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>{lastWorkoutByDay[d.id]}</span>
+                          )}
                         </div>
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 5, fontWeight: 300 }}>{d.focus}</div>
                         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
@@ -2624,12 +2713,17 @@ export default function HomePage() {
 
         {/* ─── HISTORY TAB ─── */}
         {!clientDataLoading && clientDetailTab === "history" && (() => {
-          // Build exerciseId → name from client plan
+          // Build exerciseId → name: seed from WORKOUT_DATA first, then override with custom plan
           const exNameMap: Record<string, string> = {};
-          if (clientData?.plan) {
-            for (const day of clientData.plan) {
+          for (const d of WORKOUT_DATA) {
+            for (const s of d.sections) {
+              for (const ex of s.exercises) exNameMap[ex.id] = ex.name;
+            }
+          }
+          if (clientData?.plan?.days) {
+            for (const day of clientData.plan.days) {
               for (const ex of day.exercises ?? []) {
-                exNameMap[ex.exerciseId] = ex.name;
+                if (ex.exerciseId) exNameMap[ex.exerciseId] = ex.name;
               }
             }
           }
@@ -2748,7 +2842,7 @@ export default function HomePage() {
                 { label: "HEIGHT", value: `${p.heightCm}cm` },
                 { label: "BODY FAT", value: p.bodyFatPct ? `${p.bodyFatPct}%` : "—" },
                 { label: "DAYS/WK", value: `${p.daysPerWeek}` },
-                { label: "GENDER", value: p.gender || "—" },
+                { label: "GENDER", value: p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : "—" },
               ];
               return (
                 <>
@@ -2760,13 +2854,28 @@ export default function HomePage() {
                       </div>
                     ))}
                   </div>
-                  {[
-                    { label: "GOAL", value: p.goal?.replace(/_/g, " ") },
-                    { label: "FITNESS LEVEL", value: p.fitnessLevel },
-                    { label: "LOCATION", value: p.location },
-                    { label: "EQUIPMENT", value: (p.equipment as string[])?.join(", ") || "—" },
-                    { label: "TARGET AREA", value: p.targetArea && p.targetArea !== "none" ? p.targetArea : "—" },
-                  ].map((row, i) => (
+                  {(() => {
+                    const fmtLocation = (loc: string) => {
+                      if (!loc) return "—";
+                      if (loc.toLowerCase() === "both") return "Gym & Home";
+                      return loc.charAt(0).toUpperCase() + loc.slice(1);
+                    };
+                    const fmtEquipment = (items: string[]) => {
+                      if (!items?.length) return "—";
+                      const aliases: Record<string, string> = {
+                        pullup_bar: "Pull-up Bar", dip_bar: "Dip Bar",
+                        resistance_band: "Resistance Band", pull_up_bar: "Pull-up Bar",
+                      };
+                      return items.map(e => aliases[e.toLowerCase()] ?? e.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())).join(", ");
+                    };
+                    return [
+                      { label: "GOAL", value: p.goal?.replace(/_/g, " ") },
+                      { label: "FITNESS LEVEL", value: p.fitnessLevel },
+                      { label: "LOCATION", value: fmtLocation(p.location) },
+                      { label: "EQUIPMENT", value: fmtEquipment(p.equipment as string[]) },
+                      { label: "TARGET AREA", value: p.targetArea && p.targetArea !== "none" ? p.targetArea : "—" },
+                    ];
+                  })().map((row, i) => (
                     <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>{row.label}</div>
                       <div style={{ fontSize: 13, color: "#fff", textTransform: "capitalize" }}>{row.value || "—"}</div>
@@ -2874,9 +2983,17 @@ export default function HomePage() {
               </div>
             );
           }
+          const renderBody = (text: string) => {
+            const parts = text.split(/(https?:\/\/[^\s]+)/g);
+            return parts.map((part, i) =>
+              /^https?:\/\//.test(part)
+                ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: "#4ECDC4", wordBreak: "break-all", textDecoration: "underline" }}>{part}</a>
+                : part
+            );
+          };
           return (
             <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", maxWidth: "75%" }}>
-              <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.4 }}>{msg.body}</div>
+              <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.4 }}>{renderBody(msg.body)}</div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4, textAlign: isMine ? "right" : "left" }}>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
             </div>
           );
@@ -3871,11 +3988,19 @@ export default function HomePage() {
                           <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: "#FF4422" }}/><span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>PRIMARY</span></div>
                           <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 2, background: "#FF9900" }}/><span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>SECONDARY</span></div>
                         </div>
-                        {lookupMuscleDetail(formPreview.id, formPreview.name) && (
-                          <div style={{ textAlign: "center", padding: "0 0 8px" }}>
-                            <span style={{ fontSize: 9, color: "rgba(78,205,196,0.6)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>⊕ SUB-MUSCLE DETAIL</span>
-                          </div>
-                        )}
+                        {(() => {
+                          const det = lookupMuscleDetail(formPreview.id, formPreview.name);
+                          if (!det) return null;
+                          const pNames = det.p.filter((k, i, a) => a.indexOf(k) === i).map((k: string) => SUB_MUSCLE_LABELS[k] ?? k);
+                          const sNames = det.s.filter((k, i, a) => a.indexOf(k) === i).map((k: string) => SUB_MUSCLE_LABELS[k] ?? k);
+                          return (
+                            <div style={{ textAlign: "center", padding: "2px 8px 8px" }}>
+                              <div style={{ fontSize: 9, color: "rgba(78,205,196,0.5)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 5 }}>⊕ SUB-MUSCLE DETAIL</div>
+                              <div style={{ fontSize: 11, color: "#FF6644", lineHeight: 1.6 }}>{pNames.join("  ·  ")}</div>
+                              {sNames.length > 0 && <div style={{ fontSize: 10, color: "rgba(255,200,100,0.6)", marginTop: 2, lineHeight: 1.6 }}>{sNames.join("  ·  ")}</div>}
+                            </div>
+                          );
+                        })()}
                       </>
                     )}
                   </div>
