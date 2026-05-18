@@ -1030,6 +1030,9 @@ export default function HomePage() {
   // ── Customise ──
   const [editingDay, setEditingDay] = useState<any | null>(null);
   const [superSelection, setSuperSelection] = useState<string[]>([]);
+  const [customMultiMode, setCustomMultiMode] = useState(false);
+  const [browserSupersetMode, setBrowserSupersetMode] = useState(false);
+  const [browserSuperSel, setBrowserSuperSel] = useState<string[]>([]);
   const [trainerSuperSel, setTrainerSuperSel] = useState<{ dayIdx: number; exIds: string[] } | null>(null);
   const [exSearch, setExSearch] = useState("");
   const [exFilterLoc, setExFilterLoc] = useState("all");
@@ -1114,6 +1117,7 @@ export default function HomePage() {
   const [shareUsername, setShareUsername] = useState("");
   const [sharingLoading, setSharingLoading] = useState(false);
   const [shareResult, setShareResult] = useState<string | null>(null);
+  const [shareClientIds, setShareClientIds] = useState<string[]>([]);
   const [ob, setOb] = useState({
     dob: "", gender: "", heightCm: "", weightKg: "", bodyFatPct: "",
     goals: [] as string[], targetArea: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
@@ -2221,8 +2225,13 @@ export default function HomePage() {
         <>
         <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "0 0 100px" }}>
           <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-            <button onClick={() => { setEditingDay(null); setShowExBrowser(false); setExSearch(""); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "#FF6B6B", letterSpacing: 3 }}>EDITING</div>
+            <button onClick={() => { setEditingDay(null); setShowExBrowser(false); setExSearch(""); setSuperSelection([]); setCustomMultiMode(false); setBrowserSupersetMode(false); setBrowserSuperSel([]); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "#FF6B6B", letterSpacing: 3, flex: 1 }}>EDITING</div>
+            {!showExBrowser && (
+              <button onClick={() => { setCustomMultiMode(m => !m); setSuperSelection([]); }} style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${customMultiMode ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.1)"}`, background: customMultiMode ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.04)", color: customMultiMode ? "#FF6B6B" : "rgba(255,255,255,0.4)", fontSize: 10, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                {customMultiMode ? "CANCEL" : "SELECT"}
+              </button>
+            )}
           </div>
           <div style={{ padding: "0 20px" }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{editingDay.title}</div>
@@ -2232,24 +2241,30 @@ export default function HomePage() {
               const exKey = ex.exerciseId ?? ex.id ?? String(i);
               const isSel = superSelection.includes(exKey);
               const inGroup = !!ex.groupId;
+              const isDropSet = ex.rest === 0;
               return (
               <div key={ex.id ?? i} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${isSel ? "rgba(255,107,107,0.4)" : inGroup ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <button onClick={() => setSuperSelection(s => s.includes(exKey) ? s.filter(id => id !== exKey) : [...s, exKey])} style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isSel ? "#FF6B6B" : "rgba(255,255,255,0.18)"}`, background: isSel ? "#FF6B6B" : "transparent", flexShrink: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", transition: "all 0.15s" }}>{isSel ? "✓" : ""}</button>
+                  {customMultiMode && (
+                    <button onClick={() => setSuperSelection(s => s.includes(exKey) ? s.filter(id => id !== exKey) : [...s, exKey])} style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isSel ? "#FF6B6B" : "rgba(255,255,255,0.18)"}`, background: isSel ? "#FF6B6B" : "transparent", flexShrink: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", transition: "all 0.15s" }}>{isSel ? "✓" : ""}</button>
+                  )}
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
                       {inGroup && <span style={{ fontSize: 8, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px" }}>SUPER</span>}
+                      {isDropSet && <span style={{ fontSize: 8, color: "#FF6B6B", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 4, padding: "1px 5px" }}>DROP</span>}
                     </div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", marginTop: 3 }}>{ex.sets} × {ex.reps}</div>
                   </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={async () => { const moved = moveExercise(exs, i, i - 1); if (i > 0) await saveDay(editingDay, moved); }} disabled={i === 0} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === 0 ? "default" : "pointer", fontSize: 14 }}>↑</button>
-                    <button onClick={async () => { const moved = moveExercise(exs, i, i + 1); if (i < exs.length - 1) await saveDay(editingDay, moved); }} disabled={i === exs.length - 1} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === exs.length - 1 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === exs.length - 1 ? "default" : "pointer", fontSize: 14 }}>↓</button>
-                    <button onClick={async () => { const updated = exs.filter((_: any, j: number) => j !== i); await saveDay(editingDay, updated); }} style={{ background: "rgba(255,107,107,0.1)", border: "none", borderRadius: 6, color: "#FF6B6B", width: 28, height: 28, cursor: "pointer", fontSize: 14 }}>✕</button>
-                  </div>
+                  {!customMultiMode && (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={async () => { const moved = moveExercise(exs, i, i - 1); if (i > 0) await saveDay(editingDay, moved); }} disabled={i === 0} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === 0 ? "default" : "pointer", fontSize: 14 }}>↑</button>
+                      <button onClick={async () => { const moved = moveExercise(exs, i, i + 1); if (i < exs.length - 1) await saveDay(editingDay, moved); }} disabled={i === exs.length - 1} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === exs.length - 1 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === exs.length - 1 ? "default" : "pointer", fontSize: 14 }}>↓</button>
+                      <button onClick={async () => { const updated = exs.filter((_: any, j: number) => j !== i); await saveDay(editingDay, updated); }} style={{ background: "rgba(255,107,107,0.1)", border: "none", borderRadius: 6, color: "#FF6B6B", width: 28, height: 28, cursor: "pointer", fontSize: 14 }}>✕</button>
+                    </div>
+                  )}
                 </div>
-                {(() => {
+                {!customMultiMode && (() => {
                   const REST_PRESETS = [0, 30, 45, 60, 75, 90, 120, 180];
                   const restChips = REST_PRESETS.includes(ex.rest) ? REST_PRESETS : [...REST_PRESETS, ex.rest].sort((a, b) => a - b);
                   return (
@@ -2257,61 +2272,78 @@ export default function HomePage() {
                       <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>REST</span>
                       {restChips.map(s => {
                         const active = ex.rest === s;
-                        return <button key={s} onClick={async () => { const updated = exs.map((x: any, j: number) => j === i ? { ...x, rest: s } : x); await saveDay(editingDay, updated); }} style={{ padding: "3px 8px", borderRadius: 12, fontSize: 10, background: active ? "rgba(255,107,107,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(255,107,107,0.45)" : "rgba(255,255,255,0.08)"}`, color: active ? "#FF6B6B" : "rgba(255,255,255,0.28)", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{s === 0 ? "SKIP" : `${s}s`}</button>;
+                        return <button key={s} onClick={async () => { const updated = exs.map((x: any, j: number) => j === i ? { ...x, rest: s } : x); await saveDay(editingDay, updated); }} style={{ padding: "3px 8px", borderRadius: 12, fontSize: 10, background: active ? "rgba(255,107,107,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(255,107,107,0.45)" : "rgba(255,255,255,0.08)"}`, color: active ? "#FF6B6B" : "rgba(255,255,255,0.28)", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{s === 0 ? "DROP SET" : `${s}s`}</button>;
                       })}
                     </div>
                   );
                 })()}
-                <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
-                  {inGroup && (
+                {!customMultiMode && inGroup && (
+                  <div style={{ marginTop: 8 }}>
                     <button onClick={async () => {
                       const gid = ex.groupId;
                       const updated = exs.map((x: any) => x.groupId === gid ? { ...x, groupId: undefined, groupType: undefined } : x);
                       await saveDay(editingDay, updated);
                     }} style={{ padding: "3px 10px", borderRadius: 10, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.1)", border: "1px solid rgba(255,230,109,0.3)", color: "#FFE66D" }}>UNGROUP ×</button>
-                  )}
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
-                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>DROPS</span>
-                    {[{ v: 0, l: "NONE" }, { v: 1, l: "×1" }, { v: 2, l: "×2" }, { v: 3, l: "×3" }].map(({ v, l }) => {
-                      const active = (ex.dropSets ?? 0) === v;
-                      return <button key={v} onClick={async () => { const updated = exs.map((x: any, j: number) => j === i ? { ...x, dropSets: v } : x); await saveDay(editingDay, updated); }} style={{ padding: "3px 8px", borderRadius: 10, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", background: active ? "rgba(255,107,107,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.08)"}`, color: active ? "#FF6B6B" : "rgba(255,255,255,0.25)" }}>{l}</button>;
-                    })}
                   </div>
-                </div>
+                )}
               </div>
               );
             })}
 
-            {/* Superset creation CTA */}
-            {superSelection.length >= 2 && (
-              <div style={{ background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.3)", borderRadius: 12, padding: "12px 16px", marginBottom: 10, display: "flex", gap: 10, alignItems: "center" }}>
-                <button onClick={async () => {
-                  const gid = Math.random().toString(36).slice(2);
-                  const selSet = new Set(superSelection);
-                  const selIdx = exs.map((e: any, idx: number) => selSet.has(e.exerciseId ?? e.id ?? String(idx)) ? idx : -1).filter((idx: number) => idx >= 0).sort((a: number, b: number) => a - b);
-                  const selExs = selIdx.map((idx: number) => exs[idx]);
-                  const restExs = exs.filter((_: any, idx: number) => !selIdx.includes(idx));
-                  const insertAt = selIdx[0];
-                  const newExs = [
-                    ...restExs.slice(0, insertAt),
-                    ...selExs.map((e: any) => ({ ...e, groupId: gid, groupType: "superset" })),
-                    ...restExs.slice(insertAt),
-                  ];
-                  await saveDay(editingDay, newExs);
-                  setSuperSelection([]);
-                }} style={{ flex: 1, padding: "10px", background: "rgba(255,107,107,0.15)", border: "1px solid rgba(255,107,107,0.4)", borderRadius: 10, color: "#FF6B6B", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                  ⟳ CREATE SUPERSET · {superSelection.length} EXERCISES
-                </button>
-                <button onClick={() => setSuperSelection([])} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 16, cursor: "pointer", padding: "0 4px" }}>✕</button>
+            {/* Multi-select action bar */}
+            {customMultiMode && (
+              <div style={{ background: "rgba(20,20,20,0.95)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "12px 14px", marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {superSelection.length === 0 && (
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'DM Sans', sans-serif", width: "100%", textAlign: "center" }}>Tap exercises above to select them</div>
+                )}
+                {superSelection.length > 0 && (
+                  <>
+                    <button onClick={async () => {
+                      const selSet = new Set(superSelection);
+                      const updated = exs.filter((e: any, idx: number) => !selSet.has(e.exerciseId ?? e.id ?? String(idx)));
+                      await saveDay(editingDay, updated);
+                      setSuperSelection([]); setCustomMultiMode(false);
+                    }} style={{ flex: 1, padding: "9px 12px", background: "rgba(255,107,107,0.12)", border: "1px solid rgba(255,107,107,0.35)", borderRadius: 10, color: "#FF6B6B", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                      DELETE ({superSelection.length})
+                    </button>
+                    {superSelection.length >= 2 && (
+                      <button onClick={async () => {
+                        const gid = Math.random().toString(36).slice(2);
+                        const selSet = new Set(superSelection);
+                        const selIdx = exs.map((e: any, idx: number) => selSet.has(e.exerciseId ?? e.id ?? String(idx)) ? idx : -1).filter((idx: number) => idx >= 0).sort((a: number, b: number) => a - b);
+                        const selExs = selIdx.map((idx: number) => exs[idx]);
+                        const restExs = exs.filter((_: any, idx: number) => !selIdx.includes(idx));
+                        const insertAt = selIdx[0];
+                        const newExs = [
+                          ...restExs.slice(0, insertAt),
+                          ...selExs.map((e: any) => ({ ...e, groupId: gid, groupType: "superset" })),
+                          ...restExs.slice(insertAt),
+                        ];
+                        await saveDay(editingDay, newExs);
+                        setSuperSelection([]); setCustomMultiMode(false);
+                      }} style={{ flex: 1, padding: "9px 12px", background: "rgba(255,230,109,0.1)", border: "1px solid rgba(255,230,109,0.35)", borderRadius: 10, color: "#FFE66D", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                        ⟳ SUPERSET
+                      </button>
+                    )}
+                    <button onClick={async () => {
+                      const selSet = new Set(superSelection);
+                      const updated = exs.map((e: any, idx: number) => selSet.has(e.exerciseId ?? e.id ?? String(idx)) ? { ...e, rest: 0 } : e);
+                      await saveDay(editingDay, updated);
+                      setSuperSelection([]); setCustomMultiMode(false);
+                    }} style={{ flex: 1, padding: "9px 12px", background: "rgba(255,165,0,0.1)", border: "1px solid rgba(255,165,0,0.3)", borderRadius: 10, color: "#FFA500", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                      DROP SET
+                    </button>
+                  </>
+                )}
               </div>
             )}
-            {superSelection.length === 1 && (
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", textAlign: "center", fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>SELECT ONE MORE EXERCISE TO CREATE A SUPERSET</div>
-            )}
 
-            {/* Add exercise */}
+            {/* Add exercise / browser */}
             {!showExBrowser ? (
-              <button onClick={() => { setShowExBrowser(true); setExSearch(""); }} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 8 }}>+ Add Exercise</button>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button onClick={() => { setShowExBrowser(true); setExSearch(""); setBrowserSupersetMode(false); setBrowserSuperSel([]); }} style={{ flex: 1, padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>+ Add Exercise</button>
+                <button onClick={() => { setShowExBrowser(true); setExSearch(""); setBrowserSupersetMode(true); setBrowserSuperSel([]); }} style={{ padding: "14px 16px", background: "rgba(255,230,109,0.07)", border: "1px dashed rgba(255,230,109,0.25)", borderRadius: 12, color: "rgba(255,230,109,0.6)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>⟳ SUPERSET</button>
+              </div>
             ) : (
               <div style={{ marginTop: 16 }}>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: 3, marginBottom: 12, fontFamily: "'Space Mono', monospace" }}>ADD EXERCISE</div>
