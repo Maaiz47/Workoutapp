@@ -978,6 +978,30 @@ function lookupExMuscles(name: string): { muscles: string[]; secondaryMuscles: s
   return { muscles: found?.primaryMuscles ?? [], secondaryMuscles: found?.secondaryMuscles ?? [] };
 }
 
+// ─── MOTIVATIONAL PHRASES ───────────────────────────────────────────────
+const PHRASES = [
+  "Trust the process.",
+  "Stay disciplined.",
+  "Consistency is key.",
+  "No shortcuts.",
+  "Every rep counts.",
+  "Progress, not perfection.",
+  "Show up. Put in the work.",
+  "Earn it.",
+  "One more set.",
+  "Strong mind. Stronger body.",
+  "The grind never stops.",
+  "Be stronger than your excuses.",
+  "Discipline over motivation.",
+  "Lift heavy. Live light.",
+  "Built, not bought.",
+  "Do the work.",
+  "Champions train. Legends grind.",
+  "Your only competition is you.",
+  "Results take time.",
+  "Embrace the struggle.",
+];
+
 // ─── MAIN ───────────────────────────────────────────────────────────────
 export default function HomePage() {
   const [user, setUser] = useState<{ id: string; username: string; role: string; roleRequest?: string | null } | null>(null);
@@ -1131,6 +1155,7 @@ export default function HomePage() {
 
   const rest = useCountdown();
   const timer = useTimer();
+  const phrase = useMemo(() => PHRASES[Math.floor(Math.random() * PHRASES.length)], []);
 
   const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "workout"]);
   useSwipeBack(() => {
@@ -2384,33 +2409,65 @@ export default function HomePage() {
                   );
                 })()}
 
+                {browserSupersetMode && (
+                  <div style={{ background: "rgba(255,230,109,0.07)", border: "1px solid rgba(255,230,109,0.2)", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 2, marginBottom: 4 }}>⟳ SUPERSET MODE</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif" }}>Select 2 or more exercises to add as a superset pair</div>
+                  </div>
+                )}
                 <div style={{ maxHeight: 320, overflowY: "auto" }}>
-                  {filtered.map((ex: any) => (
-                    <div key={ex.id} onClick={async () => {
-                      const newEx = { exerciseId: ex.id, name: ex.name, sets: 3, reps: "10–12", rest: 60, notes: null };
-                      await saveDay(editingDay, [...exs, newEx]);
-                      setShowExBrowser(false); setExSearch(""); setExFilterLoc("all"); setExFilterMove("all"); setExFilterMuscle("all");
-                    }} style={{ padding: "11px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)", marginBottom: 6, cursor: "pointer" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                        {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? <img src={tu[0]} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/> : null; })()}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
-                            <span style={{ color: "#FF6644" }}>{ex.primaryMuscles.join(" · ")}</span>
-                            {ex.secondaryMuscles.length > 0 && <span style={{ color: "rgba(255,255,255,0.25)" }}> · {ex.secondaryMuscles.join(" · ")}</span>}
-                            <span style={{ color: "rgba(255,255,255,0.2)" }}> · {ex.difficulty}</span>
+                  {filtered.map((ex: any) => {
+                    const alreadyIn = exs.some((x: any) => (x.exerciseId ?? x.id) === ex.id);
+                    const bSel = browserSuperSel.includes(ex.id);
+                    return (
+                      <div key={ex.id} onClick={async () => {
+                        if (browserSupersetMode) {
+                          setBrowserSuperSel(s => s.includes(ex.id) ? s.filter(id => id !== ex.id) : [...s, ex.id]);
+                        } else {
+                          const newEx = { exerciseId: ex.id, name: ex.name, sets: 3, reps: "10–12", rest: 60, notes: null };
+                          await saveDay(editingDay, [...exs, newEx]);
+                          setShowExBrowser(false); setExSearch(""); setExFilterLoc("all"); setExFilterMove("all"); setExFilterMuscle("all");
+                        }
+                      }} style={{ padding: "11px 14px", borderRadius: 10, border: `1px solid ${bSel ? "rgba(255,230,109,0.4)" : alreadyIn ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.06)"}`, background: bSel ? "rgba(255,230,109,0.08)" : "rgba(255,255,255,0.03)", marginBottom: 6, cursor: "pointer", opacity: !browserSupersetMode && alreadyIn ? 0.45 : 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                          {browserSupersetMode && (
+                            <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${bSel ? "#FFE66D" : "rgba(255,255,255,0.2)"}`, background: bSel ? "#FFE66D" : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#000" }}>{bSel ? "✓" : ""}</div>
+                          )}
+                          {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? <img src={tu[0]} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/> : null; })()}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}{alreadyIn && !browserSupersetMode ? <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginLeft: 6, fontFamily: "'Space Mono', monospace" }}>IN PLAN</span> : ""}</div>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
+                              <span style={{ color: "#FF6644" }}>{ex.primaryMuscles.join(" · ")}</span>
+                              {ex.secondaryMuscles.length > 0 && <span style={{ color: "rgba(255,255,255,0.25)" }}> · {ex.secondaryMuscles.join(" · ")}</span>}
+                            </div>
                           </div>
+                          {!browserSupersetMode && <button
+                            onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [], secondaryMuscles: ex.secondaryMuscles ?? [] }); }}
+                            style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}
+                          >FORM</button>}
                         </div>
-                        <button
-                          onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [], secondaryMuscles: ex.secondaryMuscles ?? [] }); }}
-                          style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}
-                        >FORM</button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {filtered.length === 0 && <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "12px 0" }}>No exercises match these filters</div>}
                 </div>
-                <button onClick={() => { setShowExBrowser(false); setExSearch(""); setExFilterLoc("all"); setExFilterMove("all"); setExFilterMuscle("all"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 8 }}>Cancel</button>
+                {browserSupersetMode && browserSuperSel.length >= 2 && (
+                  <button onClick={async () => {
+                    const gid = Math.random().toString(36).slice(2);
+                    const newExs = browserSuperSel.map(id => {
+                      const e = (EXERCISES as any[]).find(x => x.id === id)!;
+                      return { exerciseId: e.id, name: e.name, sets: 3, reps: "10–12", rest: 60, notes: null, groupId: gid, groupType: "superset" };
+                    });
+                    await saveDay(editingDay, [...exs, ...newExs]);
+                    setShowExBrowser(false); setBrowserSupersetMode(false); setBrowserSuperSel([]); setExSearch(""); setExFilterLoc("all"); setExFilterMove("all"); setExFilterMuscle("all");
+                  }} style={{ width: "100%", padding: "12px", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.4)", borderRadius: 10, color: "#FFE66D", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 8 }}>
+                    ⟳ ADD {browserSuperSel.length} AS SUPERSET
+                  </button>
+                )}
+                {browserSupersetMode && browserSuperSel.length === 1 && (
+                  <div style={{ fontSize: 10, color: "rgba(255,230,109,0.5)", textAlign: "center", fontFamily: "'Space Mono', monospace", marginTop: 8 }}>Select one more exercise to create a superset</div>
+                )}
+                <button onClick={() => { setShowExBrowser(false); setExSearch(""); setExFilterLoc("all"); setExFilterMove("all"); setExFilterMuscle("all"); setBrowserSupersetMode(false); setBrowserSuperSel([]); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 8 }}>Cancel</button>
               </div>
             )}
           </div>
@@ -2530,7 +2587,13 @@ export default function HomePage() {
 
   // ─── HOME ───────────────────────────────────────────────────────────
   if (view === "home") return (
-    <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
+    <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
+      {/* Watermark */}
+      <div aria-hidden style={{ position: "absolute", top: "15%", left: "-20%", right: "-20%", pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+        {[0, 1, 2, 3].map(n => (
+          <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.025, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
+        ))}
+      </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px 20px 0" }}>
         <button onClick={() => setView("settings")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "10px 14px" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 300, letterSpacing: 1 }}>Welcome back</div>
@@ -2561,7 +2624,10 @@ export default function HomePage() {
           </div>
         </div>
       )}
-      <div style={{ padding: "28px 20px 0" }}>
+      <div style={{ padding: "20px 20px 0", textAlign: "center" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
+      </div>
+      <div style={{ padding: "20px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -2671,14 +2737,49 @@ export default function HomePage() {
                 {/* Share panel */}
                 {sharingRoutineId === r.id && (
                   <div className="fade-in" style={{ padding: "0 14px 12px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8, paddingTop: 10 }}>SHARE WITH USER</div>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8, paddingTop: 10 }}>SHARE WITH</div>
+                    {user?.role === "trainer" && clients.length > 0 ? (
+                      <>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                          {clients.map((c: any) => {
+                            const sel = shareClientIds.includes(c.id);
+                            return (
+                              <button key={c.id} onClick={() => setShareClientIds(ids => sel ? ids.filter(id => id !== c.id) : [...ids, c.id])}
+                                style={{ padding: "6px 12px", borderRadius: 20, fontSize: 12, border: `1px solid ${sel ? "#4ECDC4" : "rgba(255,255,255,0.1)"}`, background: sel ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.04)", color: sel ? "#4ECDC4" : "rgba(255,255,255,0.5)", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: sel ? 600 : 400 }}>
+                                {sel ? "✓ " : ""}@{c.username}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <button onClick={async () => {
+                          if (shareClientIds.length === 0) return;
+                          setSharingLoading(true); setShareResult(null);
+                          const usernames = shareClientIds.map(id => clients.find((c: any) => c.id === id)?.username).filter(Boolean) as string[];
+                          let lastResult = "";
+                          for (const uname of usernames) {
+                            const res = await fetch(`/api/routines/${r.id}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toUsername: uname }) });
+                            const data = await res.json();
+                            lastResult = data.ok ? `Sent to ${usernames.length} client${usernames.length > 1 ? "s" : ""}` : (data.error ?? "Failed");
+                          }
+                          setSharingLoading(false); setShareResult(lastResult); setShareClientIds([]);
+                          if (lastResult.startsWith("Sent")) setTimeout(() => { setSharingRoutineId(null); setShareResult(null); }, 2000);
+                        }} disabled={sharingLoading || shareClientIds.length === 0}
+                          style={{ width: "100%", padding: "9px", background: shareClientIds.length > 0 ? "#4ECDC4" : "rgba(255,255,255,0.07)", border: "none", borderRadius: 8, color: shareClientIds.length > 0 ? "#000" : "rgba(255,255,255,0.2)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: shareClientIds.length > 0 ? "pointer" : "default", fontFamily: "'Space Mono', monospace" }}>
+                          {sharingLoading ? "…" : shareClientIds.length > 0 ? `SEND TO ${shareClientIds.length} CLIENT${shareClientIds.length > 1 ? "S" : ""}` : "SELECT CLIENTS ABOVE"}
+                        </button>
+                        <div style={{ marginTop: 8, display: "flex", gap: 6, alignItems: "center" }}>
+                          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+                          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>OR BY USERNAME</span>
+                          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+                        </div>
+                      </>
+                    ) : null}
+                    <div style={{ display: "flex", gap: 8, marginTop: user?.role === "trainer" && clients.length > 0 ? 8 : 0 }}>
                       <input
                         value={shareUsername}
                         onChange={e => { setShareUsername(e.target.value); setShareResult(null); }}
                         onKeyDown={async e => { if (e.key === "Enter") await doShareRoutine(r.id); }}
                         placeholder="Exact username…"
-                        autoFocus
                         style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, fontFamily: "'DM Sans', sans-serif", padding: "9px 12px", outline: "none", boxSizing: "border-box" }}
                       />
                       <button onClick={() => doShareRoutine(r.id)} disabled={sharingLoading || !shareUsername.trim()} style={{ padding: "9px 14px", background: shareUsername.trim() ? "#4ECDC4" : "rgba(255,255,255,0.07)", border: "none", borderRadius: 8, color: shareUsername.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: shareUsername.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace" }}>
@@ -3719,7 +3820,12 @@ export default function HomePage() {
     const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
 
     return (
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
+        <div aria-hidden style={{ position: "absolute", top: "8%", left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
+          {[0, 1, 2, 3].map(n => (
+            <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.025, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
+          ))}
+        </div>
         <div style={{ padding: "24px 20px 0" }}>
           <button onClick={() => { setView("home"); setOpenHist(null); setSelectedExDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 12, letterSpacing: 1 }}>Progress</div>
@@ -4174,6 +4280,11 @@ export default function HomePage() {
       return (
         <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: "80vw", height: "80vw", borderRadius: "50%", background: `radial-gradient(circle, ${activeDay.color}12 0%, transparent 60%)`, pointerEvents: "none", animation: "breathe 4s ease infinite" }} />
+          <div aria-hidden style={{ position: "absolute", top: "10%", left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
+            {[0, 1, 2, 3].map(n => (
+              <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.03, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
+            ))}
+          </div>
           <div className="slide-up" style={{ zIndex: 1 }}>
             <button onClick={() => { setView("home"); setActiveDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 48 }}>← Back</button>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: activeDay.color, letterSpacing: 4, marginBottom: 12, opacity: 0.7 }}>DAY {activeDay.label}</div>
@@ -4433,7 +4544,7 @@ export default function HomePage() {
                 const hasDrop = pendingDrop?.exId === ex.id;
                 const { weight: lw, reps: lr } = lastSessionBest(ex.id);
                 const wuDone = !trackable && warmupDone[ex.id];
-                const dropCount = ex.dropSets ?? 0;
+                const dropCount = (ex.dropSets ?? 0) > 0 || ex.rest === 0 ? 1 : 0;
 
                 const handleLog = () => {
                   if (!ns) return;
