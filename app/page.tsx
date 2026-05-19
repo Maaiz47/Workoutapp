@@ -5743,16 +5743,44 @@ function PwaBanner() {
     </div>
   );
 
-  // Shared IRONLOG app content
+  // Shared IRONLOG app content — matches actual landing page layout
   const appContent = (
-    <div style={{ flex: 1, background: "#0a0a0f", padding: "8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-      <div style={{ fontSize: 10, fontWeight: 800, color: "#fff", letterSpacing: 0.5, marginTop: 4 }}>
-        IRON<span style={{ color: "#FF6B6B" }}>LOG</span>
+    <div style={{ flex: 1, background: "#0a0a0f", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Nav */}
+      <div style={{ padding: "4px 6px", display: "flex", alignItems: "center", gap: 3, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+        <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 7.5, fontWeight: 700, color: "#fff" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></span>
+        <div style={{ display: "flex", gap: 2, marginLeft: "auto" }}>
+          <span style={{ fontSize: 4, background: "rgba(255,107,107,0.15)", border: "0.5px solid rgba(255,107,107,0.5)", color: "#FF6B6B", borderRadius: 3, padding: "1px 3px", fontWeight: 600 }}>ATHLETES</span>
+          <span style={{ fontSize: 4, background: "rgba(78,205,196,0.15)", border: "0.5px solid rgba(78,205,196,0.5)", color: "#4ECDC4", borderRadius: 3, padding: "1px 3px", fontWeight: 600 }}>TRAINERS</span>
+        </div>
       </div>
-      <div style={{ fontSize: 5, color: "rgba(255,255,255,0.3)", letterSpacing: 2 }}>LIFT · TRACK · PROGRESS</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, width: "100%", marginTop: 4 }}>
-        {["Log sets", "Rest timer", "Live PBs", "Your plan"].map(f => (
-          <div key={f} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 3, padding: "3px 4px", fontSize: 5, color: "rgba(255,255,255,0.4)" }}>{f}</div>
+      {/* Hero */}
+      <div style={{ textAlign: "center", padding: "5px 4px 3px", flexShrink: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 900, color: "#fff", letterSpacing: 0.5, lineHeight: 1 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+        <div style={{ fontSize: 3.5, color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, marginTop: 2 }}>LIFT · TRACK · PROGRESS</div>
+        <div style={{ fontSize: 4, color: "rgba(255,255,255,0.25)", fontStyle: "italic", marginTop: 2 }}>Do the work.</div>
+      </div>
+      {/* Stats */}
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "3px 4px", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", flexShrink: 0 }}>
+        {[["119+","EXERCISES"],["FREE","FOR ATHLETES"],["PWA","INSTALLABLE"]].map(([v,l]) => (
+          <div key={l} style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 6, fontWeight: 700, color: "#FF6B6B" }}>{v}</div>
+            <div style={{ fontSize: 3, color: "rgba(255,255,255,0.3)", letterSpacing: 0.3 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+      {/* Feature cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, padding: "3px 4px" }}>
+        {[
+          ["Log every set in seconds","Your last session's numbers are always right there — just enter weight and reps."],
+          ["Rest timer follows you","Configurable per exercise. Push notification fires even with your screen locked."],
+          ["Live personal bests","A trophy overlay fires the moment you beat a record — no waiting until the end."],
+          ["Personalised plan","Tell us your goals, equipment, and schedule. Get a full weekly split instantly."],
+        ].map(([t,d]) => (
+          <div key={t} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 3, padding: "3px 4px" }}>
+            <div style={{ fontSize: 4.5, fontWeight: 700, color: "#fff", marginBottom: 1 }}>{t}</div>
+            <div style={{ fontSize: 3, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>{d}</div>
+          </div>
         ))}
       </div>
     </div>
@@ -5784,60 +5812,75 @@ function PwaBanner() {
       mockup: phone(
         <>
           {/* App peeking behind sheet */}
-          <div style={{ background: "#0a0a0f", padding: "4px 8px", flexShrink: 0 }}>
-            <div style={{ fontSize: 8, fontWeight: 800, color: "#fff", textAlign: "center" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+          <div style={{ background: "#0a0a0f", padding: "3px 8px", flexShrink: 0 }}>
+            <div style={{ fontSize: 7, fontWeight: 800, color: "#fff", textAlign: "center" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
           </div>
-          {/* Share sheet */}
+          {/* iOS share sheet */}
           <div style={{ flex: 1, background: "#1c1c1e", display: "flex", flexDirection: "column" }}>
-            {/* App row */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-              <div style={{ width: 22, height: 22, borderRadius: 5, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 5, fontWeight: 700, color: "#fff" }}>IL</span>
+            {/* App info row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 7px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 }}>
+              <div style={{ width: 20, height: 20, borderRadius: 5, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 4.5, fontWeight: 700, color: "#fff" }}>IL</span>
               </div>
-              <div><div style={{ fontSize: 6.5, fontWeight: 700, color: "#fff" }}>IRONLOG</div><div style={{ fontSize: 5.5, color: "#888" }}>ironlog.app</div></div>
-              <div style={{ marginLeft: "auto", background: "rgba(255,255,255,0.1)", borderRadius: 8, padding: "1px 5px" }}><span style={{ fontSize: 5.5, color: "#ccc" }}>Options ›</span></div>
+              <div>
+                <div style={{ fontSize: 6, fontWeight: 700, color: "#fff" }}>IRONLOG</div>
+                <div style={{ fontSize: 4.5, color: "#888" }}>ironlog.app</div>
+              </div>
+              <div style={{ marginLeft: "auto", background: "rgba(255,255,255,0.08)", borderRadius: 6, padding: "1px 4px" }}>
+                <span style={{ fontSize: 4.5, color: "#aaa" }}>Options ›</span>
+              </div>
             </div>
-            {/* App icons row */}
-            <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 4px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-              {[{ c: "#2196F3", l: "AirDrop" }, { c: "#4CAF50", l: "Msgs" }, { c: "#1976D2", l: "Mail" }, { c: "#25D366", l: "WhatsApp" }].map(({ c, l }) => (
+            {/* App icon row */}
+            <div style={{ display: "flex", justifyContent: "space-around", padding: "4px 4px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 }}>
+              {[{ c: "#29ABE2", l: "AirDrop" }, { c: "#34C759", l: "Messages" }, { c: "#1976D2", l: "Mail" }, { c: "#25D366", l: "WhatsApp" }].map(({ c, l }) => (
                 <div key={l} style={{ textAlign: "center" }}>
-                  <div style={{ width: 22, height: 22, borderRadius: 6, background: c, margin: "0 auto 2px" }} />
-                  <div style={{ fontSize: 4.5, color: "#888" }}>{l}</div>
+                  <div style={{ width: 20, height: 20, borderRadius: 6, background: c, margin: "0 auto 1px" }} />
+                  <div style={{ fontSize: 3.5, color: "#888" }}>{l}</div>
                 </div>
               ))}
             </div>
             {/* Action list */}
-            <div style={{ background: "#2c2c2e", margin: "4px 4px 0", borderRadius: 8, overflow: "hidden", flex: 1 }}>
-              {["Copy", "Add to Reading List", "Add Bookmark", "Add to Favorites"].map((item, i) => (
+            <div style={{ background: "#2c2c2e", margin: "3px 3px 0", borderRadius: 7, overflow: "hidden", flex: 1 }}>
+              {[
+                { label: "Copy", icon: "⎘" },
+                { label: "Add to Reading List", icon: "∞" },
+                { label: "Add Bookmark", icon: "□" },
+                { label: "Add to Favorites", icon: "☆" },
+              ].map(({ label, icon }, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  <span style={{ fontSize: 7, color: "rgba(255,255,255,0.75)" }}>{item}</span>
+                  <span style={{ fontSize: 6.5, color: "rgba(255,255,255,0.75)" }}>{label}</span>
+                  <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)" }}>{icon}</span>
                 </div>
               ))}
-              {/* Highlighted */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", background: "rgba(255,107,107,0.12)", border: "1.5px solid #FF6B6B", margin: "1px", borderRadius: 5 }}>
-                <span style={{ fontSize: 7, color: "#FF6B6B", fontWeight: 700 }}>Add to Home Screen</span>
-                <span style={{ fontSize: 8, color: "#FF6B6B" }}>⊞</span>
+              {/* Highlighted — red rectangle border like the reference */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)", outline: "2px solid #FF6B6B", outlineOffset: "-1px" }}>
+                <span style={{ fontSize: 6.5, color: "#fff", fontWeight: 700 }}>Add to Home Screen</span>
+                <span style={{ fontSize: 7, color: "rgba(255,255,255,0.5)" }}>⊞</span>
               </div>
-              {["Markup", "Print"].map((item, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", padding: "4px 8px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                  <span style={{ fontSize: 7, color: "rgba(255,255,255,0.75)" }}>{item}</span>
+              {[
+                { label: "Markup", icon: "✎" },
+                { label: "Print", icon: "▤" },
+              ].map(({ label, icon }, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                  <span style={{ fontSize: 6.5, color: "rgba(255,255,255,0.75)" }}>{label}</span>
+                  <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)" }}>{icon}</span>
                 </div>
               ))}
             </div>
           </div>
-          {/* Safari toolbar with share highlighted */}
+          {/* Safari toolbar — share button highlighted with red box */}
           <div style={{ background: "#1c1c1e", borderTop: "1px solid #333", padding: "5px 0", display: "flex", justifyContent: "space-around", alignItems: "center", flexShrink: 0 }}>
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>◁</span>
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>▷</span>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 12, color: "#FF6B6B" }}>⬆</span>
-              <div style={{ position: "absolute", inset: -4, borderRadius: "50%", border: "2px solid #FF6B6B" }} />
+              <span style={{ fontSize: 11, color: "#FF6B6B" }}>⬆</span>
+              <div style={{ position: "absolute", inset: -3, border: "2px solid #FF6B6B", borderRadius: 3 }} />
             </div>
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>📖</span>
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>⊞</span>
           </div>
         </>,
-        260
+        270
       ),
     },
     {
@@ -5878,41 +5921,45 @@ function PwaBanner() {
       label: 'Tap the menu (⋮) then "Add to Home screen"',
       mockup: phone(
         <>
-          {/* Chrome bar */}
+          {/* Chrome bar with ⋮ highlighted */}
           <div style={{ background: "#202124", padding: "5px 6px", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-            <span style={{ fontSize: 7, color: "#888" }}>←→</span>
-            <div style={{ flex: 1, background: "#303134", borderRadius: 20, padding: "2px 6px" }}>
-              <span style={{ fontSize: 6, color: "#bbb" }}>ironlog.app</span>
+            <span style={{ fontSize: 7, color: "#888" }}>←</span>
+            <span style={{ fontSize: 7, color: "#555" }}>→</span>
+            <div style={{ flex: 1, background: "#303134", borderRadius: 20, padding: "2px 6px", display: "flex", alignItems: "center", gap: 3 }}>
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#34a853" }} />
+              <span style={{ fontSize: 5.5, color: "#bbb" }}>ironlog.app</span>
             </div>
+            <span style={{ fontSize: 8, color: "#888" }}>☆</span>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 13, color: "#FF6B6B", fontWeight: 900 }}>⋮</span>
+              <span style={{ fontSize: 12, color: "#FF6B6B", fontWeight: 900, lineHeight: 1 }}>⋮</span>
               <div style={{ position: "absolute", inset: -3, borderRadius: "50%", border: "2px solid #FF6B6B" }} />
             </div>
           </div>
-          {/* IRONLOG behind menu */}
-          <div style={{ background: "#0a0a0f", padding: "3px", flexShrink: 0 }}>
-            <div style={{ fontSize: 7, fontWeight: 800, color: "#fff", textAlign: "center" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+          {/* IRONLOG app partially visible behind menu */}
+          <div style={{ background: "#0a0a0f", padding: "3px 6px", flexShrink: 0 }}>
+            <div style={{ fontSize: 7.5, fontWeight: 900, color: "#fff" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
           </div>
-          {/* Chrome menu */}
-          <div style={{ flex: 1, background: "#2d2d2d", overflow: "hidden" }}>
-            {["New tab", "New incognito tab", "History", "Downloads", "Bookmarks", "Share..."].map((item, i) => (
-              <div key={i} style={{ padding: "4px 10px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                <span style={{ fontSize: 7, color: "rgba(255,255,255,0.65)" }}>{item}</span>
+          {/* Chrome dropdown menu */}
+          <div style={{ flex: 1, background: "#2a2a2a", overflow: "hidden" }}>
+            {["New tab","New incognito tab","History","Downloads","Bookmarks","Recent tabs","Share...","Find in page","Translate..."].map((item, i) => (
+              <div key={i} style={{ padding: "3px 8px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <span style={{ fontSize: 6.5, color: "rgba(255,255,255,0.6)" }}>{item}</span>
               </div>
             ))}
-            {/* Highlighted */}
-            <div style={{ margin: "2px 4px", padding: "4px 6px", background: "rgba(255,107,107,0.1)", border: "1.5px solid #FF6B6B", borderRadius: 4, display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ fontSize: 8 }}>➕</span>
-              <span style={{ fontSize: 7, color: "#FF6B6B", fontWeight: 700, flex: 1 }}>Add to Home screen</span>
+            {/* Highlighted — red rectangle border matching reference */}
+            <div style={{ padding: "3px 8px", borderBottom: "1px solid rgba(255,255,255,0.04)", outline: "2px solid #FF6B6B", outlineOffset: "-1px", display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 7 }}>⊞</span>
+              <span style={{ fontSize: 6.5, color: "#fff", fontWeight: 700 }}>Add to Home screen</span>
             </div>
-            {["Desktop site", "Settings", "Help & feedback"].map((item, i) => (
-              <div key={i} style={{ padding: "4px 10px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                <span style={{ fontSize: 7, color: "rgba(255,255,255,0.4)" }}>{item}</span>
+            {[["Desktop site","□"],["Settings","⚙"],["Help & feedback","?"]].map(([item, icon], i) => (
+              <div key={i} style={{ padding: "3px 8px", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 6.5, color: "rgba(255,255,255,0.4)" }}>{item}</span>
+                <span style={{ fontSize: 6, color: "rgba(255,255,255,0.2)" }}>{icon}</span>
               </div>
             ))}
           </div>
         </>,
-        250
+        265
       ),
     },
     {
