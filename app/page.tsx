@@ -6287,80 +6287,38 @@ function LifterIcon({ size = 120, opacity = 1 }: { size?: number; opacity?: numb
 // height prop controls rendered height; width is derived from the 40:108 viewBox ratio.
 // Horizontal barbell with round plates — matches the app icon.
 // Plates fly in from off-screen left/right; bar shaft appears first.
+// Uses CSS @keyframes (not framer-motion) so it animates even inside
+// AnimatePresence initial={false} wrappers (e.g. the splash screen).
 function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: number }) {
-  const h = Math.round(width * 88 / 320);
-  const slam = { type: "spring" as const, stiffness: 500, damping: 18 };
-  const platesDelay = delay + 0.42;
+  const s = width / 320;
+  const h = Math.round(88 * s);
+  const pd = delay + 0.42; // plates delay
+  const chrome = "linear-gradient(180deg,#f0f0f0 0%,#c0c0c0 30%,#808080 65%,#b8b8b8 100%)";
+  const plo = "radial-gradient(ellipse at 38% 32%,#ff7a7a,#dd2b2b 55%,#8a1010)";
+  const pli = "radial-gradient(ellipse at 38% 32%,#ff6868,#cc2020 55%,#7a0e0e)";
+  const pro = "radial-gradient(ellipse at 62% 32%,#ff7a7a,#dd2b2b 55%,#8a1010)";
+  const pri = "radial-gradient(ellipse at 62% 32%,#ff6868,#cc2020 55%,#7a0e0e)";
+  const barAnim = (d: number) => `bbBarGrow 0.38s cubic-bezier(0.16,1,0.3,1) ${d}s both`;
+  const slamL   = (d: number) => `bbSlamL 0.65s cubic-bezier(0.17,0.89,0.34,1.25) ${d}s both`;
+  const slamR   = (d: number) => `bbSlamR 0.65s cubic-bezier(0.17,0.89,0.34,1.25) ${d}s both`;
+  const seg = (l: number, t: number, w: number, ht: number, r: number, bg: string, extra?: React.CSSProperties): React.CSSProperties => ({
+    position: "absolute", left: l*s, top: t*s, width: w*s, height: ht*s, borderRadius: r*s, background: bg, ...extra,
+  });
   return (
-    // Full-width wrapper so overflow clips at screen edges, not component edges
     <div style={{ width: "100%", height: h, overflow: "hidden", position: "relative" }}>
-      <svg width={width} height={h} viewBox="0 0 320 88" style={{ overflow: "visible", display: "block", margin: "0 auto" }}>
-        <defs>
-          <linearGradient id="bm-chrome" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-            <stop offset="0%"   stopColor="#f0f0f0"/>
-            <stop offset="30%"  stopColor="#c0c0c0"/>
-            <stop offset="65%"  stopColor="#808080"/>
-            <stop offset="100%" stopColor="#b8b8b8"/>
-          </linearGradient>
-          <radialGradient id="bm-plo" cx="38%" cy="32%" r="68%">
-            <stop offset="0%"   stopColor="#ff7a7a"/>
-            <stop offset="55%"  stopColor="#dd2b2b"/>
-            <stop offset="100%" stopColor="#8a1010"/>
-          </radialGradient>
-          <radialGradient id="bm-pli" cx="38%" cy="32%" r="68%">
-            <stop offset="0%"   stopColor="#ff6868"/>
-            <stop offset="55%"  stopColor="#cc2020"/>
-            <stop offset="100%" stopColor="#7a0e0e"/>
-          </radialGradient>
-          <radialGradient id="bm-pro" cx="62%" cy="32%" r="68%">
-            <stop offset="0%"   stopColor="#ff7a7a"/>
-            <stop offset="55%"  stopColor="#dd2b2b"/>
-            <stop offset="100%" stopColor="#8a1010"/>
-          </radialGradient>
-          <radialGradient id="bm-pri" cx="62%" cy="32%" r="68%">
-            <stop offset="0%"   stopColor="#ff6868"/>
-            <stop offset="55%"  stopColor="#cc2020"/>
-            <stop offset="100%" stopColor="#7a0e0e"/>
-          </radialGradient>
-        </defs>
-
-        {/* Bar: shaft + sleeves grow from center — bar ends well inside SVG edges */}
-        <motion.g
-          initial={{ scaleX: 0, opacity: 0 }}
-          animate={{ scaleX: 1, opacity: 1 }}
-          style={{ transformOrigin: "160px 44px" }}
-          transition={{ duration: 0.38, delay, ease: [0.16, 1, 0.3, 1] }}
-        >
-          {/* Left sleeve — thicker than shaft */}
-          <rect x="34"  y="37" width="58" height="14" rx="4" fill="url(#bm-chrome)"/>
-          {/* Center shaft */}
-          <rect x="90"  y="40" width="140" height="8"  rx="3" fill="url(#bm-chrome)"/>
-          {/* Right sleeve */}
-          <rect x="228" y="37" width="58" height="14" rx="4" fill="url(#bm-chrome)"/>
-          {/* Knurling overlay on center shaft */}
-          <rect x="100" y="41" width="120" height="6"  rx="2" fill="rgba(0,0,0,0.22)"/>
-        </motion.g>
-
-        {/* Left outer plate — flies in from far off-screen left */}
-        <motion.g initial={{ x: -800 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
-          <rect x="8"  y="5"  width="22" height="78" rx="5" fill="url(#bm-plo)"/>
-          <rect x="8"  y="5"  width="22" height="78" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
-        </motion.g>
-        {/* Left inner plate — 70ms stagger */}
-        <motion.g initial={{ x: -800 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
-          <rect x="27" y="16" width="13" height="56" rx="4" fill="url(#bm-pli)"/>
-        </motion.g>
-
-        {/* Right outer plate — flies in from far off-screen right */}
-        <motion.g initial={{ x: 800 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
-          <rect x="290" y="5"  width="22" height="78" rx="5" fill="url(#bm-pro)"/>
-          <rect x="290" y="5"  width="22" height="78" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
-        </motion.g>
-        {/* Right inner plate — 70ms stagger */}
-        <motion.g initial={{ x: 800 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
-          <rect x="280" y="16" width="13" height="56" rx="4" fill="url(#bm-pri)"/>
-        </motion.g>
-      </svg>
+      <div style={{ position: "relative", width, height: h, margin: "0 auto" }}>
+        {/* Bar segments — grow from centre */}
+        <div style={{ ...seg(34,  37, 58, 14, 4, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
+        <div style={{ ...seg(90,  40,140,  8, 3, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
+        <div style={{ ...seg(228, 37, 58, 14, 4, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
+        <div style={{ ...seg(100, 41,120,  6, 2, "rgba(0,0,0,0.22)"), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
+        {/* Left plates — fly in from left */}
+        <div style={{ ...seg(8,   5, 22, 78, 5, plo, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamL(pd) }} />
+        <div style={{ ...seg(27, 16, 13, 56, 4, pli), animation: slamL(pd + 0.07) }} />
+        {/* Right plates — fly in from right */}
+        <div style={{ ...seg(290, 5, 22, 78, 5, pro, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamR(pd) }} />
+        <div style={{ ...seg(280,16, 13, 56, 4, pri), animation: slamR(pd + 0.07) }} />
+      </div>
     </div>
   );
 }
