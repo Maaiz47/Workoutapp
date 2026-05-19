@@ -2218,7 +2218,9 @@ function HomePage() {
   let _content: React.ReactNode = null;
   let _viewKey = "splash";
   if (authLoading || !splashDone) { _viewKey = "splash"; _content = (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", position: "relative", overflow: "hidden", background: "#0a0a0f" }}>
+      {/* Background texture */}
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "url(/bg-texture.jpg)", backgroundSize: "cover", backgroundPosition: "center", opacity: 0.18, pointerEvents: "none" }} />
       {/* Ambient blobs */}
       <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
@@ -2287,6 +2289,11 @@ function HomePage() {
 
           {/* Hero */}
           <div style={{ textAlign: "center", padding: "44px 32px 16px", zIndex: 1, position: "relative" }}>
+            {/* Barbell spotlight photo — fades in behind the mark */}
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.2, delay: 0.3 }}
+              style={{ position: "absolute", left: "50%", top: 0, transform: "translateX(-50%)", width: "100vw", maxWidth: 480, height: "100%", backgroundImage: "url(/hero-barbell.jpg)", backgroundSize: "cover", backgroundPosition: "center 60%", opacity: 0.13, pointerEvents: "none", zIndex: 0 }}
+            />
             <BarbellMark width={260} delay={0.05} />
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -2320,6 +2327,13 @@ function HomePage() {
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: 1.5 }}>{s.label}</div>
               </div>
             ))}
+          </div>
+
+          {/* Athlete hero image */}
+          <div style={{ margin: "0 16px 20px", borderRadius: 16, overflow: "hidden", position: "relative", zIndex: 1, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
+            <img src="/hero-athlete.jpg" alt="" style={{ width: "100%", height: 200, objectFit: "cover", objectPosition: "center 20%", display: "block" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.1) 0%, rgba(10,10,15,0.65) 100%)" }} />
+            <div style={{ position: "absolute", bottom: 14, left: 16, fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: 3 }}>DO THE WORK.</div>
           </div>
 
           {/* Tips grid */}
@@ -4766,9 +4780,14 @@ function HomePage() {
             <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.025, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
           ))}
         </div>
-        <div style={{ padding: "24px 20px 0" }}>
-          <button onClick={() => { setView("home"); setOpenHist(null); setSelectedExDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 12, letterSpacing: 1 }}>Progress</div>
+        {/* Hero banner */}
+        <div style={{ position: "relative", height: 140, overflow: "hidden" }}>
+          <img src="/hero-progress.jpg" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 35%" }} />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.35) 0%, rgba(10,10,15,0.82) 100%)" }} />
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "20px 20px 0" }}>
+            <button onClick={() => { setView("home"); setOpenHist(null); setSelectedExDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+            <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", marginTop: 8, letterSpacing: 1 }}>Progress</div>
+          </div>
         </div>
 
         {/* Tabs */}
