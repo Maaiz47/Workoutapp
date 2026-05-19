@@ -5084,7 +5084,8 @@ function HomePage() {
               <div style={{ width: 1, background: "rgba(255,255,255,0.08)" }} />
               <div style={{ textAlign: "center" }}><div style={{ fontSize: 28, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{tSets}</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginTop: 2 }}>TOTAL SETS</div></div>
             </div>
-            <motion.button whileTap={{ scale: 0.93 }} transition={{ type: "spring", stiffness: 400, damping: 17 }} onClick={begin} style={{ marginTop: 48, padding: "18px 56px", background: activeDay.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 15, fontWeight: 600, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 8px 32px ${activeDay.color}30` }}>START WORKOUT</motion.button>
+            <LifterIcon size={110} opacity={0.82} />
+            <motion.button whileTap={{ scale: 0.93 }} transition={{ type: "spring", stiffness: 400, damping: 17 }} onClick={begin} style={{ marginTop: 16, padding: "18px 56px", background: activeDay.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 15, fontWeight: 600, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 8px 32px ${activeDay.color}30` }}>START WORKOUT</motion.button>
           </motion.div>
         </div>
       );
@@ -5899,6 +5900,35 @@ function HomePage() {
         {_content}
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+function LifterIcon({ size = 120, opacity = 1 }: { size?: number; opacity?: number }) {
+  const stroke = { stroke: "#fff", strokeWidth: 8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
+  return (
+    <motion.svg width={size} height={size} viewBox="0 0 200 200" aria-hidden style={{ display: "block", margin: "0 auto", opacity }}>
+      <motion.g
+        animate={{ y: [10, -6, 10], scaleY: [0.84, 1, 0.84] }}
+        transition={{ duration: 1.8, ease: "easeInOut", repeat: Infinity, times: [0, 0.5, 1] }}
+        style={{ transformOrigin: "100px 132px" }}
+      >
+        <line x1="35" y1="72" x2="165" y2="72" stroke="#FF6B6B" strokeWidth="7" strokeLinecap="round"/>
+        <rect x="20" y="54" width="11" height="36" rx="3" fill="#FF6B6B"/>
+        <rect x="33" y="58" width="8"  height="28" rx="3" fill="#FF6B6B"/>
+        <rect x="159" y="58" width="8" height="28" rx="3" fill="#FF6B6B"/>
+        <rect x="169" y="54" width="11" height="36" rx="3" fill="#FF6B6B"/>
+        <circle cx="100" cy="52" r="10" fill="#fff"/>
+        <line x1="100" y1="65"  x2="100" y2="116" {...stroke}/>
+        <line x1="100" y1="82"  x2="62"  y2="72"  {...stroke}/>
+        <line x1="100" y1="82"  x2="138" y2="72"  {...stroke}/>
+        <line x1="100" y1="116" x2="75"  y2="150" {...stroke}/>
+        <line x1="100" y1="116" x2="125" y2="150" {...stroke}/>
+        <line x1="75"  y1="150" x2="62"  y2="178" {...stroke}/>
+        <line x1="125" y1="150" x2="138" y2="178" {...stroke}/>
+        <line x1="54"  y1="178" x2="70"  y2="178" {...stroke}/>
+        <line x1="130" y1="178" x2="146" y2="178" {...stroke}/>
+      </motion.g>
+    </motion.svg>
   );
 }
 
