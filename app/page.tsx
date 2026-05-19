@@ -1021,6 +1021,7 @@ export default function HomePage() {
   const [splashDone, setSplashDone] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authStep, setAuthStep] = useState<"username" | "register" | "setup" | "password" | "forgot">("username");
+  const [landingTab, setLandingTab] = useState<"athlete" | "trainer">("athlete");
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [confirmInput, setConfirmInput] = useState("");
@@ -2182,22 +2183,68 @@ export default function HomePage() {
     const btnPrimary: React.CSSProperties = { display: "block", width: "100%", maxWidth: 300, margin: "16px auto 0", padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
     const btnBack: React.CSSProperties = { background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 16 };
 
-    return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32, position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, marginBottom: 4, overflow: "visible" }}>
-            <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
-          </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 24 }}>LIFT · TRACK · PROGRESS</div>
-          <div style={{ minHeight: 20, marginBottom: 40 }}>
-            <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
+    // ── Landing page (username step) ──────────────────────────────────
+    if (authStep === "username") {
+      const isTrainer = landingTab === "trainer";
+      const accentColor = isTrainer ? "#4ECDC4" : "#FF6B6B";
+      const features = isTrainer ? [
+        { title: "Full client roster", desc: "Manage all your athletes from one screen" },
+        { title: "Plan builder", desc: "Generate, customise, and propose personalised training plans" },
+        { title: "Session history", desc: "Review every set your clients have logged" },
+        { title: "Direct messaging", desc: "Built-in chat with delivery and read receipts" },
+      ] : [
+        { title: "Personalised training plan", desc: "Built for your goals, equipment, and schedule" },
+        { title: "Set-by-set logging", desc: "Weight, reps, rest timer, and live personal best detection" },
+        { title: "Progress analytics", desc: "Strength trends, 28-day streaks, and body metric tracking" },
+        { title: "Trainer connection", desc: "Receive custom plans and message your coach in-app" },
+      ];
+
+      return (
+        <div style={{ minHeight: "100dvh", position: "relative", overflowY: "auto" }}>
+          <div style={{ position: "fixed", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.06) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
+          <div style={{ position: "fixed", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
+
+          {/* Sticky header with tab pills */}
+          <div style={{ position: "sticky", top: 0, zIndex: 10, padding: "12px 20px", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: "rgba(10,10,15,0.88)", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 15, fontWeight: 700, letterSpacing: 3 }}>
+              <span style={{ color: "#fff" }}>IRON</span><span style={{ color: "#FF6B6B" }}>LOG</span>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => setLandingTab("athlete")} style={{ padding: "7px 14px", borderRadius: 20, border: isTrainer ? "1px solid rgba(255,255,255,0.1)" : "none", background: isTrainer ? "transparent" : "linear-gradient(135deg,#FF6B6B,#ee5a24)", color: isTrainer ? "rgba(255,255,255,0.4)" : "#fff", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>ATHLETES</button>
+              <button onClick={() => setLandingTab("trainer")} style={{ padding: "7px 14px", borderRadius: 20, border: isTrainer ? "none" : "1px solid rgba(255,255,255,0.1)", background: isTrainer ? "linear-gradient(135deg,#4ECDC4,#26a69a)" : "transparent", color: isTrainer ? "#fff" : "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>TRAINERS</button>
+            </div>
           </div>
 
-          {/* ── Step: username ── */}
-          {authStep === "username" && (<>
-            <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={inputStyleCenter} />
+          {/* Hero */}
+          <div style={{ textAlign: "center", padding: "52px 32px 28px", zIndex: 1, position: "relative" }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 44, fontWeight: 700, letterSpacing: 8, marginBottom: 6, lineHeight: 1, overflow: "visible" }}>
+              <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginBottom: 20 }}>LIFT · TRACK · PROGRESS</div>
+            <div style={{ minHeight: 18 }}>
+              <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
+            </div>
+          </div>
+
+          {/* Feature cards */}
+          <div style={{ padding: "8px 24px 32px", maxWidth: 420, margin: "0 auto", zIndex: 1, position: "relative" }}>
+            <div style={{ fontSize: 10, color: accentColor, letterSpacing: 3, fontWeight: 700, textAlign: "center", marginBottom: 16, opacity: 0.85 }}>
+              {isTrainer ? "BUILT FOR TRAINERS" : "BUILT FOR ATHLETES"}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {features.map((f, i) => (
+                <div key={i} style={{ padding: "13px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 12, borderLeft: `2px solid ${accentColor}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>{f.title}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>{f.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CTA — username input */}
+          <div style={{ padding: "0 24px 60px", maxWidth: 420, margin: "0 auto", textAlign: "center", zIndex: 1, position: "relative" }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginBottom: 16, letterSpacing: 0.5, fontFamily: "'DM Sans', sans-serif" }}>No subscription. No ads. Just your lifts.</div>
+            <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={{ ...inputStyleCenter, maxWidth: "100%" }} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             {showEmailSignupPrompt && (
               <div style={{ marginTop: 16, padding: "16px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12 }}>
@@ -2208,8 +2255,22 @@ export default function HomePage() {
                 </div>
               </div>
             )}
-            {!showEmailSignupPrompt && <button onClick={doCheckUsername} style={btnPrimary}>CONTINUE</button>}
-          </>)}
+            {!showEmailSignupPrompt && <button onClick={doCheckUsername} style={{ ...btnPrimary, maxWidth: "100%" }}>CONTINUE</button>}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Other auth steps — centered card ─────────────────────────────
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32, position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, marginBottom: 4, overflow: "visible" }}>
+            <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 32 }}>LIFT · TRACK · PROGRESS</div>
 
           {/* ── Step: register (new user) ── */}
           {authStep === "register" && (<>
