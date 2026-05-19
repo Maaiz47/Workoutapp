@@ -29,10 +29,10 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
       take: since ? 50 : 100,
     });
 
-    // Mark incoming messages as read
-    await prisma.message.updateMany({
-      where: { fromId: userId, toId: uid, read: false },
-      data: { read: true },
+    // Mark incoming messages as delivered + read
+    await (prisma.message as any).updateMany({
+      where: { fromId: userId, toId: uid },
+      data: { delivered: true, read: true },
     });
 
     return json({ messages });

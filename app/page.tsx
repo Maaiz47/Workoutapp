@@ -1295,7 +1295,7 @@ export default function HomePage() {
     if (nearBottom) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversationMessages, view]);
 
-  // Poll for new messages every 3 seconds while conversation is open
+  // Poll for new messages and status updates while conversation is open
   useEffect(() => {
     if (view !== "conversation" || !activeConversation) return;
     const partnerId = activeConversation.id;
@@ -1314,8 +1314,27 @@ export default function HomePage() {
         }
       } catch {}
     };
+    // Periodically re-fetch all messages to pick up read/delivered status changes on sent messages
+    const pollStatus = async () => {
+      try {
+        const res = await fetch(`/api/messages/${partnerId}`);
+        const data = await res.json();
+        if (data.messages?.length > 0) {
+          setConversationMessages(prev => {
+            const statusMap = new Map<string, { read: boolean; delivered: boolean }>(data.messages.map((m: any) => [m.id, { read: m.read, delivered: m.delivered }]));
+            return prev.map((m: any) => {
+              const s = statusMap.get(m.id);
+              if (!s) return m;
+              if (s.read === m.read && s.delivered === m.delivered) return m;
+              return { ...m, read: s.read, delivered: s.delivered };
+            });
+          });
+        }
+      } catch {}
+    };
     const id = setInterval(poll, 1000);
-    return () => clearInterval(id);
+    const statusId = setInterval(pollStatus, 5000);
+    return () => { clearInterval(id); clearInterval(statusId); };
   }, [view, activeConversation]);
 
   useEffect(() => {
@@ -3695,19 +3714,31 @@ export default function HomePage() {
         {conversations.length === 0 && (
           <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 60 }}>No messages yet</div>
         )}
-        {conversations.map(c => (
+        {conversations.map(c => {
+          const lm = c.latestMessage;
+          const isSentByMe = lm?.fromId === user?.id;
+          const previewTick = isSentByMe
+            ? lm.read ? { label: "✓✓", color: "#4ECDC4" }
+            : lm.delivered ? { label: "✓✓", color: "rgba(255,255,255,0.4)" }
+            : { label: "✓", color: "rgba(255,255,255,0.25)" }
+            : null;
+          return (
           <div key={c.partner.id} className="card-hover" onClick={() => openConversation(c.partner)} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${c.unreadCount > 0 ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, padding: "16px", marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 4 }}>@{c.partner.username}</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {c.latestMessage.type === "adoption_request" ? "Trainer request" : c.latestMessage.type === "plan_proposal" ? "Plan update proposed" : c.latestMessage.body}
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4 }}>
+                {previewTick && <span style={{ color: previewTick.color, letterSpacing: -2, paddingRight: 2, flexShrink: 0 }}>{previewTick.label}</span>}
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {lm.type === "adoption_request" ? "Trainer request" : lm.type === "plan_proposal" ? "Plan update proposed" : lm.body}
+                </span>
               </div>
             </div>
             {c.unreadCount > 0 && (
               <span style={{ background: "#4ECDC4", color: "#000", borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", flexShrink: 0, marginLeft: 12 }}>{c.unreadCount}</span>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -3785,10 +3816,22 @@ export default function HomePage() {
                 : part
             );
           };
+          const tickColor = msg.read ? "#4ECDC4" : msg.delivered ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.2)";
           return (
             <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", maxWidth: "75%" }}>
               <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.4 }}>{renderBody(msg.body)}</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4, textAlign: isMine ? "right" : "left" }}>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "flex", alignItems: "center", justifyContent: isMine ? "flex-end" : "flex-start", gap: 4 }}>
+                <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                {isMine && (
+                  <span style={{ color: tickColor, fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center" }}>
+                    {msg.read || msg.delivered ? (
+                      <span style={{ letterSpacing: -3, paddingRight: 3 }}>✓✓</span>
+                    ) : (
+                      <span>✓</span>
+                    )}
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}
