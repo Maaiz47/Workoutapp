@@ -1078,6 +1078,8 @@ export default function HomePage() {
   const [browserSupersetMode, setBrowserSupersetMode] = useState(false);
   const [browserSuperSel, setBrowserSuperSel] = useState<string[]>([]);
   const [trainerSuperSel, setTrainerSuperSel] = useState<{ dayIdx: number; exIds: string[] } | null>(null);
+  const [trainerAddExDay, setTrainerAddExDay] = useState<number | null>(null);
+  const [trainerAddExSearch, setTrainerAddExSearch] = useState("");
   const [exSearch, setExSearch] = useState("");
   const [exFilterLoc, setExFilterLoc] = useState("all");
   const [exFilterMove, setExFilterMove] = useState("all");
@@ -3661,6 +3663,7 @@ export default function HomePage() {
                               </div>
                             </div>
                           ))}
+                          <button onClick={() => { setTrainerAddExDay(di); setTrainerAddExSearch(""); }} style={{ width: "100%", marginTop: 6, padding: "8px", background: "rgba(255,107,107,0.07)", border: "1px dashed rgba(255,107,107,0.3)", borderRadius: 8, color: "rgba(255,107,107,0.7)", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ EXERCISE</button>
                         </div>
                       </div>
                     </div>
@@ -3701,6 +3704,64 @@ export default function HomePage() {
                     ? "Client must approve before this becomes their active plan"
                     : "Client will receive a message to accept or decline these changes"}
                 </div>
+                {/* Exercise picker portal — opens when trainerAddExDay is set */}
+                {trainerAddExDay !== null && isMounted && createPortal((() => {
+                  const exMovement = (e: any) => {
+                    const cats = e.category ?? [];
+                    if (cats.includes("cardio") || cats.includes("plyometrics")) return "cardio";
+                    if (cats.includes("stretching") || cats.includes("flexibility")) return "stretch";
+                    return "strength";
+                  };
+                  const filtered = (EXERCISES as any[]).filter(e => {
+                    if (!trainerAddExSearch) return true;
+                    const q = trainerAddExSearch.toLowerCase();
+                    return e.name.toLowerCase().includes(q) ||
+                      (e.primaryMuscles ?? []).some((m: string) => m.toLowerCase().includes(q)) ||
+                      (e.secondaryMuscles ?? []).some((m: string) => m.toLowerCase().includes(q));
+                  }).slice(0, 80);
+                  return (
+                    <div style={{ position: "fixed", inset: 0, zIndex: 9000, display: "flex", flexDirection: "column", justifyContent: "flex-end" }} onClick={() => setTrainerAddExDay(null)}>
+                      <div style={{ background: "rgba(18,18,22,0.98)", borderRadius: "20px 20px 0 0", borderTop: "1px solid rgba(255,255,255,0.08)", maxHeight: "82dvh", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)" }} onClick={e => e.stopPropagation()}>
+                        <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#FF6B6B", letterSpacing: 3, fontFamily: "'Space Mono', monospace", flex: 1 }}>ADD EXERCISE — DAY {trainerAddExDay + 1}</div>
+                          <button onClick={() => setTrainerAddExDay(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+                        </div>
+                        <div style={{ padding: "0 16px 10px", flexShrink: 0 }}>
+                          <input
+                            autoFocus
+                            value={trainerAddExSearch}
+                            onChange={e => setTrainerAddExSearch(e.target.value)}
+                            placeholder="Search by name or muscle…"
+                            style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "10px 14px", outline: "none" }}
+                          />
+                        </div>
+                        <div style={{ overflowY: "auto", flex: 1, padding: "0 12px 12px" }}>
+                          {filtered.length === 0 && (
+                            <div style={{ padding: "24px 0", textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No exercises found</div>
+                          )}
+                          {filtered.map((e: any) => (
+                            <button key={e.id} onClick={() => {
+                              setEditedPlanDays(prev => prev!.map((day, dj) => dj !== trainerAddExDay ? day : {
+                                ...day,
+                                exercises: [...day.exercises, { exerciseId: e.id, name: e.name, sets: 3, reps: "8-12", rest: 60, notes: null, groupId: null, groupType: null, dropSets: 0 }],
+                              }));
+                              setTrainerAddExDay(null);
+                            }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", marginBottom: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, cursor: "pointer", textAlign: "left" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{e.name}</div>
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
+                                  {(e.primaryMuscles ?? []).slice(0, 2).join(", ")}
+                                  {e.location ? ` · ${e.location}` : ""}
+                                </div>
+                              </div>
+                              <span style={{ fontSize: 11, color: "#FF6B6B", flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>ADD</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })(), document.body)}
               </>
             )}
           </div>
