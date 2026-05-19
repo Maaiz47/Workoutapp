@@ -15,9 +15,13 @@ Master list of every place an AI-generated image would meaningfully improve IRON
 - No faces, no text, no logos
 - Mobile-first: vertical/square crops preferred
 
+## How to use these prompts
+
+Each prompt is self-contained — paste it as-is into ChatGPT's image tool. The aspect-ratio cue is built into the last line. If ChatGPT only offers fixed sizes (1024×1024, 1024×1536, 1536×1024), pick the closest and crop after.
+
 ## Progress tracker
 
-- [ ] 1. Login / splash background
+- [x] 1. Login / splash background
 - [ ] 2. Home screen hero strip
 - [ ] 3. Workout card — Push
 - [ ] 4. Workout card — Pull
@@ -51,14 +55,15 @@ Master list of every place an AI-generated image would meaningfully improve IRON
 
 ---
 
-## 1. Login / splash background — `app/page.tsx` login screen
+## 1. Login / splash background — `app/page.tsx` login screen ✅ generated
 
 **Current:** plain dark backdrop behind the dropping `IRONLOG` glyphs.
 **Why:** First impression. A subtle textured backdrop multiplies the impact of the squash-and-stretch logo animation.
 **Format:** 1024×1536 portrait.
+**Save as:** `public/ai/login-bg.jpg`
 
 ```
-Cinematic ultra-dark photograph of a knurled olympic barbell loaded with chalked iron plates resting on a concrete gym floor, shot from a low oblique angle. Single hard rim light from camera-right rakes across the knurling and plate edges with a faint warm-crimson tint; the rest of the frame falls to deep matte black with no visible background detail. Heavy negative space in the upper two-thirds for app text overlay. Photoreal, 35mm look, fine film grain, no people, no logos, no text.
+Cinematic ultra-dark photograph of a knurled olympic barbell loaded with chalked iron plates resting on a concrete gym floor, shot from a low oblique angle. Single hard rim light from camera-right rakes across the knurling and plate edges with a faint warm-crimson tint; the rest of the frame falls to deep matte black with no visible background detail. Heavy negative space in the upper two-thirds for app text overlay. Photoreal, 35mm look, fine film grain, no people, no logos, no text. Tall portrait composition, 2:3 aspect ratio (1024x1536).
 ```
 
 ---
@@ -70,7 +75,7 @@ Cinematic ultra-dark photograph of a knurled olympic barbell loaded with chalked
 **Format:** 1536×512 ultrawide.
 
 ```
-Ultrawide cinematic banner, pure black background, single horizontal sliver of warm tungsten light grazing a lifter's chalked hands gripping a barbell at the centre. Crimson key light at low intensity, the rest dissolves into matte black on both sides for clean text overlay. Photoreal, sharp on the hands, shallow depth elsewhere, no faces, no text, no logos.
+Ultrawide cinematic banner, pure black background, single horizontal sliver of warm tungsten light grazing a lifter's chalked hands gripping a barbell at the centre. Crimson key light at low intensity, the rest dissolves into matte black on both sides for clean text overlay. Photoreal, sharp on the hands, shallow depth elsewhere, no faces, no text, no logos. Wide landscape composition, 3:2 aspect ratio (1536x1024) with heavy empty space top and bottom so the centre can be cropped to a 3:1 banner.
 ```
 
 ---
@@ -84,7 +89,7 @@ Ultrawide cinematic banner, pure black background, single horizontal sliver of w
 **Master prompt (repeat per card, swap only the action line):**
 
 ```
-Cinematic gym photograph in a consistent series. Deep matte black studio background, single crimson rim light, secondary cold white key from above. Athlete shot from mid-torso only — no face — wearing a plain charcoal t-shirt and dark shorts. Photoreal, sharp, faint motion blur on the moving limb, gritty film grain, square composition, no logos, no text.
+Cinematic gym photograph in a consistent series. Deep matte black studio background, single crimson rim light, secondary cold white key from above. Athlete shot from mid-torso only — no face — wearing a plain charcoal t-shirt and dark shorts. Photoreal, sharp, faint motion blur on the moving limb, gritty film grain, no logos, no text. Square 1:1 composition (1024x1024).
 
 Action: <ACTION_LINE>
 ```
@@ -109,7 +114,7 @@ Action: <ACTION_LINE>
 **Format:** 1024×1536 portrait.
 
 ```
-Cinematic portrait, athlete from behind walking toward a single rack of barbells under one cone of warm overhead light in an otherwise pitch-black gym. Crimson floor reflection. No face visible. Heavy negative space top and bottom for headline and CTA. Photoreal, moody, gritty, no text, no logos.
+Cinematic portrait, athlete from behind walking toward a single rack of barbells under one cone of warm overhead light in an otherwise pitch-black gym. Crimson floor reflection. No face visible. Heavy negative space top and bottom for headline and CTA. Photoreal, moody, gritty, no text, no logos. Tall portrait composition, 2:3 aspect ratio (1024x1536).
 ```
 
 ---
@@ -123,7 +128,7 @@ Cinematic portrait, athlete from behind walking toward a single rack of barbells
 **Master prompt:**
 
 ```
-Tactile icon illustration, dark charcoal background with subtle radial vignette, single crimson-tinted spotlight, semi-flat 3D rendered object with soft shadows and a hint of brushed metal texture. Centred, clean negative space, no text.
+Tactile icon illustration, dark charcoal background with subtle radial vignette, single crimson-tinted spotlight, semi-flat 3D rendered object with soft shadows and a hint of brushed metal texture. Centred, clean negative space, no text. Square 1:1 composition (1024x1024, can be downscaled to 512).
 
 Object: <OBJECT_LINE>
 ```
@@ -144,7 +149,7 @@ Object: <OBJECT_LINE>
 **Format:** Three matching 512×512 tiles.
 
 ```
-Set of three matching cinematic stills in identical dark moody style, crimson rim light, no people, photoreal, no text:
+Set of three matching cinematic stills in identical dark moody style, crimson rim light, no people, photoreal, no text. Each tile is a square 1:1 composition (1024x1024), generate them one at a time and keep lighting and palette identical across all three:
 1) Commercial gym corner — squat rack with loaded barbell, dumbbell row in soft focus background.
 2) Home garage gym — single bench, a pair of adjustable dumbbells, concrete floor.
 3) Split composition showing both side by side, faint vertical seam between them.
@@ -159,7 +164,7 @@ Set of three matching cinematic stills in identical dark moody style, crimson ri
 **Format:** 1024×1024, transparent-friendly composition.
 
 ```
-Hyper-detailed photoreal close-up of a single chalked hand slamming a barbell collar pin into place, crimson-and-gold sparks bursting outward against pure black background, sparks frozen mid-flight, faint smoke. Centred composition with strong radial symmetry for overlay use. No text, no logos.
+Hyper-detailed photoreal close-up of a single chalked hand slamming a barbell collar pin into place, crimson-and-gold sparks bursting outward against pure black background, sparks frozen mid-flight, faint smoke. Centred composition with strong radial symmetry for overlay use. No text, no logos. Square 1:1 composition (1024x1024). Pure black background only — no other scene elements — so it can be exported with the background masked out for an overlay.
 ```
 
 ---
@@ -171,7 +176,7 @@ Hyper-detailed photoreal close-up of a single chalked hand slamming a barbell co
 **Format:** 512×512 square.
 
 ```
-Minimal cinematic illustration on pure black, a single empty barbell resting on the floor under one crimson spotlight, faint chalk dust hanging in the air. Photoreal, moody, square, no text.
+Minimal cinematic illustration on pure black, a single empty barbell resting on the floor under one crimson spotlight, faint chalk dust hanging in the air. Photoreal, moody, no text. Square 1:1 composition (1024x1024).
 ```
 
 ---
@@ -183,7 +188,7 @@ Minimal cinematic illustration on pure black, a single empty barbell resting on 
 **Format:** 512×512 square.
 
 ```
-Photoreal close-up of a brushed-steel trophy plate engraved with a placeholder dash "—", resting on a black gym floor, single crimson rim light from the right, faint chalk specks. Centred, square, no text.
+Photoreal close-up of a brushed-steel trophy plate engraved with a placeholder dash "—", resting on a black gym floor, single crimson rim light from the right, faint chalk specks. Centred, no text. Square 1:1 composition (1024x1024).
 ```
 
 ---
@@ -195,7 +200,7 @@ Photoreal close-up of a brushed-steel trophy plate engraved with a placeholder d
 **Format:** 512×512 square.
 
 ```
-Minimal illustration on near-black background, two stylised speech-bubble shapes formed from chalked barbell collars, crimson inner glow, faintly overlapping. Flat icon-illustration style, clean lines, square, no text.
+Minimal illustration on near-black background, two stylised speech-bubble shapes formed from chalked barbell collars, crimson inner glow, faintly overlapping. Flat icon-illustration style, clean lines, no text. Square 1:1 composition (1024x1024).
 ```
 
 ---
@@ -207,7 +212,7 @@ Minimal illustration on near-black background, two stylised speech-bubble shapes
 **Format:** 512×512 square.
 
 ```
-Photoreal cinematic still: a trainer's hand (no face) extending a clipboard with a blank workout card toward the viewer, dark gym blurred behind, single crimson rim light. Centred, square, gritty, no text, no logos.
+Photoreal cinematic still: a trainer's hand (no face) extending a clipboard with a blank workout card toward the viewer, dark gym blurred behind, single crimson rim light. Centred, gritty, no text, no logos. Square 1:1 composition (1024x1024).
 ```
 
 ---
@@ -219,7 +224,7 @@ Photoreal cinematic still: a trainer's hand (no face) extending a clipboard with
 **Format:** 384×384 square.
 
 ```
-Minimal flat illustration on charcoal background, a chalked magnifying glass over an empty open notebook page with a faint dumbbell watermark, crimson handle accent. Centred, square, no text.
+Minimal flat illustration on charcoal background, a chalked magnifying glass over an empty open notebook page with a faint dumbbell watermark, crimson handle accent. Centred, no text. Square 1:1 composition (1024x1024, can be downscaled to 384).
 ```
 
 ---
@@ -231,7 +236,7 @@ Minimal flat illustration on charcoal background, a chalked magnifying glass ove
 **Format:** 512×512 square.
 
 ```
-Minimal anatomical silhouette of a generic athletic figure facing forward, rendered as a faint crimson outline on pure black, with small empty placeholder dots at chest, waist, thigh measurement points. Clean diagram look, no text, no labels.
+Minimal anatomical silhouette of a generic athletic figure facing forward, rendered as a faint crimson outline on pure black, with small empty placeholder dots at chest, waist, thigh measurement points. Clean diagram look, no text, no labels. Square 1:1 composition (1024x1024).
 ```
 
 ---
@@ -243,7 +248,7 @@ Minimal anatomical silhouette of a generic athletic figure facing forward, rende
 **Format:** 1024×1280 (4:5 portrait).
 
 ```
-Photoreal silhouette of a generic athlete in a neutral standing setup position, side profile, crimson outline highlighting the spine, hips, and knees as alignment cues. Pure black background, three faint horizontal guide lines at hip, knee, and ankle. No face, no text, no logos.
+Photoreal silhouette of a generic athlete in a neutral standing setup position, side profile, crimson outline highlighting the spine, hips, and knees as alignment cues. Pure black background, three faint horizontal guide lines at hip, knee, and ankle. No face, no text, no logos. Tall portrait composition, 2:3 aspect ratio (1024x1536).
 ```
 
 ---
@@ -257,7 +262,7 @@ Photoreal silhouette of a generic athlete in a neutral standing setup position, 
 **Master prompt:**
 
 ```
-Photoreal anatomical close-up: lit musculature on pure black background, single crimson rim light highlighting the muscle group in focus, the rest of the body dissolves into shadow. Consistent style across the set, no face, no skin blemishes, no text, no labels.
+Photoreal anatomical close-up: lit musculature on pure black background, single crimson rim light highlighting the muscle group in focus, the rest of the body dissolves into shadow. Consistent style across the set, no face, no skin blemishes, no text, no labels. Square 1:1 composition (1024x1024).
 
 Muscle group: <chest | upper back / lats | shoulders / deltoids | arms / biceps + triceps | legs / quads + hamstrings | core / abs>
 ```
@@ -271,7 +276,7 @@ Muscle group: <chest | upper back / lats | shoulders / deltoids | arms / biceps 
 **Format:** 256×256 square.
 
 ```
-Flat icon, black background with subtle radial gradient, a single bold crimson dumbbell silhouette centred, soft inner glow, ready to be tinted or overlaid with initials. Clean, square, no text.
+Flat icon, black background with subtle radial gradient, a single bold crimson dumbbell silhouette centred, soft inner glow, ready to be tinted or overlaid with initials. Clean, no text. Square 1:1 composition (1024x1024, downscale to 256).
 ```
 
 ---
@@ -283,7 +288,7 @@ Flat icon, black background with subtle radial gradient, a single bold crimson d
 **Format:** 1792×1024 (16:9 landscape).
 
 ```
-Premium product marketing photograph, dark moody gym shot from low angle, a single athlete (back to camera, no face) chalking hands above a loaded barbell, a phone resting on a bench in the foreground showing a faint glowing red app interface (blurred, no readable text). Cinematic crimson rim light, tungsten warmth on the bench, deep black background. Heavy negative space upper-right for headline. Photoreal, no logos, no readable text.
+Premium product marketing photograph, dark moody gym shot from low angle, a single athlete (back to camera, no face) chalking hands above a loaded barbell, a phone resting on a bench in the foreground showing a faint glowing red app interface (blurred, no readable text). Cinematic crimson rim light, tungsten warmth on the bench, deep black background. Heavy negative space upper-right for headline. Photoreal, no logos, no readable text. Wide landscape composition, 3:2 aspect ratio (1536x1024).
 ```
 
 ---
@@ -295,7 +300,7 @@ Premium product marketing photograph, dark moody gym shot from low angle, a sing
 **Format:** 1792×1024 (16:9 landscape).
 
 ```
-Cinematic photograph of a coach (no face, mid-torso only) holding a phone displaying a stylised client list interface — the interface itself just abstract crimson and white bars, no readable names or text — with a client lifting in the soft-focus background. Dark gym, crimson rim light, premium look. Heavy negative space top-left for headline. Photoreal, no logos, no readable text.
+Cinematic photograph of a coach (no face, mid-torso only) holding a phone displaying a stylised client list interface — the interface itself just abstract crimson and white bars, no readable names or text — with a client lifting in the soft-focus background. Dark gym, crimson rim light, premium look. Heavy negative space top-left for headline. Photoreal, no logos, no readable text. Wide landscape composition, 3:2 aspect ratio (1536x1024).
 ```
 
 ---
@@ -307,7 +312,7 @@ Cinematic photograph of a coach (no face, mid-torso only) holding a phone displa
 **Format:** 1792×1024 (16:9 landscape).
 
 ```
-Cinematic photograph, athlete mid-set of a barbell row, chalked hands, lats flared, shot from a low three-quarter angle. Pure black background, crimson rim light from behind, single warm tungsten key from camera-left. Mid-torso framing only, no face. Heavy negative space lower-right for headline. Photoreal, gritty, no logos, no text.
+Cinematic photograph, athlete mid-set of a barbell row, chalked hands, lats flared, shot from a low three-quarter angle. Pure black background, crimson rim light from behind, single warm tungsten key from camera-left. Mid-torso framing only, no face. Heavy negative space lower-right for headline. Photoreal, gritty, no logos, no text. Wide landscape composition, 3:2 aspect ratio (1536x1024).
 ```
 
 ---
@@ -319,7 +324,7 @@ Cinematic photograph, athlete mid-set of a barbell row, chalked hands, lats flar
 **Format:** 1024×1024 low-detail backdrop.
 
 ```
-Minimal, semi-blurred photo backdrop: chalk dust drifting in front of a black wall lit by a single distant crimson spotlight, very low contrast and detail so SVG animations can overlay cleanly. Photoreal, soft, no people, no text.
+Minimal, semi-blurred photo backdrop: chalk dust drifting in front of a black wall lit by a single distant crimson spotlight, very low contrast and detail so SVG animations can overlay cleanly. Photoreal, soft, no people, no text. Square 1:1 composition (1024x1024).
 ```
 
 ---
@@ -331,7 +336,7 @@ Minimal, semi-blurred photo backdrop: chalk dust drifting in front of a black wa
 **Format:** 1792×1024 (16:9 landscape).
 
 ```
-Cinematic photograph, a single staircase of stacked weight plates ascending from foreground (small plates) to background (large plates), each plate edge-lit with crimson rim light against pure black. Symbolic progression. Photoreal, no people, no text.
+Cinematic photograph, a single staircase of stacked weight plates ascending from foreground (small plates) to background (large plates), each plate edge-lit with crimson rim light against pure black. Symbolic progression. Photoreal, no people, no text. Wide landscape composition, 3:2 aspect ratio (1536x1024).
 ```
 
 ---
