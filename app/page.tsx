@@ -2617,12 +2617,16 @@ export default function HomePage() {
                     })()}
                   </div>
                 )}
-                <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 10 }}>
-                  <button onClick={() => setModalSlide(0)} style={{ width: modalSlide === 0 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 0 ? "#fff" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
-                  <button onClick={() => setModalSlide(1)} style={{ width: modalSlide === 1 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 1 ? "#FF6644" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
+                <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+                  <button onClick={() => setModalSlide(0)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1px solid ${modalSlide === 0 ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.07)"}`, background: modalSlide === 0 ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.02)", color: modalSlide === 0 ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", transition: "all 0.2s" }}>
+                    FORM DEMO
+                  </button>
+                  <button onClick={() => setModalSlide(1)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1px solid ${modalSlide === 1 ? "rgba(255,100,68,0.45)" : "rgba(255,255,255,0.07)"}`, background: modalSlide === 1 ? "rgba(255,100,68,0.1)" : "rgba(255,255,255,0.02)", color: modalSlide === 1 ? "#FF6644" : "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", transition: "all 0.2s" }}>
+                    MUSCLES
+                  </button>
                 </div>
                 <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.18)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                  {modalSlide === 0 ? "SWIPE LEFT · MUSCLES MAP" : "SWIPE RIGHT · FORM DEMO"} · TAP OUTSIDE TO CLOSE
+                  TAP OUTSIDE TO CLOSE
                 </div>
               </div>
             </div>
@@ -4637,13 +4641,17 @@ export default function HomePage() {
                   </div>
                 )}
 
-                {/* Slide indicators + navigation */}
-                <div style={{ marginTop: 14, display: "flex", justifyContent: "center", alignItems: "center", gap: 10 }}>
-                  <button onClick={() => setModalSlide(0)} style={{ width: modalSlide === 0 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 0 ? "#fff" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
-                  <button onClick={() => setModalSlide(1)} style={{ width: modalSlide === 1 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 1 ? "#FF6644" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
+                {/* Slide tab nav */}
+                <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+                  <button onClick={() => setModalSlide(0)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1px solid ${modalSlide === 0 ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.07)"}`, background: modalSlide === 0 ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.02)", color: modalSlide === 0 ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", transition: "all 0.2s" }}>
+                    FORM DEMO
+                  </button>
+                  <button onClick={() => setModalSlide(1)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1px solid ${modalSlide === 1 ? "rgba(255,100,68,0.45)" : "rgba(255,255,255,0.07)"}`, background: modalSlide === 1 ? "rgba(255,100,68,0.1)" : "rgba(255,255,255,0.02)", color: modalSlide === 1 ? "#FF6644" : "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", transition: "all 0.2s" }}>
+                    MUSCLES
+                  </button>
                 </div>
                 <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.18)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                  {modalSlide === 0 ? "SWIPE LEFT · MUSCLES MAP" : "SWIPE RIGHT · FORM DEMO"} · TAP OUTSIDE TO CLOSE
+                  TAP OUTSIDE TO CLOSE
                 </div>
               </div>
             </div>
