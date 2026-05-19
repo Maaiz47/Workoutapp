@@ -1092,6 +1092,8 @@ export default function HomePage() {
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "unsupported" | "error" | "requesting">("idle");
   const [testingNotif, setTestingNotif] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [showNotifBanner, setShowNotifBanner] = useState(false);
+  const [showPwaBanner, setShowPwaBanner] = useState(false);
+  const [pwaPlatform, setPwaPlatform] = useState<"ios" | "android" | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -1222,6 +1224,24 @@ export default function HomePage() {
       setShowNotifBanner(true);
     }
   }, []);
+
+  // PWA install nudge — show periodically on mobile browsers that haven't installed
+  useEffect(() => {
+    if (!user) return;
+    if (typeof window === "undefined") return;
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+    if (isStandalone) return;
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/.test(ua);
+    const isAndroid = /Android/.test(ua);
+    if (!isIOS && !isAndroid) return;
+    const last = localStorage.getItem("ironlog-pwa-prompt");
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    if (last && Date.now() - parseInt(last) < SEVEN_DAYS) return;
+    setPwaPlatform(isIOS ? "ios" : "android");
+    const t = setTimeout(() => setShowPwaBanner(true), 8000);
+    return () => clearTimeout(t);
+  }, [user]);
 
   const refreshUser = useCallback(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
@@ -3072,6 +3092,44 @@ export default function HomePage() {
                 <div style={{ fontSize: 12, color: "rgba(255,215,0,0.7)", fontFamily: "'Space Mono', monospace" }}>{pb.weight}kg × {pb.reps}</div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      {/* PWA install nudge */}
+      {showPwaBanner && pwaPlatform && (
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 500, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+          <div style={{ maxWidth: 480, width: "100%", pointerEvents: "all", background: "rgba(12,12,15,0.97)", borderTop: "1px solid rgba(255,107,107,0.25)", borderRadius: "20px 20px 0 0", padding: "20px 20px calc(20px + env(safe-area-inset-bottom, 0px))", backdropFilter: "blur(24px)" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+              <div>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 3, color: "#FF6B6B", marginBottom: 4 }}>INSTALL IRONLOG</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>
+                  {pwaPlatform === "ios"
+                    ? "Add to your home screen for the full app experience — faster, works offline, no browser bars."
+                    : "Install to your home screen for the full app — faster, works offline, no browser chrome."}
+                </div>
+              </div>
+              <button onClick={() => { localStorage.setItem("ironlog-pwa-prompt", String(Date.now())); setShowPwaBanner(false); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 20, cursor: "pointer", lineHeight: 1, padding: "0 0 0 12px", flexShrink: 0 }}>×</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {(pwaPlatform === "ios"
+                ? [
+                    { icon: "⬆️", text: "Tap the Share button at the bottom of Safari" },
+                    { icon: "➕", text: 'Scroll down and tap "Add to Home Screen"' },
+                    { icon: "✅", text: 'Tap "Add" to confirm' },
+                  ]
+                : [
+                    { icon: "⋮", text: "Tap the menu (three dots) at the top right of Chrome" },
+                    { icon: "➕", text: 'Tap "Add to Home Screen" or "Install app"' },
+                    { icon: "✅", text: 'Tap "Install" to confirm' },
+                  ]
+              ).map((step, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{step.icon}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>{step.text}</div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => { localStorage.setItem("ironlog-pwa-prompt", String(Date.now())); setShowPwaBanner(false); }} style={{ marginTop: 16, width: "100%", padding: "11px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.35)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>REMIND ME LATER</button>
           </div>
         </div>
       )}
