@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
 import { createPortal } from "react-dom";
+import Lottie from "lottie-react";
+import lottieLifterData from "./lottie-lifter.json";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 import { EXERCISES } from "../lib/exercises";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
@@ -5084,8 +5086,8 @@ function HomePage() {
               <div style={{ width: 1, background: "rgba(255,255,255,0.08)" }} />
               <div style={{ textAlign: "center" }}><div style={{ fontSize: 28, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{tSets}</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginTop: 2 }}>TOTAL SETS</div></div>
             </div>
-            <LifterIcon size={110} opacity={0.82} />
-            <motion.button whileTap={{ scale: 0.93 }} transition={{ type: "spring", stiffness: 400, damping: 17 }} onClick={begin} style={{ marginTop: 16, padding: "18px 56px", background: activeDay.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 15, fontWeight: 600, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 8px 32px ${activeDay.color}30` }}>START WORKOUT</motion.button>
+            <Lottie animationData={lottieLifterData} loop style={{ width: 150, height: 150, margin: "16px auto 0", opacity: 0.88 }} />
+            <motion.button whileTap={{ scale: 0.93 }} transition={{ type: "spring", stiffness: 400, damping: 17 }} onClick={begin} style={{ marginTop: 8, padding: "18px 56px", background: activeDay.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 15, fontWeight: 600, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 8px 32px ${activeDay.color}30` }}>START WORKOUT</motion.button>
           </motion.div>
         </div>
       );
