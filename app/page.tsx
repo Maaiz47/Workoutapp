@@ -5727,134 +5727,249 @@ function PwaBanner() {
 
   if (!visible || !platform) return null;
 
-  // Mini UI mockups that look like real browser chrome
-  const iosMockups = [
-    // Step 1: Safari bottom toolbar — share button ringed
-    <div key="s1" style={{ background: "#1c1c1e", borderRadius: 10, padding: "7px 10px" }}>
-      <div style={{ background: "#2c2c2e", borderRadius: 6, height: 20, display: "flex", alignItems: "center", padding: "0 8px", marginBottom: 6 }}>
-        <div style={{ width: 10, height: 10, borderRadius: "50%", background: "rgba(255,255,255,0.15)", marginRight: 5 }} />
-        <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,0.12)", borderRadius: 3 }} />
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", padding: "2px 0" }}>
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>◁</span>
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.15)" }}>▷</span>
-        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: 15, color: "#FF6B6B" }}>⎙</span>
-          <div style={{ position: "absolute", inset: -5, borderRadius: "50%", border: "2px solid #FF6B6B" }} />
+  // Shared phone frame
+  const phone = (children: React.ReactNode, h = 220) => (
+    <div style={{ width: 130, height: h, borderRadius: 18, border: "2px solid #3a3a3a", background: "#111", overflow: "hidden", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+      {/* status bar */}
+      <div style={{ background: "#111", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 10px 3px", flexShrink: 0 }}>
+        <span style={{ fontSize: 7, color: "#fff", fontWeight: 700 }}>18:12</span>
+        <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+          <span style={{ fontSize: 6, color: "#fff" }}>▂▄▆</span>
+          <span style={{ fontSize: 6, color: "#fff" }}>WiFi</span>
+          <span style={{ fontSize: 6, color: "#fff" }}>▓</span>
         </div>
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>⊡</span>
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>≡</span>
       </div>
-    </div>,
-    // Step 2: Share sheet rows — "Add to Home Screen" highlighted
-    <div key="s2" style={{ background: "#2c2c2e", borderRadius: 10, overflow: "hidden" }}>
-      {[
-        { label: "Copy", dim: true },
-        { label: "Add to Home Screen", highlight: true },
-        { label: "Add Bookmark", dim: true },
-      ].map(({ label, highlight, dim }, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: highlight ? "rgba(255,107,107,0.18)" : "transparent", borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-          <span style={{ fontSize: 10, color: highlight ? "#FF6B6B" : dim ? "rgba(255,255,255,0.35)" : "#fff", fontWeight: highlight ? 700 : 400 }}>{label}</span>
-          {highlight && <span style={{ fontSize: 8, letterSpacing: 1, color: "#FF6B6B", fontWeight: 700 }}>TAP ›</span>}
+      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>{children}</div>
+    </div>
+  );
+
+  // Shared IRONLOG app content
+  const appContent = (
+    <div style={{ flex: 1, background: "#0a0a0f", padding: "8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: "#fff", letterSpacing: 0.5, marginTop: 4 }}>
+        IRON<span style={{ color: "#FF6B6B" }}>LOG</span>
+      </div>
+      <div style={{ fontSize: 5, color: "rgba(255,255,255,0.3)", letterSpacing: 2 }}>LIFT · TRACK · PROGRESS</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, width: "100%", marginTop: 4 }}>
+        {["Log sets", "Rest timer", "Live PBs", "Your plan"].map(f => (
+          <div key={f} style={{ background: "rgba(255,255,255,0.05)", borderRadius: 3, padding: "3px 4px", fontSize: 5, color: "rgba(255,255,255,0.4)" }}>{f}</div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const iosSteps = [
+    {
+      label: "Open the website in Safari",
+      mockup: phone(
+        <>
+          {/* Safari URL bar */}
+          <div style={{ background: "#1c1c1e", padding: "4px 8px", flexShrink: 0 }}>
+            <div style={{ background: "#2c2c2e", borderRadius: 7, padding: "3px 8px", textAlign: "center" }}>
+              <span style={{ fontSize: 7, color: "#bbb" }}>ironlog.app</span>
+            </div>
+          </div>
+          {appContent}
+          {/* Safari toolbar */}
+          <div style={{ background: "#1c1c1e", borderTop: "1px solid #333", padding: "5px 0", display: "flex", justifyContent: "space-around", alignItems: "center", flexShrink: 0 }}>
+            {["◁","▷","⬆","📖","⊞"].map((ic, i) => (
+              <span key={i} style={{ fontSize: i === 2 ? 11 : 10, color: "rgba(255,255,255,0.45)" }}>{ic}</span>
+            ))}
+          </div>
+        </>
+      ),
+    },
+    {
+      label: 'Tap the Share button (⬆) then "Add to Home Screen"',
+      mockup: phone(
+        <>
+          {/* App peeking behind sheet */}
+          <div style={{ background: "#0a0a0f", padding: "4px 8px", flexShrink: 0 }}>
+            <div style={{ fontSize: 8, fontWeight: 800, color: "#fff", textAlign: "center" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+          </div>
+          {/* Share sheet */}
+          <div style={{ flex: 1, background: "#1c1c1e", display: "flex", flexDirection: "column" }}>
+            {/* App row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <div style={{ width: 22, height: 22, borderRadius: 5, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 5, fontWeight: 700, color: "#fff" }}>IL</span>
+              </div>
+              <div><div style={{ fontSize: 6.5, fontWeight: 700, color: "#fff" }}>IRONLOG</div><div style={{ fontSize: 5.5, color: "#888" }}>ironlog.app</div></div>
+              <div style={{ marginLeft: "auto", background: "rgba(255,255,255,0.1)", borderRadius: 8, padding: "1px 5px" }}><span style={{ fontSize: 5.5, color: "#ccc" }}>Options ›</span></div>
+            </div>
+            {/* App icons row */}
+            <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 4px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              {[{ c: "#2196F3", l: "AirDrop" }, { c: "#4CAF50", l: "Msgs" }, { c: "#1976D2", l: "Mail" }, { c: "#25D366", l: "WhatsApp" }].map(({ c, l }) => (
+                <div key={l} style={{ textAlign: "center" }}>
+                  <div style={{ width: 22, height: 22, borderRadius: 6, background: c, margin: "0 auto 2px" }} />
+                  <div style={{ fontSize: 4.5, color: "#888" }}>{l}</div>
+                </div>
+              ))}
+            </div>
+            {/* Action list */}
+            <div style={{ background: "#2c2c2e", margin: "4px 4px 0", borderRadius: 8, overflow: "hidden", flex: 1 }}>
+              {["Copy", "Add to Reading List", "Add Bookmark", "Add to Favorites"].map((item, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span style={{ fontSize: 7, color: "rgba(255,255,255,0.75)" }}>{item}</span>
+                </div>
+              ))}
+              {/* Highlighted */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", background: "rgba(255,107,107,0.12)", border: "1.5px solid #FF6B6B", margin: "1px", borderRadius: 5 }}>
+                <span style={{ fontSize: 7, color: "#FF6B6B", fontWeight: 700 }}>Add to Home Screen</span>
+                <span style={{ fontSize: 8, color: "#FF6B6B" }}>⊞</span>
+              </div>
+              {["Markup", "Print"].map((item, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", padding: "4px 8px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span style={{ fontSize: 7, color: "rgba(255,255,255,0.75)" }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Safari toolbar with share highlighted */}
+          <div style={{ background: "#1c1c1e", borderTop: "1px solid #333", padding: "5px 0", display: "flex", justifyContent: "space-around", alignItems: "center", flexShrink: 0 }}>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>◁</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>▷</span>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 12, color: "#FF6B6B" }}>⬆</span>
+              <div style={{ position: "absolute", inset: -4, borderRadius: "50%", border: "2px solid #FF6B6B" }} />
+            </div>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>📖</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>⊞</span>
+          </div>
+        </>,
+        260
+      ),
+    },
+    {
+      label: "The app will be added to your Home screen",
+      mockup: phone(
+        <div style={{ flex: 1, background: "linear-gradient(160deg,#1a0a0a,#2d0d0d)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "16px 8px", gap: 6 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 13, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(255,107,107,0.5)" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 6, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>IRON</div>
+              <div style={{ fontSize: 6, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>LOG</div>
+            </div>
+          </div>
+          <span style={{ fontSize: 7, color: "#fff", fontWeight: 500, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>IRONLOG</span>
         </div>
-      ))}
-    </div>,
-    // Step 3: Confirmation nav bar
-    <div key="s3" style={{ background: "#2c2c2e", borderRadius: 10, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-      <span style={{ fontSize: 10, color: "#4ECDC4" }}>Cancel</span>
-      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Add to Home Screen</span>
-      <span style={{ fontSize: 10, fontWeight: 700, background: "#007AFF", color: "#fff", borderRadius: 5, padding: "3px 8px" }}>Add</span>
-    </div>,
+      ),
+    },
   ];
 
-  const androidMockups = [
-    // Step 1: Chrome address bar — ⋮ ringed
-    <div key="a1" style={{ background: "#fff", borderRadius: 10, padding: "7px 10px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontSize: 12, color: "#aaa" }}>◁</span>
-        <span style={{ fontSize: 12, color: "#ddd" }}>▷</span>
-        <div style={{ flex: 1, background: "#f1f3f4", borderRadius: 20, height: 22, display: "flex", alignItems: "center", padding: "0 8px", gap: 4 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#34a853" }} />
-          <div style={{ flex: 1, height: 5, background: "#ddd", borderRadius: 3 }} />
+  const androidSteps = [
+    {
+      label: "Open the website in Chrome",
+      mockup: phone(
+        <>
+          {/* Chrome bar */}
+          <div style={{ background: "#202124", padding: "5px 6px", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <span style={{ fontSize: 9, color: "#888" }}>□</span>
+            <div style={{ flex: 1, background: "#303134", borderRadius: 20, padding: "3px 7px", display: "flex", alignItems: "center", gap: 3 }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#34a853" }} />
+              <span style={{ fontSize: 6.5, color: "#bbb" }}>ironlog.app</span>
+            </div>
+            <span style={{ fontSize: 12, color: "#888", fontWeight: 900 }}>⋮</span>
+          </div>
+          {appContent}
+        </>
+      ),
+    },
+    {
+      label: 'Tap the menu (⋮) then "Add to Home screen"',
+      mockup: phone(
+        <>
+          {/* Chrome bar */}
+          <div style={{ background: "#202124", padding: "5px 6px", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <span style={{ fontSize: 7, color: "#888" }}>←→</span>
+            <div style={{ flex: 1, background: "#303134", borderRadius: 20, padding: "2px 6px" }}>
+              <span style={{ fontSize: 6, color: "#bbb" }}>ironlog.app</span>
+            </div>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 13, color: "#FF6B6B", fontWeight: 900 }}>⋮</span>
+              <div style={{ position: "absolute", inset: -3, borderRadius: "50%", border: "2px solid #FF6B6B" }} />
+            </div>
+          </div>
+          {/* IRONLOG behind menu */}
+          <div style={{ background: "#0a0a0f", padding: "3px", flexShrink: 0 }}>
+            <div style={{ fontSize: 7, fontWeight: 800, color: "#fff", textAlign: "center" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+          </div>
+          {/* Chrome menu */}
+          <div style={{ flex: 1, background: "#2d2d2d", overflow: "hidden" }}>
+            {["New tab", "New incognito tab", "History", "Downloads", "Bookmarks", "Share..."].map((item, i) => (
+              <div key={i} style={{ padding: "4px 10px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <span style={{ fontSize: 7, color: "rgba(255,255,255,0.65)" }}>{item}</span>
+              </div>
+            ))}
+            {/* Highlighted */}
+            <div style={{ margin: "2px 4px", padding: "4px 6px", background: "rgba(255,107,107,0.1)", border: "1.5px solid #FF6B6B", borderRadius: 4, display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 8 }}>➕</span>
+              <span style={{ fontSize: 7, color: "#FF6B6B", fontWeight: 700, flex: 1 }}>Add to Home screen</span>
+            </div>
+            {["Desktop site", "Settings", "Help & feedback"].map((item, i) => (
+              <div key={i} style={{ padding: "4px 10px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                <span style={{ fontSize: 7, color: "rgba(255,255,255,0.4)" }}>{item}</span>
+              </div>
+            ))}
+          </div>
+        </>,
+        250
+      ),
+    },
+    {
+      label: "The app will be added to your Home screen",
+      mockup: phone(
+        <div style={{ flex: 1, background: "linear-gradient(160deg,#0a0a1a,#0d0d2d)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "16px 8px", gap: 6 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 13, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(255,107,107,0.5)" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 6, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>IRON</div>
+              <div style={{ fontSize: 6, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>LOG</div>
+            </div>
+          </div>
+          <span style={{ fontSize: 7, color: "#fff", fontWeight: 500, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>IRONLOG</span>
         </div>
-        <span style={{ fontSize: 12, color: "#bbb" }}>☆</span>
-        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: 16, color: "#FF6B6B", fontWeight: 900, lineHeight: 1 }}>⋮</span>
-          <div style={{ position: "absolute", inset: -4, borderRadius: "50%", border: "2px solid #FF6B6B" }} />
-        </div>
-      </div>
-    </div>,
-    // Step 2: Chrome dropdown — "Add to Home screen" highlighted
-    <div key="a2" style={{ background: "#fff", borderRadius: 10, overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }}>
-      {[
-        { label: "New tab", dim: true },
-        { label: "Add to Home screen", highlight: true },
-        { label: "Downloads", dim: true },
-      ].map(({ label, highlight, dim }, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: highlight ? "rgba(255,107,107,0.1)" : "#fff", borderBottom: i < 2 ? "1px solid rgba(0,0,0,0.06)" : "none" }}>
-          <span style={{ fontSize: 10, color: highlight ? "#FF6B6B" : dim ? "#aaa" : "#333", fontWeight: highlight ? 700 : 400 }}>{label}</span>
-          {highlight && <span style={{ fontSize: 8, letterSpacing: 1, color: "#FF6B6B", fontWeight: 700 }}>TAP ›</span>}
-        </div>
-      ))}
-    </div>,
-    // Step 3: Install dialog
-    <div key="a3" style={{ background: "#fff", borderRadius: 10, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-      <div>
-        <div style={{ fontSize: 10, fontWeight: 600, color: "#333" }}>Add to Home screen?</div>
-        <div style={{ fontSize: 8, color: "#aaa", marginTop: 1 }}>ironlogmv.vercel.app</div>
-      </div>
-      <span style={{ fontSize: 10, fontWeight: 700, background: "#4285f4", color: "#fff", borderRadius: 5, padding: "4px 10px" }}>Add</span>
-    </div>,
+      ),
+    },
   ];
 
-  const mockups = platform === "ios" ? iosMockups : androidMockups;
-  const labels = platform === "ios"
-    ? ["Tap the Share button\nat the bottom of Safari", 'Tap "Add to Home Screen"\nin the share sheet', 'Tap "Add" to confirm\nand you\'re done']
-    : ["Tap the ⋮ menu button\nat the top right of Chrome", 'Tap "Add to Home screen"\nor "Install app"', 'Tap "Add" and the app\nwill appear on your home screen'];
+  const steps = platform === "ios" ? iosSteps : androidSteps;
+  const platformLabel = platform === "ios" ? "iOS (Safari)" : "Android (Chrome)";
+  const platformIcon = platform === "ios" ? "🍎" : "🤖";
 
   return createPortal(
     <>
-      <div style={{ position: "fixed", inset: 0, zIndex: 9997, background: "rgba(0,0,0,0.6)" }} onClick={dismiss} />
+      <div style={{ position: "fixed", inset: 0, zIndex: 9997, background: "rgba(0,0,0,0.65)" }} onClick={dismiss} />
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9998, display: "flex", justifyContent: "center" }}>
-        <div style={{ maxWidth: 480, width: "100%", background: "#0f0f13", borderTop: "2px solid rgba(255,107,107,0.5)", borderRadius: "24px 24px 0 0", boxShadow: "0 -16px 60px rgba(255,107,107,0.18)", display: "flex", flexDirection: "column", maxHeight: "92dvh" }}>
-          {/* Scrollable content */}
-          <div style={{ overflowY: "auto", padding: "0 20px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+        <div style={{ maxWidth: 480, width: "100%", background: "#0c0c10", borderTop: "2px solid rgba(255,107,107,0.45)", borderRadius: "22px 22px 0 0", boxShadow: "0 -16px 60px rgba(255,107,107,0.15)", display: "flex", flexDirection: "column", maxHeight: "92dvh" }}>
+          <div style={{ overflowY: "auto", padding: "0 18px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}>
             {/* Handle */}
-            <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "14px auto 20px" }} />
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "12px auto 16px" }} />
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 46, height: 46, borderRadius: 13, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 16px rgba(255,107,107,0.35)" }}>
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700, color: "#fff" }}>IL</span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px rgba(255,107,107,0.35)" }}>
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, color: "#fff" }}>IL</span>
                 </div>
                 <div>
-                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 15, fontWeight: 700, color: "#fff", letterSpacing: 0.5 }}>Add to Home Screen</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Free · No App Store needed</div>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: "#fff" }}>Install IronLog</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{platformIcon} {platformLabel} · Free · No App Store</div>
                 </div>
               </div>
-              <button onClick={dismiss} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 34, height: 34, color: "rgba(255,255,255,0.5)", fontSize: 19, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
+              <button onClick={dismiss} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 32, height: 32, color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
             </div>
-            {/* Benefit chips */}
-            <div style={{ display: "flex", gap: 7, marginBottom: 20, flexWrap: "wrap" }}>
-              {["⚡ Instant load", "📴 Works offline", "🔔 Push alerts", "🏠 Lives on home screen"].map(b => (
-                <span key={b} style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "4px 10px" }}>{b}</span>
-              ))}
-            </div>
-            {/* Visual step cards */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
-              {mockups.map((mockup, i) => (
-                <div key={i} style={{ display: "flex", gap: 14, alignItems: "center", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "12px 14px" }}>
-                  {/* Step number */}
-                  <div style={{ width: 22, height: 22, borderRadius: "50%", background: i === 0 ? "#FF6B6B" : "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: i === 0 ? "#fff" : "rgba(255,255,255,0.4)", flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>{i + 1}</div>
-                  {/* Mockup */}
-                  <div style={{ width: 140, flexShrink: 0 }}>{mockup}</div>
-                  {/* Label */}
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, flex: 1, whiteSpace: "pre-line" }}>{labels[i]}</div>
+            {/* Steps */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+              {steps.map((step, i) => (
+                <div key={i}>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: i === 1 ? "#FF6B6B" : "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: i === 1 ? "#fff" : "rgba(255,255,255,0.5)", flexShrink: 0 }}>{i + 1}</div>
+                    <span style={{ color: i === 1 ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.5)", fontWeight: i === 1 ? 600 : 400 }}>{step.label}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "center" }}>{step.mockup}</div>
                 </div>
               ))}
             </div>
             {/* Dismiss */}
-            <button onClick={dismiss} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Remind me later</button>
+            <button onClick={dismiss} style={{ width: "100%", padding: "13px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 11, color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Remind me later</button>
           </div>
         </div>
       </div>
