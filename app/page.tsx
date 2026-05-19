@@ -6513,7 +6513,7 @@ function HomePage() {
           const dash = C * progress;
           const hasPB = newPBs.length > 0;
           return (
-            <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: hasPB ? "flex-start" : "center", paddingTop: hasPB ? 60 : 0, zIndex: 200, backdropFilter: "blur(20px)", touchAction: "none", overscrollBehavior: "none" }}>
+            <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: hasPB ? "flex-start" : "center", paddingTop: hasPB ? 60 : "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)", zIndex: 200, backdropFilter: "blur(20px)", touchAction: "none", overscrollBehavior: "none" }}>
               <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 28, fontFamily: "'Space Mono', monospace" }}>REST</div>
               <div style={{ position: "relative", width: 172, height: 172, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="172" height="172" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
