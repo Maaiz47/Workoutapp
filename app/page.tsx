@@ -5740,30 +5740,47 @@ function PwaBanner() {
       ];
 
   return createPortal(
-    <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9998, display: "flex", justifyContent: "center" }}>
-      <div style={{ maxWidth: 480, width: "100%", background: "rgba(12,12,15,0.97)", borderTop: "1px solid rgba(255,107,107,0.3)", borderRadius: "20px 20px 0 0", padding: "20px 20px calc(20px + env(safe-area-inset-bottom, 0px))", backdropFilter: "blur(24px)" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 3, color: "#FF6B6B", marginBottom: 6 }}>INSTALL IRONLOG</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.45 }}>
-              {platform === "ios"
-                ? "Add to your home screen for the full app — faster, offline-ready, no browser bars."
-                : "Install to your home screen for the full app — faster, offline-ready, no browser chrome."}
+    <>
+      {/* Dim backdrop */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 9997, background: "rgba(0,0,0,0.55)" }} onClick={dismiss} />
+      {/* Sheet */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9998, display: "flex", justifyContent: "center" }}>
+        <div style={{ maxWidth: 480, width: "100%", background: "#0f0f13", borderTop: "2px solid rgba(255,107,107,0.5)", borderRadius: "24px 24px 0 0", padding: "28px 24px calc(28px + env(safe-area-inset-bottom, 0px))", boxShadow: "0 -12px 60px rgba(255,107,107,0.15)" }}>
+          {/* Handle bar */}
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 24px" }} />
+          {/* Header row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700, color: "#fff" }}>IL</span>
+              </div>
+              <div>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: "#fff", letterSpacing: 1 }}>Add to Home Screen</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Get the full app experience</div>
+              </div>
             </div>
+            <button onClick={dismiss} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 32, height: 32, color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
           </div>
-          <button onClick={dismiss} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 22, cursor: "pointer", lineHeight: 1, padding: "0 0 0 14px", flexShrink: 0 }}>×</button>
+          {/* Benefit chips */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
+            {["⚡ Faster", "📴 Works offline", "🔔 Push alerts"].map(b => (
+              <span key={b} style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "4px 10px" }}>{b}</span>
+            ))}
+          </div>
+          {/* Steps */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+            {steps.map((step, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,107,107,0.12)", border: "1px solid rgba(255,107,107,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{step.icon}</div>
+                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>{step.text}</div>
+              </div>
+            ))}
+          </div>
+          {/* Dismiss */}
+          <button onClick={dismiss} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>Remind me later</button>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
-          {steps.map((step, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>{step.icon}</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.45 }}>{step.text}</div>
-            </div>
-          ))}
-        </div>
-        <button onClick={dismiss} style={{ width: "100%", padding: "12px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.35)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>REMIND ME LATER</button>
       </div>
-    </div>,
+    </>,
     document.body
   );
 }
