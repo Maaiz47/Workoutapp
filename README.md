@@ -1,6 +1,10 @@
-# IRONLOG — Gym Workout Tracker
+# IRONLOG — Train Smarter. Track Everything.
 
-A full-stack PWA workout tracker. Log sets, track progress, get a personalised training plan, connect with a trainer, and manage everything from a clean mobile-first UI.
+**IRONLOG** is a full-stack progressive web app built for serious lifters and the trainers who coach them. Log every set, watch your progress compound, get a personalised training plan, and stay connected with your trainer — all from a polished mobile-first interface that installs directly to your home screen.
+
+No ads. No subscriptions. No fluff. Just your lifts.
+
+> Built on Next.js 14 · PostgreSQL · Prisma · Web Push · Vercel
 
 ---
 
@@ -31,14 +35,17 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 
 ### Workout Tracking
 - Per-set weight + reps logging with ± steppers
-- Rest countdown timer with audio beep and push notification
+- **Rest countdown timer:** SVG arc ring depletes around the countdown number; audio double-beep + vibration on completion; push notification when app is backgrounded
 - Session elapsed timer
 - Comparison indicators on every set: **vs previous set** and **vs last session**
+- **Personal Best detection:** 🏆 overlay pops immediately when you log a weight that beats your last session — no waiting until the end
 - Warmup / cardio rows: tap to mark done, no data entry required
+- **Bodyweight toggle:** bodyweight exercises hide the weight field by default; `+ ADD WEIGHT` reveals it for weighted variants (vest, belt, etc.)
 - Active workout persists across navigation — leave to home, message, check progress, return anytime
 - **Supersets:** pair any two or more exercises; auto-advances between them with no rest, fires rest after the last in the group
 - **Drop sets:** set rest to 0 (SKIP) on any exercise — a drop set panel slides in immediately after the main set with weight pre-reduced ~20%; rest only fires after all drops complete
 - **Add exercise mid-session:** `+ ADD EXERCISE` button opens a full exercise browser during any active workout; configure sets, reps, and rest; toggle "Save to plan" to make it permanent or keep it session-only
+- **Workout complete animation:** full-screen expanding rings + checkmark pop on save; auto-dismisses before navigating home
 
 ### Session Persistence
 - In-progress workouts saved to `localStorage` continuously
@@ -57,6 +64,7 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 ### Personalised Plan
 - 8-step onboarding questionnaire for new users: days per week, goals, fitness level, location, equipment, gender, DOB, body metrics
 - **Multiple goals** supported — select any combination of Build Muscle, Get Stronger, Lose Fat, General Fitness
+- **Equipment-aware filtering:** exercises require the right gear — bench press won't appear for users who only have dumbbells (`requireAll` flag handles multi-item requirements). Home equipment options include treadmill, elliptical, and multi-gym (expands to configure which stations are included: cable, machine, pull-up bar, dip bar)
 - Rule-based plan generator produces a custom split — no AI API required
   - 2d → Full Body · 3d → PPL or Full Body ×3 · 4d → Upper/Lower · 5d → PPL · 6d → PPL ×2
   - Blends sets/reps/rest across all selected goals (e.g. Muscle + Fat Loss → moderate reps, shorter rest)
@@ -114,7 +122,7 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Accepted clients appear in the **MY CLIENTS** section on the trainer's home screen
 - **Trainer badge** shown next to username on home screen — reflects role changes without reload (re-fetches on tab focus via `visibilitychange`)
 - Client detail view (3 tabs):
-  - **SPLIT** — view the client's current plan; trainers can edit sets, reps, rest times, supersets, and drop sets inline and propose changes
+  - **SPLIT** — view the client's current plan; trainers can edit sets, reps, rest times, supersets, and drop sets inline and propose changes; **⚡ BUILD PLAN** generates a fresh plan (one tier harder than the client's fitness level) ready to review and customise before sending
   - **HISTORY** — full session log; tap any session to see every exercise logged vs skipped, with weight × reps per set
   - **PROFILE** — client's body stats and fitness profile; equipment shown as a clean line-by-line list
 - **MESSAGE button** on the client detail header — opens a direct conversation with the client in one tap
@@ -128,9 +136,11 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 
 ### Messaging
 - In-app direct messaging between users and their trainer
-- Real-time polling (1-second incremental `?since=` fetch)
-- Unread message badge on the home screen
-- Push notifications for new messages (when app is backgrounded)
+- Real-time polling (1-second incremental `?since=` fetch for conversation thread; 5-second list refresh while on the messages screen)
+- **Message status indicators** — sent (`✓`), delivered (`✓✓` grey), read (`✓✓` teal) shown on sent bubbles and in the conversation list preview
+- Conversation list always shows the absolute latest message — updates instantly after sending without needing to leave and re-open
+- Unread message badge on the home screen nav button
+- **Smart notifications:** push banner suppressed when the app tab is in focus — a soft beep + short vibration is played instead; browser tab title flashes `💬 New message` if the user is on a different view. Banner notifications fire normally when the app is backgrounded
 - Swipe left-to-right from the edge to go back in any conversation or detail view
 
 ### Push Notifications
@@ -269,7 +279,7 @@ public/
 | `PlanExercise` | Exercise entry within a plan day — includes `groupId`, `groupType`, `dropSets` |
 | `WorkoutLog` | Completed session — sets JSON, duration, date |
 | `SavedRoutine` | Named plan snapshot; shareable between users |
-| `Message` | Direct message; supports text and plan_proposal types |
+| `Message` | Direct message; supports text and plan_proposal types; `read` + `delivered` boolean fields for status indicators |
 | `PlanProposal` | Trainer-proposed plan change; linked to a Message |
 | `TrainerRequest` | Pending trainer → user connection request |
 | `TrainerClient` | Accepted trainer–client relationship |
@@ -280,7 +290,17 @@ public/
 
 ## Roadmap
 
-See `ROADMAP.md` for the full future feature plan including HIIT programs, animation roadmap, and long-term candidates.
+See `ROADMAP.md` for the full future feature plan. See `PATCHLOG.md` for the full history.
+
+**Recently shipped:**
+- ✅ Animations & visual polish (view transitions, LOG SET flash, PB celebration, rest timer ring, workout complete overlay, progress bar grow, onboarding slides, nav bounce)
+- ✅ Equipment filtering (`requireAll` flag — bench press no longer appears for dumbbell-only users)
+- ✅ Home equipment expansion (treadmill, elliptical, multi-gym with sub-options)
+- ✅ Bodyweight weight toggle
+- ✅ Trainer plan generation (harder plan, review before proposing)
+- ✅ Message delivery/read/sent status with live tick upgrades
+- ✅ Smart in-app notification suppression (soft beep + tab flash instead of OS banner)
+- ✅ Mobile UX polish (rest timer scroll lock, `100dvh`, safe-area insets, tap highlight removal)
 
 | Blocked item | Reason |
 |---|---|

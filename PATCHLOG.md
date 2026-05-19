@@ -34,6 +34,117 @@ See `ROADMAP.md` for the full future features list.
 
 ---
 
+## Patch 38 · 2026-05-19
+**Message Delivery Status — Conversations List Live Preview**
+
+- After sending a message the conversation list preview updates instantly to the new message with the correct tick state — no longer shows a stale preview until the page is reopened
+- Input field clears immediately on send (not after server round-trip); text is restored if the request fails
+- Conversations list polls every 5 seconds while the messages screen is open — incoming messages and status upgrades appear without leaving the screen
+
+---
+
+## Patch 37 · 2026-05-19
+**In-App Notification Suppression — Soft Beep + Tab Flash**
+
+- Push notification banner is now suppressed when the app tab is in focus — the OS notification no longer interrupts you while you're already using the app
+- When a message arrives and the app is focused, the service worker forwards it to the page via `postMessage` instead of showing a banner
+- Page responds with a short 660 Hz sine-wave beep (180 ms, soft) + phone vibration (60 ms)
+- If the user is on a different view (not messages/conversation), the browser tab title alternates between `💬 New message` and the app name every 900 ms until they open the messages screen
+- Tab flash stops automatically when the user navigates to messages or conversation
+- When the app is backgrounded or in a different tab, full banner notification still fires as normal
+
+---
+
+## Patch 36 · 2026-05-19
+**Messaging — Delivered / Read / Sent Status**
+
+- Added `delivered` boolean field to the `Message` schema (migration: `20260519_message_delivered`)
+- **Sent** (`✓` dim): message created in database
+- **Delivered** (`✓✓` grey): recipient's client fetched their message list — their session is active
+- **Read** (`✓✓` teal): recipient opened the specific conversation
+- Tick indicators shown on sent message bubbles (bottom-right, inline with timestamp)
+- Conversation list preview shows tick status before the message text for messages you sent
+- Polling: 5-second status-refresh loop re-fetches all messages in the open conversation and merges `read`/`delivered` changes on already-rendered bubbles — ticks upgrade in real time
+- `GET /api/messages` now marks all incoming messages as `delivered = true` (recipient is online)
+- `GET /api/messages/[userId]` marks incoming messages as `delivered = true, read = true`
+
+---
+
+## Patch 35 · 2026-05-19
+**Mobile UX — Rest Timer Scroll Lock + Comprehensive Polish**
+
+- **Rest timer scroll-through fixed:** body scroll is now locked (iOS-safe `position: fixed` technique) whenever the rest timer or workout-complete overlay is active — body position/scrollY is saved and restored on dismiss
+- Rest timer overlay: `touch-action: none` + `overscroll-behavior: none` prevent any touch-based scroll passing through
+- Replaced all `100vh` with `100dvh` (dynamic viewport height) across every view — fixes content being cut off or over-tall when the mobile browser URL bar appears or hides
+- `safe-area-inset-bottom` added to all view bottom paddings via `env()` — content is no longer hidden behind the iPhone home indicator
+- `-webkit-tap-highlight-color: transparent` applied globally — eliminates the grey flash on every button tap
+- `text-size-adjust: 100%` prevents iOS from auto-bumping font sizes on orientation change
+- `user-select: none` on all buttons — prevents accidental text selection when tapping quickly
+- Added `.scroll-y` utility class (momentum scrolling) and `.safe-bottom` helper for future use
+
+---
+
+## Patch 34 · 2026-05-19
+**Animation Bug Fixes — LOG SET Flash, Live PB Detection, Stronger View Transitions**
+
+- **LOG SET flash fixed:** the LOG SET button had a `key` prop tied to the set number — when a set was logged the key changed, React remounted the button, and the flash animation was destroyed before it played. Key removed; animation now fires correctly
+- **PB celebration — live during workout:** Personal Best detection moved from end-of-workout save to the LOG SET click handler. The 🏆 overlay now pops immediately when you log a weight that beats your last session. Each exercise PB only fires once per session; any remaining unshown PBs (e.g. no explicit set logged) still appear after the completion animation
+- View slide animation increased from 24 px / 0.3 s to 40 px / 0.35 s for a clearly perceptible transition
+- LOG SET flash updated to use `box-shadow` glow (`rgba(46,204,113,0.5)`) instead of background-color override — more reliable against gradient button backgrounds
+
+---
+
+## Patch 33 · 2026-05-19
+**Animations & Visual Polish (full pass)**
+
+- **View transitions:** all main views (`home`, `workout-prep`, `workout-session`, `progress`, `messages`, `conversation`, `settings`, `customise`, `clientDetail`) animate in with a 40 px right-slide + fade on forward navigation; back navigation uses a left-slide. Direction is tracked with `viewDir` state; `goTo()` / `goBack()` helpers wrap `setView`
+- **LOG SET flash:** green brightness burst + scale pulse on the LOG SET button each time a set is confirmed (`.log-flash` keyframe, 380 ms)
+- **Personal Best overlay:** `🏆 PERSONAL BEST` card pops up with a scale-in animation and a diagonal shine sweep; shown on the home screen after saving a workout with a new PB
+- **Rest timer ring:** SVG arc depletes around the countdown number — full circle at rest start, shrinks to 0 at zero. Driven by `rest.total` (initial seconds) tracked in `useCountdown`
+- **Workout complete overlay:** full-screen finish animation on SAVE — expanding concentric rings + checkmark scale-in; auto-dismisses after 1.4 s before navigating home
+- **Progress bar grow:** weight-goal, body-fat, and onboarding progress bars animate from 0 to their value on load (`.bar-grow`, 0.9 s spring)
+- **Onboarding step slides:** each step slides in from the right / left depending on direction (forward/back tracking via `prevOnboardingStep` ref)
+- **Nav button bounce:** Messages and VIEW PROGRESS buttons scale-bounce on tap (`.nav-btn` + `@keyframes navBounce`)
+
+---
+
+## Patch 32 · 2026-05-19
+**Equipment Filtering, Home Equipment, Bodyweight Weight Toggle, Trainer Plan Generation**
+
+### Equipment filtering fix — bench press for home users
+- Added `requireAll?: boolean` to the `Exercise` interface
+- 12 exercises that require both a weight AND a bench (all bench press variants, dumbbell flyes, skull crushers, hip thrusts, incline curl) marked `requireAll: true`
+- `filterExercises()` and `pickExercise()` in `planGenerator.ts` now use `.every()` for `requireAll` exercises and `.some()` for others — bench press no longer appears for users with only dumbbells
+
+### New home equipment options
+- Added `treadmill` and `elliptical` to the `Equipment` union type
+- New `multi_gym` option in the equipment picker expands to show sub-options: cable machine, multi-machine, pull-up bar, dip bar — selecting sub-options adds the real equipment IDs; `multi_gym` itself is filtered out before saving to the profile
+- Treadmill exercise updated to `equipment: ["treadmill", "machine"]`; cycling exercise linked to `elliptical`; new standalone elliptical exercise added
+
+### Bodyweight weight toggle
+- Bodyweight exercises (`equipment: ["bodyweight"]`) no longer show the weight input by default
+- A `+ ADD WEIGHT` toggle reveals the field for weighted variants (vest, belt, etc.)
+- `effectiveWeight` is `"0"` when BW mode and toggle is off; normal input value otherwise
+
+### Trainer plan generation
+- New API route: `POST /api/trainer/clients/[clientId]/generate-plan`
+- Verifies trainer role and trainer-client relationship; fetches client profile
+- Bumps client fitness level one tier (`newcomer → beginner → intermediate → advanced`) for a harder workout
+- `boostPlan()` adds +1 set per exercise (compound cap 6, isolation cap 4)
+- Returns plan days without persisting — trainer reviews and edits in the customise view before proposing
+- `⚡ BUILD PLAN` button added to trainer's client detail Split tab
+- "AI-generated plan" banner shown when the generated plan is active in the editor
+
+---
+
+## Patch 31 · 2026-05-19
+**Deployment Fix — Feature Branch → Main Merge**
+
+- All accumulated feature work from `claude/workout-reset-target-area-4sVKv` was committed but not pushed to `main` — Vercel was deploying from `main` and not picking up changes
+- Merged feature branch → main; all prior patches now live
+
+---
+
 ## Patch 30 · 2026-05-18
 **Visual Polish — Animated Login Logo, Rotating Phrase, Trainer Role Refresh**
 

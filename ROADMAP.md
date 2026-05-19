@@ -13,6 +13,21 @@ Future direction, blocked items, and improvement areas. Read alongside `PATCHLOG
 
 ---
 
+## Recently Shipped (2026-05-19)
+
+| Item | Status |
+|---|---|
+| Animations & visual polish — all areas below | ✅ Shipped — Patch 33 |
+| Equipment filtering (`requireAll` — bench without bench fix) | ✅ Shipped — Patch 32 |
+| Home equipment expansion (treadmill, elliptical, multi-gym) | ✅ Shipped — Patch 32 |
+| Bodyweight weight toggle | ✅ Shipped — Patch 32 |
+| Trainer plan generation (harder + customisable before proposal) | ✅ Shipped — Patch 32 |
+| Message delivered/read/sent status | ✅ Shipped — Patch 36 |
+| In-app notification suppression (soft beep + tab flash) | ✅ Shipped — Patch 37 |
+| Mobile UX polish (scroll lock, 100dvh, safe areas) | ✅ Shipped — Patch 35 |
+
+---
+
 ## Committed / In Design
 
 These are agreed directions with enough spec to start when resources allow.
@@ -26,20 +41,21 @@ These are agreed directions with enough spec to start when resources allow.
 - Preference stored on `UserProfile` (`hiitPreference`, `hiitIntensity`)
 - Schema: two nullable `String?` fields on `UserProfile` — additive, no breaking changes
 
-### Animations & Visual Polish
-The app has solid bones but interactions feel static in places. Target areas:
+### ~~Animations & Visual Polish~~ ✅ Shipped
 
-| Area | Plan |
+All target areas completed in Patch 33/34:
+
+| Area | Shipped |
 |---|---|
-| **View transitions** | Slide-in / slide-out between home → workout, home → progress, home → settings. Currently hard cuts. |
-| **Set logging** | Brief "logged" micro-animation on the LOG SET button — green flash + slight scale pulse |
-| **Personal Best** | Celebration animation when a new PB is detected at session save — trophy/flash overlay |
-| **Rest timer countdown** | Visual ring or arc around the timer number that depletes as rest ticks down |
-| **Workout completion** | Full-screen finish animation on SAVE — could echo the muscle explosion icons |
-| **Progress milestones** | Streak counter animates on increment; goal progress bars animate to new value on load |
-| **Onboarding steps** | Each step slides in from the right, slides out to the left (currently fade only) |
-| **Plan card hover** | Already has `card-hover` class — extend to a subtle lift + left-border glow on press |
-| **Bottom nav icons** | Icon scale bounce on tab switch |
+| View transitions | ✅ 40 px slide-in/out on all view changes, direction-aware |
+| Set logging flash | ✅ Green glow + scale burst on LOG SET |
+| Personal Best | ✅ 🏆 overlay on live set log, not just at workout end |
+| Rest timer ring | ✅ SVG arc depletes around countdown number |
+| Workout completion | ✅ Expanding rings + checkmark pop, auto-dismisses |
+| Progress bar grow | ✅ `.bar-grow` spring animation on all goal bars |
+| Onboarding steps | ✅ Direction-tracked slide in/out |
+| Plan card hover | Already covered by `.card-hover` active scale |
+| Bottom nav bounce | ✅ `.nav-btn` scale bounce on tap |
 
 ---
 
