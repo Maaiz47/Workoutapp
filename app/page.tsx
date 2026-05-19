@@ -1152,6 +1152,10 @@ function HomePage() {
   const [conversationMessages, setConversationMessages] = useState<any[]>([]);
   const [messageText, setMessageText] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; body: string; username: string } | null>(null);
+  const [reactingToMsgId, setReactingToMsgId] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [partnerLastSeen, setPartnerLastSeen] = useState<string | null>(null);
   const lastMsgCreatedAtRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1296,6 +1300,15 @@ function HomePage() {
     }).catch(() => {});
   }, [user]);
 
+  // Heartbeat — update lastSeenAt every 60s while app is open and user is logged in
+  useEffect(() => {
+    if (!user) return;
+    const beat = () => fetch("/api/presence", { method: "POST" }).catch(() => {});
+    beat(); // fire immediately on login
+    const id = setInterval(beat, 60_000);
+    return () => clearInterval(id);
+  }, [user]);
+
   // Poll conversations list every 5s while on the messages view
   useEffect(() => {
     if (view !== "messages") return;
@@ -1345,11 +1358,12 @@ function HomePage() {
         }
       } catch {}
     };
-    // Periodically re-fetch all messages to pick up read/delivered status changes on sent messages
+    // Periodically re-fetch all messages to pick up read/delivered/lastSeen changes
     const pollStatus = async () => {
       try {
         const res = await fetch(`/api/messages/${partnerId}`);
         const data = await res.json();
+        if (data.partnerLastSeen !== undefined) setPartnerLastSeen(data.partnerLastSeen);
         if (data.messages?.length > 0) {
           setConversationMessages(prev => {
             const statusMap = new Map<string, { read: boolean; delivered: boolean }>(data.messages.map((m: any) => [m.id, { read: m.read, delivered: m.delivered }]));
@@ -1596,6 +1610,21 @@ function HomePage() {
   };
 
   const doLogout = async () => {
+    // Remove this device's push subscription before clearing the session
+    try {
+      if ("serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await fetch("/api/push/subscribe", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          });
+          await sub.unsubscribe();
+        }
+      }
+    } catch {}
     await fetch("/api/auth", { method: "DELETE" });
     setUser(null); setView("home"); setActiveDay(null); timer.stopT();
     setAuthStep("username"); setPasswordInput(""); setEmailInput("");
@@ -1899,6 +1928,7 @@ function HomePage() {
         setConversations(prev => prev.map(c => c.partner.id === partner.id ? { ...c, unreadCount: 0 } : c));
         setUnreadCount(prev => Math.max(0, prev - (conversations.find(c => c.partner.id === partner.id)?.unreadCount ?? 0)));
       }
+      if (data.partnerLastSeen !== undefined) setPartnerLastSeen(data.partnerLastSeen);
     } catch {}
   };
 
@@ -1906,12 +1936,14 @@ function HomePage() {
     if (!messageText.trim() || !activeConversation || sendingMessage) return;
     setSendingMessage(true);
     const body = messageText.trim();
-    setMessageText(""); // clear immediately so input doesn't feel sticky
+    const replyToId = replyingTo?.id ?? null;
+    setMessageText("");
+    setReplyingTo(null);
     try {
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toId: activeConversation.id, body }),
+        body: JSON.stringify({ toId: activeConversation.id, body, replyToId }),
       });
       const data = await res.json();
       if (data.message) {
@@ -1925,6 +1957,28 @@ function HomePage() {
       }
     } catch { setMessageText(body); } // restore on failure
     setSendingMessage(false);
+  };
+
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    const myId = user!.id;
+    // Optimistic update
+    setConversationMessages(prev => prev.map(m => {
+      if (m.id !== messageId) return m;
+      const reactions: { emoji: string; userId: string }[] = m.reactions ?? [];
+      const exists = reactions.some((r: any) => r.emoji === emoji && r.userId === myId);
+      return {
+        ...m,
+        reactions: exists
+          ? reactions.filter((r: any) => !(r.emoji === emoji && r.userId === myId))
+          : [...reactions, { emoji, userId: myId }],
+      };
+    }));
+    setReactingToMsgId(null);
+    await fetch("/api/reactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId, emoji }),
+    }).catch(() => {});
   };
 
   const openCustomise = async () => {
@@ -4054,11 +4108,33 @@ function HomePage() {
   // ─── CONVERSATION ────────────────────────────────────────────────────
   if (view === "conversation" && activeConversation) { _viewKey = `conv-${activeConversation.id}`; _content = (
     <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100dvh" }}>
-      <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
-        <button onClick={() => { setView("messages"); setActiveConversation(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
-        <div style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>@{activeConversation.username}</div>
-      </div>
-      <div ref={messagesContainerRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {(() => {
+        const isOnline = partnerLastSeen && (Date.now() - new Date(partnerLastSeen).getTime()) < 2 * 60 * 1000;
+        const lastSeenText = (() => {
+          if (!partnerLastSeen) return null;
+          const diff = Math.floor((Date.now() - new Date(partnerLastSeen).getTime()) / 1000);
+          if (diff < 120) return null;
+          if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+          if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+          return new Date(partnerLastSeen).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+        })();
+        return (
+          <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+            <button onClick={() => { setView("messages"); setActiveConversation(null); setReplyingTo(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", gap: 7 }}>
+                @{activeConversation.username}
+                {isOnline && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ecc71", display: "inline-block", flexShrink: 0 }} />}
+              </div>
+              {!isOnline && lastSeenText && (
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>Last seen {lastSeenText}</div>
+              )}
+              {isOnline && <div style={{ fontSize: 11, color: "#2ecc71", marginTop: 1 }}>Online</div>}
+            </div>
+          </div>
+        );
+      })()}
+      <div ref={messagesContainerRef} onClick={() => setReactingToMsgId(null)} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {conversationMessages.length === 0 && (
           <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 40 }}>No messages yet</div>
         )}
@@ -4125,38 +4201,139 @@ function HomePage() {
             );
           };
           const tickColor = msg.read ? "#4ECDC4" : msg.delivered ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.2)";
+          // Group reactions by emoji
+          const reactionGroups: Record<string, { count: number; iMine: boolean }> = {};
+          for (const r of (msg.reactions ?? [])) {
+            if (!reactionGroups[r.emoji]) reactionGroups[r.emoji] = { count: 0, iMine: false };
+            reactionGroups[r.emoji].count++;
+            if (r.userId === user.id) reactionGroups[r.emoji].iMine = true;
+          }
+          // Swipe-to-reply + long-press-to-react
+          const onTouchStart = (e: React.TouchEvent) => {
+            const el = e.currentTarget as HTMLElement;
+            el.dataset.sx = String(e.touches[0].clientX);
+            el.dataset.sy = String(e.touches[0].clientY);
+            el.dataset.swiping = "1";
+            if (longPressTimer.current) clearTimeout(longPressTimer.current);
+            longPressTimer.current = setTimeout(() => {
+              setReactingToMsgId(msg.id);
+              el.dataset.swiping = "0";
+            }, 500);
+          };
+          const onTouchMove = (e: React.TouchEvent) => {
+            const el = e.currentTarget as HTMLElement;
+            if (!el.dataset.swiping || el.dataset.swiping === "0") return;
+            const dx = e.touches[0].clientX - Number(el.dataset.sx);
+            const dy = e.touches[0].clientY - Number(el.dataset.sy);
+            if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+              if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+            }
+            const clamped = Math.max(0, Math.min(72, dx));
+            el.style.transform = `translateX(${clamped}px)`;
+            el.style.transition = "none";
+          };
+          const onTouchEnd = (e: React.TouchEvent) => {
+            const el = e.currentTarget as HTMLElement;
+            if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+            if (!el.dataset.swiping || el.dataset.swiping === "0") { el.style.transition = "transform 0.2s ease"; el.style.transform = "translateX(0)"; return; }
+            delete el.dataset.swiping;
+            const dx = e.changedTouches[0].clientX - Number(el.dataset.sx);
+            el.style.transition = "transform 0.2s ease";
+            el.style.transform = "translateX(0)";
+            if (dx > 48) setReplyingTo({ id: msg.id, body: msg.body, username: msg.from.username });
+          };
+          const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "💪", "🔥"];
           return (
-            <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", maxWidth: "75%" }}>
-              <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.4 }}>{renderBody(msg.body)}</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "flex", alignItems: "center", justifyContent: isMine ? "flex-end" : "flex-start", gap: 4 }}>
-                <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                {isMine && (
-                  <span style={{ color: tickColor, fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center" }}>
-                    {msg.read || msg.delivered ? (
-                      <span style={{ letterSpacing: -3, paddingRight: 3 }}>✓✓</span>
-                    ) : (
-                      <span>✓</span>
-                    )}
-                  </span>
+            <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", position: "relative", maxWidth: "75%" }}>
+              {/* Reply arrow — fades in as user swipes */}
+              <div style={{ position: "absolute", left: isMine ? "auto" : -28, right: isMine ? -28 : "auto", top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "rgba(78,205,196,0.7)", pointerEvents: "none" }}>↩</div>
+              {/* Emoji picker — shown on long-press */}
+              <AnimatePresence>
+              {reactingToMsgId === msg.id && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.85, y: 6 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.85, y: 6 }}
+                  transition={{ duration: 0.15 }}
+                  style={{ position: "absolute", bottom: "calc(100% + 6px)", [isMine ? "right" : "left"]: 0, zIndex: 20, background: "rgba(30,30,38,0.97)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "6px 10px", display: "flex", gap: 4, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+                >
+                  {QUICK_EMOJIS.map(em => (
+                    <button key={em} onClick={() => toggleReaction(msg.id, em)} style={{ background: reactionGroups[em]?.iMine ? "rgba(78,205,196,0.18)" : "none", border: "none", borderRadius: 16, padding: "4px 5px", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>{em}</button>
+                  ))}
+                </motion.div>
+              )}
+              </AnimatePresence>
+              <div
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
+                style={{ background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", willChange: "transform" }}
+              >
+                {/* Quoted reply preview */}
+                {msg.replyTo && (
+                  <div style={{ borderLeft: "3px solid rgba(78,205,196,0.5)", paddingLeft: 8, marginBottom: 6, opacity: 0.7 }}>
+                    <div style={{ fontSize: 10, color: "#4ECDC4", fontWeight: 600, marginBottom: 2 }}>@{msg.replyTo.from.username}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>{msg.replyTo.body}</div>
+                  </div>
                 )}
+                <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.4 }}>{renderBody(msg.body)}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "flex", alignItems: "center", justifyContent: isMine ? "flex-end" : "flex-start", gap: 4 }}>
+                  <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  {isMine && (
+                    <span style={{ color: tickColor, fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center" }}>
+                      {msg.read || msg.delivered ? <span style={{ letterSpacing: -3, paddingRight: 3 }}>✓✓</span> : <span>✓</span>}
+                    </span>
+                  )}
+                </div>
               </div>
+              {/* Reaction pills */}
+              {Object.keys(reactionGroups).length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4, justifyContent: isMine ? "flex-end" : "flex-start" }}>
+                  {Object.entries(reactionGroups).map(([em, { count, iMine }]) => (
+                    <button key={em} onClick={() => toggleReaction(msg.id, em)} style={{ background: iMine ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.07)", border: `1px solid ${iMine ? "rgba(78,205,196,0.35)" : "rgba(255,255,255,0.1)"}`, borderRadius: 12, padding: "2px 7px", fontSize: 13, cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", gap: 3, fontFamily: "'DM Sans', sans-serif" }}>
+                      {em}{count > 1 && <span style={{ fontSize: 11, opacity: 0.7 }}>{count}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
         <div ref={messagesEndRef} />
       </div>
-      <div style={{ padding: "12px 20px 32px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8, flexShrink: 0 }}>
-        <input
-          value={messageText}
-          onChange={e => setMessageText(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-          placeholder="Message…"
-          style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "13px 16px", outline: "none" }}
-        />
-        <button onClick={sendMessage} disabled={sendingMessage || !messageText.trim()} style={{ padding: "13px 18px", background: messageText.trim() ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, color: messageText.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: messageText.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", transition: "all 0.15s" }}>SEND</button>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+        {/* Reply preview strip */}
+        <AnimatePresence>
+        {replyingTo && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            style={{ overflow: "hidden", background: "rgba(78,205,196,0.06)", borderBottom: "1px solid rgba(78,205,196,0.12)", padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 10, color: "#4ECDC4", fontWeight: 600, marginBottom: 2 }}>Replying to @{replyingTo.username}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{replyingTo.body}</div>
+            </div>
+            <button onClick={() => setReplyingTo(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 18, cursor: "pointer", flexShrink: 0, lineHeight: 1 }}>×</button>
+          </motion.div>
+        )}
+        </AnimatePresence>
+        <div style={{ padding: "12px 20px 32px", display: "flex", gap: 8 }}>
+          <input
+            value={messageText}
+            onChange={e => setMessageText(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+            placeholder={replyingTo ? `Reply to @${replyingTo.username}…` : "Message…"}
+            style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "13px 16px", outline: "none" }}
+          />
+          <button onClick={sendMessage} disabled={sendingMessage || !messageText.trim()} style={{ padding: "13px 18px", background: messageText.trim() ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, color: messageText.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: messageText.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", transition: "all 0.15s" }}>SEND</button>
+        </div>
       </div>
     </div>
-  ); } else
+  );
+  }
 
   // ─── SETTINGS ───────────────────────────────────────────────────────
   if (view === "settings") {
@@ -6085,30 +6262,24 @@ function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: numbe
           <rect x="100" y="39" width="120" height="10" rx="3" fill="rgba(0,0,0,0.22)"/>
         </motion.g>
 
-        {/* Left outer plate */}
+        {/* Left outer plate — tall thin rect (side/edge view) */}
         <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
-          <circle cx="44"  cy="44" r="38" fill="url(#bm-plo)"/>
-          <circle cx="44"  cy="44" r="38" fill="none" stroke="rgba(255,130,130,0.35)" strokeWidth="1.5"/>
-          <circle cx="44"  cy="44" r="9"  fill="rgba(0,0,0,0.85)"/>
+          <rect x="10" y="6"  width="18" height="76" rx="5" fill="url(#bm-plo)"/>
+          <rect x="10" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
         </motion.g>
-        {/* Left inner plate — 70ms stagger */}
+        {/* Left inner plate — stagger 70ms, slightly shorter */}
         <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
-          <circle cx="86"  cy="44" r="27" fill="url(#bm-pli)"/>
-          <circle cx="86"  cy="44" r="27" fill="none" stroke="rgba(255,110,110,0.3)"  strokeWidth="1.5"/>
-          <circle cx="86"  cy="44" r="7"  fill="rgba(0,0,0,0.85)"/>
+          <rect x="26" y="16" width="13" height="56" rx="4" fill="url(#bm-pli)"/>
         </motion.g>
 
         {/* Right outer plate */}
         <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
-          <circle cx="276" cy="44" r="38" fill="url(#bm-pro)"/>
-          <circle cx="276" cy="44" r="38" fill="none" stroke="rgba(255,130,130,0.35)" strokeWidth="1.5"/>
-          <circle cx="276" cy="44" r="9"  fill="rgba(0,0,0,0.85)"/>
+          <rect x="292" y="6"  width="18" height="76" rx="5" fill="url(#bm-pro)"/>
+          <rect x="292" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
         </motion.g>
-        {/* Right inner plate — 70ms stagger */}
+        {/* Right inner plate — stagger 70ms */}
         <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
-          <circle cx="234" cy="44" r="27" fill="url(#bm-pri)"/>
-          <circle cx="234" cy="44" r="27" fill="none" stroke="rgba(255,110,110,0.3)"  strokeWidth="1.5"/>
-          <circle cx="234" cy="44" r="7"  fill="rgba(0,0,0,0.85)"/>
+          <rect x="281" y="16" width="13" height="56" rx="4" fill="url(#bm-pri)"/>
         </motion.g>
       </svg>
     </div>

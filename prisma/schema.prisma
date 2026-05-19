@@ -25,13 +25,15 @@ model User {
   receivedRequests  TrainerRequest[] @relation("ReceivedRequests")
   trainerClients    TrainerClient[]  @relation("TrainerClients")
   clientOf          TrainerClient?   @relation("ClientOf")
-  sentMessages      Message[]        @relation("SentMessages")
-  receivedMessages  Message[]        @relation("ReceivedMessages")
+  sentMessages      Message[]           @relation("SentMessages")
+  receivedMessages  Message[]           @relation("ReceivedMessages")
   pushSubscriptions PushSubscription[]
+  messageReactions  MessageReaction[]
   trainerProposals  PlanProposal[]   @relation("TrainerProposals")
   clientProposals   PlanProposal[]   @relation("ClientProposals")
   bodyMetrics       BodyMetric[]
   savedRoutines     SavedRoutine[]
+  lastSeenAt        DateTime?
 }
 
 model TrainerRequest {
@@ -138,22 +140,39 @@ model PushSubscription {
 }
 
 model Message {
-  id         String        @id @default(cuid())
+  id         String            @id @default(cuid())
   fromId     String
   toId       String
   body       String
-  type       String        @default("text")
+  type       String            @default("text")
   requestId  String?
   proposalId String?
-  delivered  Boolean       @default(false)
-  read       Boolean       @default(false)
-  createdAt  DateTime      @default(now())
-  from       User          @relation("SentMessages",     fields: [fromId], references: [id], onDelete: Cascade)
-  to         User          @relation("ReceivedMessages", fields: [toId],   references: [id], onDelete: Cascade)
-  proposal   PlanProposal? @relation(fields: [proposalId], references: [id])
+  replyToId  String?
+  delivered  Boolean           @default(false)
+  read       Boolean           @default(false)
+  createdAt  DateTime          @default(now())
+  from       User              @relation("SentMessages",     fields: [fromId], references: [id], onDelete: Cascade)
+  to         User              @relation("ReceivedMessages", fields: [toId],   references: [id], onDelete: Cascade)
+  proposal   PlanProposal?     @relation(fields: [proposalId], references: [id])
+  replyTo    Message?          @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies    Message[]         @relation("MessageReplies")
+  reactions  MessageReaction[]
 
   @@index([toId])
   @@index([fromId, toId])
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
 }
 
 model PlanProposal {
