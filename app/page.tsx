@@ -2165,8 +2165,10 @@ function HomePage() {
       <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ textAlign: "center", zIndex: 1 }}>
+        {/* Barbell — bar is already visible, weights slide in from sides */}
+        <BarIcon width={200} delay={0.05} fallIn={true} />
         {/* Logo + impact effects wrapper */}
-        <div style={{ position: "relative", display: "inline-block" }}>
+        <div style={{ position: "relative", display: "inline-block", marginTop: 10 }}>
           {/* Impact glow — flashes outward when logo lands */}
           <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "90vw", height: "90vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.22) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 0.85s both", pointerEvents: "none" }} />
           {/* Shockwave ring 1 */}
@@ -2224,7 +2226,8 @@ function HomePage() {
 
           {/* Hero */}
           <div style={{ textAlign: "center", padding: "44px 32px 16px", zIndex: 1, position: "relative" }}>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 44, fontWeight: 700, letterSpacing: 8, marginBottom: 6, lineHeight: 1, overflow: "visible" }}>
+            <BarIcon width={148} delay={0.05} fallIn={false} />
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 44, fontWeight: 700, letterSpacing: 8, marginBottom: 6, lineHeight: 1, overflow: "visible", marginTop: 10 }}>
               <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginBottom: 14 }}>LIFT · TRACK · PROGRESS</div>
@@ -5896,6 +5899,58 @@ function HomePage() {
         {_content}
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+function BarIcon({ width = 160, delay = 0, fallIn = false }: { width?: number; delay?: number; fallIn?: boolean }) {
+  // Tight crop around the dumbbell geometry from the app icon (original 192×192 coords)
+  // viewBox crops to the dumbbell: x 18–174, y 64–114
+  const h = Math.round(width * 50 / 156);
+  const wDelay = delay + (fallIn ? 0.52 : 0.12);
+  return (
+    <motion.svg
+      width={width} height={h}
+      viewBox="18 64 156 50"
+      style={{ overflow: "visible", display: "block", margin: "0 auto" }}
+      initial={fallIn ? { y: -140, opacity: 0 } : { opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={fallIn
+        ? { duration: 0.65, delay, ease: [0.55, 0, 0.45, 1] }
+        : { duration: 0.3, delay, ease: "easeOut" }}
+    >
+      <defs>
+        <linearGradient id="bi-steel" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95"/>
+          <stop offset="100%" stopColor="#999999" stopOpacity="0.8"/>
+        </linearGradient>
+        <linearGradient id="bi-fire" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FF6B6B"/>
+          <stop offset="100%" stopColor="#ee5a24"/>
+        </linearGradient>
+      </defs>
+      {/* Bar — visible immediately as weights slide in */}
+      <rect x="46" y="83" width="100" height="10" rx="5" fill="url(#bi-steel)" opacity="0.7"/>
+      {/* Left weight group — slides in from left */}
+      <motion.g
+        initial={{ x: -68 }}
+        animate={{ x: 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 18, delay: wDelay }}
+      >
+        <rect x="28" y="68" width="14" height="40" rx="4" fill="url(#bi-fire)"/>
+        <rect x="38" y="73" width="10" height="30" rx="3" fill="url(#bi-fire)" opacity="0.7"/>
+        <rect x="22" y="78" width="8"  height="20" rx="3" fill="#fff" opacity="0.3"/>
+      </motion.g>
+      {/* Right weight group — slides in from right */}
+      <motion.g
+        initial={{ x: 68 }}
+        animate={{ x: 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 18, delay: wDelay }}
+      >
+        <rect x="150" y="68" width="14" height="40" rx="4" fill="url(#bi-fire)"/>
+        <rect x="144" y="73" width="10" height="30" rx="3" fill="url(#bi-fire)" opacity="0.7"/>
+        <rect x="162" y="78" width="8"  height="20" rx="3" fill="#fff" opacity="0.3"/>
+      </motion.g>
+    </motion.svg>
   );
 }
 
