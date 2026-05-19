@@ -5706,6 +5706,7 @@ function PwaBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (window.self !== window.top) return; // don't show inside iframes (prevents recursion in phone mockups)
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
     if (isStandalone) return;
     const ua = navigator.userAgent;
@@ -5792,17 +5793,26 @@ function PwaBanner() {
       mockup: phone(
         <>
           {/* Safari URL bar */}
-          <div style={{ background: "#1c1c1e", padding: "4px 8px", flexShrink: 0 }}>
-            <div style={{ background: "#2c2c2e", borderRadius: 7, padding: "3px 8px", textAlign: "center" }}>
-              <span style={{ fontSize: 7, color: "#bbb" }}>ironlog.app</span>
+          <div style={{ background: "#1c1c1e", padding: "5px 8px 4px", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 6, color: "#aaa", fontWeight: 600 }}>AA</span>
+              <div style={{ flex: 1, background: "#2c2c2e", borderRadius: 7, padding: "3px 8px", textAlign: "center" }}>
+                <span style={{ fontSize: 7, color: "#eee" }}>ironlog.app</span>
+              </div>
+              <span style={{ fontSize: 9, color: "#aaa" }}>↻</span>
             </div>
           </div>
-          {appContent}
+          {/* Real page via iframe — PwaBanner is suppressed inside iframes */}
+          <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+            <iframe src="/" scrolling="no" tabIndex={-1} style={{ width: 390, height: 550, border: "none", transform: "scale(0.3231)", transformOrigin: "top left", pointerEvents: "none" }} />
+          </div>
           {/* Safari toolbar */}
           <div style={{ background: "#1c1c1e", borderTop: "1px solid #333", padding: "5px 0", display: "flex", justifyContent: "space-around", alignItems: "center", flexShrink: 0 }}>
-            {["◁","▷","⬆","📖","⊞"].map((ic, i) => (
-              <span key={i} style={{ fontSize: i === 2 ? 11 : 10, color: "rgba(255,255,255,0.45)" }}>{ic}</span>
-            ))}
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>◁</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>▷</span>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>⬆</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>📖</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>⊞</span>
           </div>
         </>
       ),
@@ -5819,9 +5829,7 @@ function PwaBanner() {
           <div style={{ flex: 1, background: "#1c1c1e", display: "flex", flexDirection: "column" }}>
             {/* App info row */}
             <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 7px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 }}>
-              <div style={{ width: 20, height: 20, borderRadius: 5, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 4.5, fontWeight: 700, color: "#fff" }}>IL</span>
-              </div>
+              <img src="/apple-touch-icon.png" alt="IRONLOG" style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: 6, fontWeight: 700, color: "#fff" }}>IRONLOG</div>
                 <div style={{ fontSize: 4.5, color: "#888" }}>ironlog.app</div>
@@ -5887,12 +5895,7 @@ function PwaBanner() {
       label: "The app will be added to your Home screen",
       mockup: phone(
         <div style={{ flex: 1, background: "linear-gradient(160deg,#1a0a0a,#2d0d0d)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "16px 8px", gap: 6 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 13, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(255,107,107,0.5)" }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 6, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>IRON</div>
-              <div style={{ fontSize: 6, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>LOG</div>
-            </div>
-          </div>
+          <img src="/apple-touch-icon.png" alt="IRONLOG" style={{ width: 48, height: 48, borderRadius: 13, boxShadow: "0 6px 20px rgba(255,107,107,0.4)" }} />
           <span style={{ fontSize: 7, color: "#fff", fontWeight: 500, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>IRONLOG</span>
         </div>
       ),
@@ -5904,16 +5907,20 @@ function PwaBanner() {
       label: "Open the website in Chrome",
       mockup: phone(
         <>
-          {/* Chrome bar */}
+          {/* Chrome address bar */}
           <div style={{ background: "#202124", padding: "5px 6px", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
             <span style={{ fontSize: 9, color: "#888" }}>□</span>
             <div style={{ flex: 1, background: "#303134", borderRadius: 20, padding: "3px 7px", display: "flex", alignItems: "center", gap: 3 }}>
               <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#34a853" }} />
               <span style={{ fontSize: 6.5, color: "#bbb" }}>ironlog.app</span>
             </div>
+            <span style={{ fontSize: 8, color: "#888" }}>☆</span>
             <span style={{ fontSize: 12, color: "#888", fontWeight: 900 }}>⋮</span>
           </div>
-          {appContent}
+          {/* Real page via iframe */}
+          <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+            <iframe src="/" scrolling="no" tabIndex={-1} style={{ width: 390, height: 600, border: "none", transform: "scale(0.3231)", transformOrigin: "top left", pointerEvents: "none" }} />
+          </div>
         </>
       ),
     },
@@ -5966,12 +5973,7 @@ function PwaBanner() {
       label: "The app will be added to your Home screen",
       mockup: phone(
         <div style={{ flex: 1, background: "linear-gradient(160deg,#0a0a1a,#0d0d2d)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "16px 8px", gap: 6 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 13, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(255,107,107,0.5)" }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 6, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>IRON</div>
-              <div style={{ fontSize: 6, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>LOG</div>
-            </div>
-          </div>
+          <img src="/icon-192.png" alt="IRONLOG" style={{ width: 48, height: 48, borderRadius: 13, boxShadow: "0 6px 20px rgba(255,107,107,0.4)" }} />
           <span style={{ fontSize: 7, color: "#fff", fontWeight: 500, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>IRONLOG</span>
         </div>
       ),
@@ -5980,7 +5982,7 @@ function PwaBanner() {
 
   const steps = platform === "ios" ? iosSteps : androidSteps;
   const platformLabel = platform === "ios" ? "iOS (Safari)" : "Android (Chrome)";
-  const platformIcon = platform === "ios" ? "🍎" : "🤖";
+  const platformIcon = platform === "ios" ? "" : "🤖"; //  = Apple logo (renders on all Apple devices)
 
   return createPortal(
     <>
@@ -5993,8 +5995,8 @@ function PwaBanner() {
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px rgba(255,107,107,0.35)" }}>
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, color: "#fff" }}>IL</span>
+                <div style={{ width: 44, height: 44, borderRadius: 12, overflow: "hidden", flexShrink: 0, boxShadow: "0 4px 14px rgba(255,107,107,0.35)" }}>
+                  <img src="/icon-192.png" alt="IRONLOG" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 <div>
                   <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: "#fff" }}>Install IronLog</div>
