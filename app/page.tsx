@@ -2349,17 +2349,25 @@ export default function HomePage() {
                   {customMultiMode && (
                     <button onClick={() => setSuperSelection(s => s.includes(exKey) ? s.filter(id => id !== exKey) : [...s, exKey])} style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isSel ? "#FF6B6B" : "rgba(255,255,255,0.18)"}`, background: isSel ? "#FF6B6B" : "transparent", flexShrink: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", transition: "all 0.15s" }}>{isSel ? "✓" : ""}</button>
                   )}
-                  <div style={{ flex: 1 }}>
+                  {/* Thumbnail — click to preview form */}
+                  {(() => {
+                    const tu = getExerciseImageUrls(ex.exerciseId ?? ex.id, ex.name);
+                    return (
+                      <div onClick={() => { const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.exerciseId ?? ex.id, name: ex.name, ...m }); }} style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {tu ? <img src={tu[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}/> : <span style={{ fontSize: 15, opacity: 0.3 }}>🏋</span>}
+                      </div>
+                    );
+                  })()}
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
-                      {inGroup && <span style={{ fontSize: 8, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px" }}>SUPER</span>}
-                      {isDropSet && <span style={{ fontSize: 8, color: "#FF6B6B", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 4, padding: "1px 5px" }}>DROP</span>}
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
+                      {inGroup && <span style={{ fontSize: 8, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>SUPER</span>}
+                      {isDropSet && <span style={{ fontSize: 8, color: "#FF6B6B", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>DROP</span>}
                     </div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", marginTop: 3 }}>{ex.sets} × {ex.reps}</div>
                   </div>
                   {!customMultiMode && (
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <button onClick={() => { const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.exerciseId ?? ex.id, name: ex.name, ...m }); }} style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}>FORM</button>
                       <button onClick={async () => { const moved = moveExercise(exs, i, i - 1); if (i > 0) await saveDay(editingDay, moved); }} disabled={i === 0} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === 0 ? "default" : "pointer", fontSize: 14 }}>↑</button>
                       <button onClick={async () => { const moved = moveExercise(exs, i, i + 1); if (i < exs.length - 1) await saveDay(editingDay, moved); }} disabled={i === exs.length - 1} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === exs.length - 1 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === exs.length - 1 ? "default" : "pointer", fontSize: 14 }}>↓</button>
                       <button onClick={async () => { const updated = exs.filter((_: any, j: number) => j !== i); await saveDay(editingDay, updated); }} style={{ background: "rgba(255,107,107,0.1)", border: "none", borderRadius: 6, color: "#FF6B6B", width: 28, height: 28, cursor: "pointer", fontSize: 14 }}>✕</button>
@@ -2510,7 +2518,15 @@ export default function HomePage() {
                           {browserSupersetMode && (
                             <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${bSel ? "#FFE66D" : "rgba(255,255,255,0.2)"}`, background: bSel ? "#FFE66D" : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#000" }}>{bSel ? "✓" : ""}</div>
                           )}
-                          {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? <img src={tu[0]} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/> : null; })()}
+                          {/* Thumbnail — click to preview form without triggering add */}
+                          {(() => {
+                            const tu = getExerciseImageUrls(ex.id, ex.name);
+                            return (
+                              <div onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [], secondaryMuscles: ex.secondaryMuscles ?? [] }); }} style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                {tu ? <img src={tu[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}/> : <span style={{ fontSize: 15, opacity: 0.3 }}>🏋</span>}
+                              </div>
+                            );
+                          })()}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}{alreadyIn && !browserSupersetMode ? <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginLeft: 6, fontFamily: "'Space Mono', monospace" }}>IN PLAN</span> : ""}</div>
                             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
@@ -2518,10 +2534,6 @@ export default function HomePage() {
                               {ex.secondaryMuscles.length > 0 && <span style={{ color: "rgba(255,255,255,0.25)" }}> · {ex.secondaryMuscles.join(" · ")}</span>}
                             </div>
                           </div>
-                          {!browserSupersetMode && <button
-                            onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [], secondaryMuscles: ex.secondaryMuscles ?? [] }); }}
-                            style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}
-                          >FORM</button>}
                         </div>
                       </div>
                     );
