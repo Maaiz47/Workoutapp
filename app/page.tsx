@@ -5935,54 +5935,71 @@ function LifterIcon({ size = 120, opacity = 1 }: { size?: number; opacity?: numb
 }
 
 function BarIcon({ width = 160, delay = 0, fallIn = false }: { width?: number; delay?: number; fallIn?: boolean }) {
-  // Tight crop around the dumbbell geometry from the app icon (original 192×192 coords)
-  // viewBox crops to the dumbbell: x 18–174, y 64–114
   const h = Math.round(width * 50 / 156);
-  const wDelay = delay + (fallIn ? 0.52 : 0.12);
+  // Bar settles first, THEN plates slam in from far off-screen
+  const barDelay = delay;
+  const platesDelay = delay + (fallIn ? 0.58 : 0.22);
+  const slam = { type: "spring" as const, stiffness: 520, damping: 17 };
   return (
-    <motion.svg
-      width={width} height={h}
-      viewBox="18 64 156 50"
-      style={{ overflow: "visible", display: "block", margin: "0 auto" }}
-      initial={fallIn ? { y: -140, opacity: 0 } : { opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={fallIn
-        ? { duration: 0.65, delay, ease: [0.55, 0, 0.45, 1] }
-        : { duration: 0.3, delay, ease: "easeOut" }}
-    >
-      <defs>
-        <linearGradient id="bi-steel" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95"/>
-          <stop offset="100%" stopColor="#999999" stopOpacity="0.8"/>
-        </linearGradient>
-        <linearGradient id="bi-fire" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FF6B6B"/>
-          <stop offset="100%" stopColor="#ee5a24"/>
-        </linearGradient>
-      </defs>
-      {/* Bar — visible immediately as weights slide in */}
-      <rect x="46" y="83" width="100" height="10" rx="5" fill="url(#bi-steel)" opacity="0.7"/>
-      {/* Left weight group — slides in from left */}
-      <motion.g
-        initial={{ x: -68 }}
-        animate={{ x: 0 }}
-        transition={{ type: "spring", stiffness: 260, damping: 18, delay: wDelay }}
-      >
-        <rect x="28" y="68" width="14" height="40" rx="4" fill="url(#bi-fire)"/>
-        <rect x="38" y="73" width="10" height="30" rx="3" fill="url(#bi-fire)" opacity="0.7"/>
-        <rect x="22" y="78" width="8"  height="20" rx="3" fill="#fff" opacity="0.3"/>
-      </motion.g>
-      {/* Right weight group — slides in from right */}
-      <motion.g
-        initial={{ x: 68 }}
-        animate={{ x: 0 }}
-        transition={{ type: "spring", stiffness: 260, damping: 18, delay: wDelay }}
-      >
-        <rect x="150" y="68" width="14" height="40" rx="4" fill="url(#bi-fire)"/>
-        <rect x="144" y="73" width="10" height="30" rx="3" fill="url(#bi-fire)" opacity="0.7"/>
-        <rect x="162" y="78" width="8"  height="20" rx="3" fill="#fff" opacity="0.3"/>
-      </motion.g>
-    </motion.svg>
+    // overflow clip wrapper so plates don't cause page scroll before they enter
+    <div style={{ width, height: h, overflow: "hidden", margin: "0 auto", position: "relative" }}>
+      <svg width={width} height={h} viewBox="18 64 156 50" style={{ overflow: "visible", display: "block" }}>
+        <defs>
+          <linearGradient id="bi-steel" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95"/>
+            <stop offset="100%" stopColor="#999999" stopOpacity="0.8"/>
+          </linearGradient>
+          <linearGradient id="bi-fire" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FF6B6B"/>
+            <stop offset="100%" stopColor="#ee5a24"/>
+          </linearGradient>
+        </defs>
+
+        {/* Bar — falls/appears alone, plates are NOT attached to this motion */}
+        <motion.rect
+          x="46" y="83" width="100" height="10" rx="5"
+          fill="url(#bi-steel)" opacity="0.7"
+          initial={fallIn ? { y: -150, opacity: 0 } : { scaleX: 0, opacity: 0 }}
+          animate={fallIn ? { y: 0, opacity: 0.7 } : { scaleX: 1, opacity: 0.7 }}
+          style={{ transformOrigin: "96px 88px" }}
+          transition={fallIn
+            ? { duration: 0.6, delay: barDelay, ease: [0.55, 0, 0.45, 1] }
+            : { duration: 0.35, delay: barDelay, ease: [0.16, 1, 0.3, 1] }}
+        />
+
+        {/* Left outer plate + collar — fly in from far left */}
+        <motion.g
+          initial={{ x: -320 }} animate={{ x: 0 }}
+          transition={{ ...slam, delay: platesDelay }}
+        >
+          <rect x="28" y="68" width="14" height="40" rx="4" fill="url(#bi-fire)"/>
+          <rect x="22" y="78" width="8"  height="20" rx="3" fill="#fff" opacity="0.3"/>
+        </motion.g>
+        {/* Left inner plate — staggered 60ms after outer */}
+        <motion.g
+          initial={{ x: -320 }} animate={{ x: 0 }}
+          transition={{ ...slam, delay: platesDelay + 0.06 }}
+        >
+          <rect x="38" y="73" width="10" height="30" rx="3" fill="url(#bi-fire)" opacity="0.75"/>
+        </motion.g>
+
+        {/* Right outer plate + collar — fly in from far right */}
+        <motion.g
+          initial={{ x: 320 }} animate={{ x: 0 }}
+          transition={{ ...slam, delay: platesDelay }}
+        >
+          <rect x="150" y="68" width="14" height="40" rx="4" fill="url(#bi-fire)"/>
+          <rect x="162" y="78" width="8"  height="20" rx="3" fill="#fff" opacity="0.3"/>
+        </motion.g>
+        {/* Right inner plate — staggered 60ms after outer */}
+        <motion.g
+          initial={{ x: 320 }} animate={{ x: 0 }}
+          transition={{ ...slam, delay: platesDelay + 0.06 }}
+        >
+          <rect x="144" y="73" width="10" height="30" rx="3" fill="url(#bi-fire)" opacity="0.75"/>
+        </motion.g>
+      </svg>
+    </div>
   );
 }
 
