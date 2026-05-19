@@ -1021,7 +1021,6 @@ export default function HomePage() {
   const [splashDone, setSplashDone] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authStep, setAuthStep] = useState<"username" | "register" | "setup" | "password" | "forgot">("username");
-  const [landingTab, setLandingTab] = useState<"athlete" | "trainer">("athlete");
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [confirmInput, setConfirmInput] = useState("");
@@ -2185,47 +2184,28 @@ export default function HomePage() {
 
     // ── Landing page (username step) ──────────────────────────────────
     if (authStep === "username") {
-      const isTrainer = landingTab === "trainer";
-      const accentColor = isTrainer ? "#4ECDC4" : "#FF6B6B";
-      const accentGrad = isTrainer ? "linear-gradient(135deg,#4ECDC4,#26a69a)" : "linear-gradient(135deg,#FF6B6B,#ee5a24)";
-
-      const athleteFeatures = [
-        { title: "Set-by-set logging", desc: "Last session's numbers right next to your input. Log a set in under 3 seconds." },
-        { title: "Personalised training plan", desc: "Built for your goals, equipment, and schedule — 2 to 6 days per week." },
-        { title: "Live PR detection", desc: "Trophy overlay fires the moment you beat a personal best — not just at the end." },
-        { title: "Smart rest timer", desc: "Push notification when time's up, even with your phone locked." },
-        { title: "HIIT & Conditioning", desc: "20+ circuit exercises auto-added as a finisher or dedicated conditioning day." },
-        { title: "Progress analytics", desc: "28-day calendar, streaks, body metrics, and per-exercise trend charts." },
+      const tips = [
+        { title: "Log every set in seconds", desc: "Your last session's numbers are always right there — just enter weight and reps." },
+        { title: "Rest timer follows you", desc: "Configurable per exercise. Push notification fires even with your screen locked." },
+        { title: "Live personal bests", desc: "A trophy overlay fires the moment you beat a record — no waiting until the end." },
+        { title: "Personalised plan", desc: "Tell us your goals, equipment, and schedule. Get a full weekly split instantly." },
+        { title: "Muscle maps + form cues", desc: "Anatomical diagram shows exactly which muscles fire. Form cues for every exercise." },
+        { title: "Works everywhere", desc: "Installable PWA — add to your home screen on iOS or Android, no app store needed." },
       ];
-      const trainerFeatures = [
-        { title: "Full client roster", desc: "Every client's last session, total count, and data — one tap away." },
-        { title: "Plan builder + delivery", desc: "Build a custom weekly split and push it live to any client's phone." },
-        { title: "Session history", desc: "Review every set your clients have logged, down to individual reps." },
-        { title: "Direct messaging", desc: "Built-in chat with delivery and read receipts. One inbox, every client." },
-        { title: "Plan proposals", desc: "Client previews and approves the new plan before it replaces their current one." },
-        { title: "Client analytics", desc: "Body metrics, PRs, progress charts, and 28-day activity calendar per client." },
-      ];
-      const trainerSteps = [
-        { n: "01", title: "Enable Trainer Mode", desc: "Flip the switch in settings. No approval required." },
-        { n: "02", title: "Invite your clients", desc: "Search their username and send an invite. They accept in one tap." },
-        { n: "03", title: "Build their program", desc: "Use the exercise browser to build a full weekly split in 5–10 min." },
-        { n: "04", title: "Monitor and adjust", desc: "Check their history anytime. Update the plan when they plateau." },
-      ];
-      const features = isTrainer ? trainerFeatures : athleteFeatures;
 
       return (
         <div style={{ minHeight: "100dvh", position: "relative", overflowY: "auto" }}>
           <div style={{ position: "fixed", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.06) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
           <div style={{ position: "fixed", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
 
-          {/* Sticky header with tab pills */}
+          {/* Sticky header — pills link to HTML info pages */}
           <div style={{ position: "sticky", top: 0, zIndex: 10, padding: "12px 20px", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: "rgba(10,10,15,0.88)", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 15, fontWeight: 700, letterSpacing: 3 }}>
               <span style={{ color: "#fff" }}>IRON</span><span style={{ color: "#FF6B6B" }}>LOG</span>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => setLandingTab("athlete")} style={{ padding: "7px 14px", borderRadius: 20, border: isTrainer ? "1px solid rgba(255,255,255,0.1)" : "none", background: isTrainer ? "transparent" : "linear-gradient(135deg,#FF6B6B,#ee5a24)", color: isTrainer ? "rgba(255,255,255,0.4)" : "#fff", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>ATHLETES</button>
-              <button onClick={() => setLandingTab("trainer")} style={{ padding: "7px 14px", borderRadius: 20, border: isTrainer ? "none" : "1px solid rgba(255,255,255,0.1)", background: isTrainer ? "linear-gradient(135deg,#4ECDC4,#26a69a)" : "transparent", color: isTrainer ? "#fff" : "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>TRAINERS</button>
+              <a href="/client.html" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(255,107,107,0.35)", color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>ATHLETES</a>
+              <a href="/trainer.html" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(78,205,196,0.35)", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>TRAINERS</a>
             </div>
           </div>
 
@@ -2244,91 +2224,57 @@ export default function HomePage() {
           <div style={{ display: "flex", padding: "12px 24px 20px", zIndex: 1, position: "relative", maxWidth: 460, margin: "0 auto" }}>
             {([{ num: "119+", label: "EXERCISES" }, { num: "FREE", label: "FOR ATHLETES" }, { num: "PWA", label: "INSTALLABLE" }] as const).map((s, i) => (
               <div key={i} style={{ flex: 1, textAlign: "center", padding: "10px 6px", borderRight: i < 2 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: accentColor, marginBottom: 2 }}>{s.num}</div>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: "#FF6B6B", marginBottom: 2 }}>{s.num}</div>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: 1.5 }}>{s.label}</div>
               </div>
             ))}
           </div>
 
-          {/* Feature cards — 2-column grid */}
+          {/* Tips grid */}
           <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
-            <div style={{ fontSize: 10, color: accentColor, letterSpacing: 3, fontWeight: 700, textAlign: "center", marginBottom: 12, opacity: 0.85 }}>
-              {isTrainer ? "BUILT FOR TRAINERS" : "BUILT FOR ATHLETES"}
-            </div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, textAlign: "center", marginBottom: 12 }}>WHAT YOU GET</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {features.map((f, i) => (
-                <div key={i} style={{ padding: "12px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 10, borderLeft: `2px solid ${accentColor}` }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 4, fontFamily: "'DM Sans', sans-serif", lineHeight: 1.3 }}>{f.title}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.4 }}>{f.desc}</div>
+              {tips.map((t, i) => (
+                <div key={i} style={{ padding: "12px", background: "rgba(255,255,255,0.03)", borderRadius: 10, borderLeft: "2px solid rgba(255,107,107,0.35)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{t.title}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", lineHeight: 1.4 }}>{t.desc}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Trainer — how it works steps */}
-          {isTrainer && (
-            <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, textAlign: "center", marginBottom: 12 }}>HOW IT WORKS</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {trainerSteps.map((s, i) => (
-                  <div key={i} style={{ padding: "12px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 10 }}>
-                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 700, color: "rgba(78,205,196,0.18)", lineHeight: 1, marginBottom: 6 }}>{s.n}</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 3, lineHeight: 1.3 }}>{s.title}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", lineHeight: 1.4 }}>{s.desc}</div>
-                  </div>
-                ))}
-              </div>
+          {/* For Athletes / For Trainers detail cards */}
+          <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, textAlign: "center", marginBottom: 12 }}>LEARN MORE</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <a href="/client.html" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#FF6B6B", letterSpacing: 2, marginBottom: 6 }}>FOR ATHLETES</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, marginBottom: 8 }}>Free forever. Log, track, and grow stronger every session.</div>
+                <div style={{ fontSize: 10, color: "rgba(255,107,107,0.7)" }}>See all features →</div>
+              </a>
+              <a href="/trainer.html" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", letterSpacing: 2, marginBottom: 6 }}>FOR TRAINERS</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, marginBottom: 8 }}>$19/mo. Manage clients, deliver plans, track results.</div>
+                <div style={{ fontSize: 10, color: "rgba(78,205,196,0.7)" }}>Request early access →</div>
+              </a>
             </div>
-          )}
+          </div>
 
-          {/* Trainer — pricing callout */}
-          {isTrainer && (
-            <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
-              <div style={{ padding: "14px 16px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 12, textAlign: "center" }}>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 26, fontWeight: 700, color: "#4ECDC4", lineHeight: 1, marginBottom: 4 }}>$19<span style={{ fontSize: 13, fontWeight: 400, color: "rgba(255,255,255,0.3)" }}>/mo</span></div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>Starter plan — up to 10 clients</div>
-                <div style={{ fontSize: 10, color: "rgba(78,205,196,0.6)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>30-DAY FREE TRIAL · NO CARD NEEDED</div>
-              </div>
-            </div>
-          )}
-
-          {/* Athlete — free callout */}
-          {!isTrainer && (
-            <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
-              <div style={{ padding: "12px 16px", background: "rgba(255,107,107,0.05)", border: "1px solid rgba(255,107,107,0.1)", borderRadius: 10, textAlign: "center" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>Free forever. No subscription. No ads.</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif" }}>Every feature — logging, plans, PRs, progress, muscle maps — always free.</div>
-              </div>
-            </div>
-          )}
-
-          {/* CTA */}
+          {/* Sign in CTA */}
           <div style={{ padding: "0 24px 60px", maxWidth: 460, margin: "0 auto", textAlign: "center", zIndex: 1, position: "relative" }}>
-            {isTrainer ? (
-              <>
-                <a href="https://wa.me/9609120007?text=Hi%2C%20I%27d%20like%20to%20request%20early%20access%20to%20IronLog%20as%20a%20trainer" style={{ display: "block", width: "100%", padding: "15px", background: accentGrad, border: "none", borderRadius: 12, color: "#000", fontSize: 14, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", textDecoration: "none", marginBottom: 12 }}>REQUEST EARLY ACCESS</a>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginBottom: 12, fontFamily: "'DM Sans', sans-serif" }}>Already have an account?</div>
-                <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" style={{ ...inputStyleCenter, maxWidth: "100%" }} />
-                {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
-                {!showEmailSignupPrompt && <button onClick={doCheckUsername} style={{ ...btnPrimary, maxWidth: "100%", background: "rgba(255,255,255,0.07)", color: "#fff", marginTop: 10 }}>SIGN IN</button>}
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginBottom: 16, letterSpacing: 0.5, fontFamily: "'DM Sans', sans-serif" }}>Get started — enter your username or email</div>
-                <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={{ ...inputStyleCenter, maxWidth: "100%" }} />
-                {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
-                {showEmailSignupPrompt && (
-                  <div style={{ marginTop: 16, padding: "16px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12 }}>
-                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>No account found for <strong style={{ color: "#fff" }}>{nameInput}</strong>. Create one?</div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => { setEmailInput(nameInput); setNameInput(""); setShowEmailSignupPrompt(false); setAuthStep("register"); }} style={{ flex: 1, padding: "11px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
-                      <button onClick={() => { setShowEmailSignupPrompt(false); setNameInput(""); setAuthError(""); }} style={{ padding: "11px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>Back</button>
-                    </div>
-                  </div>
-                )}
-                {!showEmailSignupPrompt && <button onClick={doCheckUsername} style={{ ...btnPrimary, maxWidth: "100%" }}>CONTINUE</button>}
-              </>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginBottom: 16, letterSpacing: 0.5, fontFamily: "'DM Sans', sans-serif" }}>Sign in or create a free account</div>
+            <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={{ ...inputStyleCenter, maxWidth: "100%" }} />
+            {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
+            {showEmailSignupPrompt && (
+              <div style={{ marginTop: 16, padding: "16px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12 }}>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>No account found for <strong style={{ color: "#fff" }}>{nameInput}</strong>. Create one?</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => { setEmailInput(nameInput); setNameInput(""); setShowEmailSignupPrompt(false); setAuthStep("register"); }} style={{ flex: 1, padding: "11px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
+                  <button onClick={() => { setShowEmailSignupPrompt(false); setNameInput(""); setAuthError(""); }} style={{ padding: "11px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>Back</button>
+                </div>
+              </div>
             )}
+            {!showEmailSignupPrompt && <button onClick={doCheckUsername} style={{ ...btnPrimary, maxWidth: "100%" }}>CONTINUE</button>}
           </div>
         </div>
       );
