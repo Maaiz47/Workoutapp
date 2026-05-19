@@ -211,9 +211,11 @@ export function filterExercises(opts: {
   return EXERCISES.filter(ex => {
     if (opts.primaryMuscle && !ex.primaryMuscles.includes(opts.primaryMuscle)) return false;
     if (opts.location && ex.location !== "both" && ex.location !== opts.location) return false;
-    if (opts.equipment && opts.equipment.length > 0) {
+    if (opts.equipment !== undefined) {
       const nonBW = ex.equipment.filter(eq => eq !== "bodyweight");
       if (nonBW.length > 0) {
+        // Empty equipment list = no equipment available = bodyweight only
+        if (opts.equipment.length === 0) return false;
         const passes = ex.requireAll
           ? nonBW.every(eq => opts.equipment!.includes(eq))
           : nonBW.some(eq => opts.equipment!.includes(eq));

@@ -372,7 +372,7 @@ function getOverallStats(history: Record<string, any[]>) {
   // The grid is 7 columns (S M T W T F S). 
   // We need to figure out which column today falls in, then pad the first row
   // so that 28 days ago lands on its correct weekday.
-  const calendarDays: { active: boolean; isToday: boolean }[] = [];
+  const calendarDays: { active: boolean; isToday: boolean; dateStr: string }[] = [];
   for (let i = 27; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
@@ -380,6 +380,7 @@ function getOverallStats(history: Record<string, any[]>) {
     calendarDays.push({
       active: allSessions.some(s => s.date === dateStr),
       isToday: i === 0,
+      dateStr,
     });
   }
   // 28 days ago - what day of week was it?
@@ -1060,6 +1061,7 @@ function HomePage() {
   const [adjustedDuration, setAdjustedDuration] = useState("");
   const [resumeOverlay, setResumeOverlay] = useState<{ title: string; ageStr: string } | null>(null);
   const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history" | "body">("dashboard");
+  const [calendarModalDate, setCalendarModalDate] = useState<string | null>(null);
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
 
   // ── In-workout exercise addition ──
@@ -4661,13 +4663,16 @@ function HomePage() {
                       <div key={`pad-${i}`} style={{ aspectRatio: "1" }} />
                     ))}
                     {overall.calendarDays.map((day, i) => (
-                      <div key={i} style={{
-                        aspectRatio: "1", borderRadius: 6, display: "flex", flexDirection: "column",
-                        alignItems: "center", justifyContent: "center",
-                        background: day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
-                        border: day.isToday ? "1px solid rgba(255,255,255,0.4)" : "1px solid transparent",
-                        opacity: day.active || day.isToday ? 1 : 0.35,
-                      }}>
+                      <div key={i}
+                        onClick={() => day.active && setCalendarModalDate(day.dateStr)}
+                        style={{
+                          aspectRatio: "1", borderRadius: 6, display: "flex", flexDirection: "column",
+                          alignItems: "center", justifyContent: "center",
+                          background: day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
+                          border: day.isToday ? "1px solid rgba(255,255,255,0.4)" : "1px solid transparent",
+                          opacity: day.active || day.isToday ? 1 : 0.35,
+                          cursor: day.active ? "pointer" : "default",
+                        }}>
                         <div style={{
                           fontSize: 10, fontWeight: day.isToday ? 700 : 500,
                           fontFamily: "'Space Mono', monospace",
@@ -4679,6 +4684,82 @@ function HomePage() {
                 </div>
               );
             })()}
+
+            {/* Calendar session detail modal */}
+            <AnimatePresence>
+            {calendarModalDate && (() => {
+              // Find the session(s) for this date across all days
+              const sessions: { dayId: string; session: any }[] = [];
+              for (const dayId in history) {
+                for (const s of history[dayId]) {
+                  if (s.date === calendarModalDate) sessions.push({ dayId, session: s });
+                }
+              }
+              const fmt = new Date(calendarModalDate + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+              return (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
+                  onClick={() => setCalendarModalDate(null)}
+                >
+                  <motion.div
+                    initial={{ y: "100%" }}
+                    animate={{ y: 0 }}
+                    exit={{ y: "100%" }}
+                    transition={{ type: "spring", stiffness: 340, damping: 32 }}
+                    onClick={e => e.stopPropagation()}
+                    style={{ background: "#111116", borderRadius: "20px 20px 0 0", padding: "24px 20px 40px", maxHeight: "80dvh", overflowY: "auto" }}
+                  >
+                    <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>SESSION RECAP</div>
+                    <div style={{ fontSize: 17, fontWeight: 600, color: "#fff", marginBottom: 20 }}>{fmt}</div>
+                    {sessions.length === 0 ? (
+                      <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>No session data found.</div>
+                    ) : sessions.map(({ dayId, session }, si) => {
+                      // Group sets by exercise id
+                      const byEx: Record<string, { name: string; sets: { n: number; weight: number; reps: number }[] }> = {};
+                      for (const k in session.sets as Record<string, any>) {
+                        const parts = k.split("-");
+                        const setN = parseInt(parts[parts.length - 1]);
+                        const eid = parts.slice(0, -1).join("-");
+                        const name = (EXERCISES as any[]).find((e: any) => e.id === eid)?.name ?? eid;
+                        if (!byEx[eid]) byEx[eid] = { name, sets: [] };
+                        byEx[eid].sets.push({ n: setN, ...session.sets[k] });
+                      }
+                      const exEntries = Object.entries(byEx).sort((a, b) => Math.min(...a[1].sets.map(s => s.n)) - Math.min(...b[1].sets.map(s => s.n)));
+                      const dayName = customPlan?.find((d: any) => d.id === dayId)?.name ?? dayId;
+                      return (
+                        <div key={si} style={{ marginBottom: si < sessions.length - 1 ? 24 : 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>{dayName}</div>
+                            {session.duration && session.duration !== "00:00:00" && (
+                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>⏱ {session.duration}</div>
+                            )}
+                          </div>
+                          {exEntries.map(([eid, { name, sets }]) => (
+                            <div key={eid} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                              <div style={{ fontSize: 13, color: "#fff", fontWeight: 500, marginBottom: 6 }}>{name}</div>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                {sets.sort((a, b) => a.n - b.n).map(s => (
+                                  <div key={s.n} style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.06)", borderRadius: 6, padding: "4px 8px" }}>
+                                    {s.weight > 0 ? `${s.weight}kg × ${s.reps}` : `${s.reps} reps`}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                          {exEntries.length === 0 && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>No set data recorded.</div>}
+                        </div>
+                      );
+                    })}
+                    <button onClick={() => setCalendarModalDate(null)} style={{ width: "100%", marginTop: 16, padding: "14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 13, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}>Close</button>
+                  </motion.div>
+                </motion.div>
+              );
+            })()}
+            </AnimatePresence>
 
             {/* Personal Records */}
             {prList.length > 0 && (
@@ -5401,7 +5482,8 @@ function HomePage() {
 
               const renderEx = (ex: typeof sec.exercises[0], superCtx?: { group: typeof sec.exercises; idx: number }) => {
                 const exLibData = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
-                const isBW = exLibData?.equipment?.every((eq: string) => eq === "bodyweight") ?? false;
+                const BW_EQUIPMENT = new Set(["bodyweight", "pullup_bar", "dip_bar"]);
+                const isBW = exLibData?.equipment?.every((eq: string) => BW_EQUIPMENT.has(eq)) ?? false;
                 const trackable = ex.trackable !== false;
                 const done = doneCount(ex.id, ex.sets);
                 const allDone = done >= ex.sets;
