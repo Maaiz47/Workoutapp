@@ -2187,17 +2187,31 @@ export default function HomePage() {
     if (authStep === "username") {
       const isTrainer = landingTab === "trainer";
       const accentColor = isTrainer ? "#4ECDC4" : "#FF6B6B";
-      const features = isTrainer ? [
-        { title: "Full client roster", desc: "Manage all your athletes from one screen" },
-        { title: "Plan builder", desc: "Generate, customise, and propose personalised training plans" },
-        { title: "Session history", desc: "Review every set your clients have logged" },
-        { title: "Direct messaging", desc: "Built-in chat with delivery and read receipts" },
-      ] : [
-        { title: "Personalised training plan", desc: "Built for your goals, equipment, and schedule" },
-        { title: "Set-by-set logging", desc: "Weight, reps, rest timer, and live personal best detection" },
-        { title: "Progress analytics", desc: "Strength trends, 28-day streaks, and body metric tracking" },
-        { title: "Trainer connection", desc: "Receive custom plans and message your coach in-app" },
+      const accentGrad = isTrainer ? "linear-gradient(135deg,#4ECDC4,#26a69a)" : "linear-gradient(135deg,#FF6B6B,#ee5a24)";
+
+      const athleteFeatures = [
+        { title: "Set-by-set logging", desc: "Last session's numbers right next to your input. Log a set in under 3 seconds." },
+        { title: "Personalised training plan", desc: "Built for your goals, equipment, and schedule — 2 to 6 days per week." },
+        { title: "Live PR detection", desc: "Trophy overlay fires the moment you beat a personal best — not just at the end." },
+        { title: "Smart rest timer", desc: "Push notification when time's up, even with your phone locked." },
+        { title: "HIIT & Conditioning", desc: "20+ circuit exercises auto-added as a finisher or dedicated conditioning day." },
+        { title: "Progress analytics", desc: "28-day calendar, streaks, body metrics, and per-exercise trend charts." },
       ];
+      const trainerFeatures = [
+        { title: "Full client roster", desc: "Every client's last session, total count, and data — one tap away." },
+        { title: "Plan builder + delivery", desc: "Build a custom weekly split and push it live to any client's phone." },
+        { title: "Session history", desc: "Review every set your clients have logged, down to individual reps." },
+        { title: "Direct messaging", desc: "Built-in chat with delivery and read receipts. One inbox, every client." },
+        { title: "Plan proposals", desc: "Client previews and approves the new plan before it replaces their current one." },
+        { title: "Client analytics", desc: "Body metrics, PRs, progress charts, and 28-day activity calendar per client." },
+      ];
+      const trainerSteps = [
+        { n: "01", title: "Enable Trainer Mode", desc: "Flip the switch in settings. No approval required." },
+        { n: "02", title: "Invite your clients", desc: "Search their username and send an invite. They accept in one tap." },
+        { n: "03", title: "Build their program", desc: "Use the exercise browser to build a full weekly split in 5–10 min." },
+        { n: "04", title: "Monitor and adjust", desc: "Check their history anytime. Update the plan when they plateau." },
+      ];
+      const features = isTrainer ? trainerFeatures : athleteFeatures;
 
       return (
         <div style={{ minHeight: "100dvh", position: "relative", overflowY: "auto" }}>
@@ -2216,46 +2230,105 @@ export default function HomePage() {
           </div>
 
           {/* Hero */}
-          <div style={{ textAlign: "center", padding: "52px 32px 28px", zIndex: 1, position: "relative" }}>
+          <div style={{ textAlign: "center", padding: "44px 32px 16px", zIndex: 1, position: "relative" }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 44, fontWeight: 700, letterSpacing: 8, marginBottom: 6, lineHeight: 1, overflow: "visible" }}>
               <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
             </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginBottom: 20 }}>LIFT · TRACK · PROGRESS</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginBottom: 14 }}>LIFT · TRACK · PROGRESS</div>
             <div style={{ minHeight: 18 }}>
               <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
             </div>
           </div>
 
-          {/* Feature cards */}
-          <div style={{ padding: "8px 24px 32px", maxWidth: 420, margin: "0 auto", zIndex: 1, position: "relative" }}>
-            <div style={{ fontSize: 10, color: accentColor, letterSpacing: 3, fontWeight: 700, textAlign: "center", marginBottom: 16, opacity: 0.85 }}>
+          {/* Stats strip */}
+          <div style={{ display: "flex", padding: "12px 24px 20px", zIndex: 1, position: "relative", maxWidth: 460, margin: "0 auto" }}>
+            {([{ num: "119+", label: "EXERCISES" }, { num: "FREE", label: "FOR ATHLETES" }, { num: "PWA", label: "INSTALLABLE" }] as const).map((s, i) => (
+              <div key={i} style={{ flex: 1, textAlign: "center", padding: "10px 6px", borderRight: i < 2 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: accentColor, marginBottom: 2 }}>{s.num}</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: 1.5 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Feature cards — 2-column grid */}
+          <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
+            <div style={{ fontSize: 10, color: accentColor, letterSpacing: 3, fontWeight: 700, textAlign: "center", marginBottom: 12, opacity: 0.85 }}>
               {isTrainer ? "BUILT FOR TRAINERS" : "BUILT FOR ATHLETES"}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {features.map((f, i) => (
-                <div key={i} style={{ padding: "13px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 12, borderLeft: `2px solid ${accentColor}` }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>{f.title}</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>{f.desc}</div>
+                <div key={i} style={{ padding: "12px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 10, borderLeft: `2px solid ${accentColor}` }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 4, fontFamily: "'DM Sans', sans-serif", lineHeight: 1.3 }}>{f.title}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.4 }}>{f.desc}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* CTA — username input */}
-          <div style={{ padding: "0 24px 60px", maxWidth: 420, margin: "0 auto", textAlign: "center", zIndex: 1, position: "relative" }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginBottom: 16, letterSpacing: 0.5, fontFamily: "'DM Sans', sans-serif" }}>No subscription. No ads. Just your lifts.</div>
-            <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={{ ...inputStyleCenter, maxWidth: "100%" }} />
-            {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
-            {showEmailSignupPrompt && (
-              <div style={{ marginTop: 16, padding: "16px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12 }}>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>No account found for <strong style={{ color: "#fff" }}>{nameInput}</strong>. Create one?</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => { setEmailInput(nameInput); setNameInput(""); setShowEmailSignupPrompt(false); setAuthStep("register"); }} style={{ flex: 1, padding: "11px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
-                  <button onClick={() => { setShowEmailSignupPrompt(false); setNameInput(""); setAuthError(""); }} style={{ padding: "11px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>Back</button>
-                </div>
+          {/* Trainer — how it works steps */}
+          {isTrainer && (
+            <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, textAlign: "center", marginBottom: 12 }}>HOW IT WORKS</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {trainerSteps.map((s, i) => (
+                  <div key={i} style={{ padding: "12px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 10 }}>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 700, color: "rgba(78,205,196,0.18)", lineHeight: 1, marginBottom: 6 }}>{s.n}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 3, lineHeight: 1.3 }}>{s.title}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", lineHeight: 1.4 }}>{s.desc}</div>
+                  </div>
+                ))}
               </div>
+            </div>
+          )}
+
+          {/* Trainer — pricing callout */}
+          {isTrainer && (
+            <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
+              <div style={{ padding: "14px 16px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 12, textAlign: "center" }}>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 26, fontWeight: 700, color: "#4ECDC4", lineHeight: 1, marginBottom: 4 }}>$19<span style={{ fontSize: 13, fontWeight: 400, color: "rgba(255,255,255,0.3)" }}>/mo</span></div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>Starter plan — up to 10 clients</div>
+                <div style={{ fontSize: 10, color: "rgba(78,205,196,0.6)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>30-DAY FREE TRIAL · NO CARD NEEDED</div>
+              </div>
+            </div>
+          )}
+
+          {/* Athlete — free callout */}
+          {!isTrainer && (
+            <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
+              <div style={{ padding: "12px 16px", background: "rgba(255,107,107,0.05)", border: "1px solid rgba(255,107,107,0.1)", borderRadius: 10, textAlign: "center" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>Free forever. No subscription. No ads.</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif" }}>Every feature — logging, plans, PRs, progress, muscle maps — always free.</div>
+              </div>
+            </div>
+          )}
+
+          {/* CTA */}
+          <div style={{ padding: "0 24px 60px", maxWidth: 460, margin: "0 auto", textAlign: "center", zIndex: 1, position: "relative" }}>
+            {isTrainer ? (
+              <>
+                <a href="https://wa.me/9609120007?text=Hi%2C%20I%27d%20like%20to%20request%20early%20access%20to%20IronLog%20as%20a%20trainer" style={{ display: "block", width: "100%", padding: "15px", background: accentGrad, border: "none", borderRadius: 12, color: "#000", fontSize: 14, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", textDecoration: "none", marginBottom: 12 }}>REQUEST EARLY ACCESS</a>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginBottom: 12, fontFamily: "'DM Sans', sans-serif" }}>Already have an account?</div>
+                <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" style={{ ...inputStyleCenter, maxWidth: "100%" }} />
+                {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
+                {!showEmailSignupPrompt && <button onClick={doCheckUsername} style={{ ...btnPrimary, maxWidth: "100%", background: "rgba(255,255,255,0.07)", color: "#fff", marginTop: 10 }}>SIGN IN</button>}
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginBottom: 16, letterSpacing: 0.5, fontFamily: "'DM Sans', sans-serif" }}>Get started — enter your username or email</div>
+                <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={{ ...inputStyleCenter, maxWidth: "100%" }} />
+                {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
+                {showEmailSignupPrompt && (
+                  <div style={{ marginTop: 16, padding: "16px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12 }}>
+                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>No account found for <strong style={{ color: "#fff" }}>{nameInput}</strong>. Create one?</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => { setEmailInput(nameInput); setNameInput(""); setShowEmailSignupPrompt(false); setAuthStep("register"); }} style={{ flex: 1, padding: "11px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
+                      <button onClick={() => { setShowEmailSignupPrompt(false); setNameInput(""); setAuthError(""); }} style={{ padding: "11px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>Back</button>
+                    </div>
+                  </div>
+                )}
+                {!showEmailSignupPrompt && <button onClick={doCheckUsername} style={{ ...btnPrimary, maxWidth: "100%" }}>CONTINUE</button>}
+              </>
             )}
-            {!showEmailSignupPrompt && <button onClick={doCheckUsername} style={{ ...btnPrimary, maxWidth: "100%" }}>CONTINUE</button>}
           </div>
         </div>
       );

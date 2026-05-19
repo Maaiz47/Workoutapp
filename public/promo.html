@@ -166,7 +166,12 @@
 <!-- NAV -->
 <nav>
   <div class="logo">IRON<span>LOG</span></div>
-  <a href="mailto:hello@ironlog.app" class="nav-pill">Get Early Access</a>
+  <div style="display:flex;gap:6px;align-items:center">
+    <a href="revenue.html" style="padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;color:rgba(255,255,255,0.45);font-family:'DM Sans',sans-serif">Revenue</a>
+    <a href="trainer.html" style="padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;color:rgba(255,255,255,0.45);font-family:'DM Sans',sans-serif">For Trainers</a>
+    <a href="client.html" style="padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;color:rgba(255,255,255,0.45);font-family:'DM Sans',sans-serif">For Athletes</a>
+    <a href="https://wa.me/9609120007?text=Hi%2C+I%27d+like+to+request+early+access+to+IronLog" class="nav-pill">Get Early Access</a>
+  </div>
 </nav>
 
 <!-- HERO -->
@@ -176,7 +181,7 @@
   <h1>Your clients.<br>Your program.<br><span>Your edge.</span></h1>
   <p>IronLog is the all-in-one training platform for serious coaches — manage clients, write programs, track progress, and communicate from one clean app.</p>
   <div class="hero-cta">
-    <a href="mailto:hello@ironlog.app" class="btn-primary">Request Early Access</a>
+    <a href="https://wa.me/9609120007?text=Hi%2C+I%27d+like+to+request+early+access+to+IronLog" class="btn-primary">Request Early Access</a>
     <a href="#features" class="btn-outline">See All Features</a>
   </div>
 </div>
@@ -211,7 +216,7 @@
       <div class="persona-label">FOR ATHLETES &amp; CLIENTS</div>
       <h3>Train smarter every session</h3>
       <ul>
-        <li><span class="check">✦</span>AI-generated plan matched to your goals and equipment</li>
+        <li><span class="check">✦</span>Personalised plan matched to your goals and equipment</li>
         <li><span class="check">✦</span>Set-by-set logging with automatic PR detection</li>
         <li><span class="check">✦</span>See your last session's numbers right on screen</li>
         <li><span class="check">✦</span>Rest timer with push notifications</li>
@@ -243,6 +248,7 @@
     <div class="feat-card"><div class="feat-icon" style="background:rgba(78,205,196,0.15)">⏱️</div><h3>Smart Rest Timer</h3><p>Configurable rest periods with push notifications. Even if you lock your phone, you'll know when to get back under the bar.</p></div>
     <div class="feat-card"><div class="feat-icon" style="background:rgba(78,205,196,0.15)">📝</div><h3>Warmup Tracking</h3><p>Mark warmup sets separately from working sets. Keep your data clean without losing context on your approach.</p></div>
     <div class="feat-card"><div class="feat-icon" style="background:rgba(78,205,196,0.15)">▶️</div><h3>Session Resume</h3><p>Close the app mid-workout and resume exactly where you left off. Your session persists until you explicitly finish it.</p></div>
+    <div class="feat-card"><div class="feat-icon" style="background:rgba(255,102,68,0.15)">⚡</div><h3>HIIT &amp; Conditioning</h3><p>20+ circuit exercises including burpees, jump squats, mountain climbers, and plyometrics. Auto-added as a finisher or dedicated day based on your schedule.</p></div>
   </div>
 
   <div id="tab-trainer" class="tab-panel">
@@ -273,7 +279,7 @@
   </div>
 
   <div id="tab-plans" class="tab-panel">
-    <div class="feat-card"><div class="feat-icon" style="background:rgba(255,230,109,0.15)">🤖</div><h3>AI Plan Generation</h3><p>Answer a few questions about goals, level, equipment, and days per week — get a complete weekly split in seconds.</p></div>
+    <div class="feat-card"><div class="feat-icon" style="background:rgba(255,230,109,0.15)">📋</div><h3>Smart Plan Generation</h3><p>Answer a few questions about goals, level, equipment, and days per week — get a complete weekly split in seconds.</p></div>
     <div class="feat-card"><div class="feat-icon" style="background:rgba(255,230,109,0.15)">✏️</div><h3>Full Custom Builder</h3><p>Drag, add, and remove exercises from any day. Complete control over sets, reps, rest periods, and exercise order.</p></div>
     <div class="feat-card"><div class="feat-icon" style="background:rgba(255,230,109,0.15)">💾</div><h3>Save &amp; Restore Routines</h3><p>Save any program as a named routine. Restore it later with one tap — never lose a good program you built.</p></div>
     <div class="feat-card"><div class="feat-icon" style="background:rgba(78,205,196,0.15)">🔗</div><h3>Routine Sharing</h3><p>Share saved routines to any user by username. Trainers can push programs; athletes can share what's working.</p></div>
@@ -350,8 +356,7 @@
       </div>
       <div class="m-card">
         <div class="m-card-title">Activity · April</div>
-        <div style="display:flex;gap:2px;margin-top:8px;flex-wrap:wrap">
-          ${Array.from({length:28},(_,i)=>`<div style="width:10px;height:10px;border-radius:2px;background:${[2,3,6,7,9,10,13,14,16,17,20,21,23,24,27].includes(i)?'var(--orange)':'rgba(255,255,255,0.06)'}"></div>`).join('')}
+        <div id="promo-cal" style="display:flex;gap:2px;margin-top:8px;flex-wrap:wrap">
         </div>
       </div>
       <div class="m-card">
@@ -432,7 +437,7 @@
           <tr><td>Trainer→client program delivery</td><td class="yes">✓</td><td class="no">✗</td><td class="yes">✓</td></tr>
           <tr><td>In-app client messaging</td><td class="yes">✓</td><td class="no">✗</td><td class="partial">~ Paid add-on</td></tr>
           <tr><td>Client workout history access</td><td class="yes">✓</td><td class="no">✗</td><td class="yes">✓</td></tr>
-          <tr><td>AI-generated training plans</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td></tr>
+          <tr><td>Personalised training plans</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td></tr>
           <tr><td>Routine sharing between users</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td></tr>
           <tr><td>Body metric + trend tracking</td><td class="yes">✓</td><td class="partial">~ Basic</td><td class="partial">~ Limited</td></tr>
           <tr><td>Works without internet</td><td class="partial">~ Partial</td><td class="yes">✓</td><td class="no">✗</td></tr>
@@ -470,7 +475,7 @@
   <div class="section-tag" style="display:inline-block;margin-bottom:14px">EARLY ACCESS</div>
   <h2>Ready to modernise<br>your coaching?</h2>
   <p>IronLog is in early access. Trainers who join now get free platform access and shape what gets built next.</p>
-  <a href="mailto:hello@ironlog.app" class="btn-primary" style="font-size:16px;padding:16px 40px">Get Early Access →</a>
+  <a href="https://wa.me/9609120007?text=Hi%2C+I%27d+like+to+request+early+access+to+IronLog" class="btn-primary" style="font-size:16px;padding:16px 40px">Get Early Access →</a>
 </div>
 
 <footer>
@@ -487,6 +492,12 @@ function switchTab(name) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
 }
+
+(function(){
+  const cal = document.getElementById('promo-cal');
+  const active = [2,3,6,7,9,10,13,14,16,17,20,21,23,24,27];
+  cal.innerHTML = Array.from({length:28},(_,i)=>`<div style="width:10px;height:10px;border-radius:2px;background:${active.includes(i)?'var(--orange)':'rgba(255,255,255,0.06)'}"></div>`).join('');
+})();
 
 // Fade in on scroll
 const observer = new IntersectionObserver(entries => {
