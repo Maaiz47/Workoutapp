@@ -2228,8 +2228,17 @@ function HomePage() {
               <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginBottom: 14 }}>LIFT · TRACK · PROGRESS</div>
-            <div style={{ minHeight: 18 }}>
-              <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
+            <div style={{ minHeight: 18, overflow: "hidden" }}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={phraseIdx}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.35, ease: "easeInOut" }}
+                  style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif" }}
+                >{phrase}</motion.div>
+              </AnimatePresence>
             </div>
           </div>
 
@@ -2298,7 +2307,7 @@ function HomePage() {
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, marginBottom: 4, overflow: "visible" }}>
             <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
           </div>
@@ -2371,7 +2380,7 @@ function HomePage() {
           </>)}
           </motion.div>
           </AnimatePresence>
-        </div>
+        </motion.div>
       </div>
     );
     }
@@ -2385,7 +2394,7 @@ function HomePage() {
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, color: "#fff", marginBottom: 4 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>LIFT · TRACK · PROGRESS</div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Welcome, <strong style={{ color: "#fff" }}>{user.username}</strong></div>
@@ -2395,7 +2404,7 @@ function HomePage() {
           {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
           <button onClick={doResetPassword} style={btnPrimary}>SET PASSWORD</button>
           <button onClick={doLogout} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 16 }}>Log out</button>
-        </div>
+        </motion.div>
       </div>
     );
   } else
@@ -3101,7 +3110,12 @@ function HomePage() {
             style={{ background: "rgba(12,12,15,0.95)", border: "1px solid rgba(255,215,0,0.35)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative", boxShadow: "0 0 60px rgba(255,215,0,0.12)" }}
           >
             <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
-            <div style={{ fontSize: 36, marginBottom: 8 }}>🏆</div>
+            <motion.div
+              initial={{ rotate: -180, scale: 0, opacity: 0 }}
+              animate={{ rotate: [null, 15, -8, 4, 0], scale: [null, 1.35, 0.9, 1.1, 1], opacity: 1, filter: ["drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 24px rgba(255,215,0,0.95))", "drop-shadow(0 0 10px rgba(255,215,0,0.5))"] }}
+              transition={{ duration: 0.85, ease: "easeOut", times: [0, 0.45, 0.65, 0.82, 1], delay: 0.08 }}
+              style={{ fontSize: 36, marginBottom: 8, display: "inline-block", transformOrigin: "center" }}
+            >🏆</motion.div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
             {newPBs.map((pb, i) => (
               <div key={i} style={{ marginBottom: 6 }}>
@@ -3156,7 +3170,18 @@ function HomePage() {
       </AnimatePresence>
       <div style={{ padding: "20px 20px 0", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
-        <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
+        <div style={{ minHeight: 16, overflow: "hidden" }}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={phraseIdx}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.35, ease: "easeInOut" }}
+              style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}
+            >{phrase}</motion.div>
+          </AnimatePresence>
+        </div>
       </div>
       <div style={{ padding: "20px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -5046,7 +5071,7 @@ function HomePage() {
               <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.03, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
             ))}
           </div>
-          <div className="slide-up" style={{ zIndex: 1 }}>
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ zIndex: 1 }}>
             <button onClick={() => { setView("home"); setActiveDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 48 }}>← Back</button>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: activeDay.color, letterSpacing: 4, marginBottom: 12, opacity: 0.7 }}>DAY {activeDay.label}</div>
             <div style={{ fontSize: 32, fontWeight: 700, color: "#fff", letterSpacing: 1 }}>{activeDay.title}</div>
@@ -5057,7 +5082,7 @@ function HomePage() {
               <div style={{ textAlign: "center" }}><div style={{ fontSize: 28, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{tSets}</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginTop: 2 }}>TOTAL SETS</div></div>
             </div>
             <motion.button whileTap={{ scale: 0.93 }} transition={{ type: "spring", stiffness: 400, damping: 17 }} onClick={begin} style={{ marginTop: 48, padding: "18px 56px", background: activeDay.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 15, fontWeight: 600, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 8px 32px ${activeDay.color}30` }}>START WORKOUT</motion.button>
-          </div>
+          </motion.div>
         </div>
       );
     } else {
@@ -5082,7 +5107,12 @@ function HomePage() {
               style={{ background: "rgba(12,12,15,0.95)", border: "1px solid rgba(255,215,0,0.35)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative", boxShadow: "0 0 60px rgba(255,215,0,0.12)" }}
             >
               <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
-              <div style={{ fontSize: 36, marginBottom: 8 }}>🏆</div>
+              <motion.div
+                initial={{ rotate: -180, scale: 0, opacity: 0 }}
+                animate={{ rotate: [null, 15, -8, 4, 0], scale: [null, 1.35, 0.9, 1.1, 1], opacity: 1, filter: ["drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 24px rgba(255,215,0,0.95))", "drop-shadow(0 0 10px rgba(255,215,0,0.5))"] }}
+                transition={{ duration: 0.85, ease: "easeOut", times: [0, 0.45, 0.65, 0.82, 1], delay: 0.08 }}
+                style={{ fontSize: 36, marginBottom: 8, display: "inline-block", transformOrigin: "center" }}
+              >🏆</motion.div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
               {newPBs.map((pb, i) => (
                 <div key={i} style={{ marginBottom: 6 }}>
@@ -5610,18 +5640,52 @@ function HomePage() {
         </div>
 
         {/* Workout complete animation */}
+        <AnimatePresence>
         {showCompleteAnim && (
-          <div className="complete-overlay" style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(16px)", pointerEvents: "none" }}>
+          <motion.div
+            key="complete-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(16px)", pointerEvents: "none" }}
+          >
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div className="complete-ring" style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "3px solid rgba(46,204,113,0.6)" }} />
-              <div className="complete-ring" style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "2px solid rgba(46,204,113,0.3)", animationDelay: "0.18s" }} />
-              <div className="complete-pop" style={{ width: 80, height: 80, borderRadius: "50%", background: "rgba(46,204,113,0.15)", border: "2px solid rgba(46,204,113,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 36 }}>✓</span>
-              </div>
+              <motion.div
+                initial={{ scale: 0.4, opacity: 1 }}
+                animate={{ scale: 2.4, opacity: 0 }}
+                transition={{ duration: 1, ease: "easeOut", delay: 0.15 }}
+                style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "3px solid rgba(46,204,113,0.6)" }}
+              />
+              <motion.div
+                initial={{ scale: 0.4, opacity: 1 }}
+                animate={{ scale: 2.4, opacity: 0 }}
+                transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
+                style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "2px solid rgba(46,204,113,0.3)" }}
+              />
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.05 }}
+                style={{ width: 80, height: 80, borderRadius: "50%", background: "rgba(46,204,113,0.15)", border: "2px solid rgba(46,204,113,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                <motion.span
+                  initial={{ scale: 0, rotate: -45 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.2 }}
+                  style={{ fontSize: 36, display: "inline-block" }}
+                >✓</motion.span>
+              </motion.div>
             </div>
-            <div className="complete-pop" style={{ marginTop: 32, fontSize: 20, fontWeight: 700, color: "#2ecc71", letterSpacing: 3, fontFamily: "'Space Mono', monospace", animationDelay: "0.2s" }}>SAVED</div>
-          </div>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.35 }}
+              style={{ marginTop: 32, fontSize: 20, fontWeight: 700, color: "#2ecc71", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}
+            >SAVED</motion.div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {/* ── In-workout exercise add overlay ── */}
         {showAddInWorkout && (() => {
