@@ -1153,8 +1153,9 @@ export default function HomePage() {
   const [shareClientIds, setShareClientIds] = useState<string[]>([]);
   const [ob, setOb] = useState({
     dob: "", gender: "", heightCm: "", weightKg: "", bodyFatPct: "",
-    goals: [] as string[], targetArea: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
+    goals: [] as string[], targetAreas: [] as string[], fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
   });
+  const [rebuildMode, setRebuildMode] = useState(false);
 
   const [formPreview, setFormPreview] = useState<{ id: string; name: string; muscles: string[]; secondaryMuscles?: string[] } | null>(null);
   const [formFrame, setFormFrame] = useState(0);
@@ -1286,7 +1287,7 @@ export default function HomePage() {
           weightKg: p.weightKg?.toString() || "",
           bodyFatPct: p.bodyFatPct?.toString() || "",
           goals: p.goals?.length ? p.goals : (p.goal ? [p.goal] : []),
-          targetArea: p.targetArea || "none",
+          targetAreas: (p as any).targetAreas?.length ? (p as any).targetAreas : (p.targetArea && p.targetArea !== "none" ? [p.targetArea] : []),
           fitnessLevel: p.fitnessLevel || "",
           location: p.location || "",
           equipment: p.equipment || [],
@@ -1751,7 +1752,8 @@ export default function HomePage() {
   const submitOnboarding = async () => {
     setGeneratingPlan(true);
     try {
-      const profileRes = await fetch("/api/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ob) });
+      const profileBody = { ...ob, targetAreas: ob.targetAreas };
+      const profileRes = await fetch("/api/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profileBody) });
       if (!profileRes.ok) { setGeneratingPlan(false); return; }
       const planRes = await fetch("/api/plan", { method: "POST" });
       const planData = await planRes.json();
@@ -1763,8 +1765,8 @@ export default function HomePage() {
     setGeneratingPlan(false);
     setShowOnboarding(false);
     setOnboardingStep(0);
-    const eligibleGoals = ["fat_loss", "fitness"];
-    if (ob.goals.some(g => eligibleGoals.includes(g))) {
+    setRebuildMode(false);
+    if (!ob.goals.every(g => g === "strength")) {
       setHiitIntensity("moderate");
       setShowHiitPrompt(true);
     }
@@ -1900,10 +1902,16 @@ export default function HomePage() {
   const bc: Record<string, string> = { compound: "#2ecc71", isolation: "#74b9ff", cardio: "#FF6B6B" };
 
   const EQUIPMENT_OPTIONS = [
-    { id: "dumbbell", label: "Dumbbells" }, { id: "barbell", label: "Barbell" },
-    { id: "resistance_band", label: "Resistance Bands" }, { id: "pullup_bar", label: "Pull-Up Bar" },
-    { id: "bench", label: "Bench" }, { id: "kettlebell", label: "Kettlebell" },
-    { id: "dip_bar", label: "Dip Bars" },
+    { id: "dumbbell",        label: "Dumbbells",       gym: true,  home: true  },
+    { id: "barbell",         label: "Barbell",          gym: true,  home: false },
+    { id: "cable",           label: "Cable Machine",    gym: true,  home: false },
+    { id: "machine",         label: "Weight Machines",  gym: true,  home: false },
+    { id: "bench",           label: "Bench / Rack",     gym: true,  home: true  },
+    { id: "pullup_bar",      label: "Pull-Up Bar",      gym: true,  home: true  },
+    { id: "dip_bar",         label: "Dip Bars",         gym: true,  home: true  },
+    { id: "kettlebell",      label: "Kettlebell",       gym: true,  home: true  },
+    { id: "resistance_band", label: "Resistance Bands", gym: false, home: true  },
+    { id: "smith_machine",   label: "Smith Machine",    gym: true,  home: false },
   ];
   const toggleEquip = (id: string) => setOb(o => ({ ...o, equipment: o.equipment.includes(id) ? o.equipment.filter(e => e !== id) : [...o.equipment, id] }));
 
@@ -2035,22 +2043,30 @@ export default function HomePage() {
 
   // ─── ONBOARDING ─────────────────────────────────────────────────────
   if (showOnboarding) {
-    const STEPS = 8;
-    const progress = Math.round((onboardingStep / STEPS) * 100);
+    const STEPS = rebuildMode ? 6 : 8;
+    const progress = Math.round(((onboardingStep - (rebuildMode ? 2 : 0)) / STEPS) * 100);
     const obInput: React.CSSProperties = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", padding: "14px 20px", width: "100%", outline: "none", boxSizing: "border-box" as const };
     const obBtn: React.CSSProperties = { display: "block", width: "100%", marginTop: 24, padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
     const obSkip: React.CSSProperties = { background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 14, display: "block", width: "100%" };
     const selCard = (active: boolean): React.CSSProperties => ({ padding: "16px 20px", borderRadius: 12, border: `1px solid ${active ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, background: active ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", cursor: "pointer", marginBottom: 10, transition: "all 0.15s" });
 
     const canNext = () => {
+      if (rebuildMode && (onboardingStep === 1 || onboardingStep === 2)) return true;
       if (onboardingStep === 0) return true;
       if (onboardingStep === 1) return !!ob.dob && !!ob.gender;
       if (onboardingStep === 2) return !!ob.heightCm && !!ob.weightKg;
       if (onboardingStep === 3) return ob.goals.length > 0;
-      if (onboardingStep === 4) return !!ob.targetArea;
+      if (onboardingStep === 4) return true;
       if (onboardingStep === 5) return !!ob.fitnessLevel;
       if (onboardingStep === 6) return !!ob.location;
       return true;
+    };
+    const toggleTargetArea = (id: string) => {
+      setOb(o => {
+        if (id === "none") return { ...o, targetAreas: o.targetAreas.includes("none") ? [] : ["none"] };
+        const without = o.targetAreas.filter(x => x !== "none" && x !== id);
+        return { ...o, targetAreas: o.targetAreas.includes(id) ? without : [...without, id] };
+      });
     };
 
     if (generatingPlan) return (
@@ -2145,7 +2161,7 @@ export default function HomePage() {
           <div className="slide-up">
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>FOCUS</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>Any specific focus area?</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>We'll add extra work for your priority muscle group, or adjust the plan for rehabilitation.</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Select all that apply — we'll add extra work for your priority muscle groups, or adjust the plan for rehabilitation.</div>
 
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: 3, marginBottom: 10 }}>MUSCLE FOCUS</div>
             {[
@@ -2158,8 +2174,11 @@ export default function HomePage() {
               { id: "core",      label: "Core",      desc: "Stronger core and abs — extra core finishers on every day" },
               { id: "legs",      label: "Legs",      desc: "Bigger quads and hamstrings — extra leg volume" },
             ].map(t => (
-              <div key={t.id} style={selCard(ob.targetArea === t.id)} onClick={() => setOb(o => ({ ...o, targetArea: t.id }))}>
-                <div style={{ color: ob.targetArea === t.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{t.label}</div>
+              <div key={t.id} style={selCard(ob.targetAreas.includes(t.id))} onClick={() => toggleTargetArea(t.id)}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <div style={{ color: ob.targetAreas.includes(t.id) ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{t.label}</div>
+                  {ob.targetAreas.includes(t.id) && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
+                </div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t.desc}</div>
               </div>
             ))}
@@ -2170,8 +2189,11 @@ export default function HomePage() {
               { id: "rehab_shoulder",    label: "Rehab — Shoulder",    desc: "Shoulder-safe modifications, rotator cuff and mobility work" },
               { id: "rehab_lower_back",  label: "Rehab — Lower Back",  desc: "Protect the spine — avoid heavy loading, core stability focus" },
             ].map(t => (
-              <div key={t.id} style={selCard(ob.targetArea === t.id)} onClick={() => setOb(o => ({ ...o, targetArea: t.id }))}>
-                <div style={{ color: ob.targetArea === t.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{t.label}</div>
+              <div key={t.id} style={selCard(ob.targetAreas.includes(t.id))} onClick={() => toggleTargetArea(t.id)}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <div style={{ color: ob.targetAreas.includes(t.id) ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{t.label}</div>
+                  {ob.targetAreas.includes(t.id) && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
+                </div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t.desc}</div>
               </div>
             ))}
@@ -2188,6 +2210,7 @@ export default function HomePage() {
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>How long have you been training?</div>
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 28 }}>This helps us set the right volume and exercise selection.</div>
             {[
+              { id: "newcomer", label: "Brand new — never done this before", desc: "We'll keep things simple and safe while you build the habit" },
               { id: "beginner", label: "Less than 1 year", desc: "Focus on form, fundamentals, and building habits" },
               { id: "intermediate", label: "1–3 years", desc: "Comfortable with the main lifts, ready for more volume" },
               { id: "advanced", label: "3+ years", desc: "Strong base, looking to optimise and push harder" },
@@ -2212,30 +2235,36 @@ export default function HomePage() {
               { id: "home", label: "Home", desc: "I train at home with my own equipment" },
               { id: "both", label: "Both", desc: "Mix of gym and home sessions" },
             ].map(l => (
-              <div key={l.id} style={selCard(ob.location === l.id)} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: l.id === "gym" ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell"] : o.equipment }))}>
+              <div key={l.id} style={selCard(ob.location === l.id)} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: (l.id === "gym" || l.id === "both") ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell","smith_machine"] : [] }))}>
                 <div style={{ color: ob.location === l.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{l.label}</div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{l.desc}</div>
               </div>
             ))}
-            <button onClick={() => setOnboardingStep(ob.location === "gym" ? 8 : 7)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(7)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
             <button onClick={() => setOnboardingStep(5)} style={obSkip}>← Back</button>
           </div>
         )}
 
-        {/* Step 7: Equipment (home/both only) */}
+        {/* Step 7: Equipment */}
         {onboardingStep === 7 && (
           <div className="slide-up">
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>EQUIPMENT</div>
-            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>What do you have available?</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Select everything you have access to.</div>
-            {EQUIPMENT_OPTIONS.map(e => (
-              <div key={e.id} style={selCard(ob.equipment.includes(e.id))} onClick={() => toggleEquip(e.id)}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ color: ob.equipment.includes(e.id) ? "#FF6B6B" : "#fff", fontWeight: 500 }}>{e.label}</div>
-                  {ob.equipment.includes(e.id) && <div style={{ color: "#FF6B6B", fontSize: 16 }}>✓</div>}
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>
+              {ob.location === "gym" ? "What does your gym have?" : ob.location === "home" ? "What do you have at home?" : "What equipment do you have access to?"}
+            </div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>
+              {ob.location === "gym" ? "All standard equipment is pre-selected — untick anything your gym doesn't have." : ob.location === "home" ? "Select everything available to you." : "Include gym equipment above and home equipment below."}
+            </div>
+            {EQUIPMENT_OPTIONS
+              .filter(e => ob.location === "gym" ? e.gym : ob.location === "home" ? e.home : true)
+              .map(e => (
+                <div key={e.id} style={selCard(ob.equipment.includes(e.id))} onClick={() => toggleEquip(e.id)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ color: ob.equipment.includes(e.id) ? "#FF6B6B" : "#fff", fontWeight: 500 }}>{e.label}</div>
+                    {ob.equipment.includes(e.id) && <div style={{ color: "#FF6B6B", fontSize: 16 }}>✓</div>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
             <button onClick={() => setOnboardingStep(8)} style={obBtn}>CONTINUE</button>
             <button onClick={() => setOnboardingStep(6)} style={obSkip}>← Back</button>
           </div>
@@ -2256,7 +2285,7 @@ export default function HomePage() {
             </div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", marginBottom: 8 }}>days per week</div>
             <button onClick={submitOnboarding} style={obBtn}>BUILD MY PLAN</button>
-            <button onClick={() => setOnboardingStep(ob.location === "gym" ? 6 : 7)} style={obSkip}>← Back</button>
+            <button onClick={() => setOnboardingStep(7)} style={obSkip}>← Back</button>
           </div>
         )}
       </div>
@@ -2612,7 +2641,7 @@ export default function HomePage() {
         </div>
         <div style={{ padding: "0 20px" }}>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 1.6, marginBottom: 20 }}>Tap a day to add, remove, or reorder exercises. Your workout history is always preserved.</div>
-          <button onClick={() => { setView("home"); setOnboardingStep(0); setShowOnboarding(true); }} style={{ display: "block", width: "100%", padding: "14px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12, color: "rgba(255,107,107,0.8)", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 28 }}>↺ REBUILD MY WEEKLY PLAN</button>
+          <button onClick={() => { setView("home"); setOnboardingStep(3); setRebuildMode(true); setShowOnboarding(true); }} style={{ display: "block", width: "100%", padding: "14px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12, color: "rgba(255,107,107,0.8)", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 28 }}>↺ REBUILD MY WEEKLY PLAN</button>
           {planDays.map((day: any, i: number) => (
             <div key={day.id} className="card-hover" style={{ marginBottom: 10, cursor: "pointer" }} onClick={() => setEditingDay(day)}>
               <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -3669,9 +3698,9 @@ export default function HomePage() {
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>FITNESS LEVEL</div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {["beginner", "intermediate", "advanced"].map(l => (
-                      <button key={l} onClick={() => setOb(o => ({ ...o, fitnessLevel: l }))} style={{ flex: 1, padding: "10px 4px", background: ob.fitnessLevel === l ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${ob.fitnessLevel === l ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: ob.fitnessLevel === l ? "#FF6B6B" : "rgba(255,255,255,0.45)", fontSize: 11, cursor: "pointer", textTransform: "capitalize" }}>{l}</button>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {["newcomer", "beginner", "intermediate", "advanced"].map(l => (
+                      <button key={l} onClick={() => setOb(o => ({ ...o, fitnessLevel: l }))} style={{ flex: "1 0 auto", padding: "10px 4px", background: ob.fitnessLevel === l ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${ob.fitnessLevel === l ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: ob.fitnessLevel === l ? "#FF6B6B" : "rgba(255,255,255,0.45)", fontSize: 11, cursor: "pointer", textTransform: "capitalize" }}>{l}</button>
                     ))}
                   </div>
                 </div>
@@ -3691,11 +3720,12 @@ export default function HomePage() {
                     ))}
                   </div>
                 </div>
-                {ob.location !== "gym" && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>EQUIPMENT</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {EQUIPMENT_OPTIONS.map(e => {
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>EQUIPMENT</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {EQUIPMENT_OPTIONS
+                      .filter(e => ob.location === "gym" ? e.gym : ob.location === "home" ? e.home : true)
+                      .map(e => {
                         const has = ob.equipment.includes(e.id);
                         return (
                           <button key={e.id} onClick={() => toggleEquip(e.id)} style={{ padding: "10px 14px", background: has ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${has ? "rgba(255,107,107,0.3)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: has ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
@@ -3703,9 +3733,8 @@ export default function HomePage() {
                           </button>
                         );
                       })}
-                    </div>
                   </div>
-                )}
+                </div>
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>FOCUS AREA</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -3722,9 +3751,15 @@ export default function HomePage() {
                       { id: "rehab_shoulder", label: "Rehab — Shoulder" },
                       { id: "rehab_lower_back", label: "Rehab — Lower Back" },
                     ].map(t => {
-                      const sel = ob.targetArea === t.id;
+                      const sel = ob.targetAreas.includes(t.id);
                       return (
-                        <button key={t.id} onClick={() => setOb(o => ({ ...o, targetArea: t.id }))} style={{ padding: "9px 14px", background: sel ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
+                        <button key={t.id} onClick={() => {
+                          setOb(o => {
+                            if (t.id === "none") return { ...o, targetAreas: sel ? [] : ["none"] };
+                            const without = o.targetAreas.filter(x => x !== "none" && x !== t.id);
+                            return { ...o, targetAreas: sel ? without : [...without, t.id] };
+                          });
+                        }} style={{ padding: "9px 14px", background: sel ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
                           {t.label}{sel && <span>✓</span>}
                         </button>
                       );
@@ -3743,7 +3778,7 @@ export default function HomePage() {
                           dob: ob.dob, gender: ob.gender, heightCm: ob.heightCm, weightKg: ob.weightKg,
                           bodyFatPct: ob.bodyFatPct || null, goals: ob.goals, fitnessLevel: ob.fitnessLevel,
                           location: ob.location || "gym", equipment: ob.equipment.length ? ob.equipment : ["barbell","dumbbell","cable","machine"],
-                          daysPerWeek: ob.daysPerWeek, targetArea: ob.targetArea || "none",
+                          daysPerWeek: ob.daysPerWeek, targetAreas: ob.targetAreas,
                         }),
                       });
                       setEditingProfile(false);
