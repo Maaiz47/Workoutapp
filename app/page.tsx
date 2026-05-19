@@ -1225,7 +1225,7 @@ export default function HomePage() {
 
   // Minimum splash duration so the fall animation completes
   useEffect(() => {
-    const t = setTimeout(() => setSplashDone(true), 1400);
+    const t = setTimeout(() => setSplashDone(true), 2000);
     return () => clearTimeout(t);
   }, []);
 
@@ -1913,14 +1913,28 @@ export default function HomePage() {
   // ─── LOADING ────────────────────────────────────────────────────────
   if (authLoading || !splashDone) return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.09) 0%, transparent 65%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 65%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", top: "55%", left: "50%", transform: "translate(-50%,-50%)", width: "40vw", height: "40vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.05) 0%, transparent 70%)", animation: "breathe 2.4s ease infinite", pointerEvents: "none" }} />
+      {/* Ambient blobs */}
+      <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ textAlign: "center", zIndex: 1 }}>
-        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 44, fontWeight: 700, letterSpacing: 8, marginBottom: 6, overflow: "visible" }}>
-          <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+        {/* Logo + impact effects wrapper */}
+        <div style={{ position: "relative", display: "inline-block" }}>
+          {/* Impact glow — flashes outward when logo lands */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "90vw", height: "90vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.22) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 0.85s both", pointerEvents: "none" }} />
+          {/* Shockwave ring 1 */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "2px solid rgba(255,107,107,0.8)", animation: "shockwave 1s cubic-bezier(0.1,0.6,0.2,1) 0.85s both", pointerEvents: "none" }} />
+          {/* Shockwave ring 2 */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.45)", animation: "shockwave 1.4s cubic-bezier(0.1,0.6,0.2,1) 1.05s both", pointerEvents: "none" }} />
+          {/* Logo */}
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 64, fontWeight: 700, letterSpacing: 12, overflow: "visible", lineHeight: 1.1, position: "relative" }}>
+            <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+          </div>
         </div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginBottom: 48, animation: "fadeIn 0.5s ease 0.85s both" }}>LIFT · TRACK · PROGRESS</div>
+        {/* Floor beam — light streak on impact */}
+        <div style={{ width: 260, height: 1, margin: "10px auto 0", background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.95), transparent)", animation: "floorBeam 1.3s ease-out 0.85s both" }} />
+        {/* Tagline */}
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginTop: 22, marginBottom: 52, animation: "fadeIn 0.5s ease 1.25s both" }}>LIFT · TRACK · PROGRESS</div>
+        {/* Loading bar */}
         <div style={{ width: 180, height: 2, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.55), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite", margin: "0 auto" }} />
       </div>
     </div>
