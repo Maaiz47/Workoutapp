@@ -4567,6 +4567,9 @@ function HomePage() {
     }
 
     const findExName = (eid: string) => {
+      // Search customPlan first (user's actual plan), then fall back to default WORKOUT_DATA
+      const planDays = customPlan ?? (WORKOUT_DATA as any[]);
+      for (const d of planDays) for (const s of (d.sections ?? [])) for (const e of (s.exercises ?? [])) if (e.id === eid) return e.name;
       for (const d of WORKOUT_DATA) for (const s of d.sections) for (const e of s.exercises) if (e.id === eid) return e.name;
       return eid;
     };
@@ -4720,11 +4723,19 @@ function HomePage() {
                     ) : sessions.map(({ dayId, session }, si) => {
                       // Group sets by exercise id
                       const byEx: Record<string, { name: string; sets: { n: number; weight: number; reps: number }[] }> = {};
+                      // Build a name lookup from the plan day that owns this dayId
+                      const planDays = customPlan ?? (WORKOUT_DATA as any[]);
+                      const planDay = planDays.find((d: any) => d.id === dayId);
+                      const exNameMap: Record<string, string> = {};
+                      for (const sec of (planDay?.sections ?? [])) for (const ex of (sec.exercises ?? [])) exNameMap[ex.id] = ex.name;
                       for (const k in session.sets as Record<string, any>) {
+                        // Keys are like "c1-1" or "c1-1-d1" (drop sets) — strip the trailing set/drop number(s)
                         const parts = k.split("-");
-                        const setN = parseInt(parts[parts.length - 1]);
-                        const eid = parts.slice(0, -1).join("-");
-                        const name = (EXERCISES as any[]).find((e: any) => e.id === eid)?.name ?? eid;
+                        const isDropSet = parts[parts.length - 1].startsWith("d");
+                        const stripCount = isDropSet ? 2 : 1;
+                        const eid = parts.slice(0, parts.length - stripCount).join("-");
+                        const setN = parseInt(parts[parts.length - (isDropSet ? 2 : 1)]) || 1;
+                        const name = exNameMap[eid] ?? eid;
                         if (!byEx[eid]) byEx[eid] = { name, sets: [] };
                         byEx[eid].sets.push({ n: setN, ...session.sets[k] });
                       }
