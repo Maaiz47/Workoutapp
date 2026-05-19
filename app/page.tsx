@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 import { EXERCISES } from "../lib/exercises";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
@@ -1094,6 +1095,7 @@ export default function HomePage() {
   const [showNotifBanner, setShowNotifBanner] = useState(false);
   const [showPwaBanner, setShowPwaBanner] = useState(false);
   const [pwaPlatform, setPwaPlatform] = useState<"ios" | "android" | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -1224,6 +1226,8 @@ export default function HomePage() {
       setShowNotifBanner(true);
     }
   }, []);
+
+  useEffect(() => { setIsMounted(true); }, []);
 
   // PWA install nudge — show periodically on mobile browsers that haven't installed
   useEffect(() => {
@@ -5188,12 +5192,12 @@ export default function HomePage() {
           );
         })()}
 
-        {rest.running && (() => {
+        {rest.running && isMounted && (() => {
           const progress = rest.total > 0 ? rest.seconds / rest.total : 0;
           const R = 70, C = 2 * Math.PI * R;
           const dash = C * progress;
-          return (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(20px)", touchAction: "none", overscrollBehavior: "none", paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+          return createPortal(
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 9999, backdropFilter: "blur(20px)", touchAction: "none", overscrollBehavior: "none" }}>
               <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 28, fontFamily: "'Space Mono', monospace" }}>REST</div>
               <div style={{ position: "relative", width: 172, height: 172, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="172" height="172" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
@@ -5205,7 +5209,8 @@ export default function HomePage() {
                 <div style={{ fontSize: 72, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>{rest.seconds}</div>
               </div>
               <button onClick={rest.stop} style={{ marginTop: 36, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 36px", color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "'DM Sans', sans-serif", letterSpacing: 2, cursor: "pointer" }}>SKIP</button>
-            </div>
+            </div>,
+            document.body
           );
         })()}
         <div style={{ padding: "16px 20px 14px", background: `linear-gradient(180deg, ${activeDay.color}10, transparent)`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
