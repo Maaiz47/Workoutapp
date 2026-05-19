@@ -1135,6 +1135,9 @@ export default function HomePage() {
   const [savedRoutines, setSavedRoutines] = useState<any[]>([]);
   const [showSavedList, setShowSavedList] = useState(false);
   const [showSaveRoutine, setShowSaveRoutine] = useState(false);
+  const [showHiitPrompt, setShowHiitPrompt] = useState(false);
+  const [hiitPreference, setHiitPreference] = useState("");
+  const [hiitIntensity, setHiitIntensity] = useState("moderate");
   const [saveRoutineName, setSaveRoutineName] = useState("");
   const [savingRoutine, setSavingRoutine] = useState(false);
   const [sharingRoutineId, setSharingRoutineId] = useState<string | null>(null);
@@ -1285,6 +1288,8 @@ export default function HomePage() {
         });
         if (p.targetWeightKg) setGoalWeight(p.targetWeightKg.toString());
         if (p.targetBodyFatPct) setGoalBf(p.targetBodyFatPct.toString());
+        if ((p as any).hiitPreference) setHiitPreference((p as any).hiitPreference);
+        if ((p as any).hiitIntensity) setHiitIntensity((p as any).hiitIntensity);
         fetch("/api/plan").then(r => r.json()).then(planData => {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
         });
@@ -1752,6 +1757,24 @@ export default function HomePage() {
     setGeneratingPlan(false);
     setShowOnboarding(false);
     setOnboardingStep(0);
+    const eligibleGoals = ["fat_loss", "fitness"];
+    if (ob.goals.some(g => eligibleGoals.includes(g))) {
+      setHiitIntensity("moderate");
+      setShowHiitPrompt(true);
+    }
+  };
+
+  const applyHiitChoice = async (pref: string, intensity: string) => {
+    setHiitPreference(pref);
+    setHiitIntensity(intensity);
+    setShowHiitPrompt(false);
+    if (pref === "none") return;
+    try {
+      await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hiitPreference: pref, hiitIntensity: intensity }) });
+      const planRes = await fetch("/api/plan", { method: "POST" });
+      const planData = await planRes.json();
+      if (planData.plan?.days?.length) { setCustomPlan(planData.plan.days); setPlanNote(planData.planNote || ""); }
+    } catch {}
   };
 
   const openDay = (d: WorkoutDay) => { setActiveDay(d); setView("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); };
@@ -3331,6 +3354,37 @@ export default function HomePage() {
             })()}
           </div>
         )}
+
+      {showHiitPrompt && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.96)", zIndex: 600, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28 }}>
+          <div style={{ width: "100%", maxWidth: 380 }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, letterSpacing: 4, color: "#FF8C42", marginBottom: 14 }}>⚡ HIIT TRAINING</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 8, lineHeight: 1.3 }}>Add high-intensity intervals?</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7, marginBottom: 28 }}>HIIT circuits spike your heart rate, accelerate fat burn, and boost conditioning. Add them to your plan now or skip.</div>
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>INTENSITY</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[{ id: "light", label: "Light" }, { id: "moderate", label: "Moderate" }, { id: "intense", label: "Intense" }].map(opt => (
+                  <button key={opt.id} onClick={() => setHiitIntensity(opt.id)} style={{ flex: 1, padding: "10px 4px", background: hiitIntensity === opt.id ? "rgba(255,140,66,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${hiitIntensity === opt.id ? "rgba(255,140,66,0.5)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: hiitIntensity === opt.id ? "#FF8C42" : "rgba(255,255,255,0.45)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>{opt.label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button onClick={() => applyHiitChoice("finisher", hiitIntensity)} style={{ padding: "16px 20px", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.35)", borderRadius: 14, color: "#FF8C42", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>⚡ Circuit Finisher</div>
+                <div style={{ fontSize: 12, color: "rgba(255,140,66,0.65)", fontWeight: 400 }}>Added at the end of each workout day</div>
+              </button>
+              <button onClick={() => applyHiitChoice("dedicated_day", hiitIntensity)} style={{ padding: "16px 20px", background: "rgba(255,140,66,0.07)", border: "1px solid rgba(255,140,66,0.2)", borderRadius: 14, color: "rgba(255,140,66,0.8)", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>🔥 Dedicated Day</div>
+                <div style={{ fontSize: 12, color: "rgba(255,140,66,0.5)", fontWeight: 400 }}>A separate HIIT & conditioning session</div>
+              </button>
+              <button onClick={() => applyHiitChoice("none", hiitIntensity)} style={{ padding: "14px 20px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", textAlign: "left" }}>Not now — I'll add it later from settings</button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     );
   }
@@ -3691,6 +3745,45 @@ export default function HomePage() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* HIIT Training Preferences */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT TRAINING</div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>INTENSITY</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[{ id: "light", label: "Light" }, { id: "moderate", label: "Moderate" }, { id: "intense", label: "Intense" }].map(opt => (
+                  <button key={opt.id} onClick={() => setHiitIntensity(opt.id)} style={{ flex: 1, padding: "10px 4px", background: hiitIntensity === opt.id ? "rgba(255,140,66,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${hiitIntensity === opt.id ? "rgba(255,140,66,0.4)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: hiitIntensity === opt.id ? "#FF8C42" : "rgba(255,255,255,0.45)", fontSize: 11, cursor: "pointer", textTransform: "capitalize" }}>{opt.label}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>MODE</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {[
+                  { id: "finisher", label: "Circuit Finisher", desc: "Added at the end of each workout day" },
+                  { id: "dedicated_day", label: "Dedicated Day", desc: "A separate HIIT & conditioning session" },
+                  { id: "none", label: "None", desc: "No HIIT in your plan" },
+                ].map(opt => {
+                  const sel = hiitPreference === opt.id;
+                  return (
+                    <button key={opt.id} onClick={() => setHiitPreference(opt.id)} style={{ padding: "10px 14px", background: sel ? "rgba(255,140,66,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,140,66,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF8C42" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{opt.label}</div>
+                        <div style={{ fontSize: 11, color: sel ? "rgba(255,140,66,0.55)" : "rgba(255,255,255,0.25)", marginTop: 2 }}>{opt.desc}</div>
+                      </div>
+                      {sel && <span style={{ color: "#FF8C42" }}>✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <button onClick={async () => {
+              try {
+                await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hiitPreference: hiitPreference || "none", hiitIntensity: hiitIntensity || "moderate" }) });
+              } catch {}
+            }} style={{ width: "100%", padding: "11px", background: "rgba(255,140,66,0.08)", border: "1px solid rgba(255,140,66,0.25)", borderRadius: 10, color: "#FF8C42", fontSize: 10, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>SAVE HIIT SETTINGS</button>
           </div>
 
           {/* Trainer upgrade — request flow */}
@@ -4596,7 +4689,7 @@ export default function HomePage() {
                       setWInput(lw ? String(lw) : "");
                       setRInput(lr ? String(lr) : "");
                     }}
-                      style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: (allDone || wuDone) ? 0.3 : 1, cursor: "pointer", transition: "opacity 0.3s" }}>
+                      style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: (allDone || wuDone) ? 0.3 : 1, cursor: "pointer", transition: "opacity 0.3s", borderLeft: ex.note === "HIIT circuit" ? "3px solid rgba(255,140,66,0.7)" : undefined }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                           {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? (
@@ -4607,6 +4700,7 @@ export default function HomePage() {
                           <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</span>
                           {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1, flexShrink: 0 }}>{ex.type.toUpperCase()}</span>}
                           {dropCount > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: "#FFE66D", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>DROP×{dropCount}</span>}
+                          {ex.note === "HIIT circuit" && <span style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT</span>}
                           <button onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }} style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginLeft: 6, flexShrink: 0 }}>FORM</button>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -4620,7 +4714,7 @@ export default function HomePage() {
                       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>
                         {trackable ? `${ex.sets} × ${ex.reps}` : ex.reps}{ex.rest ? ` · ${ex.rest}s rest` : ""}
                       </div>
-                      {ex.note && <div style={{ fontSize: 11, color: "#f0c040", marginTop: 5, fontStyle: "italic", opacity: 0.8 }}>{ex.note}</div>}
+                      {ex.note && ex.note !== "HIIT circuit" && <div style={{ fontSize: 11, color: "#f0c040", marginTop: 5, fontStyle: "italic", opacity: 0.8 }}>{ex.note}</div>}
                       {trackable && lw > 0 && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace" }}>Last session: {lw}kg × {lr || "?"}</div>}
                       {trackable && (
                         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
@@ -4708,7 +4802,21 @@ export default function HomePage() {
               };
 
               return items.map((item, itemIdx) => {
-                if (item.kind === "single") return renderEx(item.ex);
+                if (item.kind === "single") {
+                  const prevItem = itemIdx > 0 ? items[itemIdx - 1] : null;
+                  const isFirstHiit = item.ex.note === "HIIT circuit" && (!prevItem || prevItem.kind !== "single" || prevItem.ex.note !== "HIIT circuit");
+                  if (!isFirstHiit) return renderEx(item.ex);
+                  return (
+                    <div key={item.ex.id}>
+                      <div style={{ padding: "14px 20px 6px", display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ flex: 1, height: 1, background: "rgba(255,140,66,0.2)" }} />
+                        <span style={{ fontSize: 9, letterSpacing: 3, color: "#FF8C42", fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT CIRCUIT</span>
+                        <div style={{ flex: 1, height: 1, background: "rgba(255,140,66,0.2)" }} />
+                      </div>
+                      {renderEx(item.ex)}
+                    </div>
+                  );
+                }
                 return (
                   <div key={item.groupId} style={{ borderLeft: "2px solid rgba(255,230,109,0.2)", marginLeft: 12 }}>
                     <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: 6 }}>

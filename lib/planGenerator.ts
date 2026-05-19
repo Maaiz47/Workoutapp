@@ -11,6 +11,8 @@ export interface UserProfileInput {
   heightCm: number;
   ageYears: number;
   targetArea?: string;
+  hiitPreference?: string | null;
+  hiitIntensity?: string | null;
 }
 
 export interface GeneratedExercise {
@@ -431,6 +433,60 @@ const TARGET_AREA_LABELS: Record<string, string> = {
   rehab_knee: "knee rehabilitation", rehab_shoulder: "shoulder rehabilitation", rehab_lower_back: "lower back rehabilitation",
 };
 
+// ── HIIT circuit builder ────────────────────────────────────────────────────
+
+const HIIT_FULL_BODY = ["burpees", "squat-thrust", "tuck-jumps"];
+const HIIT_LOWER     = ["split-jumps", "box-jumps", "lateral-bounds", "broad-jump", "speed-skaters", "jump-squat"];
+const HIIT_UPPER     = ["plyo-pushup", "mountain-climbers", "bear-crawl", "inchworm"];
+const HIIT_CARDIO    = ["high-knees", "jumping-jacks", "jump-rope", "star-jump", "lateral-shuffle"];
+
+function hiitParams(intensity: string) {
+  if (intensity === "intense") return { rest: 10, reps: "45 sec" };
+  if (intensity === "light")   return { rest: 30, reps: "30 sec" };
+  return                              { rest: 20, reps: "40 sec" };
+}
+
+function pickHiitId(pool: string[], used: Set<string>): string | null {
+  return pool.find(id => !used.has(id)) ?? null;
+}
+
+function buildHiitCircuit(intensity: string, used: Set<string>): GeneratedExercise[] {
+  const { rest, reps } = hiitParams(intensity);
+  const ids = [
+    pickHiitId(HIIT_FULL_BODY, used),
+    pickHiitId(HIIT_LOWER,     used),
+    pickHiitId(HIIT_UPPER,     used),
+    pickHiitId(HIIT_CARDIO,    used),
+  ].filter(Boolean) as string[];
+
+  const result: GeneratedExercise[] = [];
+  for (const id of ids) {
+    const ex = EXERCISES.find(e => e.id === id);
+    if (!ex) continue;
+    used.add(id);
+    result.push({ exerciseId: id, name: ex.name, sets: 3, reps, rest, notes: "HIIT circuit" });
+  }
+  return result;
+}
+
+function buildHiitDay(intensity: string): GeneratedDay {
+  const { rest, reps } = hiitParams(intensity);
+  const used = new Set<string>();
+  const exercises: GeneratedExercise[] = [];
+
+  const allPools = [...HIIT_FULL_BODY, ...HIIT_LOWER, ...HIIT_UPPER, ...HIIT_CARDIO];
+  for (const id of allPools.slice(0, 6)) {
+    const ex = EXERCISES.find(e => e.id === id);
+    if (!ex) continue;
+    used.add(id);
+    exercises.push({ exerciseId: id, name: ex.name, sets: 3, reps, rest, notes: "HIIT circuit" });
+  }
+  const plank = EXERCISES.find(e => e.id === "plank");
+  if (plank) exercises.push({ exerciseId: "plank", name: "Plank", sets: 3, reps: "45–60 sec", rest: 30 });
+
+  return { title: "HIIT & Conditioning", subtitle: "High Intensity Circuit · Core", focus: "cardio, core, full body", exercises };
+}
+
 // ── Plan note ───────────────────────────────────────────────────────────────
 
 function buildPlanNote(profile: UserProfileInput, days: number): string {
@@ -496,11 +552,29 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
   }
 
   const finalDays = applyTargetArea(planDays, profile);
+  const hiitIntensity = profile.hiitIntensity ?? "moderate";
+
+  if (profile.hiitPreference === "finisher") {
+    const hiitUsed = new Set<string>();
+    for (const day of finalDays) {
+      if (day.focus.includes("cardio")) continue;
+      const circuit = buildHiitCircuit(hiitIntensity, hiitUsed);
+      day.exercises.push(...circuit);
+    }
+  } else if (profile.hiitPreference === "dedicated_day") {
+    finalDays.push(buildHiitDay(hiitIntensity));
+  }
+
   let planNote = buildPlanNote(profile, days);
 
   if (profile.targetArea && profile.targetArea !== "none") {
     const label = TARGET_AREA_LABELS[profile.targetArea] ?? profile.targetArea;
     planNote += ` Extra work added for ${label}.`;
+  }
+  if (profile.hiitPreference === "finisher") {
+    planNote += " HIIT circuits added as finishers to each training day.";
+  } else if (profile.hiitPreference === "dedicated_day") {
+    planNote += " Dedicated HIIT day included for maximum fat-burning.";
   }
 
   return { days: finalDays, planNote };

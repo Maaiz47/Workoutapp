@@ -19,13 +19,15 @@ export async function PATCH(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
   try {
-    const { targetWeightKg, targetBodyFatPct } = await req.json();
+    const { targetWeightKg, targetBodyFatPct, hiitPreference, hiitIntensity } = await req.json();
     const profile = await prisma.userProfile.update({
       where: { userId: uid },
       data: {
-        targetWeightKg: targetWeightKg !== undefined ? (targetWeightKg ? parseFloat(targetWeightKg) : null) : undefined,
+        targetWeightKg:   targetWeightKg   !== undefined ? (targetWeightKg   ? parseFloat(targetWeightKg)   : null) : undefined,
         targetBodyFatPct: targetBodyFatPct !== undefined ? (targetBodyFatPct ? parseFloat(targetBodyFatPct) : null) : undefined,
-      },
+        hiitPreference:   hiitPreference   !== undefined ? hiitPreference   : undefined,
+        hiitIntensity:    hiitIntensity    !== undefined ? hiitIntensity    : undefined,
+      } as any,
     });
     return json({ profile });
   } catch {

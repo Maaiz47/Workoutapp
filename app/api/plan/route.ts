@@ -91,6 +91,8 @@ export async function POST(req: NextRequest) {
       heightCm: profile.heightCm,
       ageYears,
       targetArea: profile.targetArea ?? "none",
+      hiitPreference: (profile as any).hiitPreference ?? null,
+      hiitIntensity: (profile as any).hiitIntensity ?? null,
     };
 
     const generated = generatePlan(input);

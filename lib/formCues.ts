@@ -619,6 +619,63 @@ export const FORM_CUES: Record<string, string[]> = {
     "Straighten your knee fully against the band while keeping your foot flat.",
     "This targets the VMO (inner quad teardrop) and is key for knee stability — use light resistance only.",
   ],
+
+  // ── New HIIT exercises ─────────────────────────────────────────────────
+  "tuck-jumps": [
+    "Drive your knees up to hip height or higher at the peak — the higher the tuck, the harder hip flexors and quads work.",
+    "Swing your arms down forcefully as you jump to generate upward momentum, then absorb the landing softly through bent knees.",
+    "Land on the balls of your feet, not your heels — immediately rebound into the next rep without pausing.",
+  ],
+  "split-jumps": [
+    "Start in a lunge, explode upward and switch legs in mid-air, landing in a lunge with the opposite leg forward.",
+    "Keep your torso upright on landing — leaning forward shifts load off the glutes and stresses the knee.",
+    "Land softly through the front heel and immediately spring into the next rep — the faster the switch, the greater the cardio demand.",
+  ],
+  "speed-skaters": [
+    "Bound laterally as far as possible and land on one foot with a slight knee bend — back leg swings behind the planted leg.",
+    "Reach your opposite hand toward the landing foot to maximise the lateral stretch and balance challenge.",
+    "Drive off the planted foot explosively to initiate each bound — think 'push', not 'hop'.",
+  ],
+  "plyo-pushup": [
+    "Lower to the bottom of a push-up, then explosively press the floor away so your hands leave the ground at the top.",
+    "Keep your core braced throughout — sagging hips during the explosive phase increase injury risk.",
+    "Land with soft elbows immediately in the next rep's setup position, absorbing impact before re-pressing.",
+  ],
+  "bear-crawl": [
+    "Start on hands and knees with knees hovering 2–3 cm off the ground — maintain this hover throughout.",
+    "Move contralaterally: right hand and left foot together, then left hand and right foot.",
+    "Keep your hips level and low — avoid bobbing up and down, which removes the core stability demand.",
+  ],
+  "inchworm": [
+    "From standing, hinge at the hips and walk your hands out until you're in a plank — pause for one breath.",
+    "Keep your legs as straight as possible during the walkout to maximise hamstring stretch.",
+    "Walk your feet up to your hands with small controlled steps — this is the eccentric part; don't rush it.",
+  ],
+  "lateral-bounds": [
+    "Push off one foot and bound sideways, landing on the opposite foot with a slight knee bend — immediately rebound.",
+    "Reach the opposite arm across your body as you land to help balance and coordinate the lateral motion.",
+    "Focus on distance over height — wider bounds recruit more glute medius for hip stability.",
+  ],
+  "broad-jump": [
+    "Hinge slightly at the hips, swing your arms back, then drive them forward and explode horizontally off both feet.",
+    "Aim for maximum distance — not height. Keep your trajectory low and long.",
+    "Land softly on both feet with bent knees and hips, absorbing the impact before standing tall for the next rep.",
+  ],
+  "squat-thrust": [
+    "From standing, drop into a squat, place your hands on the floor, jump your feet back to a plank, then jump them forward and stand.",
+    "Keep your core braced in the plank position — avoid letting your hips pike up or sag down.",
+    "Move quickly between squat and plank phases — the transition is where the cardio demand peaks.",
+  ],
+  "star-jump": [
+    "From a slight squat, jump and simultaneously spread your arms and legs wide in an 'X' shape at the peak.",
+    "Fully extend arms above your head and spread legs at least shoulder-width apart — the full range is what makes it demanding.",
+    "Land with feet together and immediately compress into the next rep — the rebound builds cardiovascular output.",
+  ],
+  "lateral-shuffle": [
+    "Stay low in an athletic stance with knees bent — shuffling from this position engages quads and glutes far more than shuffling upright.",
+    "Push off the trailing foot to initiate each shuffle — the push is what activates the glutes, not just stepping.",
+    "Keep your weight centred and avoid crossing your feet — maintain the athletic stance through each direction change.",
+  ],
 };
 
 // Lookup by ID first, then by normalised name match.
