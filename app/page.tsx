@@ -1147,6 +1147,8 @@ function HomePage() {
   const [messageText, setMessageText] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{ id: string; body: string; username: string } | null>(null);
+  const [reactingToMsgId, setReactingToMsgId] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [partnerLastSeen, setPartnerLastSeen] = useState<string | null>(null);
   const lastMsgCreatedAtRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1944,6 +1946,28 @@ function HomePage() {
       }
     } catch { setMessageText(body); } // restore on failure
     setSendingMessage(false);
+  };
+
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    const myId = user!.id;
+    // Optimistic update
+    setConversationMessages(prev => prev.map(m => {
+      if (m.id !== messageId) return m;
+      const reactions: { emoji: string; userId: string }[] = m.reactions ?? [];
+      const exists = reactions.some((r: any) => r.emoji === emoji && r.userId === myId);
+      return {
+        ...m,
+        reactions: exists
+          ? reactions.filter((r: any) => !(r.emoji === emoji && r.userId === myId))
+          : [...reactions, { emoji, userId: myId }],
+      };
+    }));
+    setReactingToMsgId(null);
+    await fetch("/api/reactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId, emoji }),
+    }).catch(() => {});
   };
 
   const openCustomise = async () => {
@@ -3950,7 +3974,7 @@ function HomePage() {
           </div>
         );
       })()}
-      <div ref={messagesContainerRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div ref={messagesContainerRef} onClick={() => setReactingToMsgId(null)} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {conversationMessages.length === 0 && (
           <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 40 }}>No messages yet</div>
         )}
@@ -4017,32 +4041,68 @@ function HomePage() {
             );
           };
           const tickColor = msg.read ? "#4ECDC4" : msg.delivered ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.2)";
-          // Swipe-to-reply: track touch per message via data attribute + CSS transform
+          // Group reactions by emoji
+          const reactionGroups: Record<string, { count: number; iMine: boolean }> = {};
+          for (const r of (msg.reactions ?? [])) {
+            if (!reactionGroups[r.emoji]) reactionGroups[r.emoji] = { count: 0, iMine: false };
+            reactionGroups[r.emoji].count++;
+            if (r.userId === user.id) reactionGroups[r.emoji].iMine = true;
+          }
+          // Swipe-to-reply + long-press-to-react
           const onTouchStart = (e: React.TouchEvent) => {
             const el = e.currentTarget as HTMLElement;
             el.dataset.sx = String(e.touches[0].clientX);
+            el.dataset.sy = String(e.touches[0].clientY);
             el.dataset.swiping = "1";
+            if (longPressTimer.current) clearTimeout(longPressTimer.current);
+            longPressTimer.current = setTimeout(() => {
+              setReactingToMsgId(msg.id);
+              el.dataset.swiping = "0";
+            }, 500);
           };
           const onTouchMove = (e: React.TouchEvent) => {
             const el = e.currentTarget as HTMLElement;
-            if (!el.dataset.swiping) return;
-            const dx = Math.max(0, Math.min(72, e.touches[0].clientX - Number(el.dataset.sx)));
-            el.style.transform = `translateX(${dx}px)`;
+            if (!el.dataset.swiping || el.dataset.swiping === "0") return;
+            const dx = e.touches[0].clientX - Number(el.dataset.sx);
+            const dy = e.touches[0].clientY - Number(el.dataset.sy);
+            if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+              if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+            }
+            const clamped = Math.max(0, Math.min(72, dx));
+            el.style.transform = `translateX(${clamped}px)`;
             el.style.transition = "none";
           };
           const onTouchEnd = (e: React.TouchEvent) => {
             const el = e.currentTarget as HTMLElement;
-            if (!el.dataset.swiping) return;
+            if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+            if (!el.dataset.swiping || el.dataset.swiping === "0") { el.style.transition = "transform 0.2s ease"; el.style.transform = "translateX(0)"; return; }
             delete el.dataset.swiping;
             const dx = e.changedTouches[0].clientX - Number(el.dataset.sx);
             el.style.transition = "transform 0.2s ease";
             el.style.transform = "translateX(0)";
             if (dx > 48) setReplyingTo({ id: msg.id, body: msg.body, username: msg.from.username });
           };
+          const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "💪", "🔥"];
           return (
             <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", position: "relative", maxWidth: "75%" }}>
               {/* Reply arrow — fades in as user swipes */}
               <div style={{ position: "absolute", left: isMine ? "auto" : -28, right: isMine ? -28 : "auto", top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "rgba(78,205,196,0.7)", pointerEvents: "none" }}>↩</div>
+              {/* Emoji picker — shown on long-press */}
+              <AnimatePresence>
+              {reactingToMsgId === msg.id && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.85, y: 6 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.85, y: 6 }}
+                  transition={{ duration: 0.15 }}
+                  style={{ position: "absolute", bottom: "calc(100% + 6px)", [isMine ? "right" : "left"]: 0, zIndex: 20, background: "rgba(30,30,38,0.97)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "6px 10px", display: "flex", gap: 4, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+                >
+                  {QUICK_EMOJIS.map(em => (
+                    <button key={em} onClick={() => toggleReaction(msg.id, em)} style={{ background: reactionGroups[em]?.iMine ? "rgba(78,205,196,0.18)" : "none", border: "none", borderRadius: 16, padding: "4px 5px", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>{em}</button>
+                  ))}
+                </motion.div>
+              )}
+              </AnimatePresence>
               <div
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
@@ -4066,6 +4126,16 @@ function HomePage() {
                   )}
                 </div>
               </div>
+              {/* Reaction pills */}
+              {Object.keys(reactionGroups).length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4, justifyContent: isMine ? "flex-end" : "flex-start" }}>
+                  {Object.entries(reactionGroups).map(([em, { count, iMine }]) => (
+                    <button key={em} onClick={() => toggleReaction(msg.id, em)} style={{ background: iMine ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.07)", border: `1px solid ${iMine ? "rgba(78,205,196,0.35)" : "rgba(255,255,255,0.1)"}`, borderRadius: 12, padding: "2px 7px", fontSize: 13, cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", gap: 3, fontFamily: "'DM Sans', sans-serif" }}>
+                      {em}{count > 1 && <span style={{ fontSize: 11, opacity: 0.7 }}>{count}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

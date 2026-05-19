@@ -25,6 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
         from: { select: { id: true, username: true } },
         proposal: { select: { id: true, status: true, planJson: true } },
         replyTo: { select: { id: true, body: true, from: { select: { username: true } } } },
+        reactions: { select: { emoji: true, userId: true } },
       },
       orderBy: { createdAt: "asc" },
       take: since ? 50 : 100,
