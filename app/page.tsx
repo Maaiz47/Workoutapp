@@ -1297,18 +1297,6 @@ export default function HomePage() {
         if (p.targetBodyFatPct) setGoalBf(p.targetBodyFatPct.toString());
         if ((p as any).hiitPreference) setHiitPreference((p as any).hiitPreference);
         if ((p as any).hiitIntensity) setHiitIntensity((p as any).hiitIntensity);
-        // Retry HIIT prompt if snoozed >7 days ago
-        try {
-          const snoozed = localStorage.getItem("ironlog-hiit-snoozed");
-          if (snoozed && Date.now() - parseInt(snoozed) > 7 * 24 * 60 * 60 * 1000) {
-            const hp = (p as any).hiitPreference;
-            if (!hp || hp === "none") {
-              localStorage.removeItem("ironlog-hiit-snoozed");
-              setHiitIntensity("moderate");
-              setShowHiitPrompt(true);
-            }
-          }
-        } catch {}
         fetch("/api/plan").then(r => r.json()).then(planData => {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
         });
@@ -1788,7 +1776,7 @@ export default function HomePage() {
     setHiitPreference(pref);
     setHiitIntensity(intensity);
     setShowHiitPrompt(false);
-    if (pref === "none") { try { localStorage.setItem("ironlog-hiit-snoozed", Date.now().toString()); } catch {} return; }
+    if (pref === "none") return;
     try {
       await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hiitPreference: pref, hiitIntensity: intensity }) });
       const planRes = await fetch("/api/plan", { method: "POST" });
