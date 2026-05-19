@@ -1541,6 +1541,7 @@ function HomePage() {
       if (data.error) { setAuthError(data.error); return; }
       setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
       if (typeof Notification !== "undefined" && Notification.permission === "default") setShowNotifBanner(true);
+      window.dispatchEvent(new CustomEvent("ironlog-pwa-signup"));
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -1552,6 +1553,7 @@ function HomePage() {
       if (data.error) { setAuthError(data.error); return; }
       setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
       if (typeof Notification !== "undefined" && Notification.permission === "default") setShowNotifBanner(true);
+      window.dispatchEvent(new CustomEvent("ironlog-pwa-signup"));
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -5704,26 +5706,42 @@ function HomePage() {
 function PwaBanner() {
   const [platform, setPlatform] = useState<"ios" | "android" | null>(null);
   const [visible, setVisible] = useState(false);
+  const [urgent, setUrgent] = useState(false);
 
   useEffect(() => {
-    if (window.self !== window.top) return; // don't show inside iframes (prevents recursion in phone mockups)
+    if (window.self !== window.top) return;
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
     if (isStandalone) return;
     const ua = navigator.userAgent;
     const isIOS = /iPhone|iPad|iPod/.test(ua);
     const isAndroid = /Android/.test(ua);
     if (!isIOS && !isAndroid) return;
+
+    // Set platform regardless of cooldown — needed for the signup re-prompt path
+    setPlatform(isIOS ? "ios" : "android");
+
+    // Signup re-prompt: bypass cooldown, show as urgent/important
+    const onSignup = () => { setUrgent(true); setVisible(true); };
+    window.addEventListener("ironlog-pwa-signup", onSignup);
+
+    // Regular flow: respect 3-day cooldown
+    let t: ReturnType<typeof setTimeout> | undefined;
     const last = localStorage.getItem("ironlog-pwa-v2");
     const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
-    if (last && Date.now() - parseInt(last) < THREE_DAYS) return;
-    setPlatform(isIOS ? "ios" : "android");
-    const t = setTimeout(() => setVisible(true), 1500);
-    return () => clearTimeout(t);
+    if (!last || Date.now() - parseInt(last) >= THREE_DAYS) {
+      t = setTimeout(() => setVisible(true), 1500);
+    }
+
+    return () => {
+      if (t) clearTimeout(t);
+      window.removeEventListener("ironlog-pwa-signup", onSignup);
+    };
   }, []);
 
   const dismiss = () => {
     localStorage.setItem("ironlog-pwa-v2", String(Date.now()));
     setVisible(false);
+    setUrgent(false);
   };
 
   if (!visible || !platform) return null;
@@ -5994,10 +6012,20 @@ function PwaBanner() {
     <>
       <div style={{ position: "fixed", inset: 0, zIndex: 9997, background: "rgba(0,0,0,0.65)" }} onClick={dismiss} />
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9998, display: "flex", justifyContent: "center" }}>
-        <div style={{ maxWidth: 480, width: "100%", background: "#0c0c10", borderTop: "2px solid rgba(255,107,107,0.45)", borderRadius: "22px 22px 0 0", boxShadow: "0 -16px 60px rgba(255,107,107,0.15)", display: "flex", flexDirection: "column", maxHeight: "92dvh" }}>
+        <div style={{ maxWidth: 480, width: "100%", background: "#0c0c10", borderTop: urgent ? "3px solid #FF6B6B" : "2px solid rgba(255,107,107,0.45)", borderRadius: "22px 22px 0 0", boxShadow: urgent ? "0 -20px 70px rgba(255,107,107,0.3)" : "0 -16px 60px rgba(255,107,107,0.15)", display: "flex", flexDirection: "column", maxHeight: "92dvh" }}>
           <div style={{ overflowY: "auto", padding: "0 18px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}>
             {/* Handle */}
             <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "12px auto 16px" }} />
+            {/* Urgent badge — shown only on post-signup re-prompt */}
+            {urgent && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.35)", borderRadius: 12, padding: "10px 14px", marginBottom: 14 }}>
+                <span style={{ fontSize: 22, flexShrink: 0 }}>⚡</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#FF6B6B", letterSpacing: 0.2 }}>Account created — one last step!</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 3, lineHeight: 1.4 }}>Add IronLog to your Home Screen for instant access, offline use & push notifications.</div>
+                </div>
+              </div>
+            )}
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -6005,7 +6033,7 @@ function PwaBanner() {
                   <img src="/icon-192.png" alt="IRONLOG" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 <div>
-                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: "#fff" }}>Install IronLog</div>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: "#fff" }}>{urgent ? "Add to Home Screen" : "Install IronLog"}</div>
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{platformIcon} {platformLabel} · Free · No App Store</div>
                 </div>
               </div>
