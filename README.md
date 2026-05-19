@@ -293,6 +293,7 @@ public/
 See `ROADMAP.md` for the full future feature plan. See `PATCHLOG.md` for the full history.
 
 **Recently shipped:**
+- ✅ HIIT programs — finisher circuits + dedicated HIIT days, 20+ exercises, intensity levels, orange accent rendering
 - ✅ Animations & visual polish (view transitions, LOG SET flash, PB celebration, rest timer ring, workout complete overlay, progress bar grow, onboarding slides, nav bounce)
 - ✅ Equipment filtering (`requireAll` flag — bench press no longer appears for dumbbell-only users)
 - ✅ Home equipment expansion (treadmill, elliptical, multi-gym with sub-options)
