@@ -5712,16 +5712,16 @@ function PwaBanner() {
     const isIOS = /iPhone|iPad|iPod/.test(ua);
     const isAndroid = /Android/.test(ua);
     if (!isIOS && !isAndroid) return;
-    const last = localStorage.getItem("ironlog-pwa-prompt");
-    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-    if (last && Date.now() - parseInt(last) < SEVEN_DAYS) return;
+    const last = localStorage.getItem("ironlog-pwa-v2");
+    const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+    if (last && Date.now() - parseInt(last) < THREE_DAYS) return;
     setPlatform(isIOS ? "ios" : "android");
     const t = setTimeout(() => setVisible(true), 1500);
     return () => clearTimeout(t);
   }, []);
 
   const dismiss = () => {
-    localStorage.setItem("ironlog-pwa-prompt", String(Date.now()));
+    localStorage.setItem("ironlog-pwa-v2", String(Date.now()));
     setVisible(false);
   };
 
