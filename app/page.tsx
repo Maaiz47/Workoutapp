@@ -2289,11 +2289,6 @@ function HomePage() {
 
           {/* Hero */}
           <div style={{ textAlign: "center", padding: "44px 32px 16px", zIndex: 1, position: "relative" }}>
-            {/* Barbell spotlight photo — fades in behind the mark */}
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.2, delay: 0.3 }}
-              style={{ position: "absolute", left: "50%", top: 0, transform: "translateX(-50%)", width: "100vw", maxWidth: 480, height: "100%", backgroundImage: "url(/hero-barbell.jpg)", backgroundSize: "cover", backgroundPosition: "center 60%", opacity: 0.13, pointerEvents: "none", zIndex: 0 }}
-            />
             <BarbellMark width={260} delay={0.05} />
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -6238,8 +6233,9 @@ function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: numbe
   const slam = { type: "spring" as const, stiffness: 500, damping: 18 };
   const platesDelay = delay + 0.42;
   return (
-    <div style={{ width, height: h, overflow: "hidden", position: "relative", margin: "0 auto" }}>
-      <svg width={width} height={h} viewBox="0 0 320 88" style={{ overflow: "visible", display: "block" }}>
+    // Full-width wrapper so overflow clips at screen edges, not component edges
+    <div style={{ width: "100%", height: h, overflow: "hidden", position: "relative" }}>
+      <svg width={width} height={h} viewBox="0 0 320 88" style={{ overflow: "visible", display: "block", margin: "0 auto" }}>
         <defs>
           <linearGradient id="bm-chrome" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
             <stop offset="0%"   stopColor="#f0f0f0"/>
@@ -6269,36 +6265,41 @@ function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: numbe
           </radialGradient>
         </defs>
 
-        {/* Bar shaft — scaleX in from center first */}
+        {/* Bar: shaft + sleeves grow from center — bar ends well inside SVG edges */}
         <motion.g
           initial={{ scaleX: 0, opacity: 0 }}
           animate={{ scaleX: 1, opacity: 1 }}
           style={{ transformOrigin: "160px 44px" }}
           transition={{ duration: 0.38, delay, ease: [0.16, 1, 0.3, 1] }}
         >
-          <rect x="0"   y="38" width="320" height="12" rx="5" fill="url(#bm-chrome)"/>
-          {/* Knurling centre section */}
-          <rect x="100" y="39" width="120" height="10" rx="3" fill="rgba(0,0,0,0.22)"/>
+          {/* Left sleeve — thicker than shaft */}
+          <rect x="34"  y="37" width="58" height="14" rx="4" fill="url(#bm-chrome)"/>
+          {/* Center shaft */}
+          <rect x="90"  y="40" width="140" height="8"  rx="3" fill="url(#bm-chrome)"/>
+          {/* Right sleeve */}
+          <rect x="228" y="37" width="58" height="14" rx="4" fill="url(#bm-chrome)"/>
+          {/* Knurling overlay on center shaft */}
+          <rect x="100" y="41" width="120" height="6"  rx="2" fill="rgba(0,0,0,0.22)"/>
         </motion.g>
 
-        {/* Left outer plate — tall thin rect (side/edge view) */}
-        <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
-          <rect x="10" y="6"  width="18" height="76" rx="5" fill="url(#bm-plo)"/>
-          <rect x="10" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
+        {/* Left outer plate — flies in from far off-screen left */}
+        <motion.g initial={{ x: -800 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
+          <rect x="8"  y="5"  width="22" height="78" rx="5" fill="url(#bm-plo)"/>
+          <rect x="8"  y="5"  width="22" height="78" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
         </motion.g>
-        {/* Left inner plate — stagger 70ms, slightly shorter */}
-        <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
-          <rect x="26" y="16" width="13" height="56" rx="4" fill="url(#bm-pli)"/>
+        {/* Left inner plate — 70ms stagger */}
+        <motion.g initial={{ x: -800 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
+          <rect x="27" y="16" width="13" height="56" rx="4" fill="url(#bm-pli)"/>
         </motion.g>
 
-        {/* Right outer plate */}
-        <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
-          <rect x="292" y="6"  width="18" height="76" rx="5" fill="url(#bm-pro)"/>
-          <rect x="292" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
+        {/* Right outer plate — flies in from far off-screen right */}
+        <motion.g initial={{ x: 800 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
+          <rect x="290" y="5"  width="22" height="78" rx="5" fill="url(#bm-pro)"/>
+          <rect x="290" y="5"  width="22" height="78" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
         </motion.g>
-        {/* Right inner plate — stagger 70ms */}
-        <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
-          <rect x="281" y="16" width="13" height="56" rx="4" fill="url(#bm-pri)"/>
+        {/* Right inner plate — 70ms stagger */}
+        <motion.g initial={{ x: 800 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
+          <rect x="280" y="16" width="13" height="56" rx="4" fill="url(#bm-pri)"/>
         </motion.g>
       </svg>
     </div>
