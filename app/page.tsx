@@ -2687,10 +2687,7 @@ function HomePage() {
           {/* ── Step: register (new user) ── */}
           {authStep === "register" && (<>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Create your account</div>
-            {nameInput && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 20, letterSpacing: 1 }}>{nameInput}</div>}
-            {!nameInput && (
-              <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Choose a username" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
-            )}
+            <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Choose a username" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
             {emailInput ? (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 16px", marginBottom: 8, textAlign: "left" }}>
                 Email: <span style={{ color: "rgba(255,255,255,0.7)" }}>{emailInput}</span>
