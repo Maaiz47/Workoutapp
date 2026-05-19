@@ -32,14 +32,15 @@ Future direction, blocked items, and improvement areas. Read alongside `PATCHLOG
 
 These are agreed directions with enough spec to start when resources allow.
 
-### HIIT Programs
-- Detect from user profile when HIIT is appropriate: goals (`lose_fat`, `general_fitness`), body fat %, days per week, fitness level
-- One-time prompt after plan generation: "Your goals suggest HIIT could accelerate fat loss — want to include it?"
-- Two modes: **finisher** (append a 3–4 exercise HIIT circuit after each strength day) and **dedicated day** (replace one day with a full 20-min session for ≥5 days/week)
-- ~18 new bodyweight exercises added to the library (burpees, mountain climbers, jump squats, etc.)
-- Short rest chips pre-set to 20s for HIIT exercises; HIIT sections rendered with orange accent
-- Preference stored on `UserProfile` (`hiitPreference`, `hiitIntensity`)
-- Schema: two nullable `String?` fields on `UserProfile` — additive, no breaking changes
+### ~~HIIT Programs~~ ✅ Shipped
+
+- `hiitPreference` and `hiitIntensity` nullable `String?` fields on `UserProfile`
+- 20+ HIIT exercises in the library: burpees, squat thrusts, tuck jumps, split jumps, box jumps, lateral bounds, broad jump, speed skaters, jump squat, plyo push-up, mountain climbers, bear crawl, inchworm, high knees, jumping jacks, jump rope, star jump, lateral shuffle
+- Plan generator `hiitCircuit()` builds a 4-exercise finisher (one from each pool: full-body, lower, upper, cardio) with randomised non-repeating selection
+- `hiitDay()` builds a dedicated HIIT & Conditioning day for ≥5 days/week users
+- `hiitParams(intensity)` maps `light / moderate / intense` to rest and rep targets
+- HIIT exercises tagged `notes: "HIIT circuit"` — rendered with orange accent and `⚡ HIIT CIRCUIT` section header in the workout view
+- Onboarding step (included in profile flow) captures preference and intensity; stored to `UserProfile`
 
 ### ~~Animations & Visual Polish~~ ✅ Shipped
 

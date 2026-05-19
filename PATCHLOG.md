@@ -34,6 +34,40 @@ See `ROADMAP.md` for the full future features list.
 
 ---
 
+## Patch 39 · 2026-05-19
+**HIIT Programs — Finisher Circuits + Dedicated Days**
+
+### Schema
+- `hiitPreference String?` and `hiitIntensity String?` on `UserProfile` — nullable, additive, no breaking changes
+
+### Exercise library
+- 20+ HIIT exercises added across four pools used by the circuit builder:
+  - **Full-body:** burpees, squat thrusts, tuck jumps
+  - **Lower:** split jumps, box jumps, lateral bounds, broad jump, speed skaters, jump squat
+  - **Upper:** plyo push-up, mountain climbers, bear crawl, inchworm
+  - **Cardio:** high knees, jumping jacks, jump rope, star jump, lateral shuffle
+
+### Plan generator — `hiitCircuit()` (finisher mode)
+- Appended after applicable strength days when `hiitPreference === "finisher"`
+- Picks one exercise from each of the four pools (full-body, lower, upper, cardio) with non-repeating session randomisation
+- `hiitParams(intensity)` maps intensity to rest and rep targets: `light` → 30 s rest / 12 reps, `moderate` → 20 s / 15 reps, `intense` → 15 s / 20 reps
+- Each exercise: 3 sets, `notes: "HIIT circuit"` tag
+
+### Plan generator — `hiitDay()` (dedicated mode)
+- Replaces one training day when `hiitPreference === "dedicated"` and `daysPerWeek >= 5`
+- Day titled "HIIT & Conditioning", subtitle "High Intensity Circuit · Core"
+- Draws from all four pools with a larger selection (6 exercises + core finisher)
+
+### Workout view rendering
+- Exercises tagged `notes: "HIIT circuit"` are grouped visually under an **⚡ HIIT CIRCUIT** section divider (orange `#FF8C42` accent, separator lines either side)
+- HIIT sections appear after the main strength exercises within the same workout day
+
+### Onboarding
+- HIIT preference captured during the profile/onboarding flow: opt-in toggle, then finisher vs dedicated choice, then intensity level (light / moderate / intense)
+- Saved to `UserProfile.hiitPreference` and `UserProfile.hiitIntensity` via `POST /api/profile`
+
+---
+
 ## Patch 38 · 2026-05-19
 **Message Delivery Status — Conversations List Live Preview**
 
