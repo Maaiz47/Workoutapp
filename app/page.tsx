@@ -1106,6 +1106,7 @@ export default function HomePage() {
   const [editingPlan, setEditingPlan] = useState(false);
   const [editedPlanDays, setEditedPlanDays] = useState<any[] | null>(null);
   const [proposingPlan, setProposingPlan] = useState(false);
+  const [trainerGenerating, setTrainerGenerating] = useState(false);
   const [proposalSent, setProposalSent] = useState(false);
 
   // ── Body metrics ──
@@ -1538,6 +1539,21 @@ export default function HomePage() {
     setEditedPlanDays(days);
     setEditingPlan(true);
     setProposalSent(false);
+  };
+
+  const generateClientPlan = async () => {
+    if (!activeClient) return;
+    setTrainerGenerating(true);
+    try {
+      const res = await fetch(`/api/trainer/clients/${activeClient.id}/generate-plan`, { method: "POST" });
+      const data = await res.json();
+      if (data.days) {
+        setEditedPlanDays(data.days);
+        setEditingPlan(true);
+        setProposalSent(false);
+      }
+    } catch {}
+    setTrainerGenerating(false);
   };
 
   const doSaveRoutine = async () => {
@@ -3167,12 +3183,20 @@ export default function HomePage() {
             )}
             {!editingPlan ? (
               <>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 8 }}>
                   {!clientData?.plan
                     ? <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontStyle: "italic" }}>Using default 5-day split</div>
                     : <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>Custom plan</div>
                   }
-                  <button onClick={startEditPlan} style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, padding: "6px 14px", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>EDIT PLAN</button>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={generateClientPlan}
+                      disabled={trainerGenerating}
+                      style={{ background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.3)", borderRadius: 8, padding: "6px 12px", color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: trainerGenerating ? "not-allowed" : "pointer", fontFamily: "'Space Mono', monospace", opacity: trainerGenerating ? 0.5 : 1, whiteSpace: "nowrap" }}>
+                      {trainerGenerating ? "GENERATING…" : "⚡ BUILD PLAN"}
+                    </button>
+                    <button onClick={startEditPlan} style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, padding: "6px 12px", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>EDIT</button>
+                  </div>
                 </div>
                 {splitDays.map(d => (
                   <div key={d.id} style={{ marginBottom: 8 }}>
@@ -3204,10 +3228,15 @@ export default function HomePage() {
               </>
             ) : (
               <>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>Editing plan</div>
                   <button onClick={() => { setEditingPlan(false); setEditedPlanDays(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
                 </div>
+                {editedPlanDays?.[0]?.id?.startsWith("trainer-gen") && (
+                  <div style={{ background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+                    <span style={{ color: "#FF6B6B", fontWeight: 700 }}>⚡ AI-generated plan</span> — built from {activeClient?.username}&apos;s profile at a boosted difficulty. Adjust sets, reps, or exercises before sending.
+                  </div>
+                )}
                 {(editedPlanDays ?? []).map((d: any, di: number) => {
                   const color = ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD"][di % 6];
                   const gradient = ["linear-gradient(135deg,#FF6B6B,#ee5a24)","linear-gradient(135deg,#4ECDC4,#44a08d)","linear-gradient(135deg,#45B7D1,#2980b9)","linear-gradient(135deg,#96CEB4,#6aab8e)","linear-gradient(135deg,#f7d794,#e17055)","linear-gradient(135deg,#DDA0DD,#9b59b6)"][di % 6];
@@ -3333,9 +3362,13 @@ export default function HomePage() {
                   disabled={proposingPlan}
                   style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg,#4ECDC4,#44a08d)", border: "none", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: 2, cursor: proposingPlan ? "not-allowed" : "pointer", fontFamily: "'Space Mono', monospace", opacity: proposingPlan ? 0.6 : 1, marginBottom: 8 }}
                 >
-                  {proposingPlan ? "SENDING…" : "PROPOSE TO CLIENT"}
+                  {proposingPlan ? "SENDING…" : editedPlanDays?.[0]?.id?.startsWith("trainer-gen") ? "SEND PLAN FOR APPROVAL" : "PROPOSE TO CLIENT"}
                 </button>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", textAlign: "center", marginBottom: 8 }}>Client will receive a message to accept or decline these changes</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", textAlign: "center", marginBottom: 8 }}>
+                  {editedPlanDays?.[0]?.id?.startsWith("trainer-gen")
+                    ? "Client must approve before this becomes their active plan"
+                    : "Client will receive a message to accept or decline these changes"}
+                </div>
               </>
             )}
           </div>
