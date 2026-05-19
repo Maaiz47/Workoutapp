@@ -7,13 +7,22 @@ self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("push", (event) => {
   const data = event.data?.json() ?? {};
   event.waitUntil(
-    self.registration.showNotification(data.title ?? "IRONLOG", {
-      body: data.body ?? "New message",
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      tag: "ironlog-message",
-      renotify: true,
-      data: { url: data.url ?? "/" },
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      // If the app tab is in focus, let the page handle it (soft beep / tab flash)
+      const focused = clients.find((c) => c.focused);
+      if (focused) {
+        focused.postMessage({ type: "NEW_MESSAGE_PUSH", from: data.title, body: data.body });
+        return;
+      }
+      // App not visible — show the banner notification as normal
+      return self.registration.showNotification(data.title ?? "IRONLOG", {
+        body: data.body ?? "New message",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        tag: "ironlog-message",
+        renotify: true,
+        data: { url: data.url ?? "/" },
+      });
     })
   );
 });
