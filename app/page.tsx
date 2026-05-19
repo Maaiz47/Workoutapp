@@ -4254,8 +4254,6 @@ function HomePage() {
           const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "💪", "🔥"];
           return (
             <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", position: "relative", maxWidth: "75%" }}>
-              {/* Reply arrow — fades in as user swipes */}
-              <div style={{ position: "absolute", left: isMine ? "auto" : -28, right: isMine ? -28 : "auto", top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "rgba(78,205,196,0.7)", pointerEvents: "none" }}>↩</div>
               {/* Emoji picker — shown on long-press */}
               <AnimatePresence>
               {reactingToMsgId === msg.id && (
@@ -4276,7 +4274,7 @@ function HomePage() {
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
-                style={{ background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", willChange: "transform" }}
+                style={{ background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", willChange: "transform", userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" as any }}
               >
                 {/* Quoted reply preview */}
                 {msg.replyTo && (
