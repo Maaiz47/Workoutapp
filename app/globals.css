@@ -70,8 +70,11 @@ input[type="number"] { -moz-appearance: textfield; }
 .card-hover:hover { background: rgba(255,255,255,0.06); }
 
 /* ── View transitions ─────────────────────────────────────────────────── */
-@keyframes viewSlideRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
-@keyframes viewSlideLeft  { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
+/* transform is only in `from` — after animation ends, no transform remains on the element.
+   This prevents iOS Safari from treating the animated wrapper as a containing block for
+   position:fixed children (overlays, rest timer, PB flash, etc.). */
+@keyframes viewSlideRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; } }
+@keyframes viewSlideLeft  { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; } }
 .view-forward { animation: viewSlideRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .view-back    { animation: viewSlideLeft  0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
