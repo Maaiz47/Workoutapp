@@ -2167,25 +2167,18 @@ function HomePage() {
       <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ textAlign: "center", zIndex: 1 }}>
-        {/* Barbell — bar is already visible, weights slide in from sides */}
-        <BarIcon width={200} delay={0.05} fallIn={true} />
-        {/* Logo + impact effects wrapper */}
-        <div style={{ position: "relative", display: "inline-block", marginTop: 10 }}>
-          {/* Impact glow — flashes outward when logo lands */}
-          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "90vw", height: "90vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.22) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 0.85s both", pointerEvents: "none" }} />
-          {/* Shockwave ring 1 */}
-          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "2px solid rgba(255,107,107,0.8)", animation: "shockwave 1s cubic-bezier(0.1,0.6,0.2,1) 0.85s both", pointerEvents: "none" }} />
-          {/* Shockwave ring 2 */}
-          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.45)", animation: "shockwave 1.4s cubic-bezier(0.1,0.6,0.2,1) 1.05s both", pointerEvents: "none" }} />
-          {/* Logo */}
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 64, fontWeight: 700, letterSpacing: 12, overflow: "visible", lineHeight: 1.1, position: "relative" }}>
-            <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
-          </div>
+        {/* Logo lockup — vertical mark + wordmark */}
+        <div style={{ position: "relative", display: "inline-block" }}>
+          {/* Impact glow fires when plates land (~1.3s in) */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "90vw", height: "90vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.18) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 1.05s both", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "2px solid rgba(255,107,107,0.8)", animation: "shockwave 1s cubic-bezier(0.1,0.6,0.2,1) 1.05s both", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.45)", animation: "shockwave 1.4s cubic-bezier(0.1,0.6,0.2,1) 1.22s both", pointerEvents: "none" }} />
+          <LogoLockup markHeight={88} fontSize={62} delay={0.05} />
         </div>
-        {/* Floor beam — light streak on impact */}
-        <div style={{ width: 260, height: 1, margin: "10px auto 0", background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.95), transparent)", animation: "floorBeam 1.3s ease-out 0.85s both" }} />
+        {/* Floor beam */}
+        <div style={{ width: 260, height: 1, margin: "14px auto 0", background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.95), transparent)", animation: "floorBeam 1.3s ease-out 1.05s both" }} />
         {/* Tagline */}
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginTop: 22, marginBottom: 52, animation: "fadeIn 0.5s ease 1.25s both" }}>LIFT · TRACK · PROGRESS</div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginTop: 22, marginBottom: 52, animation: "fadeIn 0.5s ease 1.45s both" }}>LIFT · TRACK · PROGRESS</div>
         {/* Loading bar */}
         <div style={{ width: 180, height: 2, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.55), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite", margin: "0 auto" }} />
       </div>
@@ -2217,9 +2210,7 @@ function HomePage() {
 
           {/* Sticky header — pills link to HTML info pages */}
           <div style={{ position: "sticky", top: 0, zIndex: 10, padding: "12px 20px", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: "rgba(10,10,15,0.88)", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 15, fontWeight: 700, letterSpacing: 3 }}>
-              <span style={{ color: "#fff" }}>IRON</span><span style={{ color: "#FF6B6B" }}>LOG</span>
-            </div>
+            <LogoLockup markHeight={28} fontSize={15} delay={0} animate={false} />
             <div style={{ display: "flex", gap: 6 }}>
               <a href="/client.html" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(255,107,107,0.35)", color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>ATHLETES</a>
               <a href="/trainer.html" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(78,205,196,0.35)", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>TRAINERS</a>
@@ -2228,10 +2219,8 @@ function HomePage() {
 
           {/* Hero */}
           <div style={{ textAlign: "center", padding: "44px 32px 16px", zIndex: 1, position: "relative" }}>
-            <BarIcon width={148} delay={0.05} fallIn={false} />
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 44, fontWeight: 700, letterSpacing: 8, marginBottom: 6, lineHeight: 1, overflow: "visible", marginTop: 10 }}>
-              <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
-            </div>
+            <LogoLockup markHeight={64} fontSize={46} delay={0.05} />
+            <div style={{ marginTop: 10 }} />
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginBottom: 14 }}>LIFT · TRACK · PROGRESS</div>
             <div style={{ minHeight: 18, overflow: "hidden" }}>
               <AnimatePresence mode="wait" initial={false}>
@@ -5931,14 +5920,91 @@ function LifterIcon({ size = 120, opacity = 1 }: { size?: number; opacity?: numb
   );
 }
 
+// Vertical barbell mark — plates drop from top and bottom onto the bar.
+// height prop controls rendered height; width is derived from the 40:108 viewBox ratio.
+function VerticalBarMark({ height = 96, delay = 0 }: { height?: number; delay?: number }) {
+  const w = Math.round(height * 40 / 108);
+  const slam = { type: "spring" as const, stiffness: 480, damping: 18 };
+  const barDelay = delay;
+  const platesDelay = delay + 0.52;
+  return (
+    <div style={{ width: w, height, overflow: "hidden", position: "relative", flexShrink: 0 }}>
+      <svg width={w} height={height} viewBox="0 0 40 108" style={{ overflow: "visible", display: "block" }}>
+        <defs>
+          <linearGradient id="vbm-steel" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95"/>
+            <stop offset="100%" stopColor="#aaaaaa" stopOpacity="0.75"/>
+          </linearGradient>
+          <linearGradient id="vbm-fire" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FF6B6B"/>
+            <stop offset="100%" stopColor="#ee5a24"/>
+          </linearGradient>
+        </defs>
+
+        {/* Bar shaft + sleeves — appears first */}
+        <motion.g
+          initial={{ scaleY: 0, opacity: 0 }}
+          animate={{ scaleY: 1, opacity: 1 }}
+          style={{ transformOrigin: "20px 54px" }}
+          transition={{ duration: 0.45, delay: barDelay, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {/* Top sleeve */}
+          <rect x="16" y="0"  width="8" height="15" rx="2" fill="url(#vbm-steel)"/>
+          {/* Bar shaft */}
+          <rect x="17" y="30" width="6" height="48" rx="2" fill="url(#vbm-steel)" opacity="0.8"/>
+          {/* Bottom sleeve */}
+          <rect x="16" y="93" width="8" height="15" rx="2" fill="url(#vbm-steel)"/>
+        </motion.g>
+
+        {/* Top plates — drop from above */}
+        <motion.g
+          initial={{ y: -120 }} animate={{ y: 0 }}
+          transition={{ ...slam, delay: platesDelay }}
+        >
+          {/* Outer plate */}
+          <rect x="2"  y="13" width="36" height="13" rx="3" fill="url(#vbm-fire)"/>
+          {/* Inner plate */}
+          <rect x="7"  y="24" width="26" height="8"  rx="2" fill="url(#vbm-fire)" opacity="0.75"/>
+        </motion.g>
+
+        {/* Bottom plates — rise from below (stagger +60ms) */}
+        <motion.g
+          initial={{ y: 120 }} animate={{ y: 0 }}
+          transition={{ ...slam, delay: platesDelay + 0.06 }}
+        >
+          {/* Inner plate */}
+          <rect x="7"  y="76" width="26" height="8"  rx="2" fill="url(#vbm-fire)" opacity="0.75"/>
+          {/* Outer plate */}
+          <rect x="2"  y="82" width="36" height="13" rx="3" fill="url(#vbm-fire)"/>
+        </motion.g>
+      </svg>
+    </div>
+  );
+}
+
+// Full lockup: vertical mark + IRONLOG wordmark side by side.
+function LogoLockup({ markHeight = 80, fontSize = 56, delay = 0, animate: doAnimate = true }: { markHeight?: number; fontSize?: number; delay?: number; animate?: boolean }) {
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: Math.round(markHeight * 0.25) }}>
+      <VerticalBarMark height={markHeight} delay={doAnimate ? delay : 999} />
+      <motion.div
+        initial={doAnimate ? { opacity: 0, x: -12 } : false}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.55, delay: delay + 0.72, ease: [0.16, 1, 0.3, 1] }}
+        style={{ fontFamily: "'Space Mono', monospace", fontSize, fontWeight: 700, letterSpacing: Math.round(fontSize * 0.12), lineHeight: 1, whiteSpace: "nowrap" as const }}
+      >
+        <span style={{ color: "#fff" }}>IRON</span><span style={{ color: "#FF6B6B" }}>LOG</span>
+      </motion.div>
+    </div>
+  );
+}
+
 function BarIcon({ width = 160, delay = 0, fallIn = false }: { width?: number; delay?: number; fallIn?: boolean }) {
   const h = Math.round(width * 50 / 156);
-  // Bar settles first, THEN plates slam in from far off-screen
   const barDelay = delay;
   const platesDelay = delay + (fallIn ? 0.58 : 0.22);
   const slam = { type: "spring" as const, stiffness: 520, damping: 17 };
   return (
-    // overflow clip wrapper so plates don't cause page scroll before they enter
     <div style={{ width, height: h, overflow: "hidden", margin: "0 auto", position: "relative" }}>
       <svg width={width} height={h} viewBox="18 64 156 50" style={{ overflow: "visible", display: "block" }}>
         <defs>
@@ -5951,8 +6017,6 @@ function BarIcon({ width = 160, delay = 0, fallIn = false }: { width?: number; d
             <stop offset="100%" stopColor="#ee5a24"/>
           </linearGradient>
         </defs>
-
-        {/* Bar — falls/appears alone, plates are NOT attached to this motion */}
         <motion.rect
           x="46" y="83" width="100" height="10" rx="5"
           fill="url(#bi-steel)" opacity="0.7"
@@ -5963,36 +6027,18 @@ function BarIcon({ width = 160, delay = 0, fallIn = false }: { width?: number; d
             ? { duration: 0.6, delay: barDelay, ease: [0.55, 0, 0.45, 1] }
             : { duration: 0.35, delay: barDelay, ease: [0.16, 1, 0.3, 1] }}
         />
-
-        {/* Left outer plate + collar — fly in from far left */}
-        <motion.g
-          initial={{ x: -320 }} animate={{ x: 0 }}
-          transition={{ ...slam, delay: platesDelay }}
-        >
+        <motion.g initial={{ x: -320 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
           <rect x="28" y="68" width="14" height="40" rx="4" fill="url(#bi-fire)"/>
           <rect x="22" y="78" width="8"  height="20" rx="3" fill="#fff" opacity="0.3"/>
         </motion.g>
-        {/* Left inner plate — staggered 60ms after outer */}
-        <motion.g
-          initial={{ x: -320 }} animate={{ x: 0 }}
-          transition={{ ...slam, delay: platesDelay + 0.06 }}
-        >
+        <motion.g initial={{ x: -320 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.06 }}>
           <rect x="38" y="73" width="10" height="30" rx="3" fill="url(#bi-fire)" opacity="0.75"/>
         </motion.g>
-
-        {/* Right outer plate + collar — fly in from far right */}
-        <motion.g
-          initial={{ x: 320 }} animate={{ x: 0 }}
-          transition={{ ...slam, delay: platesDelay }}
-        >
+        <motion.g initial={{ x: 320 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
           <rect x="150" y="68" width="14" height="40" rx="4" fill="url(#bi-fire)"/>
           <rect x="162" y="78" width="8"  height="20" rx="3" fill="#fff" opacity="0.3"/>
         </motion.g>
-        {/* Right inner plate — staggered 60ms after outer */}
-        <motion.g
-          initial={{ x: 320 }} animate={{ x: 0 }}
-          transition={{ ...slam, delay: platesDelay + 0.06 }}
-        >
+        <motion.g initial={{ x: 320 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.06 }}>
           <rect x="144" y="73" width="10" height="30" rx="3" fill="url(#bi-fire)" opacity="0.75"/>
         </motion.g>
       </svg>
