@@ -3082,12 +3082,26 @@ function HomePage() {
   if (view === "home") { _viewKey = "home"; _content = (
     <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
       {/* PB celebration overlay */}
+      <AnimatePresence>
       {newPBs.length > 0 && (
-        <div onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-          <div className="pb-overlay" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
-          <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
+        <motion.div
+          key="pb-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          onClick={() => setNewPBs([])}
+          style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(0,0,0,0.35)" }}
+        >
+          <motion.div
+            initial={{ scale: 0.5, y: 20, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.9, y: 10, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 320, damping: 22, delay: 0.05 }}
+            style={{ background: "rgba(12,12,15,0.95)", border: "1px solid rgba(255,215,0,0.35)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative", boxShadow: "0 0 60px rgba(255,215,0,0.12)" }}
+          >
             <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
-            <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>🏆</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
             {newPBs.map((pb, i) => (
               <div key={i} style={{ marginBottom: 6 }}>
@@ -3096,9 +3110,10 @@ function HomePage() {
               </div>
             ))}
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 14, fontFamily: "'DM Sans', sans-serif" }}>Tap to dismiss</div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px 20px 0" }}>
         <button onClick={() => setView("settings")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "10px 14px" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 300, letterSpacing: 1 }}>Welcome back</div>
@@ -5048,12 +5063,26 @@ function HomePage() {
     } else {
       _viewKey = "workout-session"; _content = (
       <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
+        <AnimatePresence>
         {newPBs.length > 0 && (
-          <div onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-            <div className="pb-overlay" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
-            <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
+          <motion.div
+            key="pb-overlay-workout"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={() => setNewPBs([])}
+            style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(0,0,0,0.35)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.5, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 10, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 22, delay: 0.05 }}
+              style={{ background: "rgba(12,12,15,0.95)", border: "1px solid rgba(255,215,0,0.35)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative", boxShadow: "0 0 60px rgba(255,215,0,0.12)" }}
+            >
               <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
-              <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>🏆</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
               {newPBs.map((pb, i) => (
                 <div key={i} style={{ marginBottom: 6 }}>
@@ -5062,9 +5091,10 @@ function HomePage() {
                 </div>
               ))}
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 14, fontFamily: "'DM Sans', sans-serif" }}>Tap to dismiss</div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
+        </AnimatePresence>
         {resumeOverlay && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 32 }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 32 }}>SESSION RESTORED</div>
