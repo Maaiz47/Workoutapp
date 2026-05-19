@@ -143,7 +143,7 @@ export const MUSCLE_DETAIL: Record<string, { p: string[]; s: string[] }> = {
   "bodyweight-squat":        { p: ["quads-outer", "quads-rectus", "quads-inner"], s: ["glutes-max"] },
   "goblet-squat":            { p: ["quads-outer", "quads-rectus", "quads-inner"], s: ["glutes-max", "core-abs-upper"] },
   "jump-squat":              { p: ["quads-outer", "quads-rectus", "quads-inner"], s: ["glutes-max", "calves-gastroc"] },
-  "box-jumps":               { p: ["quads-outer", "quads-rectus"],                s: ["glutes-max", "calves-gastroc", "hamstrings-outer"] },
+  "box-jumps":               { p: ["quads-outer", "quads-rectus", "glutes-max"],              s: ["calves-gastroc", "hamstrings-outer"] },
   "sumo-squat":              { p: ["quads-inner", "glutes-max"], s: ["quads-rectus", "hamstrings-inner"] },
   "bulgarian-split-squat":   { p: ["quads-outer", "quads-rectus", "quads-inner"], s: ["glutes-max", "hamstrings-outer"] },
   "lunges":                  { p: ["quads-outer", "quads-rectus", "quads-inner"], s: ["glutes-max", "hamstrings-outer"] },
@@ -194,6 +194,25 @@ export const MUSCLE_DETAIL: Record<string, { p: string[]; s: string[] }> = {
   "russian-twist":      { p: ["core-obliques"], s: ["core-abs-upper"] },
   "dead-bug":           { p: ["core-abs-lower"], s: ["core-abs-upper"] },
   "bird-dog":           { p: ["back-lower", "core-abs-upper"], s: ["glutes-max"] },
+
+  // ── HIIT / CARDIO (existing exercises missing detail) ─────────────────
+  "burpees":           { p: ["core-abs-upper", "core-abs-lower", "quads-rectus"],       s: ["chest-mid", "shoulders-front", "triceps-lateral", "glutes-max"] },
+  "high-knees":        { p: ["quads-rectus", "core-abs-lower"],                         s: ["glutes-max", "calves-gastroc"] },
+  "jumping-jacks":     { p: ["quads-outer", "glutes-med"],                              s: ["calves-gastroc", "shoulders-side"] },
+  "jump-rope":         { p: ["calves-gastroc"],                                          s: ["core-abs-upper", "shoulders-front"] },
+
+  // ── New HIIT exercises ─────────────────────────────────────────────────
+  "tuck-jumps":        { p: ["quads-rectus", "quads-outer"],                            s: ["core-abs-lower", "glutes-max", "calves-gastroc"] },
+  "split-jumps":       { p: ["quads-rectus", "glutes-max"],                             s: ["hamstrings-outer", "calves-gastroc", "core-abs-lower"] },
+  "speed-skaters":     { p: ["glutes-med", "quads-outer"],                              s: ["glutes-max", "core-obliques", "calves-gastroc"] },
+  "plyo-pushup":       { p: ["chest-mid"],                                               s: ["shoulders-front", "triceps-lateral", "core-abs-upper"] },
+  "bear-crawl":        { p: ["core-abs-upper", "core-abs-lower", "shoulders-front"],    s: ["quads-rectus", "chest-mid"] },
+  "inchworm":          { p: ["core-abs-upper", "core-abs-lower"],                       s: ["hamstrings-outer", "hamstrings-inner", "shoulders-front"] },
+  "lateral-bounds":    { p: ["glutes-med", "glutes-max"],                               s: ["quads-outer", "calves-gastroc"] },
+  "broad-jump":        { p: ["quads-outer", "quads-rectus", "glutes-max"],              s: ["calves-gastroc", "hamstrings-outer"] },
+  "squat-thrust":      { p: ["quads-rectus", "core-abs-lower"],                         s: ["glutes-max", "shoulders-front"] },
+  "star-jump":         { p: ["quads-outer", "glutes-med"],                              s: ["calves-gastroc", "shoulders-side"] },
+  "lateral-shuffle":   { p: ["quads-outer", "glutes-med"],                              s: ["glutes-max", "calves-gastroc"] },
 };
 
 // Normalized name → MUSCLE_DETAIL key aliases for exercises whose display names

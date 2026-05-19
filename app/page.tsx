@@ -625,10 +625,15 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
   const stStroke = (st: "p" | "s" | "") => st === "p" ? "rgba(255,100,60,0.55)" : st === "s" ? "rgba(255,160,40,0.45)" : "rgba(255,255,255,0.09)";
   const stFilter = (st: "p" | "s" | "") => st === "p" ? "url(#mgp)" : st === "s" ? "url(#mgs)" : undefined;
   const stOrder = (st: "p" | "s" | "") => st === "p" ? 2 : st === "s" ? 1 : 0;
+  const stAnim = (st: "p" | "s" | "") =>
+    st === "p" ? { animation: "muscleGlow 1.8s ease-in-out infinite" }
+    : st === "s" ? { animation: "muscleGlow 2.2s ease-in-out infinite 0.4s" }
+    : undefined;
 
   const mc = (m: string) => stFill(wSt(m));
   const ms = (m: string) => stStroke(wSt(m));
   const mf = (m: string) => stFilter(wSt(m));
+  const mfAnim = (m: string) => stAnim(wSt(m));
 
   // Render a group of sub-muscle paths in z-order: dim → secondary → primary. Bright always paints last.
   const Group = ({ paths, parent, k }: { paths: { d: string; sub: string }[]; parent: string; k: string }) => (
@@ -637,7 +642,7 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
         .map(pp => ({ ...pp, st: subSt(pp.sub, parent) }))
         .sort((a, b) => stOrder(a.st) - stOrder(b.st))
         .map((pp, i) => (
-          <path key={`${k}-${i}`} d={pp.d} fill={stFill(pp.st)} stroke={stStroke(pp.st)} filter={stFilter(pp.st)} strokeWidth={0.7}/>
+          <path key={`${k}-${i}`} d={pp.d} fill={stFill(pp.st)} stroke={stStroke(pp.st)} filter={stFilter(pp.st)} strokeWidth={0.7} style={stAnim(pp.st)}/>
         ))}
     </>
   );
@@ -1140,6 +1145,10 @@ export default function HomePage() {
   const [savedRoutines, setSavedRoutines] = useState<any[]>([]);
   const [showSavedList, setShowSavedList] = useState(false);
   const [showSaveRoutine, setShowSaveRoutine] = useState(false);
+  const [showHiitPrompt, setShowHiitPrompt] = useState(false);
+  const [showEmailSignupPrompt, setShowEmailSignupPrompt] = useState(false);
+  const [hiitPreference, setHiitPreference] = useState("");
+  const [hiitIntensity, setHiitIntensity] = useState("moderate");
   const [saveRoutineName, setSaveRoutineName] = useState("");
   const [savingRoutine, setSavingRoutine] = useState(false);
   const [sharingRoutineId, setSharingRoutineId] = useState<string | null>(null);
@@ -1149,8 +1158,9 @@ export default function HomePage() {
   const [shareClientIds, setShareClientIds] = useState<string[]>([]);
   const [ob, setOb] = useState({
     dob: "", gender: "", heightCm: "", weightKg: "", bodyFatPct: "",
-    goals: [] as string[], targetArea: "", fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
+    goals: [] as string[], targetAreas: [] as string[], fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
   });
+  const [rebuildMode, setRebuildMode] = useState(false);
 
   const [formPreview, setFormPreview] = useState<{ id: string; name: string; muscles: string[]; secondaryMuscles?: string[] } | null>(null);
   const [formFrame, setFormFrame] = useState(0);
@@ -1309,7 +1319,7 @@ export default function HomePage() {
           weightKg: p.weightKg?.toString() || "",
           bodyFatPct: p.bodyFatPct?.toString() || "",
           goals: p.goals?.length ? p.goals : (p.goal ? [p.goal] : []),
-          targetArea: p.targetArea || "none",
+          targetAreas: (p as any).targetAreas?.length ? (p as any).targetAreas : (p.targetArea && p.targetArea !== "none" ? [p.targetArea] : []),
           fitnessLevel: p.fitnessLevel || "",
           location: p.location || "",
           equipment: p.equipment || [],
@@ -1317,6 +1327,8 @@ export default function HomePage() {
         });
         if (p.targetWeightKg) setGoalWeight(p.targetWeightKg.toString());
         if (p.targetBodyFatPct) setGoalBf(p.targetBodyFatPct.toString());
+        if ((p as any).hiitPreference) setHiitPreference((p as any).hiitPreference);
+        if ((p as any).hiitIntensity) setHiitIntensity((p as any).hiitIntensity);
         fetch("/api/plan").then(r => r.json()).then(planData => {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
         });
@@ -1369,7 +1381,7 @@ export default function HomePage() {
       const data = await authPost({ action: "check", username: input });
       if (data.error) { setAuthError(data.error); return; }
       if (data.state === "new") {
-        if (data.isEmail) { setAuthError("No account found with that email. Please use your username to register."); return; }
+        if (data.isEmail) { setShowEmailSignupPrompt(true); return; }
         setAuthStep("register");
       } else {
         if (data.username) setNameInput(data.username);
@@ -1772,7 +1784,8 @@ export default function HomePage() {
   const submitOnboarding = async () => {
     setGeneratingPlan(true);
     try {
-      const profileRes = await fetch("/api/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ob) });
+      const profileBody = { ...ob, targetAreas: ob.targetAreas };
+      const profileRes = await fetch("/api/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profileBody) });
       if (!profileRes.ok) { setGeneratingPlan(false); return; }
       const planRes = await fetch("/api/plan", { method: "POST" });
       const planData = await planRes.json();
@@ -1784,6 +1797,24 @@ export default function HomePage() {
     setGeneratingPlan(false);
     setShowOnboarding(false);
     setOnboardingStep(0);
+    setRebuildMode(false);
+    if (!ob.goals.every(g => g === "strength")) {
+      setHiitIntensity("moderate");
+      setShowHiitPrompt(true);
+    }
+  };
+
+  const applyHiitChoice = async (pref: string, intensity: string) => {
+    setHiitPreference(pref);
+    setHiitIntensity(intensity);
+    setShowHiitPrompt(false);
+    if (pref === "none") return;
+    try {
+      await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hiitPreference: pref, hiitIntensity: intensity }) });
+      const planRes = await fetch("/api/plan", { method: "POST" });
+      const planData = await planRes.json();
+      if (planData.plan?.days?.length) { setCustomPlan(planData.plan.days); setPlanNote(planData.planNote || ""); }
+    } catch {}
   };
 
   const openDay = (d: WorkoutDay) => { setActiveDay(d); setView("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); };
@@ -1903,10 +1934,16 @@ export default function HomePage() {
   const bc: Record<string, string> = { compound: "#2ecc71", isolation: "#74b9ff", cardio: "#FF6B6B" };
 
   const EQUIPMENT_OPTIONS = [
-    { id: "dumbbell", label: "Dumbbells" }, { id: "barbell", label: "Barbell" },
-    { id: "resistance_band", label: "Resistance Bands" }, { id: "pullup_bar", label: "Pull-Up Bar" },
-    { id: "bench", label: "Bench" }, { id: "kettlebell", label: "Kettlebell" },
-    { id: "dip_bar", label: "Dip Bars" },
+    { id: "dumbbell",        label: "Dumbbells",       gym: true,  home: true  },
+    { id: "barbell",         label: "Barbell",          gym: true,  home: false },
+    { id: "cable",           label: "Cable Machine",    gym: true,  home: false },
+    { id: "machine",         label: "Weight Machines",  gym: true,  home: false },
+    { id: "bench",           label: "Bench / Rack",     gym: true,  home: true  },
+    { id: "pullup_bar",      label: "Pull-Up Bar",      gym: true,  home: true  },
+    { id: "dip_bar",         label: "Dip Bars",         gym: true,  home: true  },
+    { id: "kettlebell",      label: "Kettlebell",       gym: true,  home: true  },
+    { id: "resistance_band", label: "Resistance Bands", gym: false, home: true  },
+    { id: "smith_machine",   label: "Smith Machine",    gym: true,  home: false },
   ];
   const toggleEquip = (id: string) => setOb(o => ({ ...o, equipment: o.equipment.includes(id) ? o.equipment.filter(e => e !== id) : [...o.equipment, id] }));
 
@@ -1962,21 +1999,39 @@ export default function HomePage() {
 
           {/* ── Step: username ── */}
           {authStep === "username" && (<>
-            <input value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={inputStyleCenter} />
+            <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={inputStyleCenter} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
-            <button onClick={doCheckUsername} style={btnPrimary}>CONTINUE</button>
+            {showEmailSignupPrompt && (
+              <div style={{ marginTop: 16, padding: "16px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12 }}>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>No account found for <strong style={{ color: "#fff" }}>{nameInput}</strong>. Create one?</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => { setEmailInput(nameInput); setNameInput(""); setShowEmailSignupPrompt(false); setAuthStep("register"); }} style={{ flex: 1, padding: "11px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
+                  <button onClick={() => { setShowEmailSignupPrompt(false); setNameInput(""); setAuthError(""); }} style={{ padding: "11px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>Back</button>
+                </div>
+              </div>
+            )}
+            {!showEmailSignupPrompt && <button onClick={doCheckUsername} style={btnPrimary}>CONTINUE</button>}
           </>)}
 
           {/* ── Step: register (new user) ── */}
           {authStep === "register" && (<>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Create your account</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 20, letterSpacing: 1 }}>{nameInput}</div>
-            <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Email" type="email" style={{ ...inputStyle, marginBottom: 8 }} />
+            {nameInput && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 20, letterSpacing: 1 }}>{nameInput}</div>}
+            {!nameInput && (
+              <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Choose a username" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
+            )}
+            {emailInput ? (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 16px", marginBottom: 8, textAlign: "left" }}>
+                Email: <span style={{ color: "rgba(255,255,255,0.7)" }}>{emailInput}</span>
+              </div>
+            ) : (
+              <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Email" type="email" style={{ ...inputStyle, marginBottom: 8 }} />
+            )}
             <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" type="password" style={{ ...inputStyle, marginBottom: 8 }} />
             <input value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doRegister()} placeholder="Confirm password" type="password" style={inputStyle} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             <button onClick={doRegister} style={btnPrimary}>CREATE ACCOUNT</button>
-            <button onClick={() => { setAuthStep("username"); setAuthError(""); }} style={btnBack}>← Back</button>
+            <button onClick={() => { setAuthStep("username"); setAuthError(""); setEmailInput(""); }} style={btnBack}>← Back</button>
           </>)}
 
           {/* ── Step: setup (existing user, no password yet) ── */}
@@ -2045,22 +2100,30 @@ export default function HomePage() {
 
   // ─── ONBOARDING ─────────────────────────────────────────────────────
   if (showOnboarding) {
-    const STEPS = 8;
-    const progress = Math.round((onboardingStep / STEPS) * 100);
+    const STEPS = rebuildMode ? 6 : 8;
+    const progress = Math.round(((onboardingStep - (rebuildMode ? 2 : 0)) / STEPS) * 100);
     const obInput: React.CSSProperties = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", padding: "14px 20px", width: "100%", outline: "none", boxSizing: "border-box" as const };
     const obBtn: React.CSSProperties = { display: "block", width: "100%", marginTop: 24, padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
     const obSkip: React.CSSProperties = { background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 14, display: "block", width: "100%" };
     const selCard = (active: boolean): React.CSSProperties => ({ padding: "16px 20px", borderRadius: 12, border: `1px solid ${active ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, background: active ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", cursor: "pointer", marginBottom: 10, transition: "all 0.15s" });
 
     const canNext = () => {
+      if (rebuildMode && (onboardingStep === 1 || onboardingStep === 2)) return true;
       if (onboardingStep === 0) return true;
       if (onboardingStep === 1) return !!ob.dob && !!ob.gender;
       if (onboardingStep === 2) return !!ob.heightCm && !!ob.weightKg;
       if (onboardingStep === 3) return ob.goals.length > 0;
-      if (onboardingStep === 4) return !!ob.targetArea;
+      if (onboardingStep === 4) return true;
       if (onboardingStep === 5) return !!ob.fitnessLevel;
       if (onboardingStep === 6) return !!ob.location;
       return true;
+    };
+    const toggleTargetArea = (id: string) => {
+      setOb(o => {
+        if (id === "none") return { ...o, targetAreas: o.targetAreas.includes("none") ? [] : ["none"] };
+        const without = o.targetAreas.filter(x => x !== "none" && x !== id);
+        return { ...o, targetAreas: o.targetAreas.includes(id) ? without : [...without, id] };
+      });
     };
 
     if (generatingPlan) return (
@@ -2155,7 +2218,7 @@ export default function HomePage() {
           <div className="slide-up">
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>FOCUS</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>Any specific focus area?</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>We'll add extra work for your priority muscle group, or adjust the plan for rehabilitation.</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Select all that apply — we'll add extra work for your priority muscle groups, or adjust the plan for rehabilitation.</div>
 
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: 3, marginBottom: 10 }}>MUSCLE FOCUS</div>
             {[
@@ -2168,8 +2231,11 @@ export default function HomePage() {
               { id: "core",      label: "Core",      desc: "Stronger core and abs — extra core finishers on every day" },
               { id: "legs",      label: "Legs",      desc: "Bigger quads and hamstrings — extra leg volume" },
             ].map(t => (
-              <div key={t.id} style={selCard(ob.targetArea === t.id)} onClick={() => setOb(o => ({ ...o, targetArea: t.id }))}>
-                <div style={{ color: ob.targetArea === t.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{t.label}</div>
+              <div key={t.id} style={selCard(ob.targetAreas.includes(t.id))} onClick={() => toggleTargetArea(t.id)}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <div style={{ color: ob.targetAreas.includes(t.id) ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{t.label}</div>
+                  {ob.targetAreas.includes(t.id) && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
+                </div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t.desc}</div>
               </div>
             ))}
@@ -2180,8 +2246,11 @@ export default function HomePage() {
               { id: "rehab_shoulder",    label: "Rehab — Shoulder",    desc: "Shoulder-safe modifications, rotator cuff and mobility work" },
               { id: "rehab_lower_back",  label: "Rehab — Lower Back",  desc: "Protect the spine — avoid heavy loading, core stability focus" },
             ].map(t => (
-              <div key={t.id} style={selCard(ob.targetArea === t.id)} onClick={() => setOb(o => ({ ...o, targetArea: t.id }))}>
-                <div style={{ color: ob.targetArea === t.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{t.label}</div>
+              <div key={t.id} style={selCard(ob.targetAreas.includes(t.id))} onClick={() => toggleTargetArea(t.id)}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <div style={{ color: ob.targetAreas.includes(t.id) ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{t.label}</div>
+                  {ob.targetAreas.includes(t.id) && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
+                </div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t.desc}</div>
               </div>
             ))}
@@ -2198,6 +2267,7 @@ export default function HomePage() {
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>How long have you been training?</div>
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 28 }}>This helps us set the right volume and exercise selection.</div>
             {[
+              { id: "newcomer", label: "Brand new — never done this before", desc: "We'll keep things simple and safe while you build the habit" },
               { id: "beginner", label: "Less than 1 year", desc: "Focus on form, fundamentals, and building habits" },
               { id: "intermediate", label: "1–3 years", desc: "Comfortable with the main lifts, ready for more volume" },
               { id: "advanced", label: "3+ years", desc: "Strong base, looking to optimise and push harder" },
@@ -2222,30 +2292,36 @@ export default function HomePage() {
               { id: "home", label: "Home", desc: "I train at home with my own equipment" },
               { id: "both", label: "Both", desc: "Mix of gym and home sessions" },
             ].map(l => (
-              <div key={l.id} style={selCard(ob.location === l.id)} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: l.id === "gym" ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell"] : o.equipment }))}>
+              <div key={l.id} style={selCard(ob.location === l.id)} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: (l.id === "gym" || l.id === "both") ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell","smith_machine"] : [] }))}>
                 <div style={{ color: ob.location === l.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{l.label}</div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{l.desc}</div>
               </div>
             ))}
-            <button onClick={() => setOnboardingStep(ob.location === "gym" ? 8 : 7)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
+            <button onClick={() => setOnboardingStep(7)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
             <button onClick={() => setOnboardingStep(5)} style={obSkip}>← Back</button>
           </div>
         )}
 
-        {/* Step 7: Equipment (home/both only) */}
+        {/* Step 7: Equipment */}
         {onboardingStep === 7 && (
           <div className="slide-up">
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>EQUIPMENT</div>
-            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>What do you have available?</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Select everything you have access to.</div>
-            {EQUIPMENT_OPTIONS.map(e => (
-              <div key={e.id} style={selCard(ob.equipment.includes(e.id))} onClick={() => toggleEquip(e.id)}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ color: ob.equipment.includes(e.id) ? "#FF6B6B" : "#fff", fontWeight: 500 }}>{e.label}</div>
-                  {ob.equipment.includes(e.id) && <div style={{ color: "#FF6B6B", fontSize: 16 }}>✓</div>}
+            <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>
+              {ob.location === "gym" ? "What does your gym have?" : ob.location === "home" ? "What do you have at home?" : "What equipment do you have access to?"}
+            </div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>
+              {ob.location === "gym" ? "All standard equipment is pre-selected — untick anything your gym doesn't have." : ob.location === "home" ? "Select everything available to you." : "Include gym equipment above and home equipment below."}
+            </div>
+            {EQUIPMENT_OPTIONS
+              .filter(e => ob.location === "gym" ? e.gym : ob.location === "home" ? e.home : true)
+              .map(e => (
+                <div key={e.id} style={selCard(ob.equipment.includes(e.id))} onClick={() => toggleEquip(e.id)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ color: ob.equipment.includes(e.id) ? "#FF6B6B" : "#fff", fontWeight: 500 }}>{e.label}</div>
+                    {ob.equipment.includes(e.id) && <div style={{ color: "#FF6B6B", fontSize: 16 }}>✓</div>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
             <button onClick={() => setOnboardingStep(8)} style={obBtn}>CONTINUE</button>
             <button onClick={() => setOnboardingStep(6)} style={obSkip}>← Back</button>
           </div>
@@ -2266,7 +2342,7 @@ export default function HomePage() {
             </div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", marginBottom: 8 }}>days per week</div>
             <button onClick={submitOnboarding} style={obBtn}>BUILD MY PLAN</button>
-            <button onClick={() => setOnboardingStep(ob.location === "gym" ? 6 : 7)} style={obSkip}>← Back</button>
+            <button onClick={() => setOnboardingStep(7)} style={obSkip}>← Back</button>
           </div>
         )}
       </div>
@@ -2330,16 +2406,25 @@ export default function HomePage() {
                   {customMultiMode && (
                     <button onClick={() => setSuperSelection(s => s.includes(exKey) ? s.filter(id => id !== exKey) : [...s, exKey])} style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isSel ? "#FF6B6B" : "rgba(255,255,255,0.18)"}`, background: isSel ? "#FF6B6B" : "transparent", flexShrink: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", transition: "all 0.15s" }}>{isSel ? "✓" : ""}</button>
                   )}
-                  <div style={{ flex: 1 }}>
+                  {/* Thumbnail — click to preview form */}
+                  {(() => {
+                    const tu = getExerciseImageUrls(ex.exerciseId ?? ex.id, ex.name);
+                    return (
+                      <div onClick={() => { const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.exerciseId ?? ex.id, name: ex.name, ...m }); }} style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {tu ? <img src={tu[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}/> : <span style={{ fontSize: 13, opacity: 0.55, lineHeight: 1 }}>💪</span>}
+                      </div>
+                    );
+                  })()}
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ex.name}</div>
-                      {inGroup && <span style={{ fontSize: 8, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px" }}>SUPER</span>}
-                      {isDropSet && <span style={{ fontSize: 8, color: "#FF6B6B", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 4, padding: "1px 5px" }}>DROP</span>}
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
+                      {inGroup && <span style={{ fontSize: 8, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>SUPER</span>}
+                      {isDropSet && <span style={{ fontSize: 8, color: "#FF6B6B", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>DROP</span>}
                     </div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", marginTop: 3 }}>{ex.sets} × {ex.reps}</div>
                   </div>
                   {!customMultiMode && (
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <button onClick={async () => { const moved = moveExercise(exs, i, i - 1); if (i > 0) await saveDay(editingDay, moved); }} disabled={i === 0} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === 0 ? "default" : "pointer", fontSize: 14 }}>↑</button>
                       <button onClick={async () => { const moved = moveExercise(exs, i, i + 1); if (i < exs.length - 1) await saveDay(editingDay, moved); }} disabled={i === exs.length - 1} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === exs.length - 1 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === exs.length - 1 ? "default" : "pointer", fontSize: 14 }}>↓</button>
                       <button onClick={async () => { const updated = exs.filter((_: any, j: number) => j !== i); await saveDay(editingDay, updated); }} style={{ background: "rgba(255,107,107,0.1)", border: "none", borderRadius: 6, color: "#FF6B6B", width: 28, height: 28, cursor: "pointer", fontSize: 14 }}>✕</button>
@@ -2512,7 +2597,15 @@ export default function HomePage() {
                           {browserSupersetMode && (
                             <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${bSel ? "#FFE66D" : "rgba(255,255,255,0.2)"}`, background: bSel ? "#FFE66D" : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#000" }}>{bSel ? "✓" : ""}</div>
                           )}
-                          {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? <img src={tu[0]} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/> : null; })()}
+                          {/* Thumbnail — click to preview form without triggering add */}
+                          {(() => {
+                            const tu = getExerciseImageUrls(ex.id, ex.name);
+                            return (
+                              <div onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [], secondaryMuscles: ex.secondaryMuscles ?? [] }); }} style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                {tu ? <img src={tu[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}/> : <span style={{ fontSize: 13, opacity: 0.55, lineHeight: 1 }}>💪</span>}
+                              </div>
+                            );
+                          })()}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}{alreadyIn && !browserSupersetMode ? <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginLeft: 6, fontFamily: "'Space Mono', monospace" }}>IN PLAN</span> : ""}</div>
                             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
@@ -2520,10 +2613,6 @@ export default function HomePage() {
                               {ex.secondaryMuscles.length > 0 && <span style={{ color: "rgba(255,255,255,0.25)" }}> · {ex.secondaryMuscles.join(" · ")}</span>}
                             </div>
                           </div>
-                          {!browserSupersetMode && <button
-                            onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [], secondaryMuscles: ex.secondaryMuscles ?? [] }); }}
-                            style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}
-                          >FORM</button>}
                         </div>
                       </div>
                     );
@@ -2619,12 +2708,16 @@ export default function HomePage() {
                     })()}
                   </div>
                 )}
-                <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 10 }}>
-                  <button onClick={() => setModalSlide(0)} style={{ width: modalSlide === 0 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 0 ? "#fff" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
-                  <button onClick={() => setModalSlide(1)} style={{ width: modalSlide === 1 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 1 ? "#FF6644" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
+                <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+                  <button onClick={() => setModalSlide(0)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1px solid ${modalSlide === 0 ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.07)"}`, background: modalSlide === 0 ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.02)", color: modalSlide === 0 ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", transition: "all 0.2s" }}>
+                    FORM DEMO
+                  </button>
+                  <button onClick={() => setModalSlide(1)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1px solid ${modalSlide === 1 ? "rgba(255,100,68,0.45)" : "rgba(255,255,255,0.07)"}`, background: modalSlide === 1 ? "rgba(255,100,68,0.1)" : "rgba(255,255,255,0.02)", color: modalSlide === 1 ? "#FF6644" : "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", transition: "all 0.2s" }}>
+                    MUSCLES
+                  </button>
                 </div>
                 <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.18)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                  {modalSlide === 0 ? "SWIPE LEFT · MUSCLES MAP" : "SWIPE RIGHT · FORM DEMO"} · TAP OUTSIDE TO CLOSE
+                  TAP OUTSIDE TO CLOSE
                 </div>
               </div>
             </div>
@@ -2644,7 +2737,7 @@ export default function HomePage() {
         </div>
         <div style={{ padding: "0 20px" }}>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 1.6, marginBottom: 20 }}>Tap a day to add, remove, or reorder exercises. Your workout history is always preserved.</div>
-          <button onClick={() => { setView("home"); setOnboardingStep(0); setShowOnboarding(true); }} style={{ display: "block", width: "100%", padding: "14px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12, color: "rgba(255,107,107,0.8)", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 28 }}>↺ REBUILD MY WEEKLY PLAN</button>
+          <button onClick={() => { setView("home"); setOnboardingStep(3); setRebuildMode(true); setShowOnboarding(true); }} style={{ display: "block", width: "100%", padding: "14px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12, color: "rgba(255,107,107,0.8)", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 28 }}>↺ REBUILD MY WEEKLY PLAN</button>
           {planDays.map((day: any, i: number) => (
             <div key={day.id} className="card-hover" style={{ marginBottom: 10, cursor: "pointer" }} onClick={() => setEditingDay(day)}>
               <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -3381,7 +3474,7 @@ export default function HomePage() {
                       { label: "GOAL", value: p.goal?.replace(/_/g, " ") },
                       { label: "FITNESS LEVEL", value: p.fitnessLevel },
                       { label: "LOCATION", value: fmtLocation(p.location) },
-                      { label: "TARGET AREA", value: p.targetArea && p.targetArea !== "none" ? p.targetArea : "—" },
+                      { label: "FOCUS AREA", value: ((p as any).targetAreas?.filter((a: string) => a !== "none") ?? []).length > 0 ? (p as any).targetAreas.filter((a: string) => a !== "none").join(", ") : (p.targetArea && p.targetArea !== "none" ? p.targetArea : "—") },
                     ];
                     return (
                       <>
@@ -3405,6 +3498,37 @@ export default function HomePage() {
             })()}
           </div>
         )}
+
+      {showHiitPrompt && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.96)", zIndex: 600, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28 }}>
+          <div style={{ width: "100%", maxWidth: 380 }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, letterSpacing: 4, color: "#FF8C42", marginBottom: 14 }}>⚡ HIIT TRAINING</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 8, lineHeight: 1.3 }}>Add high-intensity intervals?</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7, marginBottom: 28 }}>HIIT circuits spike your heart rate, accelerate fat burn, and boost conditioning. Add them to your plan now or skip.</div>
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>INTENSITY</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[{ id: "light", label: "Light" }, { id: "moderate", label: "Moderate" }, { id: "intense", label: "Intense" }].map(opt => (
+                  <button key={opt.id} onClick={() => setHiitIntensity(opt.id)} style={{ flex: 1, padding: "10px 4px", background: hiitIntensity === opt.id ? "rgba(255,140,66,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${hiitIntensity === opt.id ? "rgba(255,140,66,0.5)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: hiitIntensity === opt.id ? "#FF8C42" : "rgba(255,255,255,0.45)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>{opt.label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button onClick={() => applyHiitChoice("finisher", hiitIntensity)} style={{ padding: "16px 20px", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.35)", borderRadius: 14, color: "#FF8C42", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>⚡ Circuit Finisher</div>
+                <div style={{ fontSize: 12, color: "rgba(255,140,66,0.65)", fontWeight: 400 }}>Added at the end of each workout day</div>
+              </button>
+              <button onClick={() => applyHiitChoice("dedicated_day", hiitIntensity)} style={{ padding: "16px 20px", background: "rgba(255,140,66,0.07)", border: "1px solid rgba(255,140,66,0.2)", borderRadius: 14, color: "rgba(255,140,66,0.8)", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>🔥 Dedicated Day</div>
+                <div style={{ fontSize: 12, color: "rgba(255,140,66,0.5)", fontWeight: 400 }}>A separate HIIT & conditioning session</div>
+              </button>
+              <button onClick={() => applyHiitChoice("none", hiitIntensity)} style={{ padding: "14px 20px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", textAlign: "left" }}>Not now — I'll add it later from settings</button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     );
   }
@@ -3665,9 +3789,9 @@ export default function HomePage() {
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>FITNESS LEVEL</div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {["beginner", "intermediate", "advanced"].map(l => (
-                      <button key={l} onClick={() => setOb(o => ({ ...o, fitnessLevel: l }))} style={{ flex: 1, padding: "10px 4px", background: ob.fitnessLevel === l ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${ob.fitnessLevel === l ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: ob.fitnessLevel === l ? "#FF6B6B" : "rgba(255,255,255,0.45)", fontSize: 11, cursor: "pointer", textTransform: "capitalize" }}>{l}</button>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {["newcomer", "beginner", "intermediate", "advanced"].map(l => (
+                      <button key={l} onClick={() => setOb(o => ({ ...o, fitnessLevel: l }))} style={{ flex: "1 0 auto", padding: "10px 4px", background: ob.fitnessLevel === l ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${ob.fitnessLevel === l ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: ob.fitnessLevel === l ? "#FF6B6B" : "rgba(255,255,255,0.45)", fontSize: 11, cursor: "pointer", textTransform: "capitalize" }}>{l}</button>
                     ))}
                   </div>
                 </div>
@@ -3687,11 +3811,12 @@ export default function HomePage() {
                     ))}
                   </div>
                 </div>
-                {ob.location !== "gym" && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>EQUIPMENT</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {EQUIPMENT_OPTIONS.map(e => {
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>EQUIPMENT</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {EQUIPMENT_OPTIONS
+                      .filter(e => ob.location === "gym" ? e.gym : ob.location === "home" ? e.home : true)
+                      .map(e => {
                         const has = ob.equipment.includes(e.id);
                         return (
                           <button key={e.id} onClick={() => toggleEquip(e.id)} style={{ padding: "10px 14px", background: has ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${has ? "rgba(255,107,107,0.3)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: has ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
@@ -3699,9 +3824,8 @@ export default function HomePage() {
                           </button>
                         );
                       })}
-                    </div>
                   </div>
-                )}
+                </div>
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>FOCUS AREA</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -3718,9 +3842,15 @@ export default function HomePage() {
                       { id: "rehab_shoulder", label: "Rehab — Shoulder" },
                       { id: "rehab_lower_back", label: "Rehab — Lower Back" },
                     ].map(t => {
-                      const sel = ob.targetArea === t.id;
+                      const sel = ob.targetAreas.includes(t.id);
                       return (
-                        <button key={t.id} onClick={() => setOb(o => ({ ...o, targetArea: t.id }))} style={{ padding: "9px 14px", background: sel ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
+                        <button key={t.id} onClick={() => {
+                          setOb(o => {
+                            if (t.id === "none") return { ...o, targetAreas: sel ? [] : ["none"] };
+                            const without = o.targetAreas.filter(x => x !== "none" && x !== t.id);
+                            return { ...o, targetAreas: sel ? without : [...without, t.id] };
+                          });
+                        }} style={{ padding: "9px 14px", background: sel ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
                           {t.label}{sel && <span>✓</span>}
                         </button>
                       );
@@ -3739,7 +3869,7 @@ export default function HomePage() {
                           dob: ob.dob, gender: ob.gender, heightCm: ob.heightCm, weightKg: ob.weightKg,
                           bodyFatPct: ob.bodyFatPct || null, goals: ob.goals, fitnessLevel: ob.fitnessLevel,
                           location: ob.location || "gym", equipment: ob.equipment.length ? ob.equipment : ["barbell","dumbbell","cable","machine"],
-                          daysPerWeek: ob.daysPerWeek, targetArea: ob.targetArea || "none",
+                          daysPerWeek: ob.daysPerWeek, targetAreas: ob.targetAreas,
                         }),
                       });
                       setEditingProfile(false);
@@ -3765,6 +3895,45 @@ export default function HomePage() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* HIIT Training Preferences */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT TRAINING</div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>INTENSITY</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[{ id: "light", label: "Light" }, { id: "moderate", label: "Moderate" }, { id: "intense", label: "Intense" }].map(opt => (
+                  <button key={opt.id} onClick={() => setHiitIntensity(opt.id)} style={{ flex: 1, padding: "10px 4px", background: hiitIntensity === opt.id ? "rgba(255,140,66,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${hiitIntensity === opt.id ? "rgba(255,140,66,0.4)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: hiitIntensity === opt.id ? "#FF8C42" : "rgba(255,255,255,0.45)", fontSize: 11, cursor: "pointer", textTransform: "capitalize" }}>{opt.label}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>MODE</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {[
+                  { id: "finisher", label: "Circuit Finisher", desc: "Added at the end of each workout day" },
+                  { id: "dedicated_day", label: "Dedicated Day", desc: "A separate HIIT & conditioning session" },
+                  { id: "none", label: "None", desc: "No HIIT in your plan" },
+                ].map(opt => {
+                  const sel = hiitPreference === opt.id;
+                  return (
+                    <button key={opt.id} onClick={() => setHiitPreference(opt.id)} style={{ padding: "10px 14px", background: sel ? "rgba(255,140,66,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,140,66,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF8C42" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{opt.label}</div>
+                        <div style={{ fontSize: 11, color: sel ? "rgba(255,140,66,0.55)" : "rgba(255,255,255,0.25)", marginTop: 2 }}>{opt.desc}</div>
+                      </div>
+                      {sel && <span style={{ color: "#FF8C42" }}>✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <button onClick={async () => {
+              try {
+                await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hiitPreference: hiitPreference || "none", hiitIntensity: hiitIntensity || "moderate" }) });
+              } catch {}
+            }} style={{ width: "100%", padding: "11px", background: "rgba(255,140,66,0.08)", border: "1px solid rgba(255,140,66,0.25)", borderRadius: 10, color: "#FF8C42", fontSize: 10, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>SAVE HIIT SETTINGS</button>
           </div>
 
           {/* Trainer upgrade — request flow */}
@@ -4558,13 +4727,17 @@ export default function HomePage() {
                   </div>
                 )}
 
-                {/* Slide indicators + navigation */}
-                <div style={{ marginTop: 14, display: "flex", justifyContent: "center", alignItems: "center", gap: 10 }}>
-                  <button onClick={() => setModalSlide(0)} style={{ width: modalSlide === 0 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 0 ? "#fff" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
-                  <button onClick={() => setModalSlide(1)} style={{ width: modalSlide === 1 ? 20 : 8, height: 8, borderRadius: 4, border: "none", background: modalSlide === 1 ? "#FF6644" : "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transition: "all 0.25s" }}/>
+                {/* Slide tab nav */}
+                <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+                  <button onClick={() => setModalSlide(0)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1px solid ${modalSlide === 0 ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.07)"}`, background: modalSlide === 0 ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.02)", color: modalSlide === 0 ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", transition: "all 0.2s" }}>
+                    FORM DEMO
+                  </button>
+                  <button onClick={() => setModalSlide(1)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: `1px solid ${modalSlide === 1 ? "rgba(255,100,68,0.45)" : "rgba(255,255,255,0.07)"}`, background: modalSlide === 1 ? "rgba(255,100,68,0.1)" : "rgba(255,255,255,0.02)", color: modalSlide === 1 ? "#FF6644" : "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", transition: "all 0.2s" }}>
+                    MUSCLES
+                  </button>
                 </div>
                 <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.18)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                  {modalSlide === 0 ? "SWIPE LEFT · MUSCLES MAP" : "SWIPE RIGHT · FORM DEMO"} · TAP OUTSIDE TO CLOSE
+                  TAP OUTSIDE TO CLOSE
                 </div>
               </div>
             </div>
@@ -4670,7 +4843,7 @@ export default function HomePage() {
                       setWInput(lw ? String(lw) : "");
                       setRInput(lr ? String(lr) : "");
                     }}
-                      style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: (allDone || wuDone) ? 0.3 : 1, cursor: "pointer", transition: "opacity 0.3s" }}>
+                      style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: (allDone || wuDone) ? 0.3 : 1, cursor: "pointer", transition: "opacity 0.3s", borderLeft: ex.note === "HIIT circuit" ? "3px solid rgba(255,140,66,0.7)" : undefined }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                           {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? (
@@ -4681,6 +4854,7 @@ export default function HomePage() {
                           <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</span>
                           {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1, flexShrink: 0 }}>{ex.type.toUpperCase()}</span>}
                           {dropCount > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: "#FFE66D", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>DROP×{dropCount}</span>}
+                          {ex.note === "HIIT circuit" && <span style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT</span>}
                           <button onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }} style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginLeft: 6, flexShrink: 0 }}>FORM</button>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -4694,7 +4868,7 @@ export default function HomePage() {
                       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>
                         {trackable ? `${ex.sets} × ${ex.reps}` : ex.reps}{ex.rest ? ` · ${ex.rest}s rest` : ""}
                       </div>
-                      {ex.note && <div style={{ fontSize: 11, color: "#f0c040", marginTop: 5, fontStyle: "italic", opacity: 0.8 }}>{ex.note}</div>}
+                      {ex.note && ex.note !== "HIIT circuit" && <div style={{ fontSize: 11, color: "#f0c040", marginTop: 5, fontStyle: "italic", opacity: 0.8 }}>{ex.note}</div>}
                       {trackable && lw > 0 && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace" }}>Last session: {lw}kg × {lr || "?"}</div>}
                       {trackable && (
                         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
@@ -4782,7 +4956,21 @@ export default function HomePage() {
               };
 
               return items.map((item, itemIdx) => {
-                if (item.kind === "single") return renderEx(item.ex);
+                if (item.kind === "single") {
+                  const prevItem = itemIdx > 0 ? items[itemIdx - 1] : null;
+                  const isFirstHiit = item.ex.note === "HIIT circuit" && (!prevItem || prevItem.kind !== "single" || prevItem.ex.note !== "HIIT circuit");
+                  if (!isFirstHiit) return renderEx(item.ex);
+                  return (
+                    <div key={item.ex.id}>
+                      <div style={{ padding: "14px 20px 6px", display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ flex: 1, height: 1, background: "rgba(255,140,66,0.2)" }} />
+                        <span style={{ fontSize: 9, letterSpacing: 3, color: "#FF8C42", fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT CIRCUIT</span>
+                        <div style={{ flex: 1, height: 1, background: "rgba(255,140,66,0.2)" }} />
+                      </div>
+                      {renderEx(item.ex)}
+                    </div>
+                  );
+                }
                 return (
                   <div key={item.groupId} style={{ borderLeft: "2px solid rgba(255,230,109,0.2)", marginLeft: 12 }}>
                     <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: 6 }}>

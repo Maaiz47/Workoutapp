@@ -75,8 +75,11 @@ model UserProfile {
   equipment        String[]
   daysPerWeek      Int
   targetArea       String?  @default("none")
+  targetAreas      String[]
   targetWeightKg   Float?
   targetBodyFatPct Float?
+  hiitPreference   String?
+  hiitIntensity    String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
