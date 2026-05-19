@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
 import { createPortal } from "react-dom";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
@@ -2157,7 +2157,9 @@ function HomePage() {
   const toggleEquip = (id: string) => setOb(o => ({ ...o, equipment: o.equipment.includes(id) ? o.equipment.filter(e => e !== id) : [...o.equipment, id] }));
 
   // ─── LOADING ────────────────────────────────────────────────────────
-  if (authLoading || !splashDone) return (
+  let _content: React.ReactNode = null;
+  let _viewKey = "splash";
+  if (authLoading || !splashDone) { _viewKey = "splash"; _content = (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
       {/* Ambient blobs */}
       <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 65%)", pointerEvents: "none" }} />
@@ -2184,7 +2186,7 @@ function HomePage() {
         <div style={{ width: 180, height: 2, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.55), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite", margin: "0 auto" }} />
       </div>
     </div>
-  );
+  ); } else
 
   // ─── LOGIN ──────────────────────────────────────────────────────────
   if (!user) {
@@ -2204,7 +2206,7 @@ function HomePage() {
         { title: "Works everywhere", desc: "Installable PWA — add to your home screen on iOS or Android, no app store needed." },
       ];
 
-      return (
+      _viewKey = `auth-${authStep}`; _content = (
         <div style={{ minHeight: "100dvh", position: "relative", overflowY: "auto" }}>
           <div style={{ position: "fixed", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.06) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
           <div style={{ position: "fixed", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
@@ -2292,7 +2294,7 @@ function HomePage() {
     }
 
     // ── Other auth steps — centered card ─────────────────────────────
-    return (
+    _viewKey = `auth-${authStep}`; _content = (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
