@@ -2282,8 +2282,8 @@ function HomePage() {
               <span style={{ color: "#fff" }}>IRON</span><span style={{ color: "#FF6B6B" }}>LOG</span>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <a href="/client.html" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(255,107,107,0.35)", color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>ATHLETES</a>
-              <a href="/trainer.html" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(78,205,196,0.35)", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>TRAINERS</a>
+              <a href="/client" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(255,107,107,0.35)", color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>ATHLETES</a>
+              <a href="/trainer" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(78,205,196,0.35)", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>TRAINERS</a>
             </div>
           </div>
 
@@ -2348,12 +2348,12 @@ function HomePage() {
           <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, textAlign: "center", marginBottom: 12 }}>LEARN MORE</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <a href="/client.html" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
+              <a href="/client" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#FF6B6B", letterSpacing: 2, marginBottom: 6 }}>FOR ATHLETES</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, marginBottom: 8 }}>Free forever. Log, track, and grow stronger every session.</div>
                 <div style={{ fontSize: 10, color: "rgba(255,107,107,0.7)" }}>See all features →</div>
               </a>
-              <a href="/trainer.html" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
+              <a href="/trainer" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", letterSpacing: 2, marginBottom: 6 }}>FOR TRAINERS</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, marginBottom: 8 }}>$19/mo. Manage clients, deliver plans, track results.</div>
                 <div style={{ fontSize: 10, color: "rgba(78,205,196,0.7)" }}>Request early access →</div>
