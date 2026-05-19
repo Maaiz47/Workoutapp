@@ -4116,7 +4116,7 @@ function HomePage() {
 
   // ─── CONVERSATION ────────────────────────────────────────────────────
   if (view === "conversation" && activeConversation) { _viewKey = `conv-${activeConversation.id}`; _content = (
-    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100dvh" }}>
+    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", height: "100dvh" }}>
       {(() => {
         const isOnline = partnerLastSeen && (Date.now() - new Date(partnerLastSeen).getTime()) < 2 * 60 * 1000;
         const lastSeenText = (() => {
