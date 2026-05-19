@@ -1283,6 +1283,21 @@ export default function HomePage() {
     }).catch(() => {});
   }, [user]);
 
+  // Poll conversations list every 5s while on the messages view
+  useEffect(() => {
+    if (view !== "messages") return;
+    const poll = () => {
+      fetch("/api/messages").then(r => r.json()).then(data => {
+        if (data.conversations) {
+          setConversations(data.conversations);
+          setUnreadCount(data.conversations.reduce((a: number, c: any) => a + (c.unreadCount ?? 0), 0));
+        }
+      }).catch(() => {});
+    };
+    const id = setInterval(poll, 5000);
+    return () => clearInterval(id);
+  }, [view]);
+
   // Keep lastMsgCreatedAtRef in sync for polling
   useEffect(() => {
     const last = conversationMessages[conversationMessages.length - 1];
@@ -1875,18 +1890,25 @@ export default function HomePage() {
   const sendMessage = async () => {
     if (!messageText.trim() || !activeConversation || sendingMessage) return;
     setSendingMessage(true);
+    const body = messageText.trim();
+    setMessageText(""); // clear immediately so input doesn't feel sticky
     try {
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toId: activeConversation.id, body: messageText.trim() }),
+        body: JSON.stringify({ toId: activeConversation.id, body }),
       });
       const data = await res.json();
       if (data.message) {
         setConversationMessages(prev => [...prev, data.message]);
-        setMessageText("");
+        // Keep the conversation list preview in sync
+        setConversations(prev => prev.map(c =>
+          c.partner.id === activeConversation.id
+            ? { ...c, latestMessage: data.message }
+            : c
+        ));
       }
-    } catch {}
+    } catch { setMessageText(body); } // restore on failure
     setSendingMessage(false);
   };
 
