@@ -32,6 +32,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Mark all incoming messages as delivered (recipient client is active)
+    await (prisma.message as any).updateMany({
+      where: { toId: uid, delivered: false },
+      data: { delivered: true },
+    });
+
     return json({ conversations: Array.from(convMap.values()) });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);

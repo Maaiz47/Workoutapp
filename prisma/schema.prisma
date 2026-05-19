@@ -145,6 +145,7 @@ model Message {
   type       String        @default("text")
   requestId  String?
   proposalId String?
+  delivered  Boolean       @default(false)
   read       Boolean       @default(false)
   createdAt  DateTime      @default(now())
   from       User          @relation("SentMessages",     fields: [fromId], references: [id], onDelete: Cascade)
