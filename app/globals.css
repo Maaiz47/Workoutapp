@@ -88,8 +88,10 @@ input[type="number"] { -moz-appearance: textfield; }
 .log-flash { animation: logSetFlash 0.38s ease both; }
 
 /* ── PB celebration ───────────────────────────────────────────────────── */
+@keyframes pbOverlay { 0% { opacity: 0; } 5% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes pbPop { 0% { opacity: 0; transform: scale(0.5) translateY(20px); } 55% { transform: scale(1.08) translateY(-4px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 @keyframes pbShine { 0% { transform: translateX(-100%) skewX(-15deg); } 100% { transform: translateX(250%) skewX(-15deg); } }
-.pb-overlay { animation: pbOverlay 2.4s ease both; pointer-events: none; }
+.pb-overlay { animation: pbOverlay 5s ease both; pointer-events: none; }
 .pb-pop     { animation: pbPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both; }
 .pb-shine   { animation: pbShine 0.7s ease 0.55s both; }
 @keyframes trophyBounce { 0% { transform: scale(0) rotate(-20deg); opacity: 0; } 55% { transform: scale(1.35) rotate(8deg); opacity: 1; } 75% { transform: scale(0.88) rotate(-4deg); } 100% { transform: scale(1) rotate(0deg); } }

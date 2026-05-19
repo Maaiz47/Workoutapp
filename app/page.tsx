@@ -2311,7 +2311,7 @@ function HomePage() {
 
   const goTo = (v: string, dir: "forward" | "back" = "forward") => { setViewDir(dir); setView(v); };
   const goBack = () => goTo("home", "back");
-  const shownPBs = useRef<Set<string>>(new Set());
+  const shownPBs = useRef<Map<string, number>>(new Map());
   const openDay = (d: WorkoutDay) => { setActiveDay(d); goTo("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); shownPBs.current.clear(); };
   const begin = () => {
     setStarted(true);
@@ -2391,7 +2391,7 @@ function HomePage() {
 
     setTimeout(() => {
       setShowCompleteAnim(false);
-      const unshownPBs = detectedPBs.filter(pb => !shownPBs.current.has(pb.id));
+      const unshownPBs = detectedPBs.filter(pb => pb.weight > (shownPBs.current.get(pb.id) ?? 0));
       if (unshownPBs.length > 0) {
         setNewPBs(unshownPBs);
         setTimeout(() => setNewPBs([]), 2400);
@@ -3488,6 +3488,7 @@ function HomePage() {
                 <div style={{ fontSize: 12, color: "rgba(255,215,0,0.7)", fontFamily: "'Space Mono', monospace" }}>{pb.weight}kg × {pb.reps}</div>
               </div>
             ))}
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 14, fontFamily: "'DM Sans', sans-serif" }}>Tap to dismiss</div>
           </div>
         </div>
       )}
@@ -6291,6 +6292,7 @@ function HomePage() {
                   <div style={{ fontSize: 12, color: "rgba(255,215,0,0.7)", fontFamily: "'Space Mono', monospace" }}>{pb.weight}kg × {pb.reps}</div>
                 </div>
               ))}
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 14, fontFamily: "'DM Sans', sans-serif" }}>Tap to dismiss</div>
             </div>
           </div>
         )}
@@ -6832,9 +6834,10 @@ function HomePage() {
                             handleLog();
                             setLogFlashId(ex.id);
                             setTimeout(() => setLogFlashId(null), 420);
-                            if (w > 0 && w > prevBest && !shownPBs.current.has(ex.id)) {
-                              shownPBs.current.add(ex.id);
+                            if (w > 0 && w > prevBest && w > (shownPBs.current.get(ex.id) ?? 0)) {
+                              shownPBs.current.set(ex.id, w);
                               setNewPBs([{ name: ex.name, weight: w, reps: parseFloat(rInput) || 0 }]);
+                              setTimeout(() => setNewPBs([]), 5000);
                             }
                           }}
                           className={logFlashId === ex.id ? "log-flash" : ""}
