@@ -1849,7 +1849,8 @@ export default function HomePage() {
 
   const goTo = (v: string, dir: "forward" | "back" = "forward") => { setViewDir(dir); setView(v); };
   const goBack = () => goTo("home", "back");
-  const openDay = (d: WorkoutDay) => { setActiveDay(d); goTo("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); };
+  const shownPBs = useRef<Set<string>>(new Set());
+  const openDay = (d: WorkoutDay) => { setActiveDay(d); goTo("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); shownPBs.current.clear(); };
   const begin = () => {
     setStarted(true);
     timer.startT();
@@ -1876,7 +1877,7 @@ export default function HomePage() {
     timer.stopT();
 
     // Detect new PBs before saving (compare session log against history)
-    const detectedPBs: { name: string; weight: number; reps: number }[] = [];
+    const detectedPBs: { id: string; name: string; weight: number; reps: number }[] = [];
     if (activeDay) {
       const exIds = Array.from(new Set(Object.keys(log).map(k => k.split("-").slice(0, -1).join("-"))));
       for (const eid of exIds) {
@@ -1887,7 +1888,7 @@ export default function HomePage() {
         const sessionBest = sessionSets.reduce((b, s) => s.weight > b.weight || (s.weight === b.weight && s.reps > b.reps) ? s : b, { weight: 0, reps: 0 });
         if (sessionBest.weight > 0 && sessionBest.weight > prevBest) {
           const exName = activeDay.sections.flatMap(s => s.exercises).find(e => e.id === eid)?.name ?? eid;
-          detectedPBs.push({ name: exName, weight: sessionBest.weight, reps: sessionBest.reps });
+          detectedPBs.push({ id: eid, name: exName, weight: sessionBest.weight, reps: sessionBest.reps });
         }
       }
     }
@@ -1910,7 +1911,11 @@ export default function HomePage() {
 
     setTimeout(() => {
       setShowCompleteAnim(false);
-      if (detectedPBs.length > 0) setNewPBs(detectedPBs);
+      const unshownPBs = detectedPBs.filter(pb => !shownPBs.current.has(pb.id));
+      if (unshownPBs.length > 0) {
+        setNewPBs(unshownPBs);
+        setTimeout(() => setNewPBs([]), 2400);
+      }
       goBack();
       setActiveDay(null); setLog({}); setStarted(false);
     }, 1400);
@@ -2849,8 +2854,7 @@ export default function HomePage() {
     <div key="home" className={viewDir === "back" ? "view-back" : "view-forward"} style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
       {/* PB celebration overlay */}
       {newPBs.length > 0 && (
-        <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}
-          onAnimationEnd={() => setNewPBs([])}>
+        <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
           <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
             <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
             <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
@@ -4682,6 +4686,21 @@ export default function HomePage() {
 
     return (
       <div key="workout-session" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
+        {newPBs.length > 0 && (
+          <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+            <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
+              <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST</div>
+              {newPBs.map((pb, i) => (
+                <div key={i} style={{ marginBottom: 6 }}>
+                  <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{pb.name}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,215,0,0.7)", fontFamily: "'Space Mono', monospace" }}>{pb.weight}kg × {pb.reps}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {resumeOverlay && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 32 }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 32 }}>SESSION RESTORED</div>
@@ -5110,8 +5129,18 @@ export default function HomePage() {
                           </div>
                         </div>
                         <button
-                          key={`log-${ex.id}-${ns}`}
-                          onClick={() => { handleLog(); setLogFlashId(ex.id); setTimeout(() => setLogFlashId(null), 420); }}
+                          onClick={() => {
+                            const w = parseFloat(effectiveWeight) || 0;
+                            const { weight: prevBest } = lastSessionBest(ex.id);
+                            handleLog();
+                            setLogFlashId(ex.id);
+                            setTimeout(() => setLogFlashId(null), 420);
+                            if (w > 0 && w > prevBest && !shownPBs.current.has(ex.id)) {
+                              shownPBs.current.add(ex.id);
+                              setNewPBs([{ name: ex.name, weight: w, reps: parseFloat(rInput) || 0 }]);
+                              setTimeout(() => setNewPBs([]), 2400);
+                            }
+                          }}
                           className={logFlashId === ex.id ? "log-flash" : ""}
                           style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: ((!effectiveWeight && !isBW) && !rInput) ? 0.4 : 1 }}>
                           {logBtnLabel}
