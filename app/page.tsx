@@ -1987,7 +1987,7 @@ function HomePage() {
 
   const goTo = (v: string, dir: "forward" | "back" = "forward") => { setViewDir(dir); setView(v); };
   const goBack = () => goTo("home", "back");
-  const shownPBs = useRef<Set<string>>(new Set());
+  const shownPBs = useRef<Map<string, number>>(new Map());
   const openDay = (d: WorkoutDay) => { setActiveDay(d); goTo("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); shownPBs.current.clear(); };
   const begin = () => {
     setStarted(true);
@@ -2049,7 +2049,7 @@ function HomePage() {
 
     setTimeout(() => {
       setShowCompleteAnim(false);
-      const unshownPBs = detectedPBs.filter(pb => !shownPBs.current.has(pb.id));
+      const unshownPBs = detectedPBs.filter(pb => pb.weight > (shownPBs.current.get(pb.id) ?? 0));
       if (unshownPBs.length > 0) {
         setNewPBs(unshownPBs);
         setTimeout(() => setNewPBs([]), 2400);
@@ -3083,7 +3083,8 @@ function HomePage() {
     <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
       {/* PB celebration overlay */}
       {newPBs.length > 0 && (
-        <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+        <div onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <div className="pb-overlay" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
           <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
             <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
             <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
@@ -3094,6 +3095,7 @@ function HomePage() {
                 <div style={{ fontSize: 12, color: "rgba(255,215,0,0.7)", fontFamily: "'Space Mono', monospace" }}>{pb.weight}kg × {pb.reps}</div>
               </div>
             ))}
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 14, fontFamily: "'DM Sans', sans-serif" }}>Tap to dismiss</div>
           </div>
         </div>
       )}
@@ -5047,17 +5049,19 @@ function HomePage() {
       _viewKey = "workout-session"; _content = (
       <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
         {newPBs.length > 0 && (
-          <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <div onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <div className="pb-overlay" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
             <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
               <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
               <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
               {newPBs.map((pb, i) => (
                 <div key={i} style={{ marginBottom: 6 }}>
                   <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{pb.name}</div>
                   <div style={{ fontSize: 12, color: "rgba(255,215,0,0.7)", fontFamily: "'Space Mono', monospace" }}>{pb.weight}kg × {pb.reps}</div>
                 </div>
               ))}
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 14, fontFamily: "'DM Sans', sans-serif" }}>Tap to dismiss</div>
             </div>
           </div>
         )}
@@ -5517,10 +5521,10 @@ function HomePage() {
                             handleLog();
                             setLogFlashId(ex.id);
                             setTimeout(() => setLogFlashId(null), 420);
-                            if (w > 0 && w > prevBest && !shownPBs.current.has(ex.id)) {
-                              shownPBs.current.add(ex.id);
+                            if (w > 0 && w > prevBest && w > (shownPBs.current.get(ex.id) ?? 0)) {
+                              shownPBs.current.set(ex.id, w);
                               setNewPBs([{ name: ex.name, weight: w, reps: parseFloat(rInput) || 0 }]);
-                              setTimeout(() => setNewPBs([]), 2400);
+                              setTimeout(() => setNewPBs([]), 5000);
                             }
                           }}
                           className={logFlashId === ex.id ? "log-flash" : ""}
