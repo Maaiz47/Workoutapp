@@ -995,6 +995,18 @@ function lookupExMuscles(name: string): { muscles: string[]; secondaryMuscles: s
   return { muscles: found?.primaryMuscles ?? [], secondaryMuscles: found?.secondaryMuscles ?? [] };
 }
 
+const DEFAULT_REACTION_EMOJIS = ["👍","❤️","😂","😮","💪","🔥"];
+
+const EMOJI_PICKER_CATS = [
+  { icon: "😀", emojis: ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","😉","😊","😇","🥰","😍","🤩","😘","😚","😋","😜","🤪","🤑","🤗","🤔","😐","😑","😶","😏","😒","🙄","😬","😌","😔","😪","😴","🥱","😷","🤢","🤮","🥵","🥶","😵","🤯","😎","🧐","😕","🙁","☹️","😮","😯","😲","😳","🥺","😦","😢","😭","😱","😤","😡","😠","🤬","😈","👿"] },
+  { icon: "👍", emojis: ["👋","🤚","🖐️","✋","🖖","👌","✌️","🤞","🤟","🤘","🤙","👈","👉","👆","👇","☝️","👍","👎","✊","👊","🤛","🤜","👏","🙌","🤝","🙏","💪","✍️","💅"] },
+  { icon: "❤️", emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖","💘","💝","❤️‍🔥","🫂","💑","👫","👬","👭","😻"] },
+  { icon: "🌸", emojis: ["🌸","🌺","🌻","🌹","🌷","🌼","💐","🍀","🌿","🍃","🍂","🍁","🌱","🌲","🌳","🌴","🌾","🍄","🦋","🐝","🌈","⚡","🔥","💧","🌊","⭐","🌟","✨","💫","☀️","🌙","❄️","🐶","🐱","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐙","🦋"] },
+  { icon: "🍕", emojis: ["🍕","🍔","🍟","🌭","🍿","🧀","🥚","🍳","🥞","🧇","🥓","🍗","🥩","🍱","🍣","🍜","🍝","🍛","🍲","🥗","🌮","🌯","🥪","🍞","🥐","🍰","🎂","🍩","🍪","🍫","🍬","🍭","🍦","🧁","🍷","🍸","🍹","🍺","🥂","☕","🧋","🧃","🥛"] },
+  { icon: "⚽", emojis: ["⚽","🏀","🏈","⚾","🎾","🏐","🏉","🎱","🏓","🏸","🥊","🥋","🎯","🏋️","🏆","🥇","🥈","🥉","🏅","🎪","🎭","🎨","🎬","🎤","🎧","🎹","🥁","🎸","🎮","🕹️","🎲","🎁","🎉","🎊","🎀","🎈","💎","👑","✈️","🚀","🚗","🏎️"] },
+  { icon: "💯", emojis: ["💯","🔥","💥","✨","🎉","💬","💭","💤","💢","💦","💨","💫","💥","💣","❓","❗","‼️","⁉️","🔴","🟠","🟡","🟢","🔵","🟣","⚫","⚪","✅","❌","⭕","🔔","🔑","🗝️","🔒","💰","💸","📱","💻","📷","🔬","📚","✏️","📝"] },
+];
+
 // ─── MOTIVATIONAL PHRASES ───────────────────────────────────────────────
 const PHRASES = [
   "Trust the process.",
@@ -1154,6 +1166,12 @@ function HomePage() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{ id: string; body: string; username: string } | null>(null);
   const [reactingToMsgId, setReactingToMsgId] = useState<string | null>(null);
+  const [recentEmojis, setRecentEmojis] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem("ironlog-recent-emojis") || "[]"); } catch { return []; }
+  });
+  const [showFullPicker, setShowFullPicker] = useState(false);
+  const [fullPickerCat, setFullPickerCat] = useState(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [partnerLastSeen, setPartnerLastSeen] = useState<string | null>(null);
   const lastMsgCreatedAtRef = useRef<string | null>(null);
@@ -1974,6 +1992,12 @@ function HomePage() {
       };
     }));
     setReactingToMsgId(null);
+    setShowFullPicker(false);
+    setRecentEmojis(prev => {
+      const next = [emoji, ...prev.filter(e => e !== emoji)].slice(0, 5);
+      try { localStorage.setItem("ironlog-recent-emojis", JSON.stringify(next)); } catch {}
+      return next;
+    });
     await fetch("/api/reactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -4251,7 +4275,9 @@ function HomePage() {
             el.style.transform = "translateX(0)";
             if (dx > 48) setReplyingTo({ id: msg.id, body: msg.body, username: msg.from.username });
           };
-          const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "💪", "🔥"];
+          const quickEmojis = recentEmojis.length >= 1
+            ? recentEmojis.slice(0, 5)
+            : DEFAULT_REACTION_EMOJIS.slice(0, 5);
           return (
             <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", position: "relative", maxWidth: "75%" }}>
               {/* Emoji picker — shown on long-press */}
@@ -4264,9 +4290,13 @@ function HomePage() {
                   transition={{ duration: 0.15 }}
                   style={{ position: "absolute", bottom: "calc(100% + 6px)", [isMine ? "right" : "left"]: 0, zIndex: 20, background: "rgba(30,30,38,0.97)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "6px 10px", display: "flex", gap: 4, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
                 >
-                  {QUICK_EMOJIS.map(em => (
+                  {quickEmojis.map(em => (
                     <button key={em} onClick={() => toggleReaction(msg.id, em)} style={{ background: reactionGroups[em]?.iMine ? "rgba(78,205,196,0.18)" : "none", border: "none", borderRadius: 16, padding: "4px 5px", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>{em}</button>
                   ))}
+                  <button
+                    onClick={e => { e.stopPropagation(); setShowFullPicker(true); }}
+                    style={{ background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 16, padding: "4px 7px", fontSize: 14, cursor: "pointer", lineHeight: 1, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}
+                  >+</button>
                 </motion.div>
               )}
               </AnimatePresence>
@@ -4338,6 +4368,37 @@ function HomePage() {
           <button onClick={sendMessage} disabled={sendingMessage || !messageText.trim()} style={{ padding: "13px 18px", background: messageText.trim() ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, color: messageText.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: messageText.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", transition: "all 0.15s" }}>SEND</button>
         </div>
       </div>
+      {/* Full emoji picker portal */}
+      {showFullPicker && reactingToMsgId && isMounted && createPortal(
+        <div
+          onClick={() => { setShowFullPicker(false); setReactingToMsgId(null); }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.55)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#17171f", borderRadius: "20px 20px 0 0", padding: "0 0 env(safe-area-inset-bottom)", maxHeight: "60vh", display: "flex", flexDirection: "column" }}
+          >
+            {/* Handle + close row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px 8px" }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto" }} />
+              <button onClick={() => { setShowFullPicker(false); setReactingToMsgId(null); }} style={{ position: "absolute", right: 16, top: 12, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            {/* Category tabs */}
+            <div style={{ display: "flex", gap: 4, padding: "0 12px 8px", overflowX: "auto" }}>
+              {EMOJI_PICKER_CATS.map((cat, i) => (
+                <button key={i} onClick={() => setFullPickerCat(i)} style={{ background: fullPickerCat === i ? "rgba(78,205,196,0.18)" : "none", border: fullPickerCat === i ? "1px solid rgba(78,205,196,0.35)" : "1px solid transparent", borderRadius: 10, padding: "5px 8px", fontSize: 18, cursor: "pointer", flexShrink: 0 }}>{cat.icon}</button>
+              ))}
+            </div>
+            {/* Emoji grid */}
+            <div style={{ overflowY: "auto", padding: "4px 12px 16px", display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4 }}>
+              {EMOJI_PICKER_CATS[fullPickerCat].emojis.map(em => (
+                <button key={em} onClick={() => toggleReaction(reactingToMsgId, em)} style={{ background: "none", border: "none", borderRadius: 8, padding: "6px 0", fontSize: 22, cursor: "pointer", lineHeight: 1, textAlign: "center" }}>{em}</button>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
   }
