@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
     const messages = await prisma.message.findMany({
       where: { OR: [{ fromId: uid }, { toId: uid }] },
       include: {
-        from: { select: { id: true, username: true } },
-        to: { select: { id: true, username: true } },
+        from: { select: { id: true, username: true, lastSeenAt: true } },
+        to:   { select: { id: true, username: true, lastSeenAt: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -50,12 +50,18 @@ export async function POST(req: NextRequest) {
   if (!uid) return json({ error: "Unauthorized" }, 401);
 
   try {
-    const { toId, body, type = "text", requestId } = await req.json();
+    const { toId, body, type = "text", requestId, replyToId } = await req.json();
     if (!toId || !body?.trim()) return json({ error: "toId and body required" }, 400);
 
-    const message = await prisma.message.create({
-      data: { fromId: uid, toId, body: body.trim(), type, requestId: requestId ?? null },
-      include: { from: { select: { id: true, username: true } } },
+    // Update sender's lastSeenAt (non-blocking)
+    (prisma.user as any).update({ where: { id: uid }, data: { lastSeenAt: new Date() } }).catch(() => {});
+
+    const message = await (prisma.message as any).create({
+      data: { fromId: uid, toId, body: body.trim(), type, requestId: requestId ?? null, replyToId: replyToId ?? null },
+      include: {
+        from: { select: { id: true, username: true } },
+        replyTo: { select: { id: true, body: true, from: { select: { username: true } } } },
+      },
     });
 
     // Send push notification to recipient (non-blocking)

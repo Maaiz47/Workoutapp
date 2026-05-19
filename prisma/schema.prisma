@@ -32,6 +32,7 @@ model User {
   clientProposals   PlanProposal[]   @relation("ClientProposals")
   bodyMetrics       BodyMetric[]
   savedRoutines     SavedRoutine[]
+  lastSeenAt        DateTime?
 }
 
 model TrainerRequest {
@@ -145,12 +146,15 @@ model Message {
   type       String        @default("text")
   requestId  String?
   proposalId String?
+  replyToId  String?
   delivered  Boolean       @default(false)
   read       Boolean       @default(false)
   createdAt  DateTime      @default(now())
   from       User          @relation("SentMessages",     fields: [fromId], references: [id], onDelete: Cascade)
   to         User          @relation("ReceivedMessages", fields: [toId],   references: [id], onDelete: Cascade)
   proposal   PlanProposal? @relation(fields: [proposalId], references: [id])
+  replyTo    Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies    Message[]     @relation("MessageReplies")
 
   @@index([toId])
   @@index([fromId, toId])

@@ -29,3 +29,19 @@ export async function POST(req: NextRequest) {
     return json({ error: e?.message ?? "Failed" }, 500);
   }
 }
+
+// DELETE — remove the specific device subscription on logout
+export async function DELETE(req: NextRequest) {
+  const uid = req.cookies.get(COOKIE)?.value;
+  if (!uid) return json({ error: "Unauthorized" }, 401);
+
+  try {
+    const { endpoint } = await req.json();
+    if (endpoint) {
+      await prisma.pushSubscription.deleteMany({ where: { userId: uid, endpoint } });
+    }
+    return json({ ok: true });
+  } catch (e: any) {
+    return json({ error: e?.message ?? "Failed" }, 500);
+  }
+}

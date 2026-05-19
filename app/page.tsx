@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import CountUp from "react-countup";
+import { createPortal } from "react-dom";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 import { EXERCISES } from "../lib/exercises";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
@@ -1014,7 +1017,7 @@ const PHRASES = [
 ];
 
 // ─── MAIN ───────────────────────────────────────────────────────────────
-export default function HomePage() {
+function HomePage() {
   const [user, setUser] = useState<{ id: string; username: string; role: string; roleRequest?: string | null } | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
@@ -1143,6 +1146,8 @@ export default function HomePage() {
   const [conversationMessages, setConversationMessages] = useState<any[]>([]);
   const [messageText, setMessageText] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; body: string; username: string } | null>(null);
+  const [partnerLastSeen, setPartnerLastSeen] = useState<string | null>(null);
   const lastMsgCreatedAtRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1284,6 +1289,15 @@ export default function HomePage() {
     }).catch(() => {});
   }, [user]);
 
+  // Heartbeat — update lastSeenAt every 60s while app is open and user is logged in
+  useEffect(() => {
+    if (!user) return;
+    const beat = () => fetch("/api/presence", { method: "POST" }).catch(() => {});
+    beat(); // fire immediately on login
+    const id = setInterval(beat, 60_000);
+    return () => clearInterval(id);
+  }, [user]);
+
   // Poll conversations list every 5s while on the messages view
   useEffect(() => {
     if (view !== "messages") return;
@@ -1333,11 +1347,12 @@ export default function HomePage() {
         }
       } catch {}
     };
-    // Periodically re-fetch all messages to pick up read/delivered status changes on sent messages
+    // Periodically re-fetch all messages to pick up read/delivered/lastSeen changes
     const pollStatus = async () => {
       try {
         const res = await fetch(`/api/messages/${partnerId}`);
         const data = await res.json();
+        if (data.partnerLastSeen !== undefined) setPartnerLastSeen(data.partnerLastSeen);
         if (data.messages?.length > 0) {
           setConversationMessages(prev => {
             const statusMap = new Map<string, { read: boolean; delivered: boolean }>(data.messages.map((m: any) => [m.id, { read: m.read, delivered: m.delivered }]));
@@ -1582,6 +1597,21 @@ export default function HomePage() {
   };
 
   const doLogout = async () => {
+    // Remove this device's push subscription before clearing the session
+    try {
+      if ("serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await fetch("/api/push/subscribe", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          });
+          await sub.unsubscribe();
+        }
+      }
+    } catch {}
     await fetch("/api/auth", { method: "DELETE" });
     setUser(null); setView("home"); setActiveDay(null); timer.stopT();
     setAuthStep("username"); setPasswordInput(""); setEmailInput("");
@@ -1885,6 +1915,7 @@ export default function HomePage() {
         setConversations(prev => prev.map(c => c.partner.id === partner.id ? { ...c, unreadCount: 0 } : c));
         setUnreadCount(prev => Math.max(0, prev - (conversations.find(c => c.partner.id === partner.id)?.unreadCount ?? 0)));
       }
+      if (data.partnerLastSeen !== undefined) setPartnerLastSeen(data.partnerLastSeen);
     } catch {}
   };
 
@@ -1892,12 +1923,14 @@ export default function HomePage() {
     if (!messageText.trim() || !activeConversation || sendingMessage) return;
     setSendingMessage(true);
     const body = messageText.trim();
-    setMessageText(""); // clear immediately so input doesn't feel sticky
+    const replyToId = replyingTo?.id ?? null;
+    setMessageText("");
+    setReplyingTo(null);
     try {
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toId: activeConversation.id, body }),
+        body: JSON.stringify({ toId: activeConversation.id, body, replyToId }),
       });
       const data = await res.json();
       if (data.message) {
@@ -3887,12 +3920,36 @@ export default function HomePage() {
   );
 
   // ─── CONVERSATION ────────────────────────────────────────────────────
-  if (view === "conversation" && activeConversation) return (
-    <div key="conversation" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100dvh" }}>
-      <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
-        <button onClick={() => { setView("messages"); setActiveConversation(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
-        <div style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>@{activeConversation.username}</div>
-      </div>
+  let _viewKey: string = view;
+  let _content: React.ReactNode = null;
+  if (view === "conversation" && activeConversation) { _viewKey = `conv-${activeConversation.id}`; _content = (
+    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100dvh" }}>
+      {(() => {
+        const isOnline = partnerLastSeen && (Date.now() - new Date(partnerLastSeen).getTime()) < 2 * 60 * 1000;
+        const lastSeenText = (() => {
+          if (!partnerLastSeen) return null;
+          const diff = Math.floor((Date.now() - new Date(partnerLastSeen).getTime()) / 1000);
+          if (diff < 120) return null;
+          if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+          if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+          return new Date(partnerLastSeen).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+        })();
+        return (
+          <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+            <button onClick={() => { setView("messages"); setActiveConversation(null); setReplyingTo(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", gap: 7 }}>
+                @{activeConversation.username}
+                {isOnline && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ecc71", display: "inline-block", flexShrink: 0 }} />}
+              </div>
+              {!isOnline && lastSeenText && (
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>Last seen {lastSeenText}</div>
+              )}
+              {isOnline && <div style={{ fontSize: 11, color: "#2ecc71", marginTop: 1 }}>Online</div>}
+            </div>
+          </div>
+        );
+      })()}
       <div ref={messagesContainerRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {conversationMessages.length === 0 && (
           <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 40 }}>No messages yet</div>
@@ -3960,38 +4017,93 @@ export default function HomePage() {
             );
           };
           const tickColor = msg.read ? "#4ECDC4" : msg.delivered ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.2)";
+          // Swipe-to-reply: track touch per message via data attribute + CSS transform
+          const onTouchStart = (e: React.TouchEvent) => {
+            const el = e.currentTarget as HTMLElement;
+            el.dataset.sx = String(e.touches[0].clientX);
+            el.dataset.swiping = "1";
+          };
+          const onTouchMove = (e: React.TouchEvent) => {
+            const el = e.currentTarget as HTMLElement;
+            if (!el.dataset.swiping) return;
+            const dx = Math.max(0, Math.min(72, e.touches[0].clientX - Number(el.dataset.sx)));
+            el.style.transform = `translateX(${dx}px)`;
+            el.style.transition = "none";
+          };
+          const onTouchEnd = (e: React.TouchEvent) => {
+            const el = e.currentTarget as HTMLElement;
+            if (!el.dataset.swiping) return;
+            delete el.dataset.swiping;
+            const dx = e.changedTouches[0].clientX - Number(el.dataset.sx);
+            el.style.transition = "transform 0.2s ease";
+            el.style.transform = "translateX(0)";
+            if (dx > 48) setReplyingTo({ id: msg.id, body: msg.body, username: msg.from.username });
+          };
           return (
-            <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", maxWidth: "75%" }}>
-              <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.4 }}>{renderBody(msg.body)}</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "flex", alignItems: "center", justifyContent: isMine ? "flex-end" : "flex-start", gap: 4 }}>
-                <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                {isMine && (
-                  <span style={{ color: tickColor, fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center" }}>
-                    {msg.read || msg.delivered ? (
-                      <span style={{ letterSpacing: -3, paddingRight: 3 }}>✓✓</span>
-                    ) : (
-                      <span>✓</span>
-                    )}
-                  </span>
+            <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", position: "relative", maxWidth: "75%" }}>
+              {/* Reply arrow — fades in as user swipes */}
+              <div style={{ position: "absolute", left: isMine ? "auto" : -28, right: isMine ? -28 : "auto", top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "rgba(78,205,196,0.7)", pointerEvents: "none" }}>↩</div>
+              <div
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
+                style={{ background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", willChange: "transform" }}
+              >
+                {/* Quoted reply preview */}
+                {msg.replyTo && (
+                  <div style={{ borderLeft: "3px solid rgba(78,205,196,0.5)", paddingLeft: 8, marginBottom: 6, opacity: 0.7 }}>
+                    <div style={{ fontSize: 10, color: "#4ECDC4", fontWeight: 600, marginBottom: 2 }}>@{msg.replyTo.from.username}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>{msg.replyTo.body}</div>
+                  </div>
                 )}
+                <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.4 }}>{renderBody(msg.body)}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "flex", alignItems: "center", justifyContent: isMine ? "flex-end" : "flex-start", gap: 4 }}>
+                  <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  {isMine && (
+                    <span style={{ color: tickColor, fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center" }}>
+                      {msg.read || msg.delivered ? <span style={{ letterSpacing: -3, paddingRight: 3 }}>✓✓</span> : <span>✓</span>}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           );
         })}
         <div ref={messagesEndRef} />
       </div>
-      <div style={{ padding: "12px 20px 32px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8, flexShrink: 0 }}>
-        <input
-          value={messageText}
-          onChange={e => setMessageText(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-          placeholder="Message…"
-          style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "13px 16px", outline: "none" }}
-        />
-        <button onClick={sendMessage} disabled={sendingMessage || !messageText.trim()} style={{ padding: "13px 18px", background: messageText.trim() ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, color: messageText.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: messageText.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", transition: "all 0.15s" }}>SEND</button>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+        {/* Reply preview strip */}
+        <AnimatePresence>
+        {replyingTo && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            style={{ overflow: "hidden", background: "rgba(78,205,196,0.06)", borderBottom: "1px solid rgba(78,205,196,0.12)", padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 10, color: "#4ECDC4", fontWeight: 600, marginBottom: 2 }}>Replying to @{replyingTo.username}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{replyingTo.body}</div>
+            </div>
+            <button onClick={() => setReplyingTo(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 18, cursor: "pointer", flexShrink: 0, lineHeight: 1 }}>×</button>
+          </motion.div>
+        )}
+        </AnimatePresence>
+        <div style={{ padding: "12px 20px 32px", display: "flex", gap: 8 }}>
+          <input
+            value={messageText}
+            onChange={e => setMessageText(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+            placeholder={replyingTo ? `Reply to @${replyingTo.username}…` : "Message…"}
+            style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "13px 16px", outline: "none" }}
+          />
+          <button onClick={sendMessage} disabled={sendingMessage || !messageText.trim()} style={{ padding: "13px 18px", background: messageText.trim() ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, color: messageText.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: messageText.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", transition: "all 0.15s" }}>SEND</button>
+        </div>
       </div>
     </div>
   );
+  }
 
   // ─── SETTINGS ───────────────────────────────────────────────────────
   if (view === "settings") {
@@ -5612,5 +5724,629 @@ export default function HomePage() {
     );
   }
 
-  return null;
+  const _isForward = viewDir !== "back";
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={_viewKey}
+        initial={{ opacity: 0, x: _isForward ? 22 : -22 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: _isForward ? -22 : 22 }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        style={{ minHeight: "100dvh" }}
+      >
+        {_content}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function LifterIcon({ size = 120, opacity = 1 }: { size?: number; opacity?: number }) {
+  const stroke = { stroke: "#fff", strokeWidth: 8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
+  return (
+    <motion.svg width={size} height={size} viewBox="0 0 200 200" aria-hidden style={{ display: "block", margin: "0 auto", opacity }}>
+      <motion.g
+        animate={{ y: [10, -6, 10], scaleY: [0.84, 1, 0.84] }}
+        transition={{ duration: 1.8, ease: "easeInOut", repeat: Infinity, times: [0, 0.5, 1] }}
+        style={{ transformOrigin: "100px 132px" }}
+      >
+        <line x1="35" y1="72" x2="165" y2="72" stroke="#FF6B6B" strokeWidth="7" strokeLinecap="round"/>
+        <rect x="20" y="54" width="11" height="36" rx="3" fill="#FF6B6B"/>
+        <rect x="33" y="58" width="8"  height="28" rx="3" fill="#FF6B6B"/>
+        <rect x="159" y="58" width="8" height="28" rx="3" fill="#FF6B6B"/>
+        <rect x="169" y="54" width="11" height="36" rx="3" fill="#FF6B6B"/>
+        <circle cx="100" cy="52" r="10" fill="#fff"/>
+        <line x1="100" y1="65"  x2="100" y2="116" {...stroke}/>
+        <line x1="100" y1="82"  x2="62"  y2="72"  {...stroke}/>
+        <line x1="100" y1="82"  x2="138" y2="72"  {...stroke}/>
+        <line x1="100" y1="116" x2="75"  y2="150" {...stroke}/>
+        <line x1="100" y1="116" x2="125" y2="150" {...stroke}/>
+        <line x1="75"  y1="150" x2="62"  y2="178" {...stroke}/>
+        <line x1="125" y1="150" x2="138" y2="178" {...stroke}/>
+        <line x1="54"  y1="178" x2="70"  y2="178" {...stroke}/>
+        <line x1="130" y1="178" x2="146" y2="178" {...stroke}/>
+      </motion.g>
+    </motion.svg>
+  );
+}
+
+// Vertical barbell mark — plates drop from top and bottom onto the bar.
+// height prop controls rendered height; width is derived from the 40:108 viewBox ratio.
+// Horizontal barbell with round plates — matches the app icon.
+// Plates fly in from off-screen left/right; bar shaft appears first.
+function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: number }) {
+  const h = Math.round(width * 88 / 320);
+  const slam = { type: "spring" as const, stiffness: 500, damping: 18 };
+  const platesDelay = delay + 0.42;
+  return (
+    <div style={{ width, height: h, overflow: "hidden", position: "relative", margin: "0 auto" }}>
+      <svg width={width} height={h} viewBox="0 0 320 88" style={{ overflow: "visible", display: "block" }}>
+        <defs>
+          <linearGradient id="bm-chrome" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+            <stop offset="0%"   stopColor="#f0f0f0"/>
+            <stop offset="30%"  stopColor="#c0c0c0"/>
+            <stop offset="65%"  stopColor="#808080"/>
+            <stop offset="100%" stopColor="#b8b8b8"/>
+          </linearGradient>
+          <radialGradient id="bm-plo" cx="38%" cy="32%" r="68%">
+            <stop offset="0%"   stopColor="#ff7a7a"/>
+            <stop offset="55%"  stopColor="#dd2b2b"/>
+            <stop offset="100%" stopColor="#8a1010"/>
+          </radialGradient>
+          <radialGradient id="bm-pli" cx="38%" cy="32%" r="68%">
+            <stop offset="0%"   stopColor="#ff6868"/>
+            <stop offset="55%"  stopColor="#cc2020"/>
+            <stop offset="100%" stopColor="#7a0e0e"/>
+          </radialGradient>
+          <radialGradient id="bm-pro" cx="62%" cy="32%" r="68%">
+            <stop offset="0%"   stopColor="#ff7a7a"/>
+            <stop offset="55%"  stopColor="#dd2b2b"/>
+            <stop offset="100%" stopColor="#8a1010"/>
+          </radialGradient>
+          <radialGradient id="bm-pri" cx="62%" cy="32%" r="68%">
+            <stop offset="0%"   stopColor="#ff6868"/>
+            <stop offset="55%"  stopColor="#cc2020"/>
+            <stop offset="100%" stopColor="#7a0e0e"/>
+          </radialGradient>
+        </defs>
+
+        {/* Bar shaft — scaleX in from center first */}
+        <motion.g
+          initial={{ scaleX: 0, opacity: 0 }}
+          animate={{ scaleX: 1, opacity: 1 }}
+          style={{ transformOrigin: "160px 44px" }}
+          transition={{ duration: 0.38, delay, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <rect x="0"   y="38" width="320" height="12" rx="5" fill="url(#bm-chrome)"/>
+          {/* Knurling centre section */}
+          <rect x="100" y="39" width="120" height="10" rx="3" fill="rgba(0,0,0,0.22)"/>
+        </motion.g>
+
+        {/* Left outer plate — tall thin rect (side/edge view) */}
+        <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
+          <rect x="10" y="6"  width="18" height="76" rx="5" fill="url(#bm-plo)"/>
+          <rect x="10" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
+        </motion.g>
+        {/* Left inner plate — stagger 70ms, slightly shorter */}
+        <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
+          <rect x="26" y="16" width="13" height="56" rx="4" fill="url(#bm-pli)"/>
+        </motion.g>
+
+        {/* Right outer plate */}
+        <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
+          <rect x="292" y="6"  width="18" height="76" rx="5" fill="url(#bm-pro)"/>
+          <rect x="292" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
+        </motion.g>
+        {/* Right inner plate — stagger 70ms */}
+        <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
+          <rect x="281" y="16" width="13" height="56" rx="4" fill="url(#bm-pri)"/>
+        </motion.g>
+      </svg>
+    </div>
+  );
+}
+
+function VerticalBarMark({ height = 96, delay = 0 }: { height?: number; delay?: number }) {
+  const w = Math.round(height * 40 / 108);
+  const slam = { type: "spring" as const, stiffness: 480, damping: 18 };
+  const barDelay = delay;
+  const platesDelay = delay + 0.52;
+  return (
+    <div style={{ width: w, height, overflow: "hidden", position: "relative", flexShrink: 0 }}>
+      <svg width={w} height={height} viewBox="0 0 40 108" style={{ overflow: "visible", display: "block" }}>
+        <defs>
+          <linearGradient id="vbm-steel" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95"/>
+            <stop offset="100%" stopColor="#aaaaaa" stopOpacity="0.75"/>
+          </linearGradient>
+          <linearGradient id="vbm-fire" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FF6B6B"/>
+            <stop offset="100%" stopColor="#ee5a24"/>
+          </linearGradient>
+        </defs>
+
+        {/* Bar shaft + sleeves — appears first */}
+        <motion.g
+          initial={{ scaleY: 0, opacity: 0 }}
+          animate={{ scaleY: 1, opacity: 1 }}
+          style={{ transformOrigin: "20px 54px" }}
+          transition={{ duration: 0.45, delay: barDelay, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {/* Top sleeve */}
+          <rect x="16" y="0"  width="8" height="15" rx="2" fill="url(#vbm-steel)"/>
+          {/* Bar shaft */}
+          <rect x="17" y="30" width="6" height="48" rx="2" fill="url(#vbm-steel)" opacity="0.8"/>
+          {/* Bottom sleeve */}
+          <rect x="16" y="93" width="8" height="15" rx="2" fill="url(#vbm-steel)"/>
+        </motion.g>
+
+        {/* Top plates — drop from above */}
+        <motion.g
+          initial={{ y: -120 }} animate={{ y: 0 }}
+          transition={{ ...slam, delay: platesDelay }}
+        >
+          {/* Outer plate */}
+          <rect x="2"  y="13" width="36" height="13" rx="3" fill="url(#vbm-fire)"/>
+          {/* Inner plate */}
+          <rect x="7"  y="24" width="26" height="8"  rx="2" fill="url(#vbm-fire)" opacity="0.75"/>
+        </motion.g>
+
+        {/* Bottom plates — rise from below (stagger +60ms) */}
+        <motion.g
+          initial={{ y: 120 }} animate={{ y: 0 }}
+          transition={{ ...slam, delay: platesDelay + 0.06 }}
+        >
+          {/* Inner plate */}
+          <rect x="7"  y="76" width="26" height="8"  rx="2" fill="url(#vbm-fire)" opacity="0.75"/>
+          {/* Outer plate */}
+          <rect x="2"  y="82" width="36" height="13" rx="3" fill="url(#vbm-fire)"/>
+        </motion.g>
+      </svg>
+    </div>
+  );
+}
+
+// Full lockup: vertical mark + IRONLOG wordmark side by side.
+function LogoLockup({ markHeight = 80, fontSize = 56, delay = 0, animate: doAnimate = true }: { markHeight?: number; fontSize?: number; delay?: number; animate?: boolean }) {
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: Math.round(markHeight * 0.25) }}>
+      <VerticalBarMark height={markHeight} delay={doAnimate ? delay : 999} />
+      <motion.div
+        initial={doAnimate ? { opacity: 0, x: -12 } : false}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.55, delay: delay + 0.72, ease: [0.16, 1, 0.3, 1] }}
+        style={{ fontFamily: "'Space Mono', monospace", fontSize, fontWeight: 700, letterSpacing: Math.round(fontSize * 0.12), lineHeight: 1, whiteSpace: "nowrap" as const }}
+      >
+        <span style={{ color: "#fff" }}>IRON</span><span style={{ color: "#FF6B6B" }}>LOG</span>
+      </motion.div>
+    </div>
+  );
+}
+
+function BarIcon({ width = 160, delay = 0, fallIn = false }: { width?: number; delay?: number; fallIn?: boolean }) {
+  const h = Math.round(width * 50 / 156);
+  const barDelay = delay;
+  const platesDelay = delay + (fallIn ? 0.58 : 0.22);
+  const slam = { type: "spring" as const, stiffness: 520, damping: 17 };
+  return (
+    <div style={{ width, height: h, overflow: "hidden", margin: "0 auto", position: "relative" }}>
+      <svg width={width} height={h} viewBox="18 64 156 50" style={{ overflow: "visible", display: "block" }}>
+        <defs>
+          <linearGradient id="bi-steel" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95"/>
+            <stop offset="100%" stopColor="#999999" stopOpacity="0.8"/>
+          </linearGradient>
+          <linearGradient id="bi-fire" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FF6B6B"/>
+            <stop offset="100%" stopColor="#ee5a24"/>
+          </linearGradient>
+        </defs>
+        <motion.rect
+          x="46" y="83" width="100" height="10" rx="5"
+          fill="url(#bi-steel)" opacity="0.7"
+          initial={fallIn ? { y: -150, opacity: 0 } : { scaleX: 0, opacity: 0 }}
+          animate={fallIn ? { y: 0, opacity: 0.7 } : { scaleX: 1, opacity: 0.7 }}
+          style={{ transformOrigin: "96px 88px" }}
+          transition={fallIn
+            ? { duration: 0.6, delay: barDelay, ease: [0.55, 0, 0.45, 1] }
+            : { duration: 0.35, delay: barDelay, ease: [0.16, 1, 0.3, 1] }}
+        />
+        <motion.g initial={{ x: -320 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
+          <rect x="28" y="68" width="14" height="40" rx="4" fill="url(#bi-fire)"/>
+          <rect x="22" y="78" width="8"  height="20" rx="3" fill="#fff" opacity="0.3"/>
+        </motion.g>
+        <motion.g initial={{ x: -320 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.06 }}>
+          <rect x="38" y="73" width="10" height="30" rx="3" fill="url(#bi-fire)" opacity="0.75"/>
+        </motion.g>
+        <motion.g initial={{ x: 320 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
+          <rect x="150" y="68" width="14" height="40" rx="4" fill="url(#bi-fire)"/>
+          <rect x="162" y="78" width="8"  height="20" rx="3" fill="#fff" opacity="0.3"/>
+        </motion.g>
+        <motion.g initial={{ x: 320 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.06 }}>
+          <rect x="144" y="73" width="10" height="30" rx="3" fill="url(#bi-fire)" opacity="0.75"/>
+        </motion.g>
+      </svg>
+    </div>
+  );
+}
+
+function PwaBanner() {
+  const [platform, setPlatform] = useState<"ios" | "android" | null>(null);
+  const [visible, setVisible] = useState(false);
+  const [urgent, setUrgent] = useState(false);
+
+  useEffect(() => {
+    if (window.self !== window.top) return;
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+    if (isStandalone) return;
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/.test(ua);
+    const isAndroid = /Android/.test(ua);
+    if (!isIOS && !isAndroid) return;
+
+    // Set platform regardless of cooldown — needed for the signup re-prompt path
+    setPlatform(isIOS ? "ios" : "android");
+
+    // Signup re-prompt: bypass cooldown, show as urgent/important
+    const onSignup = () => { setUrgent(true); setVisible(true); };
+    window.addEventListener("ironlog-pwa-signup", onSignup);
+
+    // Regular flow: respect 3-day cooldown
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const last = localStorage.getItem("ironlog-pwa-v2");
+    const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+    if (!last || Date.now() - parseInt(last) >= THREE_DAYS) {
+      t = setTimeout(() => setVisible(true), 1500);
+    }
+
+    return () => {
+      if (t) clearTimeout(t);
+      window.removeEventListener("ironlog-pwa-signup", onSignup);
+    };
+  }, []);
+
+  const dismiss = () => {
+    localStorage.setItem("ironlog-pwa-v2", String(Date.now()));
+    setVisible(false);
+    setUrgent(false);
+  };
+
+  if (!platform) return null;
+
+  // Shared phone frame
+  const phone = (children: React.ReactNode, h = 220) => (
+    <div style={{ width: 160, height: h, borderRadius: 20, border: "2px solid #3a3a3a", background: "#111", overflow: "hidden", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+      {/* status bar */}
+      <div style={{ background: "#111", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 10px 3px", flexShrink: 0 }}>
+        <span style={{ fontSize: 7, color: "#fff", fontWeight: 700 }}>18:12</span>
+        <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+          <span style={{ fontSize: 6, color: "#fff" }}>▂▄▆</span>
+          <span style={{ fontSize: 6, color: "#fff" }}>WiFi</span>
+          <span style={{ fontSize: 6, color: "#fff" }}>▓</span>
+        </div>
+      </div>
+      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>{children}</div>
+    </div>
+  );
+
+  // Shared IRONLOG app content — matches actual landing page layout
+  const appContent = (
+    <div style={{ flex: 1, background: "#0a0a0f", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Nav */}
+      <div style={{ padding: "4px 6px", display: "flex", alignItems: "center", gap: 3, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+        <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 7.5, fontWeight: 700, color: "#fff" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></span>
+        <div style={{ display: "flex", gap: 2, marginLeft: "auto" }}>
+          <span style={{ fontSize: 4, background: "rgba(255,107,107,0.15)", border: "0.5px solid rgba(255,107,107,0.5)", color: "#FF6B6B", borderRadius: 3, padding: "1px 3px", fontWeight: 600 }}>ATHLETES</span>
+          <span style={{ fontSize: 4, background: "rgba(78,205,196,0.15)", border: "0.5px solid rgba(78,205,196,0.5)", color: "#4ECDC4", borderRadius: 3, padding: "1px 3px", fontWeight: 600 }}>TRAINERS</span>
+        </div>
+      </div>
+      {/* Hero */}
+      <div style={{ textAlign: "center", padding: "5px 4px 3px", flexShrink: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 900, color: "#fff", letterSpacing: 0.5, lineHeight: 1 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+        <div style={{ fontSize: 3.5, color: "rgba(255,255,255,0.3)", letterSpacing: 1.5, marginTop: 2 }}>LIFT · TRACK · PROGRESS</div>
+        <div style={{ fontSize: 4, color: "rgba(255,255,255,0.25)", fontStyle: "italic", marginTop: 2 }}>Do the work.</div>
+      </div>
+      {/* Stats */}
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "3px 4px", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", flexShrink: 0 }}>
+        {[["119+","EXERCISES"],["FREE","FOR ATHLETES"],["PWA","INSTALLABLE"]].map(([v,l]) => (
+          <div key={l} style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 6, fontWeight: 700, color: "#FF6B6B" }}>{v}</div>
+            <div style={{ fontSize: 3, color: "rgba(255,255,255,0.3)", letterSpacing: 0.3 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+      {/* Feature cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, padding: "3px 4px" }}>
+        {[
+          ["Log every set in seconds","Your last session's numbers are always right there — just enter weight and reps."],
+          ["Rest timer follows you","Configurable per exercise. Push notification fires even with your screen locked."],
+          ["Live personal bests","A trophy overlay fires the moment you beat a record — no waiting until the end."],
+          ["Personalised plan","Tell us your goals, equipment, and schedule. Get a full weekly split instantly."],
+        ].map(([t,d]) => (
+          <div key={t} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 3, padding: "3px 4px" }}>
+            <div style={{ fontSize: 4.5, fontWeight: 700, color: "#fff", marginBottom: 1 }}>{t}</div>
+            <div style={{ fontSize: 3, color: "rgba(255,255,255,0.3)", lineHeight: 1.4 }}>{d}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const iosSteps = [
+    {
+      label: "Open the website in Safari",
+      mockup: phone(
+        <>
+          {/* Safari URL bar */}
+          <div style={{ background: "#1c1c1e", padding: "5px 8px 4px", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 6, color: "#aaa", fontWeight: 600 }}>AA</span>
+              <div style={{ flex: 1, background: "#2c2c2e", borderRadius: 7, padding: "3px 8px", textAlign: "center" }}>
+                <span style={{ fontSize: 7, color: "#eee" }}>ironlog.app</span>
+              </div>
+              <span style={{ fontSize: 9, color: "#aaa" }}>↻</span>
+            </div>
+          </div>
+          {/* Real page via iframe — PwaBanner is suppressed inside iframes */}
+          <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+            <iframe src="/" scrolling="no" tabIndex={-1} style={{ width: 390, height: 550, border: "none", transform: "scale(0.4)", transformOrigin: "top left", pointerEvents: "none" }} />
+          </div>
+          {/* Safari toolbar */}
+          <div style={{ background: "#1c1c1e", borderTop: "1px solid #333", padding: "5px 0", display: "flex", justifyContent: "space-around", alignItems: "center", flexShrink: 0 }}>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>◁</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>▷</span>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>⬆</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>📖</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>⊞</span>
+          </div>
+        </>
+      ),
+    },
+    {
+      label: 'Tap the Share button (⬆) then "Add to Home Screen"',
+      mockup: phone(
+        <>
+          {/* App peeking behind sheet — mini nav bar matching real app header */}
+          <div style={{ background: "#0a0a0f", padding: "4px 7px", display: "flex", alignItems: "center", gap: 4, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, fontWeight: 700, color: "#fff" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></span>
+            <div style={{ display: "flex", gap: 2, marginLeft: "auto" }}>
+              <span style={{ fontSize: 4.5, background: "rgba(255,107,107,0.15)", border: "0.5px solid rgba(255,107,107,0.5)", color: "#FF6B6B", borderRadius: 3, padding: "1px 3px", fontWeight: 600 }}>ATHLETES</span>
+              <span style={{ fontSize: 4.5, background: "rgba(78,205,196,0.15)", border: "0.5px solid rgba(78,205,196,0.5)", color: "#4ECDC4", borderRadius: 3, padding: "1px 3px", fontWeight: 600 }}>TRAINERS</span>
+            </div>
+          </div>
+          {/* iOS share sheet */}
+          <div style={{ flex: 1, background: "#1c1c1e", display: "flex", flexDirection: "column" }}>
+            {/* App info row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 7px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 }}>
+              <img src="/apple-touch-icon.png" alt="IRONLOG" style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: 6, fontWeight: 700, color: "#fff" }}>IRONLOG</div>
+                <div style={{ fontSize: 4.5, color: "#888" }}>ironlog.app</div>
+              </div>
+              <div style={{ marginLeft: "auto", background: "rgba(255,255,255,0.08)", borderRadius: 6, padding: "1px 4px" }}>
+                <span style={{ fontSize: 4.5, color: "#aaa" }}>Options ›</span>
+              </div>
+            </div>
+            {/* App icon row */}
+            <div style={{ display: "flex", justifyContent: "space-around", padding: "4px 4px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 }}>
+              {[{ c: "#29ABE2", l: "AirDrop" }, { c: "#34C759", l: "Messages" }, { c: "#1976D2", l: "Mail" }, { c: "#25D366", l: "WhatsApp" }].map(({ c, l }) => (
+                <div key={l} style={{ textAlign: "center" }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 6, background: c, margin: "0 auto 1px" }} />
+                  <div style={{ fontSize: 3.5, color: "#888" }}>{l}</div>
+                </div>
+              ))}
+            </div>
+            {/* Action list */}
+            <div style={{ background: "#2c2c2e", margin: "3px 3px 0", borderRadius: 7, overflow: "hidden", flex: 1 }}>
+              {[
+                { label: "Copy", icon: "⎘" },
+                { label: "Add to Reading List", icon: "∞" },
+                { label: "Add Bookmark", icon: "□" },
+                { label: "Add to Favorites", icon: "☆" },
+              ].map(({ label, icon }, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span style={{ fontSize: 6.5, color: "rgba(255,255,255,0.75)" }}>{label}</span>
+                  <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)" }}>{icon}</span>
+                </div>
+              ))}
+              {/* Highlighted — red rectangle border like the reference */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderBottom: "1px solid rgba(255,255,255,0.05)", outline: "2px solid #FF6B6B", outlineOffset: "-1px" }}>
+                <span style={{ fontSize: 6.5, color: "#fff", fontWeight: 700 }}>Add to Home Screen</span>
+                <span style={{ fontSize: 7, color: "rgba(255,255,255,0.5)" }}>⊞</span>
+              </div>
+              {[
+                { label: "Markup", icon: "✎" },
+                { label: "Print", icon: "▤" },
+              ].map(({ label, icon }, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span style={{ fontSize: 6.5, color: "rgba(255,255,255,0.75)" }}>{label}</span>
+                  <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)" }}>{icon}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Safari toolbar — share button highlighted with red box */}
+          <div style={{ background: "#1c1c1e", borderTop: "1px solid #333", padding: "5px 0", display: "flex", justifyContent: "space-around", alignItems: "center", flexShrink: 0 }}>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>◁</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>▷</span>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 11, color: "#FF6B6B" }}>⬆</span>
+              <div style={{ position: "absolute", inset: -3, border: "2px solid #FF6B6B", borderRadius: 3 }} />
+            </div>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>📖</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>⊞</span>
+          </div>
+        </>,
+        310
+      ),
+    },
+    {
+      label: "The app will be added to your Home screen",
+      mockup: phone(
+        <div style={{ flex: 1, background: "linear-gradient(160deg,#1a0a0a,#2d0d0d)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "16px 8px", gap: 6 }}>
+          <img src="/apple-touch-icon.png" alt="IRONLOG" style={{ width: 48, height: 48, borderRadius: 13, boxShadow: "0 6px 20px rgba(255,107,107,0.4)" }} />
+          <span style={{ fontSize: 7, color: "#fff", fontWeight: 500, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>IRONLOG</span>
+        </div>,
+        240
+      ),
+    },
+  ];
+
+  const androidSteps = [
+    {
+      label: "Open the website in Chrome",
+      mockup: phone(
+        <>
+          {/* Chrome address bar */}
+          <div style={{ background: "#202124", padding: "5px 6px", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <span style={{ fontSize: 9, color: "#888" }}>□</span>
+            <div style={{ flex: 1, background: "#303134", borderRadius: 20, padding: "3px 7px", display: "flex", alignItems: "center", gap: 3 }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#34a853" }} />
+              <span style={{ fontSize: 6.5, color: "#bbb" }}>ironlog.app</span>
+            </div>
+            <span style={{ fontSize: 8, color: "#888" }}>☆</span>
+            <span style={{ fontSize: 12, color: "#888", fontWeight: 900 }}>⋮</span>
+          </div>
+          {/* Real page via iframe */}
+          <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+            <iframe src="/" scrolling="no" tabIndex={-1} style={{ width: 390, height: 600, border: "none", transform: "scale(0.4)", transformOrigin: "top left", pointerEvents: "none" }} />
+          </div>
+        </>
+      ),
+    },
+    {
+      label: 'Tap the menu (⋮) then "Add to Home screen"',
+      mockup: phone(
+        <>
+          {/* Chrome bar with ⋮ highlighted */}
+          <div style={{ background: "#202124", padding: "5px 6px", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <span style={{ fontSize: 7, color: "#888" }}>←</span>
+            <span style={{ fontSize: 7, color: "#555" }}>→</span>
+            <div style={{ flex: 1, background: "#303134", borderRadius: 20, padding: "2px 6px", display: "flex", alignItems: "center", gap: 3 }}>
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#34a853" }} />
+              <span style={{ fontSize: 5.5, color: "#bbb" }}>ironlog.app</span>
+            </div>
+            <span style={{ fontSize: 8, color: "#888" }}>☆</span>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 12, color: "#FF6B6B", fontWeight: 900, lineHeight: 1 }}>⋮</span>
+              <div style={{ position: "absolute", inset: -3, borderRadius: "50%", border: "2px solid #FF6B6B" }} />
+            </div>
+          </div>
+          {/* IRONLOG app partially visible behind menu */}
+          <div style={{ background: "#0a0a0f", padding: "3px 6px", flexShrink: 0 }}>
+            <div style={{ fontSize: 7.5, fontWeight: 900, color: "#fff" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+          </div>
+          {/* Chrome dropdown menu */}
+          <div style={{ flex: 1, background: "#2a2a2a", overflow: "hidden" }}>
+            {["New tab","New incognito tab","History","Downloads","Bookmarks","Recent tabs","Share...","Find in page","Translate..."].map((item, i) => (
+              <div key={i} style={{ padding: "3px 8px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <span style={{ fontSize: 6.5, color: "rgba(255,255,255,0.6)" }}>{item}</span>
+              </div>
+            ))}
+            {/* Highlighted — red rectangle border matching reference */}
+            <div style={{ padding: "3px 8px", borderBottom: "1px solid rgba(255,255,255,0.04)", outline: "2px solid #FF6B6B", outlineOffset: "-1px", display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 7 }}>⊞</span>
+              <span style={{ fontSize: 6.5, color: "#fff", fontWeight: 700 }}>Add to Home screen</span>
+            </div>
+            {[["Desktop site","□"],["Settings","⚙"],["Help & feedback","?"]].map(([item, icon], i) => (
+              <div key={i} style={{ padding: "3px 8px", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 6.5, color: "rgba(255,255,255,0.4)" }}>{item}</span>
+                <span style={{ fontSize: 6, color: "rgba(255,255,255,0.2)" }}>{icon}</span>
+              </div>
+            ))}
+          </div>
+        </>,
+        295
+      ),
+    },
+    {
+      label: "The app will be added to your Home screen",
+      mockup: phone(
+        <div style={{ flex: 1, background: "linear-gradient(160deg,#0a0a1a,#0d0d2d)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "16px 8px", gap: 6 }}>
+          <img src="/icon-192.png" alt="IRONLOG" style={{ width: 48, height: 48, borderRadius: 13, boxShadow: "0 6px 20px rgba(255,107,107,0.4)" }} />
+          <span style={{ fontSize: 7, color: "#fff", fontWeight: 500, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>IRONLOG</span>
+        </div>,
+        240
+      ),
+    },
+  ];
+
+  const steps = platform === "ios" ? iosSteps : androidSteps;
+  const platformLabel = platform === "ios" ? "iOS (Safari)" : "Android (Chrome)";
+  const platformIcon = platform === "ios" ? "" : "🤖"; //  = Apple logo (renders on all Apple devices)
+
+  return createPortal(
+    <AnimatePresence>
+    {visible && (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        style={{ position: "fixed", inset: 0, zIndex: 9997, background: "rgba(0,0,0,0.65)" }} onClick={dismiss} />
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9998, display: "flex", justifyContent: "center" }}>
+        <motion.div
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          style={{ maxWidth: 480, width: "100%", background: "#0c0c10", borderTop: urgent ? "3px solid #FF6B6B" : "2px solid rgba(255,107,107,0.45)", borderRadius: "22px 22px 0 0", boxShadow: urgent ? "0 -20px 70px rgba(255,107,107,0.3)" : "0 -16px 60px rgba(255,107,107,0.15)", display: "flex", flexDirection: "column", maxHeight: "92dvh" }}>
+          <div style={{ overflowY: "auto", padding: "0 18px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}>
+            {/* Handle */}
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "12px auto 16px" }} />
+            {/* Urgent badge — shown only on post-signup re-prompt */}
+            {urgent && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.35)", borderRadius: 12, padding: "10px 14px", marginBottom: 14 }}>
+                <span style={{ fontSize: 22, flexShrink: 0 }}>⚡</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#FF6B6B", letterSpacing: 0.2 }}>Account created — one last step!</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 3, lineHeight: 1.4 }}>Add IronLog to your Home Screen for instant access, offline use & push notifications.</div>
+                </div>
+              </div>
+            )}
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, overflow: "hidden", flexShrink: 0, boxShadow: "0 4px 14px rgba(255,107,107,0.35)" }}>
+                  <img src="/icon-192.png" alt="IRONLOG" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: "#fff" }}>{urgent ? "Add to Home Screen" : "Install IronLog"}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{platformIcon} {platformLabel} · Free · No App Store</div>
+                </div>
+              </div>
+              <button onClick={dismiss} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 32, height: 32, color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
+            </div>
+            {/* Steps */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 16 }}>
+              {steps.map((step, i) => (
+                <div key={i}>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#FF6B6B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{i + 1}</div>
+                    <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>{step.label}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "center" }}>{step.mockup}</div>
+                </div>
+              ))}
+            </div>
+            {/* Dismiss */}
+            <button onClick={dismiss} style={{ width: "100%", padding: "13px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 11, color: "rgba(255,255,255,0.45)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Remind me later</button>
+          </div>
+        </motion.div>
+      </div>
+    </>
+    )}
+    </AnimatePresence>,
+    document.body
+  );
+}
+
+export default function Page() {
+  return (
+    <>
+      <PwaBanner />
+      <HomePage />
+    </>
+  );
 }

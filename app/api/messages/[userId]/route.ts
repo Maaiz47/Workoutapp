@@ -24,6 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
       include: {
         from: { select: { id: true, username: true } },
         proposal: { select: { id: true, status: true, planJson: true } },
+        replyTo: { select: { id: true, body: true, from: { select: { username: true } } } },
       },
       orderBy: { createdAt: "asc" },
       take: since ? 50 : 100,
@@ -35,7 +36,13 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
       data: { delivered: true, read: true },
     });
 
-    return json({ messages });
+    // Return partner's lastSeenAt for online indicator
+    const partner = await (prisma.user as any).findUnique({
+      where: { id: userId },
+      select: { lastSeenAt: true },
+    });
+
+    return json({ messages, partnerLastSeen: partner?.lastSeenAt ?? null });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);
   }
