@@ -121,12 +121,23 @@ input[type="number"] { -moz-appearance: textfield; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
 
-/* Focused inputs get a subtle red glow */
-input:focus, textarea:focus, select:focus { box-shadow: 0 0 0 2px rgba(255,107,107,0.15); }
+/* Focused inputs get a subtle red glow + lift */
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 0 2px rgba(255,107,107,0.18);
+  outline: none;
+  transition: box-shadow 0.2s ease;
+}
 
-/* Buttons feel tactile */
-button { transition: transform 0.1s ease, opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease; }
-button:active:not(:disabled) { transform: scale(0.97); }
+/* Buttons feel tactile — motion.button elements override this with spring physics */
+button { transition: transform 0.12s ease, opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease; }
+button:active:not(:disabled) { transform: scale(0.96); }
+
+/* Pressable cards — deeper press than plain buttons */
+.card-press:active { transform: scale(0.975); }
+
+/* Staggered list items */
+@keyframes itemIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+.item-in { animation: itemIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 /* Workout type icon — muscle explosion animation */
 @keyframes muscleExplode {
