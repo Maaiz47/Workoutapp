@@ -75,6 +75,7 @@ model UserProfile {
   equipment        String[]
   daysPerWeek      Int
   targetArea       String?  @default("none")
+  targetAreas      String[]
   targetWeightKg   Float?
   targetBodyFatPct Float?
   hiitPreference   String?

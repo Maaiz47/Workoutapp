@@ -621,10 +621,15 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
   const stStroke = (st: "p" | "s" | "") => st === "p" ? "rgba(255,100,60,0.55)" : st === "s" ? "rgba(255,160,40,0.45)" : "rgba(255,255,255,0.09)";
   const stFilter = (st: "p" | "s" | "") => st === "p" ? "url(#mgp)" : st === "s" ? "url(#mgs)" : undefined;
   const stOrder = (st: "p" | "s" | "") => st === "p" ? 2 : st === "s" ? 1 : 0;
+  const stAnim = (st: "p" | "s" | "") =>
+    st === "p" ? { animation: "muscleGlow 1.8s ease-in-out infinite" }
+    : st === "s" ? { animation: "muscleGlow 2.2s ease-in-out infinite 0.4s" }
+    : undefined;
 
   const mc = (m: string) => stFill(wSt(m));
   const ms = (m: string) => stStroke(wSt(m));
   const mf = (m: string) => stFilter(wSt(m));
+  const mfAnim = (m: string) => stAnim(wSt(m));
 
   // Render a group of sub-muscle paths in z-order: dim → secondary → primary. Bright always paints last.
   const Group = ({ paths, parent, k }: { paths: { d: string; sub: string }[]; parent: string; k: string }) => (
@@ -633,7 +638,7 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
         .map(pp => ({ ...pp, st: subSt(pp.sub, parent) }))
         .sort((a, b) => stOrder(a.st) - stOrder(b.st))
         .map((pp, i) => (
-          <path key={`${k}-${i}`} d={pp.d} fill={stFill(pp.st)} stroke={stStroke(pp.st)} filter={stFilter(pp.st)} strokeWidth={0.7}/>
+          <path key={`${k}-${i}`} d={pp.d} fill={stFill(pp.st)} stroke={stStroke(pp.st)} filter={stFilter(pp.st)} strokeWidth={0.7} style={stAnim(pp.st)}/>
         ))}
     </>
   );
@@ -1136,6 +1141,7 @@ export default function HomePage() {
   const [showSavedList, setShowSavedList] = useState(false);
   const [showSaveRoutine, setShowSaveRoutine] = useState(false);
   const [showHiitPrompt, setShowHiitPrompt] = useState(false);
+  const [showEmailSignupPrompt, setShowEmailSignupPrompt] = useState(false);
   const [hiitPreference, setHiitPreference] = useState("");
   const [hiitIntensity, setHiitIntensity] = useState("moderate");
   const [saveRoutineName, setSaveRoutineName] = useState("");
@@ -1342,7 +1348,7 @@ export default function HomePage() {
       const data = await authPost({ action: "check", username: input });
       if (data.error) { setAuthError(data.error); return; }
       if (data.state === "new") {
-        if (data.isEmail) { setAuthError("No account found with that email. Please use your username to register."); return; }
+        if (data.isEmail) { setShowEmailSignupPrompt(true); return; }
         setAuthStep("register");
       } else {
         if (data.username) setNameInput(data.username);
@@ -1928,21 +1934,39 @@ export default function HomePage() {
 
           {/* ── Step: username ── */}
           {authStep === "username" && (<>
-            <input value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={inputStyleCenter} />
+            <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={inputStyleCenter} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
-            <button onClick={doCheckUsername} style={btnPrimary}>CONTINUE</button>
+            {showEmailSignupPrompt && (
+              <div style={{ marginTop: 16, padding: "16px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12 }}>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>No account found for <strong style={{ color: "#fff" }}>{nameInput}</strong>. Create one?</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => { setEmailInput(nameInput); setNameInput(""); setShowEmailSignupPrompt(false); setAuthStep("register"); }} style={{ flex: 1, padding: "11px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
+                  <button onClick={() => { setShowEmailSignupPrompt(false); setNameInput(""); setAuthError(""); }} style={{ padding: "11px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>Back</button>
+                </div>
+              </div>
+            )}
+            {!showEmailSignupPrompt && <button onClick={doCheckUsername} style={btnPrimary}>CONTINUE</button>}
           </>)}
 
           {/* ── Step: register (new user) ── */}
           {authStep === "register" && (<>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Create your account</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 20, letterSpacing: 1 }}>{nameInput}</div>
-            <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Email" type="email" style={{ ...inputStyle, marginBottom: 8 }} />
+            {nameInput && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 20, letterSpacing: 1 }}>{nameInput}</div>}
+            {!nameInput && (
+              <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Choose a username" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
+            )}
+            {emailInput ? (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 16px", marginBottom: 8, textAlign: "left" }}>
+                Email: <span style={{ color: "rgba(255,255,255,0.7)" }}>{emailInput}</span>
+              </div>
+            ) : (
+              <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Email" type="email" style={{ ...inputStyle, marginBottom: 8 }} />
+            )}
             <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" type="password" style={{ ...inputStyle, marginBottom: 8 }} />
             <input value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doRegister()} placeholder="Confirm password" type="password" style={inputStyle} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             <button onClick={doRegister} style={btnPrimary}>CREATE ACCOUNT</button>
-            <button onClick={() => { setAuthStep("username"); setAuthError(""); }} style={btnBack}>← Back</button>
+            <button onClick={() => { setAuthStep("username"); setAuthError(""); setEmailInput(""); }} style={btnBack}>← Back</button>
           </>)}
 
           {/* ── Step: setup (existing user, no password yet) ── */}

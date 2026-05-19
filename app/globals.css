@@ -48,5 +48,9 @@ button:active:not(:disabled) { transform: scale(0.97); }
   55%       { opacity: 1;    filter: drop-shadow(0 0 3px var(--mc)) drop-shadow(0 0 7px var(--mc)); }
   68%       { opacity: 0.82; filter: drop-shadow(0 0 2px var(--mc)) drop-shadow(0 0 4px var(--mc)); }
 }
+@keyframes muscleGlow {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
 .ma { fill: var(--mc); animation: muscleExplode 2.2s ease-in-out infinite; }
 .md { fill: rgba(255,255,255,0.04); }
