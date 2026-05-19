@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { dob, gender, heightCm, weightKg, bodyFatPct, goals, fitnessLevel, location, equipment, daysPerWeek, targetArea } = body;
+    const { dob, gender, heightCm, weightKg, bodyFatPct, goals, fitnessLevel, location, equipment, daysPerWeek, targetArea, targetAreas } = body;
 
     // Support both goals[] (new) and goal string (legacy)
     const goalsArr: string[] = Array.isArray(goals) && goals.length > 0 ? goals : body.goal ? [body.goal] : [];
@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
         equipment: equipment || [],
         daysPerWeek: parseInt(daysPerWeek),
         targetArea: targetArea || "none",
+        ...((targetAreas !== undefined) && { targetAreas: targetAreas || [] } as any),
       },
       update: {
         heightCm: parseFloat(heightCm),
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
         equipment: equipment || [],
         daysPerWeek: parseInt(daysPerWeek),
         targetArea: targetArea || "none",
+        ...((targetAreas !== undefined) && { targetAreas: targetAreas || [] } as any),
       },
     });
 

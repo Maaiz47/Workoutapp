@@ -3,7 +3,7 @@ import { EXERCISES, filterExercises, Equipment, MuscleGroup, Goal, Location } fr
 export interface UserProfileInput {
   daysPerWeek: number;
   goals: Goal[];
-  fitnessLevel: "beginner" | "intermediate" | "advanced";
+  fitnessLevel: "newcomer" | "beginner" | "intermediate" | "advanced";
   location: Location;
   equipment: Equipment[];
   gender: string;
@@ -11,6 +11,7 @@ export interface UserProfileInput {
   heightCm: number;
   ageYears: number;
   targetArea?: string;
+  targetAreas?: string[];
   hiitPreference?: string | null;
   hiitIntensity?: string | null;
 }
@@ -47,7 +48,7 @@ function primaryGoal(goals: Goal[]): Goal {
 
 // ── Sets / reps / rest — blended across all selected goals ─────────────────
 
-function volumeForGoals(goals: Goal[], level: "beginner" | "intermediate" | "advanced") {
+function volumeForGoals(goals: Goal[], level: "newcomer" | "beginner" | "intermediate" | "advanced") {
   const configs: Record<Goal, { sets: number; repsLow: number; repsHigh: number; rest: number }> = {
     muscle:   { sets: 4, repsLow: 8,  repsHigh: 12, rest: 75 },
     strength: { sets: 5, repsLow: 3,  repsHigh: 6,  rest: 180 },
@@ -63,6 +64,7 @@ function volumeForGoals(goals: Goal[], level: "beginner" | "intermediate" | "adv
   let repsHigh = Math.round(selected.reduce((s, v) => s + v.repsHigh, 0) / n);
   let rest     = Math.round(selected.reduce((s, v) => s + v.rest,     0) / n / 15) * 15;
 
+  if (level === "newcomer") sets = Math.max(2, sets - 2);
   if (level === "beginner") sets = Math.max(2, sets - 1);
   if (level === "advanced")  sets = Math.min(6, sets + 1);
   return { sets, repsLow, repsHigh, rest };
@@ -71,7 +73,7 @@ function volumeForGoals(goals: Goal[], level: "beginner" | "intermediate" | "adv
 function makeEx(
   id: string,
   goals: Goal[],
-  level: "beginner" | "intermediate" | "advanced",
+  level: "newcomer" | "beginner" | "intermediate" | "advanced",
   overrides?: Partial<GeneratedExercise>
 ): GeneratedExercise | null {
   const ex = EXERCISES.find(e => e.id === id);
@@ -105,6 +107,7 @@ function pickExercise(
     const needsEquip = ex.equipment.filter(eq => eq !== "bodyweight");
     if (needsEquip.length > 0 && !needsEquip.some(eq => profile.equipment.includes(eq))) continue;
     if (profile.fitnessLevel !== "advanced" && ex.difficulty === "advanced") continue;
+    if ((profile.fitnessLevel === "newcomer" || profile.fitnessLevel === "beginner") && ex.difficulty !== "beginner") continue;
     return id;
   }
 
@@ -112,7 +115,7 @@ function pickExercise(
     primaryMuscle,
     equipment: profile.equipment,
     location: profile.location as Location,
-    difficulty: profile.fitnessLevel === "beginner"
+    difficulty: (profile.fitnessLevel === "newcomer" || profile.fitnessLevel === "beginner")
       ? ["beginner"]
       : profile.fitnessLevel === "intermediate"
       ? ["beginner", "intermediate"]
@@ -139,7 +142,7 @@ function buildPushDay(profile: UserProfileInput, variant: "heavy" | "volume", us
   const shoulderMain = pickExercise("shoulders", profile, shoulderCompounds, used);
   if (shoulderMain) { exs.push(makeEx(shoulderMain, goals, level)); used.add(shoulderMain); }
 
-  if (level !== "beginner") {
+  if (level !== "beginner" && level !== "newcomer") {
     const chestIso = pickExercise("chest", profile, ["cable-crossover", "dumbbell-flyes", "incline-dumbbell-flyes", "pec-deck", "resistance-band-chest-press"], used);
     if (chestIso) { exs.push(makeEx(chestIso, goals, level)); used.add(chestIso); }
   }
@@ -179,7 +182,7 @@ function buildPullDay(profile: UserProfileInput, variant: "width" | "thickness",
   const backSecond = pickExercise("back", profile, ["seated-cable-row", "single-arm-dumbbell-row", "barbell-row", "t-bar-row", "resistance-band-row", "inverted-row"], used);
   if (backSecond) { exs.push(makeEx(backSecond, goals, level)); used.add(backSecond); }
 
-  if (variant === "thickness" && level !== "beginner" && goals.includes("strength")) {
+  if (variant === "thickness" && level !== "beginner" && level !== "newcomer" && goals.includes("strength")) {
     const heavy = pickExercise("back", profile, ["barbell-deadlift", "sumo-deadlift"], used);
     if (heavy) { exs.push(makeEx(heavy, goals, level, { reps: "3–5", rest: 180 })); used.add(heavy); }
   }
@@ -191,7 +194,7 @@ function buildPullDay(profile: UserProfileInput, variant: "width" | "thickness",
   const bicep = pickExercise("biceps", profile, bicepExs, used);
   if (bicep) { exs.push(makeEx(bicep, goals, level)); used.add(bicep); }
 
-  if (level !== "beginner") {
+  if (level !== "beginner" && level !== "newcomer") {
     const bicep2 = pickExercise("biceps", profile, bicepExs, used);
     if (bicep2) { exs.push(makeEx(bicep2, goals, level)); used.add(bicep2); }
   }
@@ -216,7 +219,7 @@ function buildLegDay(profile: UserProfileInput, variant: "main" | "secondary", u
   const glute = pickExercise("glutes", profile, ["hip-thrust-barbell", "hip-thrust-db", "glute-bridge", "glute-kickback", "donkey-kick", "bulgarian-split-squat"], used);
   if (glute) { exs.push(makeEx(glute, goals, level)); used.add(glute); }
 
-  if (level !== "beginner") {
+  if (level !== "beginner" && level !== "newcomer") {
     const quadIso = pickExercise("quads", profile, ["leg-extension", "lunges", "step-ups"], used);
     if (quadIso) { exs.push(makeEx(quadIso, goals, level)); used.add(quadIso); }
   }
@@ -246,7 +249,7 @@ function buildUpperDay(profile: UserProfileInput, variant: "A" | "B", used: Set<
   const shoulder = pickExercise("shoulders", profile, ["overhead-press", "dumbbell-shoulder-press", "machine-shoulder-press", "resistance-band-shoulder-press", "pike-pushup"], used);
   if (shoulder) { exs.push(makeEx(shoulder, goals, level)); used.add(shoulder); }
 
-  if (level !== "beginner") {
+  if (level !== "beginner" && level !== "newcomer") {
     const shoulderIso = pickExercise("shoulders", profile, ["lateral-raise", "cable-lateral-raise", "resistance-band-lateral-raise"], used);
     if (shoulderIso) { exs.push(makeEx(shoulderIso, goals, level)); used.add(shoulderIso); }
   }
@@ -276,7 +279,7 @@ function buildLowerDay(profile: UserProfileInput, variant: "A" | "B", used: Set<
   const glute = pickExercise("glutes", profile, ["hip-thrust-barbell", "hip-thrust-db", "glute-bridge", "glute-kickback"], used);
   if (glute) { exs.push(makeEx(glute, goals, level)); used.add(glute); }
 
-  if (level !== "beginner") {
+  if (level !== "beginner" && level !== "newcomer") {
     const quadIso = pickExercise("quads", profile, ["leg-extension", "lunges", "step-ups", "wall-sit"], used);
     if (quadIso) { exs.push(makeEx(quadIso, goals, level)); used.add(quadIso); }
   }
@@ -303,7 +306,7 @@ function buildFullBodyDay(profile: UserProfileInput, variant: "A" | "B" | "C", u
   const pull = pickExercise("back", profile, pullCompounds, used);
   if (pull) { exs.push(makeEx(pull, goals, level)); used.add(pull); }
 
-  if (level !== "beginner") {
+  if (level !== "beginner" && level !== "newcomer") {
     const glute = pickExercise("glutes", profile, ["hip-thrust-db", "glute-bridge", "glute-kickback", "donkey-kick"], used);
     if (glute) { exs.push(makeEx(glute, goals, level)); used.add(glute); }
   }
@@ -341,15 +344,15 @@ function buildCardioDay(profile: UserProfileInput, used: Set<string>): Generated
 function decideDays(profile: UserProfileInput): number {
   let days = profile.daysPerWeek;
   const pg = primaryGoal(profile.goals);
-  if (profile.fitnessLevel === "beginner" && days > 4) days = 4;
+  if ((profile.fitnessLevel === "newcomer" || profile.fitnessLevel === "beginner") && days > 4) days = 4;
   if (pg === "strength" && days > 5) days = 5;
   return Math.max(2, Math.min(6, days));
 }
 
 // ── Target area post-processing ─────────────────────────────────────────────
 
-function applyTargetArea(days: GeneratedDay[], profile: UserProfileInput): GeneratedDay[] {
-  const ta = profile.targetArea;
+function applyTargetArea(days: GeneratedDay[], profile: UserProfileInput, taOverride?: string): GeneratedDay[] {
+  const ta = taOverride ?? profile.targetArea;
   if (!ta || ta === "none") return days;
   const { goals, fitnessLevel: level } = profile;
 
@@ -551,7 +554,19 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
     planDays.push(buildCardioDay(profile, new Set()));
   }
 
-  const finalDays = applyTargetArea(planDays, profile);
+  const areas = (profile.targetAreas?.filter(a => a !== "none") ?? []).length > 0
+    ? profile.targetAreas!.filter(a => a !== "none")
+    : (profile.targetArea && profile.targetArea !== "none" ? [profile.targetArea] : []);
+
+  let finalDays = planDays;
+  if (areas.length > 0) {
+    for (const area of areas) {
+      finalDays = applyTargetArea(finalDays, profile, area);
+    }
+  } else {
+    finalDays = applyTargetArea(finalDays, profile, "none");
+  }
+
   const hiitIntensity = profile.hiitIntensity ?? "moderate";
 
   if (profile.hiitPreference === "finisher") {
@@ -567,9 +582,9 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
 
   let planNote = buildPlanNote(profile, days);
 
-  if (profile.targetArea && profile.targetArea !== "none") {
-    const label = TARGET_AREA_LABELS[profile.targetArea] ?? profile.targetArea;
-    planNote += ` Extra work added for ${label}.`;
+  if (areas.length > 0) {
+    const labels = areas.map(a => TARGET_AREA_LABELS[a] ?? a);
+    planNote += ` Extra work added for ${labels.join(", ")}.`;
   }
   if (profile.hiitPreference === "finisher") {
     planNote += " HIIT circuits added as finishers to each training day.";

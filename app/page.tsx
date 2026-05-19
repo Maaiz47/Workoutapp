@@ -1297,6 +1297,18 @@ export default function HomePage() {
         if (p.targetBodyFatPct) setGoalBf(p.targetBodyFatPct.toString());
         if ((p as any).hiitPreference) setHiitPreference((p as any).hiitPreference);
         if ((p as any).hiitIntensity) setHiitIntensity((p as any).hiitIntensity);
+        // Retry HIIT prompt if snoozed >7 days ago
+        try {
+          const snoozed = localStorage.getItem("ironlog-hiit-snoozed");
+          if (snoozed && Date.now() - parseInt(snoozed) > 7 * 24 * 60 * 60 * 1000) {
+            const hp = (p as any).hiitPreference;
+            if (!hp || hp === "none") {
+              localStorage.removeItem("ironlog-hiit-snoozed");
+              setHiitIntensity("moderate");
+              setShowHiitPrompt(true);
+            }
+          }
+        } catch {}
         fetch("/api/plan").then(r => r.json()).then(planData => {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
         });
@@ -1776,7 +1788,7 @@ export default function HomePage() {
     setHiitPreference(pref);
     setHiitIntensity(intensity);
     setShowHiitPrompt(false);
-    if (pref === "none") return;
+    if (pref === "none") { try { localStorage.setItem("ironlog-hiit-snoozed", Date.now().toString()); } catch {} return; }
     try {
       await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hiitPreference: pref, hiitIntensity: intensity }) });
       const planRes = await fetch("/api/plan", { method: "POST" });
@@ -2358,7 +2370,8 @@ export default function HomePage() {
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", marginTop: 3 }}>{ex.sets} × {ex.reps}</div>
                   </div>
                   {!customMultiMode && (
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <button onClick={() => { const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.exerciseId ?? ex.id, name: ex.name, ...m }); }} style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}>FORM</button>
                       <button onClick={async () => { const moved = moveExercise(exs, i, i - 1); if (i > 0) await saveDay(editingDay, moved); }} disabled={i === 0} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === 0 ? "default" : "pointer", fontSize: 14 }}>↑</button>
                       <button onClick={async () => { const moved = moveExercise(exs, i, i + 1); if (i < exs.length - 1) await saveDay(editingDay, moved); }} disabled={i === exs.length - 1} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: i === exs.length - 1 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.6)", width: 28, height: 28, cursor: i === exs.length - 1 ? "default" : "pointer", fontSize: 14 }}>↓</button>
                       <button onClick={async () => { const updated = exs.filter((_: any, j: number) => j !== i); await saveDay(editingDay, updated); }} style={{ background: "rgba(255,107,107,0.1)", border: "none", borderRadius: 6, color: "#FF6B6B", width: 28, height: 28, cursor: "pointer", fontSize: 14 }}>✕</button>
@@ -3383,7 +3396,7 @@ export default function HomePage() {
                       { label: "GOAL", value: p.goal?.replace(/_/g, " ") },
                       { label: "FITNESS LEVEL", value: p.fitnessLevel },
                       { label: "LOCATION", value: fmtLocation(p.location) },
-                      { label: "TARGET AREA", value: p.targetArea && p.targetArea !== "none" ? p.targetArea : "—" },
+                      { label: "FOCUS AREA", value: ((p as any).targetAreas?.filter((a: string) => a !== "none") ?? []).length > 0 ? (p as any).targetAreas.filter((a: string) => a !== "none").join(", ") : (p.targetArea && p.targetArea !== "none" ? p.targetArea : "—") },
                     ];
                     return (
                       <>

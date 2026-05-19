@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     const input: UserProfileInput = {
       daysPerWeek: profile.daysPerWeek,
       goals: (profile.goals?.length ? profile.goals : [profile.goal]) as Goal[],
-      fitnessLevel: profile.fitnessLevel as "beginner" | "intermediate" | "advanced",
+      fitnessLevel: profile.fitnessLevel as "newcomer" | "beginner" | "intermediate" | "advanced",
       location: profile.location as Location,
       equipment: profile.equipment as Equipment[],
       gender: profile.gender,
@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
       heightCm: profile.heightCm,
       ageYears,
       targetArea: profile.targetArea ?? "none",
+      targetAreas: (profile as any).targetAreas ?? [],
       hiitPreference: (profile as any).hiitPreference ?? null,
       hiitIntensity: (profile as any).hiitIntensity ?? null,
     };
