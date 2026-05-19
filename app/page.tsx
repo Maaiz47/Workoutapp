@@ -1145,6 +1145,9 @@ export default function HomePage() {
   const lastMsgCreatedAtRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const msgAudioCtx = useRef<AudioContext | null>(null);
+  const tabFlashRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentViewRef = useRef("home");
 
   // ── Onboarding + custom plan ──
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -1427,6 +1430,63 @@ export default function HomePage() {
       document.body.style.overflowY = "";
     };
   }, [rest.running, showCompleteAnim]);
+
+  // Keep currentViewRef in sync so SW message handler always sees latest view
+  useEffect(() => { currentViewRef.current = view; }, [view]);
+
+  const softBeep = useCallback(() => {
+    try {
+      if (!msgAudioCtx.current) msgAudioCtx.current = new AudioContext();
+      const ctx = msgAudioCtx.current;
+      if (ctx.state === "suspended") ctx.resume();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.value = 660;
+      o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.02);
+      g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.18);
+      o.start(ctx.currentTime);
+      o.stop(ctx.currentTime + 0.18);
+    } catch {}
+    try { navigator.vibrate?.([60]); } catch {}
+  }, []);
+
+  const stopTabFlash = useCallback(() => {
+    if (tabFlashRef.current) {
+      clearInterval(tabFlashRef.current);
+      tabFlashRef.current = null;
+    }
+    document.title = "IRONLOG — Track. Lift. Progress.";
+  }, []);
+
+  const startTabFlash = useCallback(() => {
+    if (tabFlashRef.current) return;
+    let on = true;
+    tabFlashRef.current = setInterval(() => {
+      document.title = on ? "💬 New message" : "IRONLOG — Track. Lift. Progress.";
+      on = !on;
+    }, 900);
+  }, []);
+
+  // Stop tab flash when user opens messages
+  useEffect(() => {
+    if (view === "messages" || view === "conversation") stopTabFlash();
+  }, [view, stopTabFlash]);
+
+  // Listen for SW-forwarded push messages (app was focused so banner was suppressed)
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type !== "NEW_MESSAGE_PUSH") return;
+      softBeep();
+      if (currentViewRef.current !== "messages" && currentViewRef.current !== "conversation") {
+        startTabFlash();
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handler);
+    return () => navigator.serviceWorker.removeEventListener("message", handler);
+  }, [softBeep, startTabFlash]);
 
   const authPost = async (body: object) => {
     const res = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
