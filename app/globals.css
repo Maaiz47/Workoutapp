@@ -22,10 +22,39 @@ input[type="number"] { -moz-appearance: textfield; }
 @keyframes countPulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.25); } }
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes phraseIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes phraseOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-6px); } }
+@keyframes logoFall {
+  0%   { transform: translateY(-180px); opacity: 0; }
+  55%  { transform: translateY(0) scaleX(1.12) scaleY(0.85); opacity: 1; }
+  68%  { transform: translateY(-10px) scaleX(0.94) scaleY(1.08); }
+  80%  { transform: translateY(4px) scaleX(1.03) scaleY(0.97); }
+  90%  { transform: translateY(-2px) scaleX(0.99) scaleY(1.01); }
+  100% { transform: translateY(0) scaleX(1) scaleY(1); }
+}
+.logo-iron { display: inline-block; animation: logoFall 0.7s cubic-bezier(0.55, 0, 0.45, 1) 0.05s both; }
+.logo-log  { display: inline-block; animation: logoFall 0.7s cubic-bezier(0.55, 0, 0.45, 1) 0.18s both; }
+
+@keyframes shockwave {
+  0%   { transform: scale(0.2); opacity: 0.85; }
+  100% { transform: scale(8);   opacity: 0; }
+}
+@keyframes floorBeam {
+  0%   { transform: scaleX(0.04); opacity: 0; }
+  18%  { opacity: 1; }
+  100% { transform: scaleX(1.1); opacity: 0; }
+}
+@keyframes impactGlow {
+  0%   { opacity: 0; }
+  20%  { opacity: 1; }
+  100% { opacity: 0; }
+}
 
 .fade-in { animation: fadeIn 0.4s ease both; }
 .slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .card-hover { transition: transform 0.15s, background 0.15s, border-color 0.15s; }
+.phrase-in { animation: phraseIn 0.4s ease both; }
+.phrase-out { animation: phraseOut 0.3s ease both; }
 .card-hover:active { transform: scale(0.97); }
 .card-hover:hover { background: rgba(255,255,255,0.06); }
 

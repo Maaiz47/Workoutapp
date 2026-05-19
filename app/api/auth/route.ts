@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     const hash = await hashPassword(password);
     const user = await prisma.user.create({ data: { username, email, passwordHash: hash } });
     sendWelcomeEmail(email, username).catch(() => {});
-    const res = jsonRes({ id: user.id, username: user.username });
+    const res = jsonRes({ id: user.id, username: user.username, role: user.role });
     res.cookies.set(COOKIE, user.id, cookieOpts(req));
     return res;
   }
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     const hash = await hashPassword(password);
     await prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash, email } });
 
-    const res = jsonRes({ id: user.id, username: user.username });
+    const res = jsonRes({ id: user.id, username: user.username, role: user.role });
     res.cookies.set(COOKIE, user.id, cookieOpts(req));
     return res;
   }
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     if (!valid)
       return jsonRes({ error: "Invalid username or password" }, 401);
 
-    const res = jsonRes({ id: user.id, username: user.username, mustReset: user.mustResetPassword });
+    const res = jsonRes({ id: user.id, username: user.username, role: user.role, mustReset: user.mustResetPassword });
     res.cookies.set(COOKIE, user.id, cookieOpts(req));
     return res;
   }

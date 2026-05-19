@@ -34,9 +34,13 @@ function urlBase64ToUint8Array(base64String: string) {
 async function subscribeToPush(): Promise<"granted" | "denied" | "unsupported" | "error"> {
   try {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
-    const permission = await Notification.requestPermission();
+    // Only request permission if not already decided — avoids mobile browsers rejecting
+    // programmatic calls outside a user gesture when permission is already granted
+    let permission = Notification.permission as NotificationPermission;
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
+    }
     if (permission !== "granted") return "denied";
-    // Ensure SW is registered (safe to call if already registered)
     await navigator.serviceWorker.register("/sw.js");
     const reg = await navigator.serviceWorker.ready;
     const existing = await reg.pushManager.getSubscription();
@@ -1012,6 +1016,7 @@ export default function HomePage() {
   const [user, setUser] = useState<{ id: string; username: string; role: string; roleRequest?: string | null } | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
+  const [splashDone, setSplashDone] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authStep, setAuthStep] = useState<"username" | "register" | "setup" | "password" | "forgot">("username");
   const [emailInput, setEmailInput] = useState("");
@@ -1165,7 +1170,19 @@ export default function HomePage() {
 
   const rest = useCountdown();
   const timer = useTimer();
-  const phrase = useMemo(() => PHRASES[Math.floor(Math.random() * PHRASES.length)], []);
+  const [phraseIdx, setPhraseIdx] = useState(() => Math.floor(Math.random() * PHRASES.length));
+  const [phraseVisible, setPhraseVisible] = useState(true);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPhraseVisible(false);
+      setTimeout(() => {
+        setPhraseIdx(i => (i + 1 + Math.floor(Math.random() * (PHRASES.length - 1))) % PHRASES.length);
+        setPhraseVisible(true);
+      }, 320);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
+  const phrase = PHRASES[phraseIdx];
 
   const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "workout"]);
   useSwipeBack(() => {
@@ -1184,27 +1201,42 @@ export default function HomePage() {
     }
     if (Notification.permission === "denied") { setNotifStatus("denied"); return; }
     if (Notification.permission === "granted") {
-      // Re-save subscription in case it wasn't stored yet (e.g. first deploy with push)
+      // Re-register subscription silently on every app open (handles cache-cleared subscriptions)
       subscribeToPush().then(s => setNotifStatus(s));
     } else if (Notification.permission === "default") {
-      // Show banner unless user previously dismissed it
-      const dismissed = localStorage.getItem("ironlog-notif-dismissed");
-      if (!dismissed) setShowNotifBanner(true);
+      // Always show banner until user explicitly allows or blocks via native prompt
+      setShowNotifBanner(true);
     }
   }, []);
 
-  useEffect(() => {
+  const refreshUser = useCallback(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
       if (data.user) {
         setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user", roleRequest: data.user.roleRequest ?? null });
         if (data.user.mustReset) setMustResetPassword(true);
-        // Only silently re-save subscription if permission already granted — never prompt here
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           subscribeToPush().then(s => setNotifStatus(s));
         }
       }
       setAuthLoading(false);
     }).catch(() => setAuthLoading(false));
+  }, []);
+
+  useEffect(() => {
+    refreshUser();
+  }, []);
+
+  // Re-check role when tab regains focus — catches admin role changes without requiring a full reload
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") refreshUser(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refreshUser]);
+
+  // Minimum splash duration so the fall animation completes
+  useEffect(() => {
+    const t = setTimeout(() => setSplashDone(true), 2000);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
@@ -1366,7 +1398,7 @@ export default function HomePage() {
       const data = await authPost({ action: "register", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
       setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
-      setShowNotifBanner(!localStorage.getItem("ironlog-notif-dismissed"));
+      if (typeof Notification !== "undefined" && Notification.permission === "default") setShowNotifBanner(true);
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -1377,7 +1409,7 @@ export default function HomePage() {
       const data = await authPost({ action: "setup", username: nameInput.trim().toLowerCase(), email: emailInput.trim(), password: passwordInput });
       if (data.error) { setAuthError(data.error); return; }
       setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
-      setShowNotifBanner(!localStorage.getItem("ironlog-notif-dismissed"));
+      if (typeof Notification !== "undefined" && Notification.permission === "default") setShowNotifBanner(true);
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -1916,12 +1948,32 @@ export default function HomePage() {
   const toggleEquip = (id: string) => setOb(o => ({ ...o, equipment: o.equipment.includes(id) ? o.equipment.filter(e => e !== id) : [...o.equipment, id] }));
 
   // ─── LOADING ────────────────────────────────────────────────────────
-  if (authLoading) return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: 18 }}>
-      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, letterSpacing: 6, color: "rgba(255,255,255,0.55)", animation: "breathe 1.8s ease infinite" }}>
-        IRON<span style={{ color: "#FF6B6B" }}>LOG</span>
+  if (authLoading || !splashDone) return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
+      {/* Ambient blobs */}
+      <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
+      <div style={{ textAlign: "center", zIndex: 1 }}>
+        {/* Logo + impact effects wrapper */}
+        <div style={{ position: "relative", display: "inline-block" }}>
+          {/* Impact glow — flashes outward when logo lands */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "90vw", height: "90vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.22) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 0.85s both", pointerEvents: "none" }} />
+          {/* Shockwave ring 1 */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "2px solid rgba(255,107,107,0.8)", animation: "shockwave 1s cubic-bezier(0.1,0.6,0.2,1) 0.85s both", pointerEvents: "none" }} />
+          {/* Shockwave ring 2 */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.45)", animation: "shockwave 1.4s cubic-bezier(0.1,0.6,0.2,1) 1.05s both", pointerEvents: "none" }} />
+          {/* Logo */}
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 64, fontWeight: 700, letterSpacing: 12, overflow: "visible", lineHeight: 1.1, position: "relative" }}>
+            <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+          </div>
+        </div>
+        {/* Floor beam — light streak on impact */}
+        <div style={{ width: 260, height: 1, margin: "10px auto 0", background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.95), transparent)", animation: "floorBeam 1.3s ease-out 0.85s both" }} />
+        {/* Tagline */}
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginTop: 22, marginBottom: 52, animation: "fadeIn 0.5s ease 1.25s both" }}>LIFT · TRACK · PROGRESS</div>
+        {/* Loading bar */}
+        <div style={{ width: 180, height: 2, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.55), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite", margin: "0 auto" }} />
       </div>
-      <div style={{ width: 80, height: 2, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.4), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite" }}/>
     </div>
   );
 
@@ -1937,8 +1989,13 @@ export default function HomePage() {
         <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, color: "#fff", marginBottom: 4 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>TRACK · LIFT · PROGRESS</div>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, marginBottom: 4, overflow: "visible" }}>
+            <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 24 }}>LIFT · TRACK · PROGRESS</div>
+          <div style={{ minHeight: 20, marginBottom: 40 }}>
+            <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
+          </div>
 
           {/* ── Step: username ── */}
           {authStep === "username" && (<>
@@ -2028,7 +2085,7 @@ export default function HomePage() {
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, color: "#fff", marginBottom: 4 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>TRACK · LIFT · PROGRESS</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>LIFT · TRACK · PROGRESS</div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Welcome, <strong style={{ color: "#fff" }}>{user.username}</strong></div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 24 }}>Set a new password to continue</div>
           <input value={newPasswordInput} onChange={e => setNewPasswordInput(e.target.value)} placeholder="New password" type="password" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
@@ -2452,7 +2509,29 @@ export default function HomePage() {
             {!showExBrowser ? (
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button onClick={() => { setShowExBrowser(true); setExSearch(""); setBrowserSupersetMode(false); setBrowserSuperSel([]); }} style={{ flex: 1, padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>+ Add Exercise</button>
-                <button onClick={() => { setShowExBrowser(true); setExSearch(""); setBrowserSupersetMode(true); setBrowserSuperSel([]); }} style={{ padding: "14px 16px", background: "rgba(255,230,109,0.07)", border: "1px dashed rgba(255,230,109,0.25)", borderRadius: 12, color: "rgba(255,230,109,0.6)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>⟳ SUPERSET</button>
+                {(() => {
+                  const canSuper = superSelection.length >= 2;
+                  const needOne = superSelection.length === 1;
+                  return (
+                    <button onClick={async () => {
+                      if (canSuper) {
+                        const gid = Math.random().toString(36).slice(2);
+                        const selSet = new Set(superSelection);
+                        const selIdx = exs.map((e: any, idx: number) => selSet.has(e.exerciseId ?? e.id ?? String(idx)) ? idx : -1).filter((idx: number) => idx >= 0).sort((a: number, b: number) => a - b);
+                        const selExs = selIdx.map((idx: number) => exs[idx]);
+                        const restExs = exs.filter((_: any, idx: number) => !selIdx.includes(idx));
+                        const insertAt = selIdx[0];
+                        const newExs = [...restExs.slice(0, insertAt), ...selExs.map((e: any) => ({ ...e, groupId: gid, groupType: "superset" })), ...restExs.slice(insertAt)];
+                        await saveDay(editingDay, newExs);
+                        setSuperSelection([]); setCustomMultiMode(false);
+                      } else {
+                        setShowExBrowser(true); setExSearch(""); setBrowserSupersetMode(true); setBrowserSuperSel([]);
+                      }
+                    }} style={{ padding: "14px 16px", background: canSuper ? "rgba(255,230,109,0.15)" : "rgba(255,230,109,0.07)", border: `1px ${canSuper ? "solid" : "dashed"} ${canSuper ? "rgba(255,230,109,0.6)" : "rgba(255,230,109,0.25)"}`, borderRadius: 12, color: canSuper ? "#FFE66D" : needOne ? "rgba(255,230,109,0.5)" : "rgba(255,230,109,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, position: "relative" as const }}>
+                      {canSuper ? `⟳ SUPERSET (${superSelection.length})` : needOne ? "⟳ +1 MORE" : "⟳ SUPERSET"}
+                    </button>
+                  );
+                })()}
               </div>
             ) : (
               <div style={{ marginTop: 16 }}>
@@ -2681,12 +2760,6 @@ export default function HomePage() {
   // ─── HOME ───────────────────────────────────────────────────────────
   if (view === "home") return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
-      {/* Watermark */}
-      <div aria-hidden style={{ position: "absolute", top: "15%", left: "-20%", right: "-20%", pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-        {[0, 1, 2, 3].map(n => (
-          <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.025, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
-        ))}
-      </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px 20px 0" }}>
         <button onClick={() => setView("settings")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "10px 14px" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 300, letterSpacing: 1 }}>Welcome back</div>
@@ -2713,12 +2786,13 @@ export default function HomePage() {
               const s = await subscribeToPush();
               setNotifStatus(s);
             }} style={{ background: "#4ECDC4", border: "none", borderRadius: 8, padding: "7px 14px", color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>ENABLE</button>
-            <button onClick={() => { localStorage.setItem("ironlog-notif-dismissed", "1"); setShowNotifBanner(false); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: "2px 0", textAlign: "center" }}>Not now</button>
+            <button onClick={() => setShowNotifBanner(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: "2px 0", textAlign: "center" }}>Not now</button>
           </div>
         </div>
       )}
       <div style={{ padding: "20px 20px 0", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
+        <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
       </div>
       <div style={{ padding: "20px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>

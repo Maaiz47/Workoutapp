@@ -20,12 +20,14 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 
 ## Features
 
-### Auth
+### Auth & Onboarding
 - Multi-step login: username → register / setup / login depending on account state
 - Login accepts **username or email**
 - Passwords hashed with `scrypt` (Node built-in `crypto`, no external package)
 - Forgot password → temp password emailed → must-reset screen on next login
 - Welcome email sent on new account registration
+- **Animated login screen:** `IRON` and `LOG` drop from above with a squash-and-stretch impact animation on page load; the `I` is rendered as an inline SVG dumbbell glyph
+- Rotating motivational phrase cycles every 5 seconds with slide-in/out transitions — visible on both the login screen and the home screen
 
 ### Workout Tracking
 - Per-set weight + reps logging with ± steppers
@@ -34,8 +36,9 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Comparison indicators on every set: **vs previous set** and **vs last session**
 - Warmup / cardio rows: tap to mark done, no data entry required
 - Active workout persists across navigation — leave to home, message, check progress, return anytime
-- **Supersets:** pair any two exercises; auto-advances between them with no rest, fires rest after the last in the group
-- **Drop sets:** assign 1–3 drops per exercise; drop panel appears immediately after the main set with weight pre-reduced ~20%, rest only after all drops complete
+- **Supersets:** pair any two or more exercises; auto-advances between them with no rest, fires rest after the last in the group
+- **Drop sets:** set rest to 0 (SKIP) on any exercise — a drop set panel slides in immediately after the main set with weight pre-reduced ~20%; rest only fires after all drops complete
+- **Add exercise mid-session:** `+ ADD EXERCISE` button opens a full exercise browser during any active workout; configure sets, reps, and rest; toggle "Save to plan" to make it permanent or keep it session-only
 
 ### Session Persistence
 - In-progress workouts saved to `localStorage` continuously
@@ -49,6 +52,7 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Active workout card shows live elapsed timer and "TAP TO RESUME →" when a session is in progress
 - Greyed-out cards prevent accidentally starting a second session
 - Notification permission banner (in-app) shown on first visit — "Not now" dismisses persistently
+- Rotating motivational phrase displayed below the `LIFT · TRACK · PROGRESS` tagline
 
 ### Personalised Plan
 - 8-step onboarding questionnaire for new users: days per week, goals, fitness level, location, equipment, gender, DOB, body metrics
@@ -64,15 +68,18 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - CUSTOMISE button opens a plan overview of all training days
 - Per-day editor: reorder exercises (↑↓), remove, and add from the full exercise browser
 - Searchable exercise browser (110+ exercises, filtered live by name, filterable by location / push-pull-legs / muscle group)
-- **Custom rest times:** per-exercise rest chip selector (`30s – 180s`) — default pre-highlighted, one tap to override
-- **Supersets:** toggle to pair any two consecutive exercises as a superset
-- **Drop sets:** assign 0–3 drop sets per exercise
+- **Custom rest times:** per-exercise rest chip selector (`SKIP / 30s – 180s`) — default pre-highlighted, one tap to override; SKIP (0s) marks the exercise as a drop set
+- **Multi-select mode:** SELECT button enters multi-select; select any exercises then bulk DELETE, create **⟳ SUPERSET**, or mark as **DROP SET** (sets rest = 0)
+- **Supersets from existing exercises:** select 2+ exercises in multi-select → `⟳ SUPERSET` — groups them and reorders them consecutively
+- **Supersets from library:** `⟳ SUPERSET` button opens browser in superset-pick mode — select any exercises from the library and add them as a new paired group in one action
+- **⟳ SUPERSET button** is context-aware: 0 selected → opens library picker; 1 selected → shows `+1 MORE` hint; 2+ selected → lights up gold and creates the superset on tap
 - Changes saved to database instantly; reflected in the workout view
 
 ### Saved Routines
 - Save the current plan under any custom name as a snapshot
 - Restore any saved routine at any time (replaces active plan)
 - Share a routine to any user by exact username — appears in their saved routines with attribution
+- **Trainers:** share to multiple clients at once — client list shown as selectable chips in the share panel; `SEND TO N CLIENTS` loops through each in one action
 - List is collapsed by default to prevent accidental restores; count badge shows how many are saved
 
 ### Muscle Diagram & Form Cues
@@ -105,6 +112,7 @@ A full-stack PWA workout tracker. Log sets, track progress, get a personalised t
 - Trainer accounts can search for users by exact username and send a training request
 - Users accept/decline trainer requests from Settings
 - Accepted clients appear in the **MY CLIENTS** section on the trainer's home screen
+- **Trainer badge** shown next to username on home screen — reflects role changes without reload (re-fetches on tab focus via `visibilitychange`)
 - Client detail view (3 tabs):
   - **SPLIT** — view the client's current plan; trainers can edit sets, reps, rest times, supersets, and drop sets inline and propose changes
   - **HISTORY** — full session log; tap any session to see every exercise logged vs skipped, with weight × reps per set
@@ -199,6 +207,7 @@ app/
   page.tsx                        # Main app — all views (home, workout, progress, messages,
   |                               #   conversation, settings, customise, clientDetail)
   layout.tsx                      # Root layout — metadata, favicon, PWA head tags
+  globals.css                     # Global styles, keyframe animations, utility classes
   admin/
     page.tsx                      # Admin panel UI
     layout.tsx                    # Admin metadata + favicon
@@ -209,7 +218,7 @@ app/
     plan/route.ts                 # GET / POST (generate/init) / PUT (update day) / DELETE
     workout/route.ts              # GET / POST workout logs
     metrics/route.ts              # GET / POST body metrics
-    metrics/[id]/route.ts         # DELETE body metric
+    metrics/[id]/route.ts         # DELETE / PATCH body metric
     messages/route.ts             # GET conversation list + unread count
     messages/[userId]/route.ts    # GET / POST messages in a thread
     plan-proposals/[id]/route.ts  # PATCH (accept/decline) plan proposal
@@ -257,7 +266,7 @@ public/
 | `UserProfile` | Body stats, goals, fitness profile |
 | `WorkoutPlan` | One per user; container for plan days |
 | `PlanDay` | A single training day with ordered exercises |
-| `PlanExercise` | Exercise entry within a plan day |
+| `PlanExercise` | Exercise entry within a plan day — includes `groupId`, `groupType`, `dropSets` |
 | `WorkoutLog` | Completed session — sets JSON, duration, date |
 | `SavedRoutine` | Named plan snapshot; shareable between users |
 | `Message` | Direct message; supports text and plan_proposal types |
@@ -271,9 +280,9 @@ public/
 
 ## Roadmap
 
-| Item | Status |
-|---|---|
-| Swap rule-based plan generator → Claude API | Blocked: Anthropic credits |
-| DMARC DNS record for revtech.com.mv | Blocked: Dhiraagu registrar access |
+See `ROADMAP.md` for the full future feature plan including HIIT programs, animation roadmap, and long-term candidates.
 
-See `PATCHLOG.md` for full history and `ROADMAP.md` for future feature specs.
+| Blocked item | Reason |
+|---|---|
+| AI-powered plan generator | Anthropic billing unavailable as of May 2026 |
+| DMARC DNS record | Dhiraagu registrar portal access |
