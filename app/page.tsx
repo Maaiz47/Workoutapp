@@ -63,6 +63,7 @@ async function subscribeToPush(): Promise<"granted" | "denied" | "unsupported" |
 function useCountdown() {
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
+  const [total, setTotal] = useState(0);
   const endTimeRef = useRef<number | null>(null);
   const ref = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioCtx = useRef<AudioContext | null>(null);
@@ -137,6 +138,7 @@ function useCountdown() {
     const endTime = Date.now() + secs * 1000;
     endTimeRef.current = endTime;
     setSeconds(secs);
+    setTotal(secs);
     setRunning(true);
 
     ref.current = setInterval(() => {
@@ -175,7 +177,7 @@ function useCountdown() {
     };
   }, [finish]);
 
-  return { seconds, running, start, stop };
+  return { seconds, running, total, start, stop };
 }
 
 function useTimer() {
@@ -1035,6 +1037,12 @@ export default function HomePage() {
   const [wInput, setWInput] = useState("");
   const [rInput, setRInput] = useState("");
   const [bwAddWeight, setBwAddWeight] = useState(false);
+  const [logFlashId, setLogFlashId] = useState<string | null>(null);
+  const [newPBs, setNewPBs] = useState<{ name: string; weight: number; reps: number }[]>([]);
+  const [showCompleteAnim, setShowCompleteAnim] = useState(false);
+  const [viewDir, setViewDir] = useState<"forward" | "back">("forward");
+  const prevOnboardingStep = useRef(0);
+  const [obDir, setObDir] = useState<"forward" | "back">("forward");
   const [history, setHistory] = useState<Record<string, any[]>>({});
   const [openHist, setOpenHist] = useState<string | null>(null);
   const [warmupDone, setWarmupDone] = useState<Record<string, boolean>>({});
@@ -1369,6 +1377,11 @@ export default function HomePage() {
     const iv = setInterval(() => setFormFrame(f => f === 0 ? 1 : 0), 900);
     return () => clearInterval(iv);
   }, [formPreview]);
+
+  useEffect(() => {
+    setObDir(onboardingStep >= prevOnboardingStep.current ? "forward" : "back");
+    prevOnboardingStep.current = onboardingStep;
+  }, [onboardingStep]);
 
   const authPost = async (body: object) => {
     const res = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -1834,7 +1847,9 @@ export default function HomePage() {
     } catch {}
   };
 
-  const openDay = (d: WorkoutDay) => { setActiveDay(d); setView("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); };
+  const goTo = (v: string, dir: "forward" | "back" = "forward") => { setViewDir(dir); setView(v); };
+  const goBack = () => goTo("home", "back");
+  const openDay = (d: WorkoutDay) => { setActiveDay(d); goTo("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); };
   const begin = () => {
     setStarted(true);
     timer.startT();
@@ -1859,6 +1874,26 @@ export default function HomePage() {
   const doSaveWorkout = async () => {
     setShowFinishPrompt(false);
     timer.stopT();
+
+    // Detect new PBs before saving (compare session log against history)
+    const detectedPBs: { name: string; weight: number; reps: number }[] = [];
+    if (activeDay) {
+      const exIds = Array.from(new Set(Object.keys(log).map(k => k.split("-").slice(0, -1).join("-"))));
+      for (const eid of exIds) {
+        const { weight: prevBest } = lastSessionBest(eid);
+        const sessionSets = Object.entries(log)
+          .filter(([k]) => k.startsWith(eid + "-"))
+          .map(([, v]) => v);
+        const sessionBest = sessionSets.reduce((b, s) => s.weight > b.weight || (s.weight === b.weight && s.reps > b.reps) ? s : b, { weight: 0, reps: 0 });
+        if (sessionBest.weight > 0 && sessionBest.weight > prevBest) {
+          const exName = activeDay.sections.flatMap(s => s.exercises).find(e => e.id === eid)?.name ?? eid;
+          detectedPBs.push({ name: exName, weight: sessionBest.weight, reps: sessionBest.reps });
+        }
+      }
+    }
+
+    setShowCompleteAnim(true);
+
     if (activeDay) {
       try {
         await fetch("/api/workout", {
@@ -1872,7 +1907,13 @@ export default function HomePage() {
       } catch {}
     }
     try { localStorage.removeItem("ironlog-session"); } catch {}
-    setView("home"); setActiveDay(null); setLog({}); setStarted(false);
+
+    setTimeout(() => {
+      setShowCompleteAnim(false);
+      if (detectedPBs.length > 0) setNewPBs(detectedPBs);
+      goBack();
+      setActiveDay(null); setLog({}); setStarted(false);
+    }, 1400);
   };
 
   const openEditModal = (eid: string) => {
@@ -2131,6 +2172,7 @@ export default function HomePage() {
     const obBtn: React.CSSProperties = { display: "block", width: "100%", marginTop: 24, padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
     const obSkip: React.CSSProperties = { background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 14, display: "block", width: "100%" };
     const selCard = (active: boolean): React.CSSProperties => ({ padding: "16px 20px", borderRadius: 12, border: `1px solid ${active ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, background: active ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", cursor: "pointer", marginBottom: 10, transition: "all 0.15s" });
+    const obAnimClass = obDir === "forward" ? "ob-forward" : "ob-back";
 
     const canNext = () => {
       if (rebuildMode && (onboardingStep === 1 || onboardingStep === 2)) return true;
@@ -2163,12 +2205,12 @@ export default function HomePage() {
       <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "48px 24px 80px" }}>
         {/* Progress bar */}
         <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginBottom: 40 }}>
-          <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg, #FF6B6B, #ee5a24)", borderRadius: 2, transition: "width 0.3s ease" }} />
+          <div className="bar-grow" style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg, #FF6B6B, #ee5a24)", borderRadius: 2 }} />
         </div>
 
         {/* Step 0: Welcome */}
         {onboardingStep === 0 && (
-          <div className="slide-up">
+          <div key={onboardingStep} className={obAnimClass}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 32, fontWeight: 700, color: "#fff", marginBottom: 8 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Let's build your plan.</div>
             <div style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 32 }}>Answer a few quick questions and we'll put together a personalised workout programme designed around your goals, schedule, and equipment.</div>
@@ -2179,7 +2221,7 @@ export default function HomePage() {
 
         {/* Step 1: DOB + gender */}
         {onboardingStep === 1 && (
-          <div className="slide-up">
+          <div key={onboardingStep} className={obAnimClass}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>ABOUT YOU</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>When were you born?</div>
             <input type="date" value={ob.dob} onChange={e => setOb(o => ({ ...o, dob: e.target.value }))} style={{ ...obInput, marginBottom: 24, colorScheme: "dark" }} />
@@ -2196,7 +2238,7 @@ export default function HomePage() {
 
         {/* Step 2: Height + weight */}
         {onboardingStep === 2 && (
-          <div className="slide-up">
+          <div key={onboardingStep} className={obAnimClass}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>YOUR BODY</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>Height & weight</div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Height (cm)</div>
@@ -2212,7 +2254,7 @@ export default function HomePage() {
 
         {/* Step 3: Goal */}
         {onboardingStep === 3 && (
-          <div className="slide-up">
+          <div key={onboardingStep} className={obAnimClass}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>YOUR GOALS</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>What are you training for?</div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 24 }}>Select all that apply — your plan will blend them.</div>
@@ -2240,7 +2282,7 @@ export default function HomePage() {
 
         {/* Step 4: Target Area */}
         {onboardingStep === 4 && (
-          <div className="slide-up">
+          <div key={onboardingStep} className={obAnimClass}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>FOCUS</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>Any specific focus area?</div>
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Select all that apply — we'll add extra work for your priority muscle groups, or adjust the plan for rehabilitation.</div>
@@ -2287,7 +2329,7 @@ export default function HomePage() {
 
         {/* Step 5: Experience */}
         {onboardingStep === 5 && (
-          <div className="slide-up">
+          <div key={onboardingStep} className={obAnimClass}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>EXPERIENCE</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>How long have you been training?</div>
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 28 }}>This helps us set the right volume and exercise selection.</div>
@@ -2309,7 +2351,7 @@ export default function HomePage() {
 
         {/* Step 6: Location */}
         {onboardingStep === 6 && (
-          <div className="slide-up">
+          <div key={onboardingStep} className={obAnimClass}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>SETUP</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>Where do you train?</div>
             {[
@@ -2329,7 +2371,7 @@ export default function HomePage() {
 
         {/* Step 7: Equipment */}
         {onboardingStep === 7 && (
-          <div className="slide-up">
+          <div key={onboardingStep} className={obAnimClass}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>EQUIPMENT</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>
               {ob.location === "gym" ? "What does your gym have?" : ob.location === "home" ? "What do you have at home?" : "What equipment do you have access to?"}
@@ -2374,7 +2416,7 @@ export default function HomePage() {
 
         {/* Step 8: Days per week */}
         {onboardingStep === 8 && (
-          <div className="slide-up">
+          <div key={onboardingStep} className={obAnimClass}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>SCHEDULE</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>How many days per week?</div>
             <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 32 }}>We'll recommend the optimal split for your schedule and goal.</div>
@@ -2426,7 +2468,7 @@ export default function HomePage() {
 
       return (
         <>
-        <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "0 0 100px" }}>
+        <div key="customise" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "0 0 100px" }}>
           <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
             <button onClick={() => { setEditingDay(null); setShowExBrowser(false); setExSearch(""); setSuperSelection([]); setCustomMultiMode(false); setBrowserSupersetMode(false); setBrowserSuperSel([]); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "#FF6B6B", letterSpacing: 3, flex: 1 }}>EDITING</div>
@@ -2804,7 +2846,24 @@ export default function HomePage() {
 
   // ─── HOME ───────────────────────────────────────────────────────────
   if (view === "home") return (
-    <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
+    <div key="home" className={viewDir === "back" ? "view-back" : "view-forward"} style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
+      {/* PB celebration overlay */}
+      {newPBs.length > 0 && (
+        <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}
+          onAnimationEnd={() => setNewPBs([])}>
+          <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
+            <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
+            <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
+            {newPBs.map((pb, i) => (
+              <div key={i} style={{ marginBottom: 6 }}>
+                <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{pb.name}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,215,0,0.7)", fontFamily: "'Space Mono', monospace" }}>{pb.weight}kg × {pb.reps}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px 20px 0" }}>
         <button onClick={() => setView("settings")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "10px 14px" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 300, letterSpacing: 1 }}>Welcome back</div>
@@ -3070,11 +3129,11 @@ export default function HomePage() {
         </div>
       )}
       <div style={{ padding: "12px 20px 0", display: "flex", flexDirection: "column", gap: 8 }}>
-        <button className="card-hover" onClick={() => setView("messages")} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxSizing: "border-box" }}>
+        <button className="card-hover nav-btn" onClick={() => goTo("messages")} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxSizing: "border-box" }}>
           MESSAGES
           {unreadCount > 0 && <span style={{ background: "#4ECDC4", color: "#000", borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
         </button>
-        <button className="card-hover" onClick={() => { setView("progress"); setProgressTab("dashboard"); }} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>VIEW PROGRESS →</button>
+        <button className="card-hover nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>VIEW PROGRESS →</button>
       </div>
     </div>
   );
@@ -3134,7 +3193,7 @@ export default function HomePage() {
     }
 
     return (
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
+      <div key="clientDetail" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
         <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         </div>
@@ -3597,7 +3656,7 @@ export default function HomePage() {
 
   // ─── MESSAGES LIST ──────────────────────────────────────────────────
   if (view === "messages") return (
-    <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
+    <div key="messages" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
       <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>MESSAGES</div>
@@ -3625,7 +3684,7 @@ export default function HomePage() {
 
   // ─── CONVERSATION ────────────────────────────────────────────────────
   if (view === "conversation" && activeConversation) return (
-    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <div key="conversation" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
         <button onClick={() => { setView("messages"); setActiveConversation(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         <div style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>@{activeConversation.username}</div>
@@ -3758,7 +3817,7 @@ export default function HomePage() {
     };
 
     return (
-      <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "0 0 80px" }}>
+      <div key="settings" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", padding: "0 0 80px" }}>
         <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>ACCOUNT</div>
@@ -4140,7 +4199,7 @@ export default function HomePage() {
     const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
 
     return (
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
+      <div key="progress" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh", position: "relative", overflow: "hidden" }}>
         <div aria-hidden style={{ position: "absolute", top: "8%", left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
           {[0, 1, 2, 3].map(n => (
             <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.025, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
@@ -4483,7 +4542,7 @@ export default function HomePage() {
                               </div>
                             </div>
                             <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3 }}>
-                              <div style={{ height: "100%", background: "linear-gradient(90deg,#4ECDC4,#44a08d)", borderRadius: 3, width: `${100 - Math.min(100, Math.abs(diff / ((weightData[0] ?? targetW) - targetW + 0.001)) * 100)}%`, transition: "width 0.5s", minWidth: diff === 0 ? "100%" : "4px" }} />
+                              <div className="bar-grow" style={{ height: "100%", background: "linear-gradient(90deg,#4ECDC4,#44a08d)", borderRadius: 3, width: `${100 - Math.min(100, Math.abs(diff / ((weightData[0] ?? targetW) - targetW + 0.001)) * 100)}%`, minWidth: diff === 0 ? "100%" : "4px" }} />
                             </div>
                           </div>
                         );
@@ -4499,7 +4558,7 @@ export default function HomePage() {
                               </div>
                             </div>
                             <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3 }}>
-                              <div style={{ height: "100%", background: "linear-gradient(90deg,#A29BFE,#9b59b6)", borderRadius: 3, width: `${100 - Math.min(100, Math.abs(diff / ((bfData[0] ?? targetBf) - targetBf + 0.001)) * 100)}%`, transition: "width 0.5s", minWidth: diff === 0 ? "100%" : "4px" }} />
+                              <div className="bar-grow" style={{ height: "100%", background: "linear-gradient(90deg,#A29BFE,#9b59b6)", borderRadius: 3, width: `${100 - Math.min(100, Math.abs(diff / ((bfData[0] ?? targetBf) - targetBf + 0.001)) * 100)}%`, minWidth: diff === 0 ? "100%" : "4px" }} />
                             </div>
                           </div>
                         );
@@ -4598,7 +4657,7 @@ export default function HomePage() {
       const tEx = activeDay.sections.reduce((t, s) => t + s.exercises.filter(e => e.trackable !== false).length, 0);
       const tSets = activeDay.sections.reduce((t, s) => t + s.exercises.filter(e => e.trackable !== false).reduce((a, e) => a + e.sets, 0), 0);
       return (
-        <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
+        <div key="workout-prep" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: "80vw", height: "80vw", borderRadius: "50%", background: `radial-gradient(circle, ${activeDay.color}12 0%, transparent 60%)`, pointerEvents: "none", animation: "breathe 4s ease infinite" }} />
           <div aria-hidden style={{ position: "absolute", top: "10%", left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
             {[0, 1, 2, 3].map(n => (
@@ -4622,7 +4681,7 @@ export default function HomePage() {
     }
 
     return (
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
+      <div key="workout-session" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 80px", minHeight: "100vh" }}>
         {resumeOverlay && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 32 }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 32 }}>SESSION RESTORED</div>
@@ -4821,13 +4880,26 @@ export default function HomePage() {
           );
         })()}
 
-        {rest.running && (
-          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(20px)" }}>
-            <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>REST</div>
-            <div style={{ fontSize: 96, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", animation: "countPulse 1s ease infinite" }}>{rest.seconds}</div>
-            <button onClick={rest.stop} style={{ marginTop: 40, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 36px", color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "'DM Sans', sans-serif", letterSpacing: 2, cursor: "pointer" }}>SKIP</button>
-          </div>
-        )}
+        {rest.running && (() => {
+          const progress = rest.total > 0 ? rest.seconds / rest.total : 0;
+          const R = 70, C = 2 * Math.PI * R;
+          const dash = C * progress;
+          return (
+            <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(20px)" }}>
+              <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 28, fontFamily: "'Space Mono', monospace" }}>REST</div>
+              <div style={{ position: "relative", width: 172, height: 172, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="172" height="172" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
+                  <circle cx="86" cy="86" r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="6" />
+                  <circle cx="86" cy="86" r={R} fill="none" stroke="#FF6B6B" strokeWidth="6"
+                    strokeDasharray={`${dash} ${C}`} strokeLinecap="round"
+                    style={{ transition: "stroke-dasharray 0.25s linear" }} />
+                </svg>
+                <div style={{ fontSize: 72, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>{rest.seconds}</div>
+              </div>
+              <button onClick={rest.stop} style={{ marginTop: 36, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 36px", color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "'DM Sans', sans-serif", letterSpacing: 2, cursor: "pointer" }}>SKIP</button>
+            </div>
+          );
+        })()}
         <div style={{ padding: "16px 20px 14px", background: `linear-gradient(180deg, ${activeDay.color}10, transparent)`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Home</button>
@@ -5037,7 +5109,11 @@ export default function HomePage() {
                             {rDiff(parseInt(rInput))}
                           </div>
                         </div>
-                        <button onClick={handleLog} style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: ((!effectiveWeight && !isBW) && !rInput) ? 0.4 : 1 }}>
+                        <button
+                          key={`log-${ex.id}-${ns}`}
+                          onClick={() => { handleLog(); setLogFlashId(ex.id); setTimeout(() => setLogFlashId(null), 420); }}
+                          className={logFlashId === ex.id ? "log-flash" : ""}
+                          style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: ((!effectiveWeight && !isBW) && !rInput) ? 0.4 : 1 }}>
                           {logBtnLabel}
                         </button>
                       </div>
@@ -5086,6 +5162,20 @@ export default function HomePage() {
         <div style={{ padding: "0 20px 20px" }}>
           <button onClick={finish} style={{ width: "100%", padding: "16px", background: "rgba(46,204,113,0.15)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 12, color: "#2ecc71", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>FINISH & SAVE</button>
         </div>
+
+        {/* Workout complete animation */}
+        {showCompleteAnim && (
+          <div className="complete-overlay" style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(16px)", pointerEvents: "none" }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div className="complete-ring" style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "3px solid rgba(46,204,113,0.6)" }} />
+              <div className="complete-ring" style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "2px solid rgba(46,204,113,0.3)", animationDelay: "0.18s" }} />
+              <div className="complete-pop" style={{ width: 80, height: 80, borderRadius: "50%", background: "rgba(46,204,113,0.15)", border: "2px solid rgba(46,204,113,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: 36 }}>✓</span>
+              </div>
+            </div>
+            <div className="complete-pop" style={{ marginTop: 32, fontSize: 20, fontWeight: 700, color: "#2ecc71", letterSpacing: 3, fontFamily: "'Space Mono', monospace", animationDelay: "0.2s" }}>SAVED</div>
+          </div>
+        )}
 
         {/* ── In-workout exercise add overlay ── */}
         {showAddInWorkout && (() => {

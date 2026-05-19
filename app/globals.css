@@ -58,6 +58,49 @@ input[type="number"] { -moz-appearance: textfield; }
 .card-hover:active { transform: scale(0.97); }
 .card-hover:hover { background: rgba(255,255,255,0.06); }
 
+/* ── View transitions ─────────────────────────────────────────────────── */
+@keyframes viewSlideRight { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes viewSlideLeft  { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
+.view-forward { animation: viewSlideRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.view-back    { animation: viewSlideLeft  0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* ── Log SET button flash ─────────────────────────────────────────────── */
+@keyframes logSetFlash {
+  0%   { transform: scale(1);    filter: brightness(1); }
+  30%  { transform: scale(1.05); filter: brightness(1.5); background: rgba(46,204,113,0.45); }
+  100% { transform: scale(1);    filter: brightness(1); }
+}
+.log-flash { animation: logSetFlash 0.38s ease both; }
+
+/* ── PB celebration ───────────────────────────────────────────────────── */
+@keyframes pbOverlay { 0% { opacity: 0; } 10% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes pbPop { 0% { opacity: 0; transform: scale(0.5) translateY(20px); } 55% { transform: scale(1.08) translateY(-4px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes pbShine { 0% { transform: translateX(-100%) skewX(-15deg); } 100% { transform: translateX(250%) skewX(-15deg); } }
+.pb-overlay { animation: pbOverlay 2.4s ease both; pointer-events: none; }
+.pb-pop     { animation: pbPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both; }
+.pb-shine   { animation: pbShine 0.7s ease 0.55s both; }
+
+/* ── Workout complete flash ───────────────────────────────────────────── */
+@keyframes completeRing { 0% { transform: scale(0.4); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
+@keyframes completePop  { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes completeFade { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+.complete-overlay { animation: completeFade 1.5s ease both; }
+.complete-ring    { animation: completeRing 1s ease-out 0.15s both; }
+.complete-pop     { animation: completePop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both; }
+
+/* ── Progress bar grow ────────────────────────────────────────────────── */
+@keyframes barGrow { from { width: 0 !important; } }
+.bar-grow { animation: barGrow 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* ── Onboarding step slides ───────────────────────────────────────────── */
+.ob-forward { animation: viewSlideRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.ob-back    { animation: viewSlideLeft  0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* ── Nav button bounce ────────────────────────────────────────────────── */
+@keyframes navBounce { 0% { transform: scale(1); } 35% { transform: scale(0.91); } 70% { transform: scale(1.05); } 100% { transform: scale(1); } }
+.nav-btn { transition: opacity 0.15s ease; }
+.nav-btn:active { animation: navBounce 0.28s ease both; }
+
 /* Subtle scrollbar polish for desktop dark UI */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
