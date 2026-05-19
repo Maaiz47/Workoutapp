@@ -2291,7 +2291,7 @@ function HomePage() {
           </div>
         </div>
       );
-    }
+    } else {
 
     // ── Other auth steps — centered card ─────────────────────────────
     _viewKey = `auth-${authStep}`; _content = (
@@ -2304,6 +2304,14 @@ function HomePage() {
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 32 }}>LIFT · TRACK · PROGRESS</div>
 
+          <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={authStep}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
           {/* ── Step: register (new user) ── */}
           {authStep === "register" && (<>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Create your account</div>
@@ -2361,16 +2369,19 @@ function HomePage() {
             )}
             <button onClick={() => { setAuthStep("password"); setForgotSent(false); setAuthError(""); }} style={btnBack}>← Back to login</button>
           </>)}
+          </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     );
+    }
   }
 
   // ─── MUST RESET PASSWORD ────────────────────────────────────────────
   if (user && mustResetPassword) {
     const inputStyle: React.CSSProperties = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", padding: "14px 20px", width: "100%", maxWidth: 300, textAlign: "center" as const, outline: "none", display: "block", boxSizing: "border-box" as const, margin: "0 auto" };
     const btnPrimary: React.CSSProperties = { display: "block", width: "100%", maxWidth: 300, margin: "16px auto 0", padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
-    return (
+    _viewKey = "reset-password"; _content = (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
@@ -2387,7 +2398,7 @@ function HomePage() {
         </div>
       </div>
     );
-  }
+  } else
 
   // ─── ONBOARDING ─────────────────────────────────────────────────────
   if (showOnboarding) {
@@ -2418,15 +2429,13 @@ function HomePage() {
       });
     };
 
-    if (generatingPlan) return (
+    if (generatingPlan) { _viewKey = "onboarding-generating"; _content = (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32 }}>
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 32 }}>BUILDING YOUR PLAN</div>
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 26, fontWeight: 700, color: "#FF6B6B", marginBottom: 16 }}>IRON<span style={{ color: "#fff" }}>LOG</span></div>
         <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", textAlign: "center", lineHeight: 1.7 }}>Analysing your goals and selecting the best exercises for you...</div>
       </div>
-    );
-
-    return (
+    ); } else { _viewKey = `onboarding-${onboardingStep}`; _content = (
       <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", padding: "48px 24px 0", paddingBottom: safeBot }}>
         {/* Progress bar */}
         <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginBottom: 40 }}>
@@ -2658,8 +2667,8 @@ function HomePage() {
           </div>
         )}
       </div>
-    );
-  }
+    ); }
+  } else
 
   // ─── CUSTOMISE ──────────────────────────────────────────────────────
   if (view === "customise") {
@@ -2691,9 +2700,9 @@ function HomePage() {
         return true;
       }).slice(0, 60);
 
-      return (
+      _viewKey = "customise-edit"; _content = (
         <>
-        <div key="customise" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", paddingBottom: "calc(100px + env(safe-area-inset-bottom, 0px))" }}>
+        <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", paddingBottom: "calc(100px + env(safe-area-inset-bottom, 0px))" }}>
           <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
             <button onClick={() => { setEditingDay(null); setShowExBrowser(false); setExSearch(""); setSuperSelection([]); setCustomMultiMode(false); setBrowserSupersetMode(false); setBrowserSuperSel([]); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "#FF6B6B", letterSpacing: 3, flex: 1 }}>EDITING</div>
@@ -3040,7 +3049,7 @@ function HomePage() {
     }
 
     // Plan overview — list all days
-    return (
+    _viewKey = "customise"; _content = (
       <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", paddingBottom: "calc(100px + env(safe-area-inset-bottom, 0px))" }}>
         <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
@@ -3067,11 +3076,11 @@ function HomePage() {
         </div>
       </div>
     );
-  }
+  } else
 
   // ─── HOME ───────────────────────────────────────────────────────────
-  if (view === "home") return (
-    <div key="home" className={viewDir === "back" ? "view-back" : "view-forward"} style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
+  if (view === "home") { _viewKey = "home"; _content = (
+    <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
       {/* PB celebration overlay */}
       {newPBs.length > 0 && (
         <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
@@ -3101,8 +3110,16 @@ function HomePage() {
         </button>
         <button onClick={doLogout} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 14px", color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", letterSpacing: 1 }}>LOG OUT</button>
       </div>
+      <AnimatePresence>
       {showNotifBanner && notifStatus === "idle" && (
-        <div style={{ margin: "16px 20px 0", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+        <motion.div
+          initial={{ opacity: 0, y: -10, height: 0 }}
+          animate={{ opacity: 1, y: 0, height: "auto" }}
+          exit={{ opacity: 0, y: -10, height: 0 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          style={{ overflow: "hidden", margin: "16px 20px 0" }}
+        >
+        <div style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "#4ECDC4", marginBottom: 3 }}>Enable notifications</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>Get notified when you receive a message or a trainer sends you a request.</div>
@@ -3117,7 +3134,9 @@ function HomePage() {
             <button onClick={() => setShowNotifBanner(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: "2px 0", textAlign: "center" }}>Not now</button>
           </div>
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
       <div style={{ padding: "20px 20px 0", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
         <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
@@ -3360,7 +3379,7 @@ function HomePage() {
         <motion.button whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 20 }} className="nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>VIEW PROGRESS →</motion.button>
       </div>
     </div>
-  );
+  ); } else
 
   // ─── CLIENT DETAIL ──────────────────────────────────────────────────
   if (view === "clientDetail" && activeClient) {
@@ -3416,8 +3435,8 @@ function HomePage() {
       if (!lastWorkoutByDay[s.dayId]) lastWorkoutByDay[s.dayId] = s.date;
     }
 
-    return (
-      <div key="clientDetail" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
+    _viewKey = "clientDetail"; _content = (
+      <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
         <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         </div>
@@ -3935,11 +3954,11 @@ function HomePage() {
       )}
       </div>
     );
-  }
+  } else
 
   // ─── MESSAGES LIST ──────────────────────────────────────────────────
-  if (view === "messages") return (
-    <div key="messages" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
+  if (view === "messages") { _viewKey = "messages"; _content = (
+    <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
       <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>MESSAGES</div>
@@ -3975,11 +3994,11 @@ function HomePage() {
         })}
       </div>
     </div>
-  );
+  ); } else
 
   // ─── CONVERSATION ────────────────────────────────────────────────────
-  if (view === "conversation" && activeConversation) return (
-    <div key="conversation" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100dvh" }}>
+  if (view === "conversation" && activeConversation) { _viewKey = `conv-${activeConversation.id}`; _content = (
+    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100dvh" }}>
       <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
         <button onClick={() => { setView("messages"); setActiveConversation(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         <div style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>@{activeConversation.username}</div>
@@ -4082,7 +4101,7 @@ function HomePage() {
         <button onClick={sendMessage} disabled={sendingMessage || !messageText.trim()} style={{ padding: "13px 18px", background: messageText.trim() ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, color: messageText.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: messageText.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", transition: "all 0.15s" }}>SEND</button>
       </div>
     </div>
-  );
+  ); } else
 
   // ─── SETTINGS ───────────────────────────────────────────────────────
   if (view === "settings") {
@@ -4123,8 +4142,8 @@ function HomePage() {
       setCancellingRequest(false);
     };
 
-    return (
-      <div key="settings" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", paddingBottom: safeBot }}>
+    _viewKey = "settings"; _content = (
+      <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", paddingBottom: safeBot }}>
         <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>ACCOUNT</div>
@@ -4480,7 +4499,7 @@ function HomePage() {
         </div>
       </div>
     );
-  }
+  } else
 
   // ─── PROGRESS DASHBOARD ─────────────────────────────────────────────
   if (view === "progress") {
@@ -4505,8 +4524,8 @@ function HomePage() {
     // Day labels for 28-day calendar
     const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
 
-    return (
-      <div key="progress" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
+    _viewKey = `progress-${progressTab}`; _content = (
+      <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
         <div aria-hidden style={{ position: "absolute", top: "8%", left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
           {[0, 1, 2, 3].map(n => (
             <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.025, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
@@ -4532,8 +4551,16 @@ function HomePage() {
         </div>
 
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
+        <AnimatePresence mode="wait" initial={false}>
         {progressTab === "dashboard" && (
-          <div className="fade-in" style={{ padding: "20px 20px 0" }}>
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ padding: "20px 20px 0" }}
+          >
             {/* Overview Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
               {[
@@ -4630,12 +4657,21 @@ function HomePage() {
                 Complete your first workout to see analytics here
               </div>
             )}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {/* ─── EXERCISES TAB ─────────────────────────────────────────── */}
+        <AnimatePresence mode="wait" initial={false}>
         {progressTab === "exercises" && (
-          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
+          <motion.div
+            key="exercises"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ padding: "16px 20px 0" }}
+          >
             {WORKOUT_DATA.map(d => (
               <div key={d.id} style={{ marginBottom: 8 }}>
                 <div className="card-hover" onClick={() => setSelectedExDay(selectedExDay === d.id ? null : d.id)}
@@ -4696,12 +4732,21 @@ function HomePage() {
                 }))}
               </div>
             ))}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {/* ─── HISTORY TAB ───────────────────────────────────────────── */}
+        <AnimatePresence mode="wait" initial={false}>
         {progressTab === "history" && (
-          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
+          <motion.div
+            key="history"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ padding: "16px 20px 0" }}
+          >
             {WORKOUT_DATA.map(d => (
               <div key={d.id} style={{ marginBottom: 4 }}>
                 <div className="card-hover" onClick={() => setOpenHist(openHist === d.id ? null : d.id)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px 18px", cursor: "pointer" }}>
@@ -4739,11 +4784,20 @@ function HomePage() {
                 ))}
               </div>
             ))}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
         {/* ─── BODY TAB ──────────────────────────────────────────────── */}
+        <AnimatePresence mode="wait" initial={false}>
         {progressTab === "body" && (
-          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
+          <motion.div
+            key="body"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ padding: "16px 20px 0" }}
+          >
 
             {/* Goals section */}
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
@@ -4955,19 +5009,20 @@ function HomePage() {
             {bodyMetricsLoaded && bodyMetrics.length === 0 && (
               <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "24px 0" }}>Log your first measurement above to start tracking</div>
             )}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
     );
-  }
+  } else
 
   // ─── WORKOUT ────────────────────────────────────────────────────────
   if (view === "workout" && activeDay) {
     if (!started) {
       const tEx = activeDay.sections.reduce((t, s) => t + s.exercises.filter(e => e.trackable !== false).length, 0);
       const tSets = activeDay.sections.reduce((t, s) => t + s.exercises.filter(e => e.trackable !== false).reduce((a, e) => a + e.sets, 0), 0);
-      return (
-        <div key="workout-prep" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
+      _viewKey = "workout-prep"; _content = (
+        <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: "80vw", height: "80vw", borderRadius: "50%", background: `radial-gradient(circle, ${activeDay.color}12 0%, transparent 60%)`, pointerEvents: "none", animation: "breathe 4s ease infinite" }} />
           <div aria-hidden style={{ position: "absolute", top: "10%", left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
             {[0, 1, 2, 3].map(n => (
@@ -4988,10 +5043,9 @@ function HomePage() {
           </div>
         </div>
       );
-    }
-
-    return (
-      <div key="workout-session" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
+    } else {
+      _viewKey = "workout-session"; _content = (
+      <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
         {newPBs.length > 0 && (
           <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
             <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
@@ -5088,6 +5142,7 @@ function HomePage() {
           );
         })()}
 
+        <AnimatePresence>
         {formPreview && (() => {
           const urls = getExerciseImageUrls(formPreview.id, formPreview.name);
           const rawPrimary = formPreview.muscles;
@@ -5100,8 +5155,18 @@ function HomePage() {
             : (detFb?.s ?? []).map((k: string) => k.split("-")[0]).filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
           const allMuscles = [...primary, ...secondary].filter((m, i, a) => a.indexOf(m) === i);
           return (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.93)", zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setFormPreview(null)}>
-              <div style={{ width: "100%", maxWidth: 420 }}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.93)", zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setFormPreview(null)}>
+              <motion.div
+                initial={{ scale: 0.94, y: 16 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.94, y: 16 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                style={{ width: "100%", maxWidth: 420 }}
                 onClick={e => e.stopPropagation()}
                 onTouchStart={e => { swipeTouchX.current = e.touches[0].clientX; }}
                 onTouchEnd={e => { const dx = e.changedTouches[0].clientX - swipeTouchX.current; if (Math.abs(dx) > 50) setModalSlide(dx < 0 ? 1 : 0); }}
@@ -5200,10 +5265,11 @@ function HomePage() {
                 <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.18)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
                   TAP OUTSIDE TO CLOSE
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           );
         })()}
+        </AnimatePresence>
 
         {rest.running && isMounted && (() => {
           const progress = rest.total > 0 ? rest.seconds / rest.total : 0;
@@ -5399,8 +5465,15 @@ function HomePage() {
                     )}
 
                     {/* Regular set input */}
+                    <AnimatePresence>
                     {isExp && trackable && ns && !hasDrop && (
-                      <div className="fade-in" style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: "easeOut" }}
+                        style={{ overflow: "hidden", padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                      >
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 12, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span>Set {ns} of {ex.sets}{superCtx && !isLastInSuper ? ` · then ${superCtx.group[superCtx.idx + 1].name}` : ""}</span>
                           {lw > 0 && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>Last: {lw}kg × {lr}</span>}
@@ -5454,8 +5527,9 @@ function HomePage() {
                           style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: ((!effectiveWeight && !isBW) && !rInput) ? 0.4 : 1 }}>
                           {logBtnLabel}
                         </motion.button>
-                      </div>
+                      </motion.div>
                     )}
+                    </AnimatePresence>
                   </div>
                 );
               };
@@ -5706,10 +5780,25 @@ function HomePage() {
           );
         })()}
       </div>
-    );
+      );
+    }
   }
 
-  return null;
+  const _isForward = viewDir !== "back";
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={_viewKey}
+        initial={{ opacity: 0, x: _isForward ? 22 : -22 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: _isForward ? -22 : 22 }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        style={{ minHeight: "100dvh" }}
+      >
+        {_content}
+      </motion.div>
+    </AnimatePresence>
+  );
 }
 
 function PwaBanner() {
@@ -5753,7 +5842,7 @@ function PwaBanner() {
     setUrgent(false);
   };
 
-  if (!visible || !platform) return null;
+  if (!platform) return null;
 
   // Shared phone frame
   const phone = (children: React.ReactNode, h = 220) => (
@@ -6018,10 +6107,22 @@ function PwaBanner() {
   const platformIcon = platform === "ios" ? "" : "🤖"; //  = Apple logo (renders on all Apple devices)
 
   return createPortal(
+    <AnimatePresence>
+    {visible && (
     <>
-      <div style={{ position: "fixed", inset: 0, zIndex: 9997, background: "rgba(0,0,0,0.65)" }} onClick={dismiss} />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        style={{ position: "fixed", inset: 0, zIndex: 9997, background: "rgba(0,0,0,0.65)" }} onClick={dismiss} />
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9998, display: "flex", justifyContent: "center" }}>
-        <div style={{ maxWidth: 480, width: "100%", background: "#0c0c10", borderTop: urgent ? "3px solid #FF6B6B" : "2px solid rgba(255,107,107,0.45)", borderRadius: "22px 22px 0 0", boxShadow: urgent ? "0 -20px 70px rgba(255,107,107,0.3)" : "0 -16px 60px rgba(255,107,107,0.15)", display: "flex", flexDirection: "column", maxHeight: "92dvh" }}>
+        <motion.div
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          style={{ maxWidth: 480, width: "100%", background: "#0c0c10", borderTop: urgent ? "3px solid #FF6B6B" : "2px solid rgba(255,107,107,0.45)", borderRadius: "22px 22px 0 0", boxShadow: urgent ? "0 -20px 70px rgba(255,107,107,0.3)" : "0 -16px 60px rgba(255,107,107,0.15)", display: "flex", flexDirection: "column", maxHeight: "92dvh" }}>
           <div style={{ overflowY: "auto", padding: "0 18px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}>
             {/* Handle */}
             <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "12px auto 16px" }} />
@@ -6063,9 +6164,11 @@ function PwaBanner() {
             {/* Dismiss */}
             <button onClick={dismiss} style={{ width: "100%", padding: "13px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 11, color: "rgba(255,255,255,0.45)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Remind me later</button>
           </div>
-        </div>
+        </motion.div>
       </div>
-    </>,
+    </>
+    )}
+    </AnimatePresence>,
     document.body
   );
 }
