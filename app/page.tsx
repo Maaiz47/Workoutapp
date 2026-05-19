@@ -5730,7 +5730,7 @@ function PwaBanner() {
 
   // Shared phone frame
   const phone = (children: React.ReactNode, h = 220) => (
-    <div style={{ width: 130, height: h, borderRadius: 18, border: "2px solid #3a3a3a", background: "#111", overflow: "hidden", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+    <div style={{ width: 160, height: h, borderRadius: 20, border: "2px solid #3a3a3a", background: "#111", overflow: "hidden", flexShrink: 0, display: "flex", flexDirection: "column" }}>
       {/* status bar */}
       <div style={{ background: "#111", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 10px 3px", flexShrink: 0 }}>
         <span style={{ fontSize: 7, color: "#fff", fontWeight: 700 }}>18:12</span>
@@ -5804,7 +5804,7 @@ function PwaBanner() {
           </div>
           {/* Real page via iframe — PwaBanner is suppressed inside iframes */}
           <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-            <iframe src="/" scrolling="no" tabIndex={-1} style={{ width: 390, height: 550, border: "none", transform: "scale(0.3231)", transformOrigin: "top left", pointerEvents: "none" }} />
+            <iframe src="/" scrolling="no" tabIndex={-1} style={{ width: 390, height: 550, border: "none", transform: "scale(0.4)", transformOrigin: "top left", pointerEvents: "none" }} />
           </div>
           {/* Safari toolbar */}
           <div style={{ background: "#1c1c1e", borderTop: "1px solid #333", padding: "5px 0", display: "flex", justifyContent: "space-around", alignItems: "center", flexShrink: 0 }}>
@@ -5821,9 +5821,13 @@ function PwaBanner() {
       label: 'Tap the Share button (⬆) then "Add to Home Screen"',
       mockup: phone(
         <>
-          {/* App peeking behind sheet */}
-          <div style={{ background: "#0a0a0f", padding: "3px 8px", flexShrink: 0 }}>
-            <div style={{ fontSize: 7, fontWeight: 800, color: "#fff", textAlign: "center" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
+          {/* App peeking behind sheet — mini nav bar matching real app header */}
+          <div style={{ background: "#0a0a0f", padding: "4px 7px", display: "flex", alignItems: "center", gap: 4, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, fontWeight: 700, color: "#fff" }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></span>
+            <div style={{ display: "flex", gap: 2, marginLeft: "auto" }}>
+              <span style={{ fontSize: 4.5, background: "rgba(255,107,107,0.15)", border: "0.5px solid rgba(255,107,107,0.5)", color: "#FF6B6B", borderRadius: 3, padding: "1px 3px", fontWeight: 600 }}>ATHLETES</span>
+              <span style={{ fontSize: 4.5, background: "rgba(78,205,196,0.15)", border: "0.5px solid rgba(78,205,196,0.5)", color: "#4ECDC4", borderRadius: 3, padding: "1px 3px", fontWeight: 600 }}>TRAINERS</span>
+            </div>
           </div>
           {/* iOS share sheet */}
           <div style={{ flex: 1, background: "#1c1c1e", display: "flex", flexDirection: "column" }}>
@@ -5869,7 +5873,7 @@ function PwaBanner() {
                 { label: "Markup", icon: "✎" },
                 { label: "Print", icon: "▤" },
               ].map(({ label, icon }, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                   <span style={{ fontSize: 6.5, color: "rgba(255,255,255,0.75)" }}>{label}</span>
                   <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)" }}>{icon}</span>
                 </div>
@@ -5888,7 +5892,7 @@ function PwaBanner() {
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>⊞</span>
           </div>
         </>,
-        270
+        310
       ),
     },
     {
@@ -5897,7 +5901,8 @@ function PwaBanner() {
         <div style={{ flex: 1, background: "linear-gradient(160deg,#1a0a0a,#2d0d0d)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "16px 8px", gap: 6 }}>
           <img src="/apple-touch-icon.png" alt="IRONLOG" style={{ width: 48, height: 48, borderRadius: 13, boxShadow: "0 6px 20px rgba(255,107,107,0.4)" }} />
           <span style={{ fontSize: 7, color: "#fff", fontWeight: 500, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>IRONLOG</span>
-        </div>
+        </div>,
+        240
       ),
     },
   ];
@@ -5919,7 +5924,7 @@ function PwaBanner() {
           </div>
           {/* Real page via iframe */}
           <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-            <iframe src="/" scrolling="no" tabIndex={-1} style={{ width: 390, height: 600, border: "none", transform: "scale(0.3231)", transformOrigin: "top left", pointerEvents: "none" }} />
+            <iframe src="/" scrolling="no" tabIndex={-1} style={{ width: 390, height: 600, border: "none", transform: "scale(0.4)", transformOrigin: "top left", pointerEvents: "none" }} />
           </div>
         </>
       ),
@@ -5966,7 +5971,7 @@ function PwaBanner() {
             ))}
           </div>
         </>,
-        265
+        295
       ),
     },
     {
@@ -5975,7 +5980,8 @@ function PwaBanner() {
         <div style={{ flex: 1, background: "linear-gradient(160deg,#0a0a1a,#0d0d2d)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "16px 8px", gap: 6 }}>
           <img src="/icon-192.png" alt="IRONLOG" style={{ width: 48, height: 48, borderRadius: 13, boxShadow: "0 6px 20px rgba(255,107,107,0.4)" }} />
           <span style={{ fontSize: 7, color: "#fff", fontWeight: 500, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>IRONLOG</span>
-        </div>
+        </div>,
+        240
       ),
     },
   ];
@@ -6006,19 +6012,19 @@ function PwaBanner() {
               <button onClick={dismiss} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 32, height: 32, color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
             </div>
             {/* Steps */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 16 }}>
               {steps.map((step, i) => (
                 <div key={i}>
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: i === 1 ? "#FF6B6B" : "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: i === 1 ? "#fff" : "rgba(255,255,255,0.5)", flexShrink: 0 }}>{i + 1}</div>
-                    <span style={{ color: i === 1 ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.5)", fontWeight: i === 1 ? 600 : 400 }}>{step.label}</span>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#FF6B6B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{i + 1}</div>
+                    <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>{step.label}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "center" }}>{step.mockup}</div>
                 </div>
               ))}
             </div>
             {/* Dismiss */}
-            <button onClick={dismiss} style={{ width: "100%", padding: "13px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 11, color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Remind me later</button>
+            <button onClick={dismiss} style={{ width: "100%", padding: "13px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 11, color: "rgba(255,255,255,0.45)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Remind me later</button>
           </div>
         </div>
       </div>
