@@ -2375,7 +2375,7 @@ function HomePage() {
       </div>
     );
     }
-  }
+  } else
 
   // ─── MUST RESET PASSWORD ────────────────────────────────────────────
   if (user && mustResetPassword) {
