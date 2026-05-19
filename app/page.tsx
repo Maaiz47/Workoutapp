@@ -2353,8 +2353,8 @@ export default function HomePage() {
                   {(() => {
                     const tu = getExerciseImageUrls(ex.exerciseId ?? ex.id, ex.name);
                     return (
-                      <div onClick={() => { const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.exerciseId ?? ex.id, name: ex.name, ...m }); }} style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        {tu ? <img src={tu[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}/> : <span style={{ fontSize: 15, opacity: 0.3 }}>🏋</span>}
+                      <div onClick={() => { const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.exerciseId ?? ex.id, name: ex.name, ...m }); }} style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {tu ? <img src={tu[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}/> : <span style={{ fontSize: 13, opacity: 0.55, lineHeight: 1 }}>💪</span>}
                       </div>
                     );
                   })()}
@@ -2522,8 +2522,8 @@ export default function HomePage() {
                           {(() => {
                             const tu = getExerciseImageUrls(ex.id, ex.name);
                             return (
-                              <div onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [], secondaryMuscles: ex.secondaryMuscles ?? [] }); }} style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                {tu ? <img src={tu[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}/> : <span style={{ fontSize: 15, opacity: 0.3 }}>🏋</span>}
+                              <div onClick={e => { e.stopPropagation(); setFormPreview({ id: ex.id, name: ex.name, muscles: ex.primaryMuscles ?? [], secondaryMuscles: ex.secondaryMuscles ?? [] }); }} style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                {tu ? <img src={tu[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}/> : <span style={{ fontSize: 13, opacity: 0.55, lineHeight: 1 }}>💪</span>}
                               </div>
                             );
                           })()}
