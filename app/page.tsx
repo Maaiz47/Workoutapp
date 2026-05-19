@@ -1243,6 +1243,7 @@ function HomePage() {
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "unsupported" | "error" | "requesting">("idle");
   const [testingNotif, setTestingNotif] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [showNotifBanner, setShowNotifBanner] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -1442,6 +1443,8 @@ function HomePage() {
       setShowNotifBanner(true);
     }
   }, []);
+
+  useEffect(() => { setIsMounted(true); }, []);
 
   const refreshUser = useCallback(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
@@ -6507,13 +6510,13 @@ function HomePage() {
           );
         })()}
 
-        {rest.running && (() => {
+        {rest.running && isMounted && (() => {
           const progress = rest.total > 0 ? rest.seconds / rest.total : 0;
           const R = 70, C = 2 * Math.PI * R;
           const dash = C * progress;
           const hasPB = newPBs.length > 0;
-          return (
-            <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: hasPB ? "flex-start" : "center", paddingTop: hasPB ? 60 : "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)", zIndex: 200, backdropFilter: "blur(20px)", touchAction: "none", overscrollBehavior: "none" }}>
+          return createPortal(
+            <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: hasPB ? "flex-start" : "center", paddingTop: hasPB ? 60 : "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)", zIndex: 9999, backdropFilter: "blur(20px)", touchAction: "none", overscrollBehavior: "none" }}>
               <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 28, fontFamily: "'Space Mono', monospace" }}>REST</div>
               <div style={{ position: "relative", width: 172, height: 172, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="172" height="172" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
@@ -6545,7 +6548,8 @@ function HomePage() {
                   setNewPBs([]);
                 }
               }} style={{ marginTop: 36, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 36px", color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "'DM Sans', sans-serif", letterSpacing: 2, cursor: "pointer" }}>SKIP</button>
-            </div>
+            </div>,
+            document.body
           );
         })()}
         <div style={{ padding: "16px 20px 14px", background: `linear-gradient(180deg, ${activeDay.color}10, transparent)`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
