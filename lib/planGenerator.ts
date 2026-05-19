@@ -105,7 +105,12 @@ function pickExercise(
     if (!ex || exclude.has(id)) continue;
     if (ex.location !== "both" && ex.location !== profile.location) continue;
     const needsEquip = ex.equipment.filter(eq => eq !== "bodyweight");
-    if (needsEquip.length > 0 && !needsEquip.some(eq => profile.equipment.includes(eq))) continue;
+    if (needsEquip.length > 0) {
+      const passes = ex.requireAll
+        ? needsEquip.every(eq => profile.equipment.includes(eq))
+        : needsEquip.some(eq => profile.equipment.includes(eq));
+      if (!passes) continue;
+    }
     if (profile.fitnessLevel !== "advanced" && ex.difficulty === "advanced") continue;
     if ((profile.fitnessLevel === "newcomer" || profile.fitnessLevel === "beginner") && ex.difficulty !== "beginner") continue;
     return id;

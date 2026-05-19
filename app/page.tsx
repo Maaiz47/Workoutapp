@@ -1034,6 +1034,7 @@ export default function HomePage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [wInput, setWInput] = useState("");
   const [rInput, setRInput] = useState("");
+  const [bwAddWeight, setBwAddWeight] = useState(false);
   const [history, setHistory] = useState<Record<string, any[]>>({});
   const [openHist, setOpenHist] = useState<string | null>(null);
   const [warmupDone, setWarmupDone] = useState<Record<string, boolean>>({});
@@ -1784,7 +1785,7 @@ export default function HomePage() {
   const submitOnboarding = async () => {
     setGeneratingPlan(true);
     try {
-      const profileBody = { ...ob, targetAreas: ob.targetAreas };
+      const profileBody = { ...ob, targetAreas: ob.targetAreas, equipment: ob.equipment.filter(e => e !== "multi_gym") };
       const profileRes = await fetch("/api/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profileBody) });
       if (!profileRes.ok) { setGeneratingPlan(false); return; }
       const planRes = await fetch("/api/plan", { method: "POST" });
@@ -1934,16 +1935,24 @@ export default function HomePage() {
   const bc: Record<string, string> = { compound: "#2ecc71", isolation: "#74b9ff", cardio: "#FF6B6B" };
 
   const EQUIPMENT_OPTIONS = [
-    { id: "dumbbell",        label: "Dumbbells",       gym: true,  home: true  },
-    { id: "barbell",         label: "Barbell",          gym: true,  home: false },
-    { id: "cable",           label: "Cable Machine",    gym: true,  home: false },
-    { id: "machine",         label: "Weight Machines",  gym: true,  home: false },
-    { id: "bench",           label: "Bench / Rack",     gym: true,  home: true  },
-    { id: "pullup_bar",      label: "Pull-Up Bar",      gym: true,  home: true  },
-    { id: "dip_bar",         label: "Dip Bars",         gym: true,  home: true  },
-    { id: "kettlebell",      label: "Kettlebell",       gym: true,  home: true  },
-    { id: "resistance_band", label: "Resistance Bands", gym: false, home: true  },
-    { id: "smith_machine",   label: "Smith Machine",    gym: true,  home: false },
+    { id: "dumbbell",        label: "Dumbbells",                gym: true,  home: true  },
+    { id: "barbell",         label: "Barbell",                  gym: true,  home: false },
+    { id: "cable",           label: "Cable Machine",            gym: true,  home: false },
+    { id: "machine",         label: "Weight Machines",          gym: true,  home: false },
+    { id: "bench",           label: "Bench / Rack",             gym: true,  home: true  },
+    { id: "pullup_bar",      label: "Pull-Up Bar",              gym: true,  home: true  },
+    { id: "dip_bar",         label: "Dip Bars",                 gym: true,  home: true  },
+    { id: "kettlebell",      label: "Kettlebell",               gym: true,  home: true  },
+    { id: "resistance_band", label: "Resistance Bands",         gym: false, home: true  },
+    { id: "smith_machine",   label: "Smith Machine",            gym: true,  home: false },
+    { id: "treadmill",       label: "Treadmill",                gym: false, home: true  },
+    { id: "elliptical",      label: "Elliptical / Stationary Bike", gym: false, home: true },
+    { id: "multi_gym",       label: "Multi-Gym / Home Station", gym: false, home: true, subOptions: [
+      { id: "cable",      label: "Cable / Pulley Station" },
+      { id: "machine",    label: "Weight Stations (chest · shoulder · leg)" },
+      { id: "pullup_bar", label: "Pull-Up / Lat Station" },
+      { id: "dip_bar",    label: "Dip Station" },
+    ]},
   ];
   const toggleEquip = (id: string) => setOb(o => ({ ...o, equipment: o.equipment.includes(id) ? o.equipment.filter(e => e !== id) : [...o.equipment, id] }));
 
@@ -2313,13 +2322,33 @@ export default function HomePage() {
               {ob.location === "gym" ? "All standard equipment is pre-selected — untick anything your gym doesn't have." : ob.location === "home" ? "Select everything available to you." : "Include gym equipment above and home equipment below."}
             </div>
             {EQUIPMENT_OPTIONS
-              .filter(e => ob.location === "gym" ? e.gym : ob.location === "home" ? e.home : true)
-              .map(e => (
-                <div key={e.id} style={selCard(ob.equipment.includes(e.id))} onClick={() => toggleEquip(e.id)}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ color: ob.equipment.includes(e.id) ? "#FF6B6B" : "#fff", fontWeight: 500 }}>{e.label}</div>
-                    {ob.equipment.includes(e.id) && <div style={{ color: "#FF6B6B", fontSize: 16 }}>✓</div>}
+              .filter((e: any) => ob.location === "gym" ? e.gym : ob.location === "home" ? e.home : true)
+              .map((e: any) => (
+                <div key={e.id}>
+                  <div style={selCard(ob.equipment.includes(e.id))} onClick={() => toggleEquip(e.id)}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ color: ob.equipment.includes(e.id) ? "#FF6B6B" : "#fff", fontWeight: 500 }}>{e.label}</div>
+                      {e.subOptions
+                        ? <div style={{ fontSize: 11, color: ob.equipment.includes(e.id) ? "#FF6B6B" : "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{ob.equipment.includes(e.id) ? "▲ CONFIGURE" : "▼ EXPAND"}</div>
+                        : ob.equipment.includes(e.id) ? <div style={{ color: "#FF6B6B", fontSize: 16 }}>✓</div> : null
+                      }
+                    </div>
+                    {e.subOptions && !ob.equipment.includes(e.id) && (
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>Tap to configure included stations</div>
+                    )}
                   </div>
+                  {e.subOptions && ob.equipment.includes(e.id) && (
+                    <div style={{ marginLeft: 16, marginBottom: 8 }}>
+                      {e.subOptions.map((sub: any) => (
+                        <div key={sub.id} style={{ ...selCard(ob.equipment.includes(sub.id)), marginBottom: 6 }} onClick={() => toggleEquip(sub.id)}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div style={{ color: ob.equipment.includes(sub.id) ? "#FF6B6B" : "rgba(255,255,255,0.7)", fontWeight: 500, fontSize: 13 }}>{sub.label}</div>
+                            {ob.equipment.includes(sub.id) && <div style={{ color: "#FF6B6B", fontSize: 16 }}>✓</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             <button onClick={() => setOnboardingStep(8)} style={obBtn}>CONTINUE</button>
@@ -3815,13 +3844,28 @@ export default function HomePage() {
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>EQUIPMENT</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {EQUIPMENT_OPTIONS
-                      .filter(e => ob.location === "gym" ? e.gym : ob.location === "home" ? e.home : true)
-                      .map(e => {
+                      .filter((e: any) => ob.location === "gym" ? e.gym : ob.location === "home" ? e.home : true)
+                      .map((e: any) => {
                         const has = ob.equipment.includes(e.id);
                         return (
-                          <button key={e.id} onClick={() => toggleEquip(e.id)} style={{ padding: "10px 14px", background: has ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${has ? "rgba(255,107,107,0.3)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: has ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
-                            {e.label}{has && <span>✓</span>}
-                          </button>
+                          <div key={e.id}>
+                            <button onClick={() => toggleEquip(e.id)} style={{ width: "100%", padding: "10px 14px", background: has ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${has ? "rgba(255,107,107,0.3)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: has ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
+                              <span>{e.label}</span>
+                              {e.subOptions ? <span style={{ fontSize: 10, opacity: 0.6 }}>{has ? "▲" : "▼"}</span> : has ? <span>✓</span> : null}
+                            </button>
+                            {e.subOptions && has && (
+                              <div style={{ marginLeft: 12, marginTop: 4, display: "flex", flexDirection: "column", gap: 4 }}>
+                                {e.subOptions.map((sub: any) => {
+                                  const subHas = ob.equipment.includes(sub.id);
+                                  return (
+                                    <button key={sub.id} onClick={() => toggleEquip(sub.id)} style={{ width: "100%", padding: "8px 12px", background: subHas ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.02)", border: `1px solid ${subHas ? "rgba(255,107,107,0.3)" : "rgba(255,255,255,0.05)"}`, borderRadius: 8, color: subHas ? "#FF6B6B" : "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between" }}>
+                                      <span>{sub.label}</span>{subHas && <span>✓</span>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                   </div>
@@ -4783,6 +4827,8 @@ export default function HomePage() {
               }
 
               const renderEx = (ex: typeof sec.exercises[0], superCtx?: { group: typeof sec.exercises; idx: number }) => {
+                const exLibData = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
+                const isBW = exLibData?.equipment?.every((eq: string) => eq === "bodyweight") ?? false;
                 const trackable = ex.trackable !== false;
                 const done = doneCount(ex.id, ex.sets);
                 const allDone = done >= ex.sets;
@@ -4793,20 +4839,21 @@ export default function HomePage() {
                 const wuDone = !trackable && warmupDone[ex.id];
                 const dropCount = (ex.dropSets ?? 0) > 0 || ex.rest === 0 ? 1 : 0;
 
+                const effectiveWeight = isBW && !bwAddWeight ? "0" : wInput;
                 const handleLog = () => {
                   if (!ns) return;
                   if (superCtx && superCtx.idx < superCtx.group.length - 1) {
-                    logSet(ex.id, ns, wInput, rInput);
+                    logSet(ex.id, ns, effectiveWeight, rInput);
                     const nextEx = superCtx.group[superCtx.idx + 1];
                     const { weight: nw, reps: nr } = lastSessionBest(nextEx.id);
-                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : "");
+                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false);
                   } else if (dropCount > 0) {
-                    logSet(ex.id, ns, wInput, rInput);
-                    const w = parseFloat(wInput) || 0;
+                    logSet(ex.id, ns, effectiveWeight, rInput);
+                    const w = parseFloat(effectiveWeight) || 0;
                     setPendingDrop({ exId: ex.id, setNum: ns, dropNum: 1 });
                     setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput("");
                   } else {
-                    logSet(ex.id, ns, wInput, rInput);
+                    logSet(ex.id, ns, effectiveWeight, rInput);
                     if (ns + 1 > ex.sets) setExpanded(null);
                     if (ex.rest) rest.start(ex.rest);
                   }
@@ -4839,6 +4886,7 @@ export default function HomePage() {
                     <div onClick={() => {
                       if (!trackable) { setWarmupDone(prev => ({ ...prev, [ex.id]: !prev[ex.id] })); return; }
                       if (allDone) return;
+                      setBwAddWeight(isBW && lw > 0);
                       setExpanded(isExp ? null : ex.id);
                       setWInput(lw ? String(lw) : "");
                       setRInput(lr ? String(lr) : "");
@@ -4926,16 +4974,26 @@ export default function HomePage() {
                           <span>Set {ns} of {ex.sets}{superCtx && !isLastInSuper ? ` · then ${superCtx.group[superCtx.idx + 1].name}` : ""}</span>
                           {lw > 0 && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>Last: {lw}kg × {lr}</span>}
                         </div>
-                        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>WEIGHT (kg)</div>
-                            <div style={{ display: "flex", alignItems: "center" }}>
-                              <button onClick={() => setWInput(String(Math.max(0, (parseFloat(wInput) || 0) - 1.25)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                              <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
-                              <button onClick={() => setWInput(String((parseFloat(wInput) || 0) + 1.25))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                            </div>
-                            {wDiff(parseFloat(wInput))}
+                        {isBW && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>BODYWEIGHT</div>
+                            <button onClick={() => { setBwAddWeight(!bwAddWeight); if (!bwAddWeight) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${bwAddWeight ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.15)"}`, background: bwAddWeight ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)", color: bwAddWeight ? "#FF6B6B" : "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                              {bwAddWeight ? "− REMOVE WEIGHT" : "+ ADD WEIGHT"}
+                            </button>
                           </div>
+                        )}
+                        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                          {(!isBW || bwAddWeight) && (
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>{isBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}</div>
+                              <div style={{ display: "flex", alignItems: "center" }}>
+                                <button onClick={() => setWInput(String(Math.max(0, (parseFloat(wInput) || 0) - 1.25)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                                <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                                <button onClick={() => setWInput(String((parseFloat(wInput) || 0) + 1.25))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                              </div>
+                              {wDiff(parseFloat(wInput))}
+                            </div>
+                          )}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>REPS DONE</div>
                             <div style={{ display: "flex", alignItems: "center" }}>
@@ -4946,7 +5004,7 @@ export default function HomePage() {
                             {rDiff(parseInt(rInput))}
                           </div>
                         </div>
-                        <button onClick={handleLog} style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: (!wInput && !rInput) ? 0.4 : 1 }}>
+                        <button onClick={handleLog} style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: ((!effectiveWeight && !isBW) && !rInput) ? 0.4 : 1 }}>
                           {logBtnLabel}
                         </button>
                       </div>

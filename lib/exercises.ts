@@ -1,6 +1,7 @@
 export type Equipment =
   | "barbell" | "dumbbell" | "cable" | "machine" | "bodyweight"
-  | "pullup_bar" | "bench" | "kettlebell" | "resistance_band" | "dip_bar";
+  | "pullup_bar" | "bench" | "kettlebell" | "resistance_band" | "dip_bar"
+  | "treadmill" | "elliptical";
 
 export type MuscleGroup =
   | "chest" | "back" | "shoulders" | "biceps" | "triceps"
@@ -17,6 +18,7 @@ export interface Exercise {
   primaryMuscles: MuscleGroup[];
   secondaryMuscles: MuscleGroup[];
   equipment: Equipment[];
+  requireAll?: boolean; // when true, user must have ALL listed equipment (not just any one)
   location: Location;
   difficulty: Difficulty;
   type: ExerciseType;
@@ -28,13 +30,13 @@ export const EXERCISES: Exercise[] = [
 
   // ── CHEST ──────────────────────────────────────────────────────────────
 
-  { id: "barbell-bench-press", name: "Barbell Bench Press", primaryMuscles: ["chest"], secondaryMuscles: ["shoulders", "triceps"], equipment: ["barbell", "bench"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
-  { id: "incline-barbell-press", name: "Incline Barbell Press", primaryMuscles: ["chest"], secondaryMuscles: ["shoulders", "triceps"], equipment: ["barbell", "bench"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
-  { id: "decline-barbell-press", name: "Decline Barbell Press", primaryMuscles: ["chest"], secondaryMuscles: ["triceps"], equipment: ["barbell", "bench"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
-  { id: "dumbbell-bench-press", name: "Dumbbell Bench Press", primaryMuscles: ["chest"], secondaryMuscles: ["shoulders", "triceps"], equipment: ["dumbbell", "bench"], location: "both", difficulty: "beginner", type: "compound", goals: ["muscle", "strength", "fitness"] },
-  { id: "incline-dumbbell-press", name: "Incline Dumbbell Press", primaryMuscles: ["chest"], secondaryMuscles: ["shoulders", "triceps"], equipment: ["dumbbell", "bench"], location: "both", difficulty: "beginner", type: "compound", goals: ["muscle", "fitness"] },
-  { id: "dumbbell-flyes", name: "Dumbbell Flyes", primaryMuscles: ["chest"], secondaryMuscles: [], equipment: ["dumbbell", "bench"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
-  { id: "incline-dumbbell-flyes", name: "Incline Dumbbell Flyes", primaryMuscles: ["chest"], secondaryMuscles: [], equipment: ["dumbbell", "bench"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
+  { id: "barbell-bench-press", name: "Barbell Bench Press", primaryMuscles: ["chest"], secondaryMuscles: ["shoulders", "triceps"], equipment: ["barbell", "bench"], requireAll: true, location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
+  { id: "incline-barbell-press", name: "Incline Barbell Press", primaryMuscles: ["chest"], secondaryMuscles: ["shoulders", "triceps"], equipment: ["barbell", "bench"], requireAll: true, location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
+  { id: "decline-barbell-press", name: "Decline Barbell Press", primaryMuscles: ["chest"], secondaryMuscles: ["triceps"], equipment: ["barbell", "bench"], requireAll: true, location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
+  { id: "dumbbell-bench-press", name: "Dumbbell Bench Press", primaryMuscles: ["chest"], secondaryMuscles: ["shoulders", "triceps"], equipment: ["dumbbell", "bench"], requireAll: true, location: "both", difficulty: "beginner", type: "compound", goals: ["muscle", "strength", "fitness"] },
+  { id: "incline-dumbbell-press", name: "Incline Dumbbell Press", primaryMuscles: ["chest"], secondaryMuscles: ["shoulders", "triceps"], equipment: ["dumbbell", "bench"], requireAll: true, location: "both", difficulty: "beginner", type: "compound", goals: ["muscle", "fitness"] },
+  { id: "dumbbell-flyes", name: "Dumbbell Flyes", primaryMuscles: ["chest"], secondaryMuscles: [], equipment: ["dumbbell", "bench"], requireAll: true, location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
+  { id: "incline-dumbbell-flyes", name: "Incline Dumbbell Flyes", primaryMuscles: ["chest"], secondaryMuscles: [], equipment: ["dumbbell", "bench"], requireAll: true, location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
   { id: "cable-crossover", name: "Cable Crossover", primaryMuscles: ["chest"], secondaryMuscles: [], equipment: ["cable"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle", "fat_loss"] },
   { id: "chest-press-machine", name: "Chest Press Machine", primaryMuscles: ["chest"], secondaryMuscles: ["shoulders", "triceps"], equipment: ["machine"], location: "gym", difficulty: "beginner", type: "compound", goals: ["muscle", "fitness", "fat_loss"] },
   { id: "pec-deck", name: "Pec Deck Machine", primaryMuscles: ["chest"], secondaryMuscles: [], equipment: ["machine"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle", "fat_loss"] },
@@ -87,7 +89,7 @@ export const EXERCISES: Exercise[] = [
   { id: "barbell-curl", name: "Barbell Curl", primaryMuscles: ["biceps"], secondaryMuscles: ["forearms"], equipment: ["barbell"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle", "strength"] },
   { id: "dumbbell-curl", name: "Dumbbell Curl", primaryMuscles: ["biceps"], secondaryMuscles: ["forearms"], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
   { id: "hammer-curl", name: "Hammer Curl", primaryMuscles: ["biceps", "forearms"], secondaryMuscles: [], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
-  { id: "incline-dumbbell-curl", name: "Incline Dumbbell Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["dumbbell", "bench"], location: "both", difficulty: "intermediate", type: "isolation", goals: ["muscle"] },
+  { id: "incline-dumbbell-curl", name: "Incline Dumbbell Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["dumbbell", "bench"], requireAll: true, location: "both", difficulty: "intermediate", type: "isolation", goals: ["muscle"] },
   { id: "concentration-curl", name: "Concentration Curl", primaryMuscles: ["biceps"], secondaryMuscles: ["forearms"], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
   { id: "cable-curl", name: "Cable Curl", primaryMuscles: ["biceps"], secondaryMuscles: [], equipment: ["cable"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
   { id: "preacher-curl", name: "Preacher Curl", primaryMuscles: ["biceps"], secondaryMuscles: ["forearms"], equipment: ["machine", "barbell"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
@@ -96,8 +98,8 @@ export const EXERCISES: Exercise[] = [
 
   // ── TRICEPS ────────────────────────────────────────────────────────────
 
-  { id: "close-grip-bench", name: "Close Grip Bench Press", primaryMuscles: ["triceps"], secondaryMuscles: ["chest"], equipment: ["barbell", "bench"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
-  { id: "skull-crushers", name: "Skull Crushers", primaryMuscles: ["triceps"], secondaryMuscles: [], equipment: ["barbell", "bench"], location: "gym", difficulty: "intermediate", type: "isolation", goals: ["muscle"] },
+  { id: "close-grip-bench", name: "Close Grip Bench Press", primaryMuscles: ["triceps"], secondaryMuscles: ["chest"], equipment: ["barbell", "bench"], requireAll: true, location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
+  { id: "skull-crushers", name: "Skull Crushers", primaryMuscles: ["triceps"], secondaryMuscles: [], equipment: ["barbell", "bench"], requireAll: true, location: "gym", difficulty: "intermediate", type: "isolation", goals: ["muscle"] },
   { id: "tricep-pushdown", name: "Tricep Pushdown", primaryMuscles: ["triceps"], secondaryMuscles: [], equipment: ["cable"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
   { id: "overhead-tricep-extension", name: "Overhead Tricep Extension", primaryMuscles: ["triceps"], secondaryMuscles: [], equipment: ["dumbbell", "cable"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
   { id: "tricep-dips", name: "Tricep Dips", primaryMuscles: ["triceps"], secondaryMuscles: ["chest", "shoulders"], equipment: ["dip_bar", "bodyweight"], location: "both", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength", "fitness"] },
@@ -127,8 +129,8 @@ export const EXERCISES: Exercise[] = [
   { id: "leg-curl", name: "Leg Curl Machine", primaryMuscles: ["hamstrings"], secondaryMuscles: [], equipment: ["machine"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
   { id: "romanian-deadlift-db", name: "Dumbbell Romanian Deadlift", primaryMuscles: ["hamstrings", "glutes"], secondaryMuscles: ["back"], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "compound", goals: ["muscle", "fitness"] },
   { id: "glute-bridge", name: "Glute Bridge", primaryMuscles: ["glutes"], secondaryMuscles: ["hamstrings"], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "compound", goals: ["fitness", "fat_loss"] },
-  { id: "hip-thrust-barbell", name: "Barbell Hip Thrust", primaryMuscles: ["glutes"], secondaryMuscles: ["hamstrings"], equipment: ["barbell", "bench"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle"] },
-  { id: "hip-thrust-db", name: "Dumbbell Hip Thrust", primaryMuscles: ["glutes"], secondaryMuscles: ["hamstrings"], equipment: ["dumbbell", "bench"], location: "both", difficulty: "beginner", type: "compound", goals: ["muscle", "fitness"] },
+  { id: "hip-thrust-barbell", name: "Barbell Hip Thrust", primaryMuscles: ["glutes"], secondaryMuscles: ["hamstrings"], equipment: ["barbell", "bench"], requireAll: true, location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle"] },
+  { id: "hip-thrust-db", name: "Dumbbell Hip Thrust", primaryMuscles: ["glutes"], secondaryMuscles: ["hamstrings"], equipment: ["dumbbell", "bench"], requireAll: true, location: "both", difficulty: "beginner", type: "compound", goals: ["muscle", "fitness"] },
   { id: "glute-kickback", name: "Cable Glute Kickback", primaryMuscles: ["glutes"], secondaryMuscles: ["hamstrings"], equipment: ["cable", "resistance_band"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fat_loss"] },
   { id: "sumo-deadlift", name: "Sumo Deadlift", primaryMuscles: ["glutes", "hamstrings"], secondaryMuscles: ["back", "quads"], equipment: ["barbell"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["strength", "muscle"] },
   { id: "nordic-curl", name: "Nordic Curl", primaryMuscles: ["hamstrings"], secondaryMuscles: [], equipment: ["bodyweight"], location: "both", difficulty: "advanced", type: "isolation", goals: ["strength", "muscle"] },
@@ -173,9 +175,10 @@ export const EXERCISES: Exercise[] = [
   { id: "burpees",       name: "Burpees",       primaryMuscles: ["cardio"], secondaryMuscles: ["chest", "core", "quads"], equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
   { id: "high-knees",   name: "High Knees",   primaryMuscles: ["cardio"], secondaryMuscles: ["core"],           equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
   { id: "box-jumps",    name: "Box Jumps",    primaryMuscles: ["quads", "calves"], secondaryMuscles: ["glutes"], equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fitness", "fat_loss"],  hiit: true },
-  { id: "treadmill",    name: "Treadmill",    primaryMuscles: ["cardio"], secondaryMuscles: [],                  equipment: ["machine"],    location: "gym",  difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
-  { id: "cycling",      name: "Stationary Bike", primaryMuscles: ["cardio"], secondaryMuscles: ["quads"],       equipment: ["machine"],    location: "gym",  difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
+  { id: "treadmill",    name: "Treadmill",    primaryMuscles: ["cardio"], secondaryMuscles: [],                  equipment: ["treadmill", "machine"],    location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
+  { id: "cycling",      name: "Stationary Bike", primaryMuscles: ["cardio"], secondaryMuscles: ["quads"],       equipment: ["elliptical", "machine"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
   { id: "rowing-machine", name: "Rowing Machine", primaryMuscles: ["cardio", "back"], secondaryMuscles: ["core"], equipment: ["machine"], location: "gym",  difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
+  { id: "elliptical",   name: "Elliptical",   primaryMuscles: ["cardio"], secondaryMuscles: ["quads", "glutes"], equipment: ["elliptical"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
   { id: "jumping-jacks", name: "Jumping Jacks", primaryMuscles: ["cardio"], secondaryMuscles: [],               equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
 
   // ── HIIT ───────────────────────────────────────────────────────────────
@@ -209,8 +212,13 @@ export function filterExercises(opts: {
     if (opts.primaryMuscle && !ex.primaryMuscles.includes(opts.primaryMuscle)) return false;
     if (opts.location && ex.location !== "both" && ex.location !== opts.location) return false;
     if (opts.equipment && opts.equipment.length > 0) {
-      const hasEquipment = ex.equipment.some(eq => eq === "bodyweight" || opts.equipment!.includes(eq));
-      if (!hasEquipment) return false;
+      const nonBW = ex.equipment.filter(eq => eq !== "bodyweight");
+      if (nonBW.length > 0) {
+        const passes = ex.requireAll
+          ? nonBW.every(eq => opts.equipment!.includes(eq))
+          : nonBW.some(eq => opts.equipment!.includes(eq));
+        if (!passes) return false;
+      }
     }
     if (opts.difficulty && !opts.difficulty.includes(ex.difficulty)) return false;
     if (opts.type && ex.type !== opts.type) return false;
