@@ -133,7 +133,7 @@ export default function PromoPage() {
       {/* APP MOCKUP IMAGE */}
       <Reveal as="div" direction="up" amount={0.05} style={{ display: "flex", justifyContent: "center", padding: "0 24px 32px", background: "linear-gradient(to bottom, transparent, rgba(255,102,68,0.04), transparent)" }}>
         <motion.img
-          src="/hero-mockup.jpg"
+          src="/ai/promo-hero.jpg"
           alt="IronLog app interface"
           loading="eager"
           style={{ maxWidth: 420, width: "92%", borderRadius: 28, boxShadow: "0 32px 80px rgba(0,0,0,0.7), 0 0 60px rgba(255,102,68,0.14)", display: "block" }}

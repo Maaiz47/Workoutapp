@@ -34,7 +34,7 @@ export default function ClientPage() {
       {/* HERO BANNER IMAGE */}
       <div className="hero-banner">
         <motion.img
-          src="/hero-athlete.jpg"
+          src="/ai/client-hero.jpg"
           alt=""
           loading="eager"
           style={{ y: bannerY, scale: bannerScale }}
