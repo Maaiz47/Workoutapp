@@ -6,6 +6,8 @@ import { MarketingNav } from "../_components/MarketingNav";
 import { MarketingFooter } from "../_components/MarketingFooter";
 import { Reveal, Stagger, StaggerItem } from "../_components/Reveal";
 import { AnimatedCounter } from "../_components/AnimatedCounter";
+import { Tilt3D } from "../_components/Tilt3D";
+import { Expandable } from "../_components/Expandable";
 
 const WA_LINK =
   "https://wa.me/9609120007?text=Hi%2C+I%27d+like+to+start+my+free+trial+on+IronLog+as+a+trainer";
@@ -16,6 +18,8 @@ const FAQ_DATA: { q: string; a: string }[] = [
   { q: "What if my client already has their own plan?", a: "Their existing plan stays until you send them a new one. When you do, it arrives as a proposal — they can review it before it replaces their current program. No surprises." },
   { q: "Can I manage gym clients and remote clients the same way?", a: "Yes. IronLog works for in-person and remote coaching identically. Both client types log workouts, receive plans, and message you through the same interface." },
   { q: "What if a client doesn't have a smartphone?", a: "IronLog is a mobile-first web app accessible from any browser. It works on desktop too — any device with a modern browser can run it, including older phones." },
+  { q: "How do leaderboards work — do my clients see each other?", a: "Only in groups you create. The Client Leaderboard is private to you (a coaching dashboard view). Leaderboard Groups are opt-in: you create one, choose public or private, and add the clients you want included. Clients only ever see each other inside a group they've been added to." },
+  { q: "Can I really upload my own exercises with photos?", a: "Yes — trainer accounts unlock the Custom Exercise creator. Add up to 5 demo photos per exercise (5 MB each, hosted on Cloudinary), tag muscles and equipment, and your custom exercises appear in the same browser as the 119+ built-ins — for you and any client whose plan uses them." },
   { q: "Is my client data private?", a: "Yes. You can only see data for clients who have accepted your trainer invitation. Clients see their own data. No data is shared publicly or with third parties." },
   { q: "Can I cancel anytime?", a: "Yes. No long-term contract. Cancel from your account settings and you'll retain access until the end of your current billing period." },
 ];
@@ -136,6 +140,7 @@ export default function TrainerPage() {
 
         {/* Showcase 1 — Client Roster */}
         <Reveal direction="up" amount={0.1}>
+          <Tilt3D>
           <div className="showcase">
             <div className="showcase-text">
               <div className="showcase-eyebrow">CLIENT MANAGEMENT</div>
@@ -175,10 +180,12 @@ export default function TrainerPage() {
               ))}
             </div>
           </div>
+          </Tilt3D>
         </Reveal>
 
         {/* Showcase 2 — Program Builder */}
         <Reveal direction="up" amount={0.1}>
+          <Tilt3D>
           <div className="showcase reverse">
             <div className="showcase-text">
               <div className="showcase-eyebrow">PROGRAM DELIVERY</div>
@@ -224,10 +231,12 @@ export default function TrainerPage() {
               ))}
             </div>
           </div>
+          </Tilt3D>
         </Reveal>
 
         {/* Showcase 3 — Client History */}
         <Reveal direction="up" amount={0.1}>
+          <Tilt3D>
           <div className="showcase">
             <div className="showcase-text">
               <div className="showcase-eyebrow">CLIENT HISTORY</div>
@@ -257,10 +266,12 @@ export default function TrainerPage() {
               <div className="mock-set-row"><div className="mock-set-num">SET 2</div><div className="mock-set-val">32.5kg × 10</div></div>
             </div>
           </div>
+          </Tilt3D>
         </Reveal>
 
         {/* Showcase 4 — Messaging */}
         <Reveal direction="up" amount={0.1}>
+          <Tilt3D>
           <div className="showcase reverse">
             <div className="showcase-text">
               <div className="showcase-eyebrow">IN-APP MESSAGING</div>
@@ -295,6 +306,257 @@ export default function TrainerPage() {
               </div>
             </div>
           </div>
+          </Tilt3D>
+        </Reveal>
+
+        {/* Showcase 5 — Custom Exercises (NEW) */}
+        <Reveal direction="up" amount={0.1}>
+          <Tilt3D>
+          <div className="showcase">
+            <div className="showcase-text">
+              <div className="showcase-eyebrow">CUSTOM EXERCISE LIBRARY</div>
+              <h3>Build your own exercises.<br />With your own demo photos.</h3>
+              <p>The 119+ built-in exercises cover the basics. For everything else — your unique cable variations, your favourite mobility drills, your signature finishers — create your own. Name them. Tag the muscles. Upload up to five demo photos. Drop them into any client&apos;s plan.</p>
+              <ul className="showcase-list">
+                {[
+                  "Trainer-only creation — your library, your IP",
+                  "Tag primary muscles, secondaries, equipment, type, difficulty",
+                  "Upload up to 5 demo photos per exercise (Cloudinary)",
+                  "Appears in the same browser as the 119 built-ins",
+                  "Edit or delete any time — changes propagate instantly",
+                ].map((t, i) => (
+                  <li key={i}><span className="sl-check">✦</span>{t}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="showcase-visual">
+              <div className="mock-header">+ CREATE EXERCISE</div>
+              <div className="ce-form">
+                <div className="ce-row">
+                  <div className="ce-label">Exercise Name</div>
+                  <div className="ce-input">Cable Crossover Twist</div>
+                </div>
+                <div className="ce-row">
+                  <div className="ce-label">Primary Muscles</div>
+                  <div className="ce-chips">
+                    <div className="ce-chip on muscle">CHEST</div>
+                    <div className="ce-chip on muscle">SERRATUS</div>
+                    <div className="ce-chip">SHOULDERS</div>
+                    <div className="ce-chip">CORE</div>
+                  </div>
+                </div>
+                <div className="ce-row">
+                  <div className="ce-label">Equipment</div>
+                  <div className="ce-chips">
+                    <div className="ce-chip on equip">CABLES</div>
+                    <div className="ce-chip">DUMBBELLS</div>
+                  </div>
+                </div>
+                <div className="ce-row">
+                  <div className="ce-label">Demo Photos · 2 / 5</div>
+                  <div className="ce-photo-grid">
+                    <div className="ce-photo">📷</div>
+                    <div className="ce-photo">📷</div>
+                    <div className="ce-photo-add">+</div>
+                  </div>
+                </div>
+                <button className="ce-save" type="button">SAVE EXERCISE</button>
+                <div className="ce-saved">
+                  <div className="ce-label" style={{ marginBottom: 8 }}>Your Library · 3 Custom</div>
+                  {[
+                    { name: "Cable Crossover Twist", muscle: "chest · serratus", icon: "🏋️" },
+                    { name: "Tempo Spanish Squat", muscle: "quads · adductors", icon: "🦵" },
+                    { name: "Banded Pull-Apart", muscle: "rear delts · traps", icon: "💪" },
+                  ].map((e, i) => (
+                    <motion.div
+                      key={i}
+                      className="ce-saved-item"
+                      initial={{ opacity: 0, y: 6 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.3, delay: 0.1 + i * 0.07 }}
+                    >
+                      <div className="ce-saved-thumb">{e.icon}</div>
+                      <div className="ce-saved-meta">
+                        <div className="ce-saved-name">{e.name}</div>
+                        <div className="ce-saved-muscle">{e.muscle}</div>
+                      </div>
+                      <div className="ce-saved-tag">CUSTOM</div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          </Tilt3D>
+          <Expandable
+            label="See the full creator flow"
+            collapsedLabel="Hide details"
+            detail={
+              <>
+                <h5>How it works end-to-end</h5>
+                <div className="expandable-detail-grid">
+                  <div><h6>1 · Open the creator</h6><p>Trainer settings → Custom Exercises → + CREATE. Form slides in below the toggle.</p></div>
+                  <div><h6>2 · Name &amp; tag</h6><p>Exercise name (≤80 chars), then chip-select up to 12 primary muscles, 12 secondaries, 12 equipment items.</p></div>
+                  <div><h6>3 · Classify</h6><p>Type: compound / isolation / cardio / isometric. Difficulty: beginner / intermediate / advanced.</p></div>
+                  <div><h6>4 · Upload demos</h6><p>Up to 5 photos via our Cloudinary pipeline. 5 MB max each. JPG / PNG / WebP / GIF. Trainer-only access.</p></div>
+                  <div><h6>5 · Save</h6><p>One tap. Appears in your library and in every client&apos;s exercise browser instantly, with a CUSTOM badge.</p></div>
+                  <div><h6>6 · Use in any plan</h6><p>Drop into a workout day like any built-in exercise. Edit fields, photos, or delete at any time.</p></div>
+                </div>
+              </>
+            }
+          />
+        </Reveal>
+
+        {/* Showcase 6 — Client Leaderboard (NEW) */}
+        <Reveal direction="up" amount={0.1}>
+          <Tilt3D>
+          <div className="showcase reverse">
+            <div className="showcase-text">
+              <div className="showcase-eyebrow">CLIENT LEADERBOARD</div>
+              <h3>Turn coaching<br />into a competition.</h3>
+              <p>Stack your clients head-to-head. Rank them by sessions completed, current streak, or intensity score — pick the lens that matters most this week. Medals go to the top three, the leader sits on gold, every client wears their tier emoji. Use it for accountability, motivation, or just to see who&apos;s really showing up.</p>
+              <ul className="showcase-list">
+                {[
+                  "Three sort modes — sessions, streak, intensity points",
+                  "🥇🥈🥉 medals on top three, gold row on first place",
+                  "Tier emojis (🐱 Kitten → 🦍 Gorilla) on every client",
+                  "Total training volume per client at a glance",
+                  "Updates live as clients log workouts",
+                ].map((t, i) => (
+                  <li key={i}><span className="sl-check">✦</span>{t}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="showcase-visual">
+              <div className="mock-header">MY CLIENTS · RANKED</div>
+              <div className="lb-sort">
+                <div className="lb-sort-chip active">SESSIONS</div>
+                <div className="lb-sort-chip">STREAK</div>
+                <div className="lb-sort-chip">INTENSITY</div>
+              </div>
+              {[
+                { rank: "🥇", name: "ibrahim_gains", tier: "🦁", sub: "23 sessions · 4-week streak", stat: "23", gold: true },
+                { rank: "🥈", name: "ahmed_m", tier: "🐯", sub: "14 sessions · 3-week streak", stat: "14" },
+                { rank: "🥉", name: "sara_fit", tier: "🦊", sub: "9 sessions · 2-week streak", stat: "9" },
+                { rank: "4", name: "mara_run", tier: "🐒", sub: "5 sessions · 1-week streak", stat: "5" },
+                { rank: "5", name: "yusuf_lift", tier: "🐱", sub: "2 sessions · new", stat: "2" },
+              ].map((r, i) => (
+                <motion.div
+                  key={i}
+                  className={`lb-row${r.gold ? " gold" : ""}`}
+                  initial={{ opacity: 0, x: -8 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.35, delay: 0.08 * i }}
+                >
+                  <div className={`lb-rank${i < 3 ? " medal" : ""}`}>{r.rank}</div>
+                  <div className="lb-user">
+                    <div className="lb-user-name"><span className="lb-user-tier">{r.tier}</span>{r.name}</div>
+                    <div className="lb-user-sub">{r.sub}</div>
+                  </div>
+                  <div className="lb-stat">{r.stat}</div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+          </Tilt3D>
+          <Expandable
+            label="What the sort modes actually rank"
+            collapsedLabel="Hide details"
+            detail={
+              <>
+                <h5>Three lenses, three stories</h5>
+                <div className="expandable-detail-grid">
+                  <div><h6>SESSIONS</h6><p>Total completed workouts across all time. The volume crown — who&apos;s putting in the most reps.</p></div>
+                  <div><h6>STREAK</h6><p>Current consecutive weeks with at least one logged session. Rewards consistency over raw volume.</p></div>
+                  <div><h6>INTENSITY</h6><p>Weighted score: total volume × frequency × PR rate. Catches the clients pushing harder, not just longer.</p></div>
+                </div>
+                <h5 style={{ marginTop: 18 }}>The tier system rewarding effort</h5>
+                <p>🐱 Kitten (0+) → 🐒 Monkey (5+) → 🦊 Fox (15+) → 🐯 Tiger (30+) → 🦁 Lion (60+) → 🦍 Gorilla (100+). A streak of 4+ weeks combined with 8+ PRs bumps your client up a tier ahead of schedule.</p>
+              </>
+            }
+          />
+        </Reveal>
+
+        {/* Showcase 7 — Leaderboard Groups (NEW) */}
+        <Reveal direction="up" amount={0.1}>
+          <Tilt3D>
+          <div className="showcase">
+            <div className="showcase-text">
+              <div className="showcase-eyebrow">SOCIAL COMPETITION</div>
+              <h3>Create a leaderboard.<br />Invite the gym.</h3>
+              <p>Spin up a private leaderboard for your top six clients. Or a public one with three other trainers and all their athletes. Or both. Members compete on shared rankings, see each other&apos;s tier progress, and get notified when someone breaks a PR. The motivation engine you can&apos;t install in a one-on-one session.</p>
+              <ul className="showcase-list">
+                {[
+                  "Create public or private groups in seconds",
+                  "Add your clients in bulk via search",
+                  "Invite other trainers by username",
+                  "Optional self-inclusion — show your own stats or stay out",
+                  "Pending invites surface at the top until accepted",
+                  "Delete a group any time (creator only)",
+                ].map((t, i) => (
+                  <li key={i}><span className="sl-check">✦</span>{t}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="showcase-visual">
+              <div className="mock-header">LEADERBOARD GROUPS · 2</div>
+              <motion.div
+                className="lb-invite"
+                initial={{ opacity: 0, y: 6 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.35, delay: 0.05 }}
+              >
+                <div className="lb-invite-meta">
+                  <div className="lb-invite-name">🔥 Resort Trainers Q2</div>
+                  <div className="lb-invite-sub">FROM @COACH_HASAN · 12 MEMBERS</div>
+                </div>
+                <div className="lb-invite-actions">
+                  <button className="lb-invite-btn accept" type="button">ACCEPT</button>
+                  <button className="lb-invite-btn decline" type="button">×</button>
+                </div>
+              </motion.div>
+              {[
+                { name: "💪 My Roster", privacy: "private", sub: "6 MEMBERS · YOU + 5 CLIENTS", privacyClass: "private" },
+                { name: "🏝️ Malé Strength Network", privacy: "public", sub: "23 MEMBERS · 4 TRAINERS", privacyClass: "public" },
+              ].map((g, i) => (
+                <motion.div
+                  key={i}
+                  className="lb-group"
+                  initial={{ opacity: 0, y: 8 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.35, delay: 0.15 + i * 0.1 }}
+                >
+                  <div className="lb-group-head">
+                    <div className="lb-group-name">{g.name}</div>
+                    <div className={`lb-group-privacy ${g.privacyClass}`}>{g.privacy.toUpperCase()}</div>
+                  </div>
+                  <div className="lb-group-sub">{g.sub}</div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+          </Tilt3D>
+          <Expandable
+            label="See the full invite &amp; member flow"
+            collapsedLabel="Hide details"
+            detail={
+              <>
+                <h5>Setting up a group, end-to-end</h5>
+                <div className="expandable-detail-grid">
+                  <div><h6>1 · Create</h6><p>Tap + NEW GROUP. Pick a name. Toggle Public / Private. Done — your group exists.</p></div>
+                  <div><h6>2 · Add clients</h6><p>Search your own roster, tap to add. Checkmark appears on each added client. Bulk-add the lot in two seconds.</p></div>
+                  <div><h6>3 · Invite trainers</h6><p>Search by username. INVITE button shows MEMBER / INVITED / state. They accept from their own Pending section.</p></div>
+                  <div><h6>4 · Self-inclusion</h6><p>Toggle &ldquo;Include me in ranking&rdquo;. Useful if you train alongside clients — or skip if you want to stay scorekeeper.</p></div>
+                  <div><h6>5 · Pending invites</h6><p>Anything sent to you appears at the top of the Groups section: name, inviter, member count, ACCEPT / DECLINE.</p></div>
+                  <div><h6>6 · Cleanup</h6><p>Creator can delete the group. Members can leave any time. No notifications spam — invites only.</p></div>
+                </div>
+              </>
+            }
+          />
         </Reveal>
       </section>
 

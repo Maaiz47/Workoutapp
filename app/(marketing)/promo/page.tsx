@@ -6,11 +6,13 @@ import { MarketingNav } from "../_components/MarketingNav";
 import { MarketingFooter } from "../_components/MarketingFooter";
 import { Reveal, Stagger, StaggerItem } from "../_components/Reveal";
 import { AnimatedCounter } from "../_components/AnimatedCounter";
+import { Tilt3D, MouseTilt3D } from "../_components/Tilt3D";
+import { Expandable } from "../_components/Expandable";
 
 const WA_LINK =
   "https://wa.me/9609120007?text=Hi%2C+I%27d+like+to+request+early+access+to+IronLog";
 
-type TabKey = "tracking" | "trainer" | "exercises" | "progress" | "plans";
+type TabKey = "tracking" | "trainer" | "exercises" | "progress" | "plans" | "competition";
 
 interface FeatureItem {
   icon: string;
@@ -76,9 +78,21 @@ const TAB_DATA: Record<TabKey, { label: string; items: FeatureItem[] }> = {
       { icon: "🔄", bg: "rgba(78,205,196,0.15)", title: "Instant Regeneration", desc: "Update your settings — location, equipment, goals — and regenerate a fresh plan immediately without losing your history." },
     ],
   },
+  competition: {
+    label: "Competition",
+    items: [
+      { icon: "🏆", bg: "rgba(255,230,109,0.18)", title: "6-Tier Animal Progression", desc: "🐱 Kitten → 🐒 Monkey → 🦊 Fox → 🐯 Tiger → 🦁 Lion → 🦍 Gorilla. Climb by session count. 4-week streak + 8 PRs bumps you up early." },
+      { icon: "📊", bg: "rgba(167,139,250,0.18)", title: "Client Leaderboard (Trainers)", desc: "Rank every client by sessions, streak, or intensity score. Medals on top three. Gold row on first place. Tier emojis everywhere." },
+      { icon: "🏝️", bg: "rgba(78,205,196,0.18)", title: "Leaderboard Groups", desc: "Spin up public or private groups. Add your clients in bulk. Invite other trainers by username. Pending invites surface at the top of the dashboard." },
+      { icon: "🥇", bg: "rgba(255,230,109,0.18)", title: "Live Rank Updates", desc: "Rankings recompute the moment anyone in the group logs a session. No daily rollup — instant feedback for everyone competing." },
+      { icon: "👤", bg: "rgba(167,139,250,0.18)", title: "Tier Card", desc: "Big gradient gold card on your home screen showing current tier, progress bar to the next rank, and exactly how many more sessions you need." },
+      { icon: "✏️", bg: "rgba(255,102,68,0.15)", title: "Custom Exercise Library", desc: "Trainer-only: build your own exercises with custom names, muscle tags, equipment, and up to 5 demo photos hosted on our Cloudinary pipeline." },
+      { icon: "🔥", bg: "rgba(255,102,68,0.15)", title: "Streak + PR Bonuses", desc: "Two parallel performance bonuses combine to fast-track your tier promotion. Consistency and intensity both rewarded — not just raw session count." },
+    ],
+  },
 };
 
-const TAB_ORDER: TabKey[] = ["tracking", "trainer", "exercises", "progress", "plans"];
+const TAB_ORDER: TabKey[] = ["tracking", "trainer", "exercises", "progress", "plans", "competition"];
 
 const PROMO_CAL_ACTIVE = new Set([2, 3, 6, 7, 9, 10, 13, 14, 16, 17, 20, 21, 23, 24, 27]);
 
@@ -132,14 +146,14 @@ export default function PromoPage() {
 
       {/* APP MOCKUP IMAGE */}
       <Reveal as="div" direction="up" amount={0.05} style={{ display: "flex", justifyContent: "center", padding: "0 24px 32px", background: "linear-gradient(to bottom, transparent, rgba(255,102,68,0.04), transparent)" }}>
-        <motion.img
-          src="/ai/promo-hero.jpg"
-          alt="IronLog app interface"
-          loading="eager"
-          style={{ maxWidth: 420, width: "92%", borderRadius: 28, boxShadow: "0 32px 80px rgba(0,0,0,0.7), 0 0 60px rgba(255,102,68,0.14)", display: "block" }}
-          whileHover={{ scale: 1.015 }}
-          transition={{ duration: 0.4 }}
-        />
+        <MouseTilt3D style={{ maxWidth: 420, width: "92%" }}>
+          <motion.img
+            src="/ai/promo-hero.jpg"
+            alt="IronLog app interface"
+            loading="eager"
+            style={{ width: "100%", borderRadius: 28, boxShadow: "0 32px 80px rgba(0,0,0,0.7), 0 0 60px rgba(255,102,68,0.14)", display: "block" }}
+          />
+        </MouseTilt3D>
       </Reveal>
 
       {/* STATS BAR */}
@@ -166,11 +180,13 @@ export default function PromoPage() {
             <ul>
               {[
                 "Build and deliver custom programs to each client",
+                "Create custom exercises with up to 5 demo photos each",
+                "Rank clients on a live leaderboard — sessions, streak, intensity",
+                "Spin up public or private leaderboard groups, invite other trainers",
                 "Monitor every client's live workout data and history",
                 "Send plan updates and proposals with one tap",
-                "Message clients directly inside the app",
-                "View body metrics, PRs, and progress charts per client",
-                "Searchable client roster — no spreadsheets needed",
+                "Message clients directly inside the app — ticks show delivery & read",
+                "Searchable client roster with tier badges and activity signals",
               ].map((t, i) => (
                 <li key={i}><span className="check">✦</span>{t}</li>
               ))}
@@ -183,6 +199,8 @@ export default function PromoPage() {
               {[
                 "Personalised plan matched to your goals and equipment",
                 "Set-by-set logging with automatic PR detection",
+                "Earn your tier — 🐱 Kitten → 🦍 Gorilla, six ranks of progression",
+                "Join leaderboard groups and compete with friends and gym mates",
                 "See your last session's numbers right on screen",
                 "Rest timer with push notifications",
                 "Exercise form demos and muscle activation maps",
