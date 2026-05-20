@@ -4,6 +4,8 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { MarketingNav } from "../_components/MarketingNav";
 import { MarketingFooter } from "../_components/MarketingFooter";
 import { Reveal, Stagger, StaggerItem } from "../_components/Reveal";
+import { Tilt3D } from "../_components/Tilt3D";
+import { Expandable } from "../_components/Expandable";
 
 const APP_LINK = "https://ironlogmv.vercel.app";
 
@@ -148,6 +150,179 @@ export default function ClientPage() {
             </StaggerItem>
           ))}
         </Stagger>
+      </section>
+
+      <hr className="mkt-divider" />
+
+      {/* TIERS — PROGRESSION */}
+      <section className="mkt-section mkt-section-tight">
+        <Reveal>
+          <div className="section-tag teal">PROGRESSION</div>
+          <h2 className="section-title">From kitten<br />to <em style={{ color: "var(--yellow)", fontStyle: "normal" }}>absolute unit.</em></h2>
+          <p className="section-lead">Every session you log moves you closer to the next tier. Six ranks. Six animals. Each one earned, none of them given. Your tier shows up next to your name everywhere — your profile, leaderboards, every group you join.</p>
+        </Reveal>
+
+        <Reveal direction="up" amount={0.1}>
+          <Tilt3D depth={18}>
+            <div className="tier-strip">
+              {[
+                { key: "k", emoji: "🐱", name: "KITTEN", req: "0+" },
+                { key: "m", emoji: "🐒", name: "MONKEY", req: "5+" },
+                { key: "f", emoji: "🦊", name: "FOX", req: "15+" },
+                { key: "t", emoji: "🐯", name: "TIGER", req: "30+" },
+                { key: "l", emoji: "🦁", name: "LION", req: "60+" },
+                { key: "g", emoji: "🦍", name: "GORILLA", req: "100+" },
+              ].map((t, i) => (
+                <motion.div
+                  key={t.key}
+                  className={`tier-pill ${t.key}`}
+                  initial={{ opacity: 0, y: 16, rotateX: -20 }}
+                  whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.06 * i, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ transformStyle: "preserve-3d" }}
+                >
+                  <div className="tier-emoji">{t.emoji}</div>
+                  <div className="tier-name">{t.name}</div>
+                  <div className="tier-req">{t.req} sessions</div>
+                </motion.div>
+              ))}
+            </div>
+          </Tilt3D>
+        </Reveal>
+
+        <Reveal direction="up" delay={0.1}>
+          <div style={{ marginTop: 28 }}>
+            <div className="tier-card-big">
+              <div className="tier-card-emoji">🐯</div>
+              <div className="tier-card-meta">
+                <div className="tier-card-label">YOUR TIER</div>
+                <div className="tier-card-name">TIGER</div>
+                <div className="tier-card-bar">
+                  <motion.div
+                    className="tier-card-bar-fill"
+                    initial={{ width: 0 }}
+                    whileInView={{ width: "62%" }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
+                <div className="tier-card-next">19 more sessions until <strong>🦁 LION</strong></div>
+              </div>
+            </div>
+          </div>
+        </Reveal>
+
+        <Reveal direction="up" delay={0.15}>
+          <Expandable
+            label="The shortcuts up the ranks"
+            collapsedLabel="Hide details"
+            detail={
+              <>
+                <h5>How the bonus bumps work</h5>
+                <p>Hitting the session threshold isn&apos;t the only way up. Two combined performance bonuses can promote you a tier ahead of schedule:</p>
+                <ul>
+                  <li><strong>4-week training streak</strong> — log at least one session every week for four consecutive weeks.</li>
+                  <li><strong>8+ personal records</strong> — automatic PR detection across any tracked exercise.</li>
+                </ul>
+                <p>Hit both at once and you skip ahead one rank. The system rewards consistency and intensity — not just bums-on-benches volume.</p>
+                <h5 style={{ marginTop: 18 }}>What &ldquo;absolute unit&rdquo; means</h5>
+                <p>🦍 Gorilla is the cap. 100+ sessions logged, plus the streak/PR bonus on top. The tier card flips to read &ldquo;MAX RANK — ABSOLUTE UNIT&rdquo; with a permanent gold glow. There&apos;s no rank above it.</p>
+              </>
+            }
+          />
+        </Reveal>
+      </section>
+
+      <hr className="mkt-divider" />
+
+      {/* LEADERBOARDS — COMPETITION */}
+      <section className="mkt-section mkt-section-tight">
+        <Reveal>
+          <div className="section-tag teal">COMPETITION</div>
+          <h2 className="section-title">Train with friends.<br /><em className="teal" style={{ color: "var(--teal)", fontStyle: "normal" }}>Beat them at it.</em></h2>
+          <p className="section-lead">Solo lifting is fine. Solo lifting with a public scoreboard, six of your gym mates, and an automatic ranking algorithm is better. Join a leaderboard group, see where you stand, climb the ranks.</p>
+        </Reveal>
+
+        <Reveal direction="up" amount={0.1}>
+          <Tilt3D>
+            <div className="trainer-block">
+              <div className="trainer-block-text">
+                <div className="tblock-tag">WHAT YOU SEE</div>
+                <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12, lineHeight: 1.25 }}>Live rankings.<br />Three lenses on effort.</h3>
+                <p style={{ fontSize: 14, color: "var(--text)", marginBottom: 20, lineHeight: 1.7 }}>
+                  Switch the sort to see who&apos;s training the most, who&apos;s most consistent, or who&apos;s pushing hardest. Tier emojis ride next to every name. Top three get medals. First place sits on a gold row.
+                </p>
+                <ul>
+                  {[
+                    "🥇🥈🥉 Medals for the top three",
+                    "Sort by sessions, streak, or intensity",
+                    "Live updates whenever anyone logs a workout",
+                    "Public or private groups — you choose what to join",
+                    "Get invited by a trainer or another athlete",
+                  ].map((t, i) => (
+                    <li key={i} style={{ fontSize: 13, padding: "7px 0", borderBottom: i < 4 ? "1px solid var(--border)" : "none", color: "var(--text)", display: "flex", gap: 10 }}>
+                      <span style={{ color: "var(--teal)" }}>✦</span>{t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="trainer-block-visual">
+                <div className="tblock-visual-inner">
+                  <div className="mock-header">🏝️ MALÉ STRENGTH NETWORK</div>
+                  <div className="lb-sort">
+                    <div className="lb-sort-chip active">SESSIONS</div>
+                    <div className="lb-sort-chip">STREAK</div>
+                    <div className="lb-sort-chip">INTENSITY</div>
+                  </div>
+                  {[
+                    { rank: "🥇", name: "ibrahim_gains", tier: "🦁", sub: "23 SESSIONS · 4-WEEK STREAK", stat: "23", gold: true },
+                    { rank: "🥈", name: "ahmed_m", tier: "🐯", sub: "14 SESSIONS · 3-WEEK STREAK", stat: "14" },
+                    { rank: "🥉", name: "YOU", tier: "🐯", sub: "11 SESSIONS · 3-WEEK STREAK", stat: "11" },
+                    { rank: "4", name: "sara_fit", tier: "🦊", sub: "9 SESSIONS · 2-WEEK STREAK", stat: "9" },
+                    { rank: "5", name: "yusuf_lift", tier: "🐱", sub: "2 SESSIONS · NEW", stat: "2" },
+                  ].map((r, i) => (
+                    <motion.div
+                      key={i}
+                      className={`lb-row${r.gold ? " gold" : ""}`}
+                      initial={{ opacity: 0, x: -8 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.35, delay: 0.08 * i }}
+                      style={r.name === "YOU" ? { outline: "1px solid rgba(78,205,196,0.45)", outlineOffset: -1 } : undefined}
+                    >
+                      <div className={`lb-rank${i < 3 ? " medal" : ""}`}>{r.rank}</div>
+                      <div className="lb-user">
+                        <div className="lb-user-name"><span className="lb-user-tier">{r.tier}</span>{r.name}</div>
+                        <div className="lb-user-sub">{r.sub}</div>
+                      </div>
+                      <div className="lb-stat">{r.stat}</div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Tilt3D>
+        </Reveal>
+
+        <Reveal direction="up" delay={0.1}>
+          <Expandable
+            label="How to join a group"
+            collapsedLabel="Hide details"
+            detail={
+              <>
+                <h5>Three ways in</h5>
+                <div className="expandable-detail-grid">
+                  <div><h6>Trainer invite</h6><p>Your coach builds a group of their clients (and maybe other trainers&apos; clients) — you get notified, tap ACCEPT, you&apos;re in.</p></div>
+                  <div><h6>Athlete invite</h6><p>A training partner can invite you to a group they&apos;re part of. Same flow — pending invite at the top of your leaderboards screen.</p></div>
+                  <div><h6>Public group</h6><p>Public groups are joinable without an invite. Limited rollout — currently launch-region only, expanding soon.</p></div>
+                </div>
+                <h5 style={{ marginTop: 18 }}>How rankings update</h5>
+                <p>Every time you (or anyone in the group) logs a session, ranks recompute. The scoreboard reflects your last completed workout immediately. No daily rollup — it&apos;s live.</p>
+              </>
+            }
+          />
+        </Reveal>
       </section>
 
       <hr className="mkt-divider" />
