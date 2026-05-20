@@ -2525,37 +2525,38 @@ function HomePage() {
 
   // ─── LOADING ────────────────────────────────────────────────────────
   if (authLoading || !splashDone) return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
-      {/* Ambient blobs */}
-      <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 65%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", position: "relative", overflow: "hidden", background: "#09090f" }}>
+      {/* Background gym image — very dark */}
+      <img src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.13, filter: "blur(3px) saturate(0.6)", pointerEvents: "none", zIndex: 0 }} />
+      {/* Vignette overlay */}
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 30%, rgba(9,9,15,0.85) 100%)", pointerEvents: "none", zIndex: 0 }} />
+      {/* Single ambient glow */}
+      <div style={{ position: "absolute", top: "42%", left: "50%", transform: "translate(-50%,-50%)", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.1) 0%, transparent 65%)", pointerEvents: "none", zIndex: 0 }} />
+
       <div style={{ textAlign: "center", zIndex: 1 }}>
-        {/* BarbellMark above wordmark */}
-        <div style={{ marginBottom: 12 }}>
-          <BarbellMark width={220} delay={0.05} loop={7000} />
+        {/* BarbellMark */}
+        <div style={{ marginBottom: 18, animation: "fadeIn 0.4s ease both" }}>
+          <BarbellMark width={210} delay={0.05} loop={7000} />
         </div>
-        {/* Logo + impact effects wrapper */}
+        {/* Logo + one-shot impact effects */}
         <div style={{ position: "relative", display: "inline-block" }}>
-          {/* Breathing glow ring — persistent */}
-          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 160, height: 80, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.35)", animation: "breathe 2.8s ease-in-out infinite", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 200, height: 100, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.15)", animation: "breathe 2.8s ease-in-out 0.5s infinite", pointerEvents: "none" }} />
-          {/* Impact glow — flashes outward when logo lands */}
-          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "90vw", height: "90vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.22) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 0.85s both", pointerEvents: "none" }} />
+          {/* Impact glow — fires once when logo lands */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "90vw", height: "90vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.2) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 0.85s both", pointerEvents: "none" }} />
           {/* Shockwave ring 1 */}
           <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "2px solid rgba(255,107,107,0.8)", animation: "shockwave 1s cubic-bezier(0.1,0.6,0.2,1) 0.85s both", pointerEvents: "none" }} />
           {/* Shockwave ring 2 */}
-          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.45)", animation: "shockwave 1.4s cubic-bezier(0.1,0.6,0.2,1) 1.05s both", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.4)", animation: "shockwave 1.4s cubic-bezier(0.1,0.6,0.2,1) 1.05s both", pointerEvents: "none" }} />
           {/* Logo */}
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 64, fontWeight: 700, letterSpacing: 12, overflow: "visible", lineHeight: 1.1, position: "relative" }}>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 68, fontWeight: 700, letterSpacing: 12, overflow: "visible", lineHeight: 1.1, position: "relative" }}>
             <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
           </div>
         </div>
-        {/* Floor beam — light streak on impact */}
-        <div style={{ width: 260, height: 1, margin: "10px auto 0", background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.95), transparent)", animation: "floorBeam 1.3s ease-out 0.85s both" }} />
+        {/* Floor beam */}
+        <div style={{ width: 260, height: 1, margin: "8px auto 0", background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.9), transparent)", animation: "floorBeam 1.3s ease-out 0.85s both" }} />
         {/* Tagline */}
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginTop: 22, marginBottom: 52, animation: "fadeIn 0.5s ease 1.25s both" }}>LIFT · TRACK · PROGRESS</div>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", letterSpacing: 7, fontWeight: 400, marginTop: 20, marginBottom: 56, animation: "fadeIn 0.5s ease 1.25s both", fontFamily: "'Space Mono', monospace" }}>LIFT · TRACK · PROGRESS</div>
         {/* Loading bar */}
-        <div style={{ width: 180, height: 2, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.55), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite", margin: "0 auto" }} />
+        <div style={{ width: 160, height: 1.5, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.6), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite", margin: "0 auto" }} />
       </div>
     </div>
   );
@@ -3488,9 +3489,9 @@ function HomePage() {
           </button>
         </div>
         {/* LIFT / TRACK / PROGRESS + phrase — anchored to bottom of hero */}
-        <div style={{ position: "absolute", bottom: 16, left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", letterSpacing: 5, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>LIFT · TRACK · PROGRESS</div>
-          <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontStyle: "italic", marginTop: 5, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
+        <div style={{ position: "absolute", bottom: 18, left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
+          <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", letterSpacing: 6, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>LIFT · TRACK · PROGRESS</div>
+          <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", fontStyle: "italic", marginTop: 7, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
         </div>
       </div>
       {/* Notification banner — sits below the hero */}
