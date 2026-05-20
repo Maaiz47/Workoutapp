@@ -1295,6 +1295,7 @@ function HomePage() {
   const completedDropExes = useRef(new Set<string>());
   const ipToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dayCardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const heroImgRef = useRef<HTMLImageElement>(null);
   const SESSION_IP_CAP = 25;
   const [activeClient, setActiveClient] = useState<{ id: string; username: string } | null>(null);
   const [clientData, setClientData] = useState<{ profile: any; history: Record<string, any[]>; plan: any } | null>(null);
@@ -1661,17 +1662,23 @@ function HomePage() {
   // Keep currentViewRef in sync so SW message handler always sees latest view
   useEffect(() => { currentViewRef.current = view; }, [view]);
 
-  // 3D scroll tilt for day cards on home screen
+  // 3D scroll tilt + hero parallax on home screen
   useEffect(() => {
     if (view !== "home") return;
     const apply = () => {
+      const scrollY = window.scrollY;
+      // Barbell image parallax — moves at 0.35× scroll speed
+      if (heroImgRef.current) {
+        heroImgRef.current.style.transform = `translateY(${scrollY * 0.35}px)`;
+      }
+      // 3D card tilt
       const vh = window.innerHeight;
       const center = vh * 0.48;
       dayCardRefs.current.forEach(el => {
         if (!el) return;
         const rect = el.getBoundingClientRect();
         const mid = rect.top + rect.height / 2;
-        const offset = (mid - center) / vh; // -0.5 .. 0.5
+        const offset = (mid - center) / vh;
         const rotX = offset * 9;
         const scale = Math.max(0.91, 1 - Math.abs(offset) * 0.085);
         const opa = Math.max(0.5, 1 - Math.abs(offset) * 0.38);
@@ -3428,7 +3435,7 @@ function HomePage() {
 
   // ─── HOME ───────────────────────────────────────────────────────────
   if (view === "home") return (
-    <div key="home" className={viewDir === "back" ? "view-back" : "view-forward"} style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
+    <div key="home" className={viewDir === "back" ? "view-back" : "view-forward"} style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "clip" }}>
       {/* PB celebration overlay */}
       {newPBs.length > 0 && (
         <div className="pb-overlay" onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer" }}>
@@ -3445,9 +3452,9 @@ function HomePage() {
           </div>
         </div>
       )}
-      {/* Profile card */}
-      <div style={{ position: "relative", padding: "24px 20px 20px" }}>
-        <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(12,12,18,0.55)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 16, cursor: "pointer", textAlign: "left", padding: "14px 18px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 24px -8px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", gap: 14 }}>
+      {/* Profile card — sticky at top, cards slide over it */}
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(10,10,15,0.82)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", padding: "12px 20px 10px" }}>
+        <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(20,20,28,0.55)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 14, cursor: "pointer", textAlign: "left", padding: "12px 16px", width: "100%", boxSizing: "border-box", boxShadow: "0 2px 16px -6px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", gap: 12 }}>
           <img src="/ai/avatar-default.png" alt="" style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
           <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
@@ -3480,14 +3487,14 @@ function HomePage() {
         </div>
       )}
       <div style={{ padding: "20px 20px 0", textAlign: "center", position: "relative" }}>
-        <div style={{ position: "relative", margin: "0 -20px 12px", height: 90, overflow: "hidden" }}>
-          <img src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }} />
+        <div style={{ position: "relative", margin: "0 -20px 12px", height: 160, overflow: "hidden" }}>
+          <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", top: "-30px", left: 0, width: "100%", height: "calc(100% + 80px)", objectFit: "cover", opacity: 0.55 }} />
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.55) 0%, rgba(10,10,15,0) 35%, rgba(10,10,15,0) 65%, rgba(10,10,15,0.85) 100%)" }} />
         </div>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
         <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
       </div>
-      <div style={{ padding: "20px 16px 0" }}>
+      <div style={{ padding: "20px 16px 0", position: "relative", zIndex: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
