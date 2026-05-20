@@ -302,3 +302,22 @@ model QAReport {
   tester      String
   payloadJson String
 }
+
+// Per-item testing comment. Replaces the whole-form QAReport model.
+// Items get a thread of these over time; the latest comment's status
+// is treated as the item's current status by the QA processing pass.
+model QAComment {
+  id            String    @id @default(cuid())
+  itemId        String
+  tester        String
+  status        String    // untested | passing | failing | regression-retest
+  note          String
+  screenshotUrl String?
+  ts            DateTime  @default(now())
+  processed     Boolean   @default(false)
+  processedAt   DateTime?
+  processedSha  String?
+
+  @@index([itemId])
+  @@index([processed, ts])
+}
