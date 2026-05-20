@@ -1,61 +1,76 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#141414"/>
-      <stop offset="100%" style="stop-color:#0a0a0a"/>
+    <linearGradient id="ic-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141414"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
     </linearGradient>
-    <linearGradient id="fire" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FF6B6B"/>
-      <stop offset="100%" style="stop-color:#ee5a24"/>
+    <linearGradient id="ic-fire" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B6B"/>
+      <stop offset="100%" stop-color="#ee5a24"/>
     </linearGradient>
-    <linearGradient id="steel" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.95"/>
-      <stop offset="100%" style="stop-color:#999999;stop-opacity:0.8"/>
+    <linearGradient id="ic-steel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f0f0f0" stop-opacity="0.95"/>
+      <stop offset="50%" stop-color="#c0c0c0" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#888888" stop-opacity="0.85"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-    </filter>
-    <filter id="shadow">
-      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#FF6B6B" flood-opacity="0.3"/>
+    <radialGradient id="ic-plo" cx="38%" cy="32%" r="70%">
+      <stop offset="0%" stop-color="#ff7a7a"/>
+      <stop offset="55%" stop-color="#dd2b2b"/>
+      <stop offset="100%" stop-color="#8a1010"/>
+    </radialGradient>
+    <radialGradient id="ic-pli" cx="38%" cy="32%" r="70%">
+      <stop offset="0%" stop-color="#ff6868"/>
+      <stop offset="55%" stop-color="#cc2020"/>
+      <stop offset="100%" stop-color="#7a0e0e"/>
+    </radialGradient>
+    <radialGradient id="ic-pro" cx="62%" cy="32%" r="70%">
+      <stop offset="0%" stop-color="#ff7a7a"/>
+      <stop offset="55%" stop-color="#dd2b2b"/>
+      <stop offset="100%" stop-color="#8a1010"/>
+    </radialGradient>
+    <radialGradient id="ic-pri" cx="62%" cy="32%" r="70%">
+      <stop offset="0%" stop-color="#ff6868"/>
+      <stop offset="55%" stop-color="#cc2020"/>
+      <stop offset="100%" stop-color="#7a0e0e"/>
+    </radialGradient>
+    <filter id="ic-shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#FF6B6B" flood-opacity="0.28"/>
     </filter>
   </defs>
-  
+
   <!-- Background -->
-  <rect width="192" height="192" rx="42" fill="url(#bg)"/>
-  
-  <!-- Subtle border -->
+  <rect width="192" height="192" rx="42" fill="url(#ic-bg)"/>
   <rect x="1" y="1" width="190" height="190" rx="41" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-  
-  <!-- Ambient glow behind dumbbell -->
-  <ellipse cx="96" cy="88" rx="50" ry="30" fill="#FF6B6B" opacity="0.06"/>
-  
-  <!-- Dumbbell -->
-  <g filter="shadow">
-    <!-- Bar -->
-    <rect x="46" y="83" width="100" height="10" rx="5" fill="url(#steel)" opacity="0.7"/>
-    
-    <!-- Left weight plates -->
-    <rect x="28" y="68" width="14" height="40" rx="4" fill="url(#fire)"/>
-    <rect x="38" y="73" width="10" height="30" rx="3" fill="url(#fire)" opacity="0.7"/>
-    
-    <!-- Right weight plates -->
-    <rect x="150" y="68" width="14" height="40" rx="4" fill="url(#fire)"/>
-    <rect x="144" y="73" width="10" height="30" rx="3" fill="url(#fire)" opacity="0.7"/>
-    
-    <!-- End caps -->
-    <rect x="22" y="78" width="8" height="20" rx="3" fill="#fff" opacity="0.3"/>
-    <rect x="162" y="78" width="8" height="20" rx="3" fill="#fff" opacity="0.3"/>
+
+  <!-- Ambient glow -->
+  <ellipse cx="96" cy="96" rx="60" ry="39" fill="#FF6B6B" opacity="0.06"/>
+
+  <!-- IRON above barbell -->
+  <text x="96" y="51" text-anchor="middle"
+        font-family="'Arial Black', Impact, sans-serif"
+        font-weight="900" font-size="33" letter-spacing="3" fill="#ffffff">IRON</text>
+
+  <g filter="url(#ic-shadow)">
+    <!-- Chrome sleeves + shaft -->
+    <rect x="12"  y="90" width="51" height="15" rx="6"   fill="url(#ic-steel)"/>
+    <rect x="60"  y="93" width="72" height="9"  rx="4.5" fill="url(#ic-steel)"/>
+    <rect x="129" y="90" width="51" height="15" rx="6"   fill="url(#ic-steel)"/>
+    <!-- Knurling -->
+    <rect x="69" y="94.5" width="54" height="6" rx="3" fill="rgba(0,0,0,0.22)"/>
+
+    <!-- Left big inner plate (toward shaft, behind small plate) -->
+    <rect x="36" y="66" width="27" height="60" rx="6"   fill="url(#ic-plo)" stroke="rgba(255,150,150,0.25)" stroke-width="1"/>
+    <!-- Left small outer plate (collar/tip end, in front) -->
+    <rect x="24" y="75" width="15" height="42" rx="4.5" fill="url(#ic-pli)"/>
+
+    <!-- Right big inner plate (toward shaft, behind small plate) -->
+    <rect x="129" y="66" width="27" height="60" rx="6"   fill="url(#ic-pro)" stroke="rgba(255,150,150,0.25)" stroke-width="1"/>
+    <!-- Right small outer plate (collar/tip end, in front) -->
+    <rect x="153" y="75" width="15" height="42" rx="4.5" fill="url(#ic-pri)"/>
   </g>
-  
-  <!-- IRON text -->
-  <text x="96" y="148" text-anchor="middle" font-family="'Arial Black', 'Impact', sans-serif" font-weight="900" font-size="30" letter-spacing="6" fill="url(#steel)">IRON</text>
-  
-  <!-- LOG text with accent -->
-  <text x="96" y="172" text-anchor="middle" font-family="'Arial Black', 'Impact', sans-serif" font-weight="900" font-size="18" letter-spacing="8" fill="url(#fire)">LOG</text>
-  
-  <!-- Diagonal scratch marks for grit -->
-  <line x1="155" y1="20" x2="165" y2="35" stroke="rgba(255,255,255,0.04)" stroke-width="1.5"/>
-  <line x1="160" y1="18" x2="170" y2="33" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
-  <line x1="150" y1="22" x2="158" y2="34" stroke="rgba(255,255,255,0.02)" stroke-width="1"/>
+
+  <!-- LOG below barbell -->
+  <text x="96" y="158" text-anchor="middle"
+        font-family="'Arial Black', Impact, sans-serif"
+        font-weight="900" font-size="27" letter-spacing="9" fill="url(#ic-fire)">LOG</text>
 </svg>
