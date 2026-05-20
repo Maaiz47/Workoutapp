@@ -4269,7 +4269,10 @@ function HomePage() {
       </div>
       <div style={{ padding: "0 20px" }}>
         {conversations.length === 0 && (
-          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 60 }}>No messages yet</div>
+          <div style={{ textAlign: "center", marginTop: 60 }}>
+            <img src="/ai/empty-messages.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.55, borderRadius: 14, marginBottom: 14 }} />
+            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No messages yet</div>
+          </div>
         )}
         {conversations.map(c => {
           const lm = c.latestMessage;
@@ -4624,7 +4627,10 @@ function HomePage() {
                   ))}
                 </div>
               ) : (
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", marginTop: 10 }}>No profile set up yet — tap EDIT to add your details</div>
+                <div style={{ textAlign: "center", marginTop: 10 }}>
+                  <img src="/ai/empty-profile.jpg" alt="" style={{ width: 130, height: 130, opacity: 0.5, borderRadius: 14, marginBottom: 10 }} />
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>No profile set up yet — tap EDIT to add your details</div>
+                </div>
               )
             ) : (
               <div>
