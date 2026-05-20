@@ -43,7 +43,7 @@ Each prompt is self-contained — paste it as-is into ChatGPT's image tool. The 
 - [x] 20. "No messages yet" empty state
 - [x] 21. "No clients yet" — trainer view
 - [x] 22. "No users found" — trainer search
-- [ ] 23. "No profile set up yet" empty state
+- [x] 23. "No profile set up yet" empty state
 - [ ] 24. Form demo fallback — "No form demo available"
 - [ ] 25. Anatomy thumbnails (chest, back, shoulders, arms, legs, core)
 - [ ] 26. Settings profile avatar default
