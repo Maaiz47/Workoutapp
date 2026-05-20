@@ -27,7 +27,7 @@ Each prompt is self-contained — paste it as-is into ChatGPT's image tool. The 
 - [x] 4. Workout card — Pull
 - [x] 5. Workout card — Legs
 - [x] 6. Workout card — Upper
-- [ ] 7. Workout card — Lower
+- [x] 7. Workout card — Lower
 - [ ] 8. Workout card — Full Body
 - [ ] 9. Workout card — Cardio
 - [ ] 10. Workout card — HIIT
