@@ -2250,7 +2250,7 @@ function HomePage() {
       <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ textAlign: "center", zIndex: 1 }}>
         {/* Barbell — bar first, plates slam in from sides */}
-        <BarbellMark width={300} delay={0.05} />
+        <BarbellMark width={340} delay={0.05} />
         {/* Stacked wordmark */}
         <div style={{ position: "relative", display: "inline-block", marginTop: 16 }}>
           {/* Impact glow + shockwaves timed to plate slam (~0.95s) */}
@@ -2313,7 +2313,7 @@ function HomePage() {
 
           {/* Hero */}
           <div style={{ textAlign: "center", padding: "44px 32px 16px", zIndex: 1, position: "relative" }}>
-            <BarbellMark width={260} delay={0.05} />
+            <BarbellMark width={300} delay={0.05} />
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -6286,41 +6286,48 @@ function LifterIcon({ size = 120, opacity = 1 }: { size?: number; opacity?: numb
 // Vertical barbell mark — plates drop from top and bottom onto the bar.
 // height prop controls rendered height; width is derived from the 40:108 viewBox ratio.
 // Horizontal barbell with round plates — matches the app icon.
-// Plates fly in from off-screen left/right; bar shaft appears first.
-// Uses CSS @keyframes (not framer-motion) so it animates even inside
-// AnimatePresence initial={false} wrappers (e.g. the splash screen).
+// Uses CSS @keyframes + a client-side ready flag so the animation always
+// starts after the first paint — fixes the SSR issue where the animation
+// would complete before the user sees the splash screen.
 function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: number }) {
   const s = width / 320;
   const h = Math.round(88 * s);
-  const pd = delay + 0.42; // plates delay
+  // Gate animations on client mount so SSR-rendered HTML doesn't pre-play them
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const pd = delay + 0.42;
   const chrome = "linear-gradient(180deg,#f0f0f0 0%,#c0c0c0 30%,#808080 65%,#b8b8b8 100%)";
   const plo = "radial-gradient(ellipse at 38% 32%,#ff7a7a,#dd2b2b 55%,#8a1010)";
   const pli = "radial-gradient(ellipse at 38% 32%,#ff6868,#cc2020 55%,#7a0e0e)";
   const pro = "radial-gradient(ellipse at 62% 32%,#ff7a7a,#dd2b2b 55%,#8a1010)";
   const pri = "radial-gradient(ellipse at 62% 32%,#ff6868,#cc2020 55%,#7a0e0e)";
-  const barAnim = (d: number) => `bbBarGrow 0.38s cubic-bezier(0.16,1,0.3,1) ${d}s both`;
-  // expo-out — fast approach, no overshoot, plates stop cleanly on the sleeve
-  const slamL   = (d: number) => `bbSlamL 0.55s cubic-bezier(0.22,1,0.36,1) ${d}s both`;
-  const slamR   = (d: number) => `bbSlamR 0.55s cubic-bezier(0.22,1,0.36,1) ${d}s both`;
-  const seg = (l: number, t: number, w: number, ht: number, r: number, bg: string, extra?: React.CSSProperties): React.CSSProperties => ({
+  const barA = ready ? `bbBarGrow 0.38s cubic-bezier(0.16,1,0.3,1) ${delay}s both` : undefined;
+  const sL   = (d: number) => ready ? `bbSlamL 0.55s cubic-bezier(0.22,1,0.36,1) ${d}s both` : undefined;
+  const sR   = (d: number) => ready ? `bbSlamR 0.55s cubic-bezier(0.22,1,0.36,1) ${d}s both` : undefined;
+  const seg  = (l: number, t: number, w: number, ht: number, r: number, bg: string, extra?: React.CSSProperties): React.CSSProperties => ({
     position: "absolute", left: l*s, top: t*s, width: w*s, height: ht*s, borderRadius: r*s, background: bg, ...extra,
   });
+  // Pre-animation states (keep elements invisible/off-screen until ready)
+  const barPre  = ready ? {} : { transform: "scaleX(0)", opacity: 0 as number };
+  const platePre = (dir: "L" | "R") => ready ? {} : { transform: dir === "L" ? "translateX(-800px)" : "translateX(800px)" };
   return (
     <div style={{ width: "100%", height: h, overflow: "hidden", position: "relative" }}>
       <div style={{ position: "relative", width, height: h, margin: "0 auto" }}>
-        {/* Bar segments — grow from centre */}
-        <div style={{ ...seg(34,  37, 58, 14, 4, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
-        <div style={{ ...seg(90,  40,140,  8, 3, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
-        <div style={{ ...seg(228, 37, 58, 14, 4, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
-        <div style={{ ...seg(100, 41,120,  6, 2, "rgba(0,0,0,0.22)"), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
-        {/* Left plates — big plate (inner) first, small plate (outer) on top.
-            Chrome tip visible x=34→56, small plate x=56→70, big plate x=68→90 */}
-        <div style={{ ...seg(68,  5, 22, 78, 5, plo, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamL(pd) }} />
-        <div style={{ ...seg(56, 17, 14, 54, 4, pli), animation: slamL(pd + 0.06) }} />
-        {/* Right plates — big plate (inner) first, small plate (outer) on top.
-            Big plate x=230→252, small plate x=250→264, chrome tip visible x=264→286 */}
-        <div style={{ ...seg(230,  5, 22, 78, 5, pro, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamR(pd) }} />
-        <div style={{ ...seg(250, 17, 14, 54, 4, pri), animation: slamR(pd + 0.06) }} />
+        {/* Bar — grows from centre */}
+        <div style={{ ...seg(34,  37, 58, 14, 4, chrome), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
+        <div style={{ ...seg(90,  40,140,  8, 3, chrome), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
+        <div style={{ ...seg(228, 37, 58, 14, 4, chrome), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
+        <div style={{ ...seg(100, 41,120,  6, 2,"rgba(0,0,0,0.22)"), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
+        {/* Left — big inner first, small outer on top */}
+        <div style={{ ...seg(68,  5, 22, 78, 5, plo,{ boxShadow:"inset 0 0 0 1px rgba(255,150,150,0.3)" }), ...platePre("L"), animation: sL(pd) }} />
+        <div style={{ ...seg(56, 17, 14, 54, 4, pli), ...platePre("L"), animation: sL(pd + 0.06) }} />
+        {/* Right — big inner first, small outer on top */}
+        <div style={{ ...seg(230,  5, 22, 78, 5, pro,{ boxShadow:"inset 0 0 0 1px rgba(255,150,150,0.3)" }), ...platePre("R"), animation: sR(pd) }} />
+        <div style={{ ...seg(250, 17, 14, 54, 4, pri), ...platePre("R"), animation: sR(pd + 0.06) }} />
       </div>
     </div>
   );
