@@ -1041,6 +1041,7 @@ function HomePage() {
   const [wInput, setWInput] = useState("");
   const [rInput, setRInput] = useState("");
   const [bwAddWeight, setBwAddWeight] = useState(false);
+  const [manualBW, setManualBW] = useState(false);
   const [logFlashId, setLogFlashId] = useState<string | null>(null);
   const [newPBs, setNewPBs] = useState<{ name: string; weight: number; reps: number }[]>([]);
   const [showCompleteAnim, setShowCompleteAnim] = useState(false);
@@ -5360,8 +5361,11 @@ function HomePage() {
               }
 
               const renderEx = (ex: typeof sec.exercises[0], superCtx?: { group: typeof sec.exercises; idx: number }) => {
-                const exLibData = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
-                const isBW = exLibData?.equipment?.every((eq: string) => eq === "bodyweight") ?? false;
+                const normName = (n: string) => n.toLowerCase().replace(/[^a-z]/g, "").replace(/s$/, "");
+                const exLibData = (EXERCISES as any[]).find((e: any) => e.id === ex.id || normName(e.name) === normName(ex.name));
+                const BW_EQUIP = ["bodyweight", "pullup_bar", "dip_bar"];
+                const isBW = exLibData ? exLibData.equipment?.every((eq: string) => BW_EQUIP.includes(eq)) : false;
+                const activeBW = isBW || manualBW;
                 const trackable = ex.trackable !== false;
                 const done = doneCount(ex.id, ex.sets);
                 const allDone = done >= ex.sets;
@@ -5372,14 +5376,14 @@ function HomePage() {
                 const wuDone = !trackable && warmupDone[ex.id];
                 const dropCount = (ex.dropSets ?? 0) > 0 || ex.rest === 0 ? 1 : 0;
 
-                const effectiveWeight = isBW && !bwAddWeight ? "0" : wInput;
+                const effectiveWeight = activeBW && !bwAddWeight ? "0" : wInput;
                 const handleLog = () => {
                   if (!ns) return;
                   if (superCtx && superCtx.idx < superCtx.group.length - 1) {
                     logSet(ex.id, ns, effectiveWeight, rInput);
                     const nextEx = superCtx.group[superCtx.idx + 1];
                     const { weight: nw, reps: nr } = lastSessionBest(nextEx.id);
-                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false);
+                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false); setManualBW(false);
                   } else if (dropCount > 0) {
                     logSet(ex.id, ns, effectiveWeight, rInput);
                     const w = parseFloat(effectiveWeight) || 0;
@@ -5419,6 +5423,7 @@ function HomePage() {
                     <div onClick={() => {
                       if (!trackable) { setWarmupDone(prev => ({ ...prev, [ex.id]: !prev[ex.id] })); return; }
                       if (allDone) return;
+                      setManualBW(false);
                       setBwAddWeight(isBW && lw > 0);
                       setExpanded(isExp ? null : ex.id);
                       setWInput(lw ? String(lw) : "");
@@ -5507,18 +5512,30 @@ function HomePage() {
                           <span>Set {ns} of {ex.sets}{superCtx && !isLastInSuper ? ` · then ${superCtx.group[superCtx.idx + 1].name}` : ""}</span>
                           {lw > 0 && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>Last: {lw}kg × {lr}</span>}
                         </div>
-                        {isBW && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>BODYWEIGHT</div>
-                            <button onClick={() => { setBwAddWeight(!bwAddWeight); if (!bwAddWeight) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${bwAddWeight ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.15)"}`, background: bwAddWeight ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)", color: bwAddWeight ? "#FF6B6B" : "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                          {isBW && (
+                            <>
+                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>BODYWEIGHT</div>
+                              <button onClick={() => { setBwAddWeight(!bwAddWeight); if (!bwAddWeight) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${bwAddWeight ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.15)"}`, background: bwAddWeight ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)", color: bwAddWeight ? "#FF6B6B" : "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                                {bwAddWeight ? "− REMOVE WEIGHT" : "+ ADD WEIGHT"}
+                              </button>
+                            </>
+                          )}
+                          {!isBW && (
+                            <button onClick={() => { setManualBW(!manualBW); if (!manualBW) setWInput(""); setBwAddWeight(false); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${manualBW ? "rgba(46,204,113,0.5)" : "rgba(255,255,255,0.12)"}`, background: manualBW ? "rgba(46,204,113,0.12)" : "rgba(255,255,255,0.04)", color: manualBW ? "#2ecc71" : "rgba(255,255,255,0.35)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                              {manualBW ? "✓ BODYWEIGHT" : "BW"}
+                            </button>
+                          )}
+                          {manualBW && !isBW && (
+                            <button onClick={() => { setBwAddWeight(!bwAddWeight); if (!bwAddWeight) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${bwAddWeight ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.12)"}`, background: bwAddWeight ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)", color: bwAddWeight ? "#FF6B6B" : "rgba(255,255,255,0.35)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
                               {bwAddWeight ? "− REMOVE WEIGHT" : "+ ADD WEIGHT"}
                             </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                          {(!isBW || bwAddWeight) && (
+                          {(!activeBW || bwAddWeight) && (
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>{isBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}</div>
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>{activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}</div>
                               <div style={{ display: "flex", alignItems: "center" }}>
                                 <button onClick={() => setWInput(String(Math.max(0, (parseFloat(wInput) || 0) - 1.25)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                                 <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
@@ -5551,7 +5568,7 @@ function HomePage() {
                             }
                           }}
                           className={logFlashId === ex.id ? "log-flash" : ""}
-                          style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: ((!effectiveWeight && !isBW) && !rInput) ? 0.4 : 1 }}>
+                          style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: ((!effectiveWeight && !activeBW) && !rInput) ? 0.4 : 1 }}>
                           {logBtnLabel}
                         </button>
                       </div>
