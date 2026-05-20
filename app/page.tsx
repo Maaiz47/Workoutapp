@@ -655,6 +655,53 @@ function WorkoutTypeIcon({ title, color, size = 62 }: { title: string; color: st
   );
 }
 
+// Maps a primary muscle key (chest, lat, biceps, etc.) to one of the six
+// AI anatomy thumbnails. Returns null if the muscle group isn't covered.
+function anatomyImageFor(primary: string[]): string | null {
+  const m = primary.map(k => k.toLowerCase()).join(" ");
+  if (/\b(chest|pec)/.test(m))                          return "/ai/anatomy-chest.jpg";
+  if (/(lat|back|trap|rhomb|erector|rear.delt)/.test(m)) return "/ai/anatomy-back.jpg";
+  if (/(delt|shoulder)/.test(m))                         return "/ai/anatomy-shoulders.jpg";
+  if (/(bicep|tricep|arm|forearm)/.test(m))              return "/ai/anatomy-arms.jpg";
+  if (/(quad|hamstring|glute|calf|calve|leg)/.test(m))   return "/ai/anatomy-legs.jpg";
+  if (/(core|abs|obliq|abdomin)/.test(m))                return "/ai/anatomy-core.jpg";
+  return null;
+}
+
+// Maps a workout title to one of the 8 AI workout-card images, or null if the
+// title doesn't cleanly match one of the canonical splits (chest day, arms,
+// etc. fall back to the animated SVG icon).
+function workoutImageFor(title: string): string | null {
+  const t = title.toLowerCase();
+  if (t.includes("hiit"))                                 return "/ai/workout-hiit.jpg";
+  if (t.includes("cardio") || t.includes("conditio"))     return "/ai/workout-cardio.jpg";
+  if (t.startsWith("push"))                               return "/ai/workout-push.jpg";
+  if (t.startsWith("pull"))                               return "/ai/workout-pull.jpg";
+  if (t.startsWith("full"))                               return "/ai/workout-fullbody.jpg";
+  if (t.startsWith("upper"))                              return "/ai/workout-upper.jpg";
+  if (t.startsWith("lower"))                              return "/ai/workout-lower.jpg";
+  if (t.startsWith("leg"))                                return "/ai/workout-legs.jpg";
+  return null;
+}
+
+function WorkoutCardIcon({ title, color, size = 60 }: { title: string; color: string; size?: number }) {
+  const src = workoutImageFor(title);
+  if (!src) return <WorkoutTypeIcon title={title} color={color} size={size}/>;
+  return (
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      style={{
+        width: size, height: size, flexShrink: 0,
+        borderRadius: 12, objectFit: "cover",
+        boxShadow: `0 0 0 1px ${color}30, 0 4px 14px rgba(0,0,0,0.4)`,
+      }}
+    />
+  );
+}
+
 // ─── MUSCLE DIAGRAM ──────────────────────────────────────────────────────────
 function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { primary: string[]; secondary: string[]; exerciseId?: string; exerciseName?: string }) {
   // Per-exercise sub-muscle detail; otherwise fall back to broad primary/secondary muscle groups.
@@ -2395,9 +2442,11 @@ function HomePage() {
     // ── Other auth steps — centered card ─────────────────────────────
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32, position: "relative", overflow: "hidden" }}>
+        <img src="/ai/login-bg.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center bottom", opacity: 0.35, pointerEvents: "none", zIndex: 0 }} />
         <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
+          <BarbellMark width={260} delay={0.05} loop={7000} />
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, marginBottom: 4, overflow: "visible" }}>
             <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
           </div>
@@ -2535,6 +2584,10 @@ function HomePage() {
         {/* Step 0: Welcome */}
         {onboardingStep === 0 && (
           <div key={onboardingStep} className={obAnimClass}>
+            <div style={{ position: "relative", margin: "-12px -20px 24px", borderRadius: 16, overflow: "hidden", aspectRatio: "3 / 4", maxHeight: 320 }}>
+              <img src="/ai/onboarding-welcome.jpg" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.55) 0%, rgba(10,10,15,0) 30%, rgba(10,10,15,0) 60%, rgba(10,10,15,0.95) 100%)" }} />
+            </div>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 32, fontWeight: 700, color: "#fff", marginBottom: 8 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Let's build your plan.</div>
             <div style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 32 }}>Answer a few quick questions and we'll put together a personalised workout programme designed around your goals, schedule, and equipment.</div>
@@ -3270,7 +3323,7 @@ function HomePage() {
                     )}
                     {!isActive && history[d.id]?.[0] && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 10, fontFamily: "'Space Mono', monospace" }}>Last: {history[d.id][0].date} · {history[d.id][0].duration}</div>}
                   </div>
-                  <WorkoutTypeIcon title={d.title} color={d.color} size={60}/>
+                  <WorkoutCardIcon title={d.title} color={d.color} size={60}/>
                 </div>
               </div>
             </div>
@@ -6264,13 +6317,21 @@ function LifterIcon({ size = 120, opacity = 1 }: { size?: number; opacity?: numb
 // height prop controls rendered height; width is derived from the 40:108 viewBox ratio.
 // Horizontal barbell with round plates — matches the app icon.
 // Plates fly in from off-screen left/right; bar shaft appears first.
-function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: number }) {
+function BarbellMark({ width = 300, delay = 0, loop }: { width?: number; delay?: number; loop?: number }) {
   const h = Math.round(width * 88 / 320);
   const slam = { type: "spring" as const, stiffness: 500, damping: 18 };
   const platesDelay = delay + 0.42;
+  // Optional: re-fire the form-up animation periodically by remounting the
+  // animated subtree via a changing key.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!loop) return;
+    const id = setInterval(() => setTick(t => t + 1), loop);
+    return () => clearInterval(id);
+  }, [loop]);
   return (
     <div style={{ width, height: h, overflow: "hidden", position: "relative", margin: "0 auto" }}>
-      <svg width={width} height={h} viewBox="0 0 320 88" style={{ overflow: "visible", display: "block" }}>
+      <svg key={tick} width={width} height={h} viewBox="0 0 320 88" style={{ overflow: "visible", display: "block" }}>
         <defs>
           <linearGradient id="bm-chrome" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
             <stop offset="0%"   stopColor="#f0f0f0"/>
