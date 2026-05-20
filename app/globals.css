@@ -90,6 +90,8 @@ input[type="number"] { -moz-appearance: textfield; }
 .pb-overlay { animation: pbOverlay 2.4s ease both; pointer-events: none; }
 .pb-pop     { animation: pbPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both; }
 .pb-shine   { animation: pbShine 0.7s ease 0.55s both; }
+@keyframes trophyBounce { 0% { transform: scale(0) rotate(-20deg); opacity: 0; } 55% { transform: scale(1.35) rotate(8deg); opacity: 1; } 75% { transform: scale(0.88) rotate(-4deg); } 100% { transform: scale(1) rotate(0deg); } }
+.trophy-bounce { animation: trophyBounce 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both; display: inline-block; }
 
 /* ── Workout complete flash ───────────────────────────────────────────── */
 @keyframes completeRing { 0% { transform: scale(0.4); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }

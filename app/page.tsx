@@ -4585,6 +4585,7 @@ function HomePage() {
 
     const findExName = (eid: string) => {
       for (const d of WORKOUT_DATA) for (const s of d.sections) for (const e of s.exercises) if (e.id === eid) return e.name;
+      if (customPlan) for (const d of customPlan as any[]) for (const e of (d.exercises ?? [])) if ((e.exerciseId ?? e.id) === eid) return e.name;
       return eid;
     };
 
@@ -4691,16 +4692,29 @@ function HomePage() {
             {/* Personal Records */}
             {prList.length > 0 && (
               <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 14 }}>PERSONAL BESTS</div>
-                {prList.map(([eid, pr], i) => (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
+                  <span style={{ fontSize: 14 }}>🏆</span>
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>PERSONAL BESTS</span>
+                </div>
+                {prList.map(([eid, pr], i) => {
+                  const exName = findExName(eid);
+                  const imgUrl = getExerciseImageUrls(eid, exName);
+                  return (
                   <div key={eid} style={{
                     display: "flex", justifyContent: "space-between", alignItems: "center",
                     padding: "10px 0",
                     borderBottom: i < prList.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
                   }}>
-                    <div>
-                      <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{findExName(eid)}</div>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>{pr.date}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {imgUrl ? (
+                        <img src={imgUrl[0]} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "rgba(255,255,255,0.06)" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      ) : (
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,107,107,0.1)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🏋️</div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{exName}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>{pr.date}</div>
+                      </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: 16, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>
@@ -4709,7 +4723,8 @@ function HomePage() {
                       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", marginTop: 1 }}>× {pr.reps} reps</div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -4817,7 +4832,7 @@ function HomePage() {
                     <div>
                       {Object.entries(s.sets as Record<string, { weight: number; reps: number }>).map(([k, v]) => {
                         const eid = k.split("-").slice(0, -1).join("-"), sn = k.split("-").pop();
-                        let en = eid; for (const sec of d.sections) for (const ex of sec.exercises) if (ex.id === eid) en = ex.name;
+                        const en = findExName(eid);
                         return <div key={k} style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.8 }}>
                           {en} <span style={{ color: "rgba(255,255,255,0.2)" }}>S{sn}</span> <span style={{ color: "#fff", fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>{v.weight}kg × {v.reps}</span>
                         </div>;
@@ -5084,7 +5099,7 @@ function HomePage() {
           <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
             <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
               <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
-              <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
+              <div className="trophy-bounce" style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST</div>
               {newPBs.map((pb, i) => (
                 <div key={i} style={{ marginBottom: 6 }}>
