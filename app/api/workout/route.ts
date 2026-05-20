@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
         time: log.date.toISOString().slice(11, 19),
         duration: log.duration,
         sets: log.sets,
+        intensityPoints: log.intensityPoints,
       });
     }
 
@@ -36,11 +37,11 @@ export async function POST(req: NextRequest) {
     const uid = req.cookies.get("ironlog-uid")?.value;
     if (!uid) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { dayId, duration, sets } = await req.json();
+    const { dayId, duration, sets, intensityPoints } = await req.json();
     if (!dayId || !sets) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
     const log = await prisma.workoutLog.create({
-      data: { userId: uid, dayId, duration: duration || "00:00:00", sets },
+      data: { userId: uid, dayId, duration: duration || "00:00:00", sets, intensityPoints: typeof intensityPoints === 'number' ? intensityPoints : 0 },
     });
 
     return NextResponse.json({ success: true, id: log.id });

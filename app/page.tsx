@@ -369,12 +369,12 @@ function getTrainerTier(clientCount: number) {
 function getOverallStats(history: Record<string, any[]>) {
   let totalSessions = 0;
   const exercisePRs: Record<string, { weight: number; reps: number; date: string }> = {};
-  const allSessions: { date: string; duration: string }[] = [];
+  const allSessions: { date: string; duration: string; intensityPoints?: number }[] = [];
 
   for (const dayId in history) {
     for (const s of history[dayId]) {
       totalSessions++;
-      allSessions.push({ date: s.date, duration: s.duration });
+      allSessions.push({ date: s.date, duration: s.duration, intensityPoints: s.intensityPoints ?? 0 });
       const sets = s.sets as Record<string, { weight: number; reps: number }>;
       for (const k in sets) {
         const eid = parseSetKey(k).eid;
@@ -430,15 +430,17 @@ function getOverallStats(history: Record<string, any[]>) {
   // The grid is 7 columns (S M T W T F S). 
   // We need to figure out which column today falls in, then pad the first row
   // so that 28 days ago lands on its correct weekday.
-  const calendarDays: { active: boolean; isToday: boolean; date: string }[] = [];
+  const calendarDays: { active: boolean; isToday: boolean; date: string; hasIntensity: boolean }[] = [];
   for (let i = 27; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().slice(0, 10);
+    const daySessions = allSessions.filter(s => s.date === dateStr);
     calendarDays.push({
-      active: allSessions.some(s => s.date === dateStr),
+      active: daySessions.length > 0,
       isToday: i === 0,
       date: dateStr,
+      hasIntensity: daySessions.some(s => (s.intensityPoints ?? 0) > 0),
     });
   }
   // 28 days ago - what day of week was it?
@@ -1261,6 +1263,30 @@ function HomePage() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboardSort, setLeaderboardSort] = useState<"sessions" | "streak" | "intensity">("sessions");
+  const [lbGroups, setLbGroups] = useState<any[]>([]);
+  const [lbGroupsLoading, setLbGroupsLoading] = useState(false);
+  const [showLbGroups, setShowLbGroups] = useState(false);
+  const [showLbGroupCreate, setShowLbGroupCreate] = useState(false);
+  const [lbGroupName, setLbGroupName] = useState("");
+  const [lbGroupPrivacy, setLbGroupPrivacy] = useState<"private"|"public">("private");
+  const [creatingLbGroup, setCreatingLbGroup] = useState(false);
+  const [activeLbGroup, setActiveLbGroup] = useState<any | null>(null);
+  const [lbGroupClientSearch, setLbGroupClientSearch] = useState("");
+  const [trainerSearchForLb, setTrainerSearchForLb] = useState("");
+  const [trainerSearchResultsLb, setTrainerSearchResultsLb] = useState<any[]>([]);
+  const [trainerSearchingLb, setTrainerSearchingLb] = useState(false);
+  const [myLeaderboards, setMyLeaderboards] = useState<any[]>([]);
+  const [myLeaderboardsLoading, setMyLeaderboardsLoading] = useState(false);
+  const [showMyLeaderboards, setShowMyLeaderboards] = useState(false);
+  const [pendingGroupInvites, setPendingGroupInvites] = useState<any[]>([]);
+  // Intensity Points
+  const [sessionIP, setSessionIP] = useState(0);
+  const [ipToast, setIpToast] = useState<{ msg: string; icon: string } | null>(null);
+  const completedSupersetGroups = useRef(new Set<string>());
+  const completedDropExes = useRef(new Set<string>());
+  const ipToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const SESSION_IP_CAP = 25;
   const [activeClient, setActiveClient] = useState<{ id: string; username: string } | null>(null);
   const [clientData, setClientData] = useState<{ profile: any; history: Record<string, any[]>; plan: any } | null>(null);
   const [clientDataLoading, setClientDataLoading] = useState(false);
@@ -1432,6 +1458,9 @@ function HomePage() {
       }).catch(() => {});
       fetch("/api/trainer/exercises").then(r => r.json()).then(data => {
         if (data.exercises) setCustomExercises(data.exercises);
+      }).catch(() => {});
+      fetch("/api/leaderboard/invites").then(r => r.json()).then(data => {
+        if (data.invites) setPendingGroupInvites(data.invites);
       }).catch(() => {});
     }
     if (user?.role === "user") {
@@ -2278,7 +2307,7 @@ function HomePage() {
         await fetch("/api/workout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dayId: activeDay.id, duration: adjustedDuration, sets: finalLog }),
+          body: JSON.stringify({ dayId: activeDay.id, duration: adjustedDuration, sets: finalLog, intensityPoints: sessionIP }),
         });
         const res = await fetch("/api/workout");
         const data = await res.json();
@@ -2286,6 +2315,9 @@ function HomePage() {
       } catch {}
     }
     try { localStorage.removeItem("ironlog-session"); } catch {}
+
+    completedSupersetGroups.current.clear();
+    completedDropExes.current.clear();
 
     setTimeout(() => {
       setShowCompleteAnim(false);
@@ -2295,7 +2327,7 @@ function HomePage() {
         setTimeout(() => setNewPBs([]), 2400);
       }
       goBack();
-      setActiveDay(null); setLog({}); setStarted(false);
+      setActiveDay(null); setLog({}); setStarted(false); setSessionIP(0);
     }, 1400);
   };
 
@@ -2353,6 +2385,17 @@ function HomePage() {
       const saved = localStorage.getItem("ironlog-session");
       if (saved) { const s = JSON.parse(saved); s.log = newLog; localStorage.setItem("ironlog-session", JSON.stringify(s)); }
     } catch {}
+  };
+
+  const awardIP = (pts: number, icon: string, label: string) => {
+    setSessionIP(prev => {
+      const awarded = Math.min(pts, SESSION_IP_CAP - prev);
+      if (awarded <= 0) return prev;
+      if (ipToastTimer.current) clearTimeout(ipToastTimer.current);
+      setIpToast({ msg: `+${awarded} IP · ${label}`, icon });
+      ipToastTimer.current = setTimeout(() => setIpToast(null), 2500);
+      return prev + awarded;
+    });
   };
 
   const doneCount = (eid: string, total: number) => {
@@ -3650,6 +3693,7 @@ function HomePage() {
       )}
 
       {user.role === "trainer" && (
+        <>
         <div style={{ padding: "16px 20px 0" }}>
           <button
             onClick={async () => {
@@ -3671,41 +3715,50 @@ function HomePage() {
           </button>
           {showLeaderboard && (
             <div className="fade-in" style={{ marginTop: 8 }}>
+              {/* Sort chips */}
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                {(["sessions","streak","intensity"] as const).map(s => (
+                  <button key={s} onClick={() => setLeaderboardSort(s)} style={{ padding: "4px 12px", borderRadius: 20, fontSize: 10, fontFamily: "'Space Mono', monospace", letterSpacing: 1, cursor: "pointer", fontWeight: 600, background: leaderboardSort === s ? "rgba(162,155,254,0.18)" : "rgba(255,255,255,0.04)", border: `1px solid ${leaderboardSort === s ? "rgba(162,155,254,0.4)" : "rgba(255,255,255,0.08)"}`, color: leaderboardSort === s ? "#a29bfe" : "rgba(255,255,255,0.35)" }}>
+                    {s === "intensity" ? "⚡ INTENSITY" : s.toUpperCase()}
+                  </button>
+                ))}
+              </div>
               {leaderboardLoading ? (
                 <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "20px 0" }}>Loading…</div>
               ) : leaderboard.length === 0 ? (
                 <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "20px 0" }}>No client data yet</div>
               ) : (
                 <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
-                  {/* Header */}
-                  <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 52px 52px 52px", gap: 8, padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>#</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>CLIENT</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: "center" }}>SESSIONS</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: "center" }}>STREAK</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: "center" }}>PRs</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 48px 48px 48px 48px", gap: 6, padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    {["#","CLIENT","SESS","STREAK","PRs","⚡ IP"].map((h, hi) => (
+                      <div key={h} style={{ fontSize: 9, color: hi > 1 && ["SESS","STREAK","PRs","⚡ IP"][hi-2] === (leaderboardSort === "sessions" ? "SESS" : leaderboardSort === "streak" ? "STREAK" : "⚡ IP") ? "#a29bfe" : "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "center" : "left" }}>{h}</div>
+                    ))}
                   </div>
-                  {leaderboard.map((c, i) => {
+                  {[...leaderboard].sort((a, b) => leaderboardSort === "streak" ? b.streak - a.streak : leaderboardSort === "intensity" ? (b.totalIntensityPoints ?? 0) - (a.totalIntensityPoints ?? 0) : b.totalSessions - a.totalSessions).map((c, i) => {
                     const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
                     const tier = (() => { const t = CLIENT_TIERS.slice().reverse().find(t => c.totalSessions >= t.min); return t ?? CLIENT_TIERS[0]; })();
                     return (
-                      <div key={c.id} style={{ display: "grid", gridTemplateColumns: "28px 1fr 52px 52px 52px", gap: 8, padding: "12px 14px", borderBottom: i < leaderboard.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.03)" : "transparent" }}>
+                      <div key={c.id} style={{ display: "grid", gridTemplateColumns: "28px 1fr 48px 48px 48px 48px", gap: 6, padding: "11px 12px", borderBottom: i < leaderboard.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.03)" : "transparent" }}>
                         <div style={{ fontSize: 14, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
                           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.emoji} {tier.label} · {c.totalVolume.toLocaleString()}kg vol</div>
                         </div>
                         <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{c.totalSessions}</div>
-                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>sessions</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: leaderboardSort === "sessions" ? "#a29bfe" : "#fff" }}>{c.totalSessions}</div>
+                          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>sess</div>
                         </div>
                         <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: c.streak >= 3 ? "#FF6B6B" : "#fff" }}>{c.streak}</div>
-                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>days</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: leaderboardSort === "streak" ? "#a29bfe" : c.streak >= 3 ? "#FF6B6B" : "#fff" }}>{c.streak}</div>
+                          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>days</div>
                         </div>
                         <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: c.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{c.prCount}</div>
-                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>PRs</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: c.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{c.prCount}</div>
+                          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>PRs</div>
+                        </div>
+                        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: leaderboardSort === "intensity" ? "#a29bfe" : (c.totalIntensityPoints ?? 0) > 0 ? "#FFE66D" : "rgba(255,255,255,0.3)" }}>{c.totalIntensityPoints ?? 0}</div>
+                          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>IP</div>
                         </div>
                       </div>
                     );
@@ -3715,6 +3768,213 @@ function HomePage() {
             </div>
           )}
         </div>
+
+        {/* ── Leaderboard Groups ── */}
+        <div style={{ padding: "12px 20px 0" }}>
+          <button
+            onClick={async () => {
+              if (showLbGroups) { setShowLbGroups(false); return; }
+              setLbGroupsLoading(true);
+              setShowLbGroups(true);
+              try {
+                const res = await fetch("/api/leaderboard/groups");
+                const data = await res.json();
+                if (data.groups) setLbGroups(data.groups);
+              } catch {}
+              setLbGroupsLoading(false);
+            }}
+            style={{ width: "100%", padding: "14px 18px", background: showLbGroups ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${showLbGroups ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, color: showLbGroups ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}
+          >
+            <span style={{ fontSize: 18 }}>👥</span>
+            <span>Leaderboard Groups</span>
+            <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>{showLbGroups ? "▲" : "▼"}</span>
+          </button>
+          {showLbGroups && (
+            <div className="fade-in" style={{ marginTop: 8 }}>
+              {/* Pending invites from other trainers */}
+              {pendingGroupInvites.length > 0 && (
+                <div style={{ background: "rgba(255,230,109,0.06)", border: "1px solid rgba(255,230,109,0.2)", borderRadius: 12, padding: 12, marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, color: "#FFE66D", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 8 }}>PENDING INVITES</div>
+                  {pendingGroupInvites.map((inv: any) => (
+                    <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{inv.group?.name}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>from @{inv.inviter?.username} · {inv.group?.members?.length ?? 0} members</div>
+                      </div>
+                      <button onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/leaderboard/groups/${inv.group.id}/invite`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inviteId: inv.id, action: "accept" }) });
+                          if (res.ok) {
+                            setPendingGroupInvites(p => p.filter(i => i.id !== inv.id));
+                            const refreshRes = await fetch("/api/leaderboard/groups");
+                            const refreshData = await refreshRes.json();
+                            if (refreshData.groups) setLbGroups(refreshData.groups);
+                          }
+                        } catch {}
+                      }} style={{ padding: "5px 10px", background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 6, color: "#4ECDC4", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>ACCEPT</button>
+                      <button onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/leaderboard/groups/${inv.group.id}/invite`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inviteId: inv.id, action: "decline" }) });
+                          if (res.ok) setPendingGroupInvites(p => p.filter(i => i.id !== inv.id));
+                        } catch {}
+                      }} style={{ padding: "5px 10px", background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "#FF6B6B", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>DECLINE</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Create group button */}
+              <button onClick={() => setShowLbGroupCreate(s => !s)} style={{ width: "100%", padding: "10px 14px", marginBottom: 8, background: showLbGroupCreate ? "rgba(255,107,107,0.1)" : "rgba(78,205,196,0.08)", border: `1px solid ${showLbGroupCreate ? "rgba(255,107,107,0.3)" : "rgba(78,205,196,0.2)"}`, borderRadius: 10, color: showLbGroupCreate ? "#FF6B6B" : "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                {showLbGroupCreate ? "CANCEL" : "+ NEW GROUP"}
+              </button>
+              {showLbGroupCreate && (
+                <div className="fade-in" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                  <input value={lbGroupName} onChange={e => setLbGroupName(e.target.value)} placeholder="Group name (e.g. Strength Squad)" style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#fff", fontSize: 14, padding: "10px 12px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
+                  <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                    {(["private","public"] as const).map(p => (
+                      <button key={p} onClick={() => setLbGroupPrivacy(p)} style={{ flex: 1, padding: "6px", borderRadius: 8, fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", background: lbGroupPrivacy === p ? "rgba(78,205,196,0.18)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbGroupPrivacy === p ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, color: lbGroupPrivacy === p ? "#4ECDC4" : "rgba(255,255,255,0.35)" }}>{p.toUpperCase()}</button>
+                    ))}
+                  </div>
+                  <button onClick={async () => {
+                    if (!lbGroupName.trim()) return;
+                    setCreatingLbGroup(true);
+                    try {
+                      const res = await fetch("/api/leaderboard/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: lbGroupName.trim(), privacy: lbGroupPrivacy }) });
+                      const data = await res.json();
+                      if (data.group) { setLbGroups(p => [data.group, ...p]); setShowLbGroupCreate(false); setLbGroupName(""); }
+                      else alert(data.error ?? "Failed");
+                    } catch { alert("Failed"); } finally { setCreatingLbGroup(false); }
+                  }} disabled={creatingLbGroup || !lbGroupName.trim()} style={{ width: "100%", padding: "10px", background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                    {creatingLbGroup ? "CREATING…" : "CREATE GROUP"}
+                  </button>
+                </div>
+              )}
+              {lbGroupsLoading ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "16px 0" }}>Loading…</div>
+              ) : lbGroups.length === 0 ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "16px 0" }}>No groups yet — create one above</div>
+              ) : (
+                lbGroups.map(grp => (
+                  <div key={grp.id} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
+                    <div onClick={() => setActiveLbGroup(activeLbGroup?.id === grp.id ? null : grp)} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{grp.name}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{grp.members?.length ?? 0} members · {grp.privacy}</div>
+                      </div>
+                      <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 14 }}>{activeLbGroup?.id === grp.id ? "▲" : "▼"}</span>
+                    </div>
+                    {activeLbGroup?.id === grp.id && (
+                      <div className="fade-in" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: 14 }}>
+                        {/* Trainer inclusion toggle */}
+                        {(() => {
+                          const myMember = grp.members?.find((m: any) => m.userId === user.id && m.role === "trainer");
+                          return myMember ? (
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Include me in ranking</div>
+                                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Show your stats on this leaderboard</div>
+                              </div>
+                              <button onClick={async () => {
+                                try {
+                                  const res = await fetch(`/api/leaderboard/groups/${grp.id}/members`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ includeInRank: !myMember.includeInRank }) });
+                                  if (res.ok) {
+                                    setLbGroups(prev => prev.map(g => g.id !== grp.id ? g : { ...g, members: g.members.map((m: any) => m.id !== myMember.id ? m : { ...m, includeInRank: !m.includeInRank }) }));
+                                    setActiveLbGroup((prev: any) => ({ ...prev, members: prev.members.map((m: any) => m.id !== myMember.id ? m : { ...m, includeInRank: !m.includeInRank }) }));
+                                  }
+                                } catch {}
+                              }} style={{ width: 44, height: 24, borderRadius: 12, background: myMember.includeInRank ? "#4ECDC4" : "rgba(255,255,255,0.1)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
+                                <div style={{ position: "absolute", top: 2, left: myMember.includeInRank ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                              </button>
+                            </div>
+                          ) : null;
+                        })()}
+                        {/* Client member selection */}
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>CLIENTS IN GROUP</div>
+                        <input value={lbGroupClientSearch} onChange={e => setLbGroupClientSearch(e.target.value)} placeholder="Filter clients…" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
+                        {clients.filter(c => !lbGroupClientSearch || c.username.toLowerCase().includes(lbGroupClientSearch.toLowerCase())).map((c: any) => {
+                          const inGroup = grp.members?.some((m: any) => m.userId === c.id && m.role === "client");
+                          return (
+                            <div key={c.id} onClick={async () => {
+                              const currentClientIds = (grp.members ?? []).filter((m: any) => m.role === "client").map((m: any) => m.userId);
+                              const newIds = inGroup ? currentClientIds.filter((id: string) => id !== c.id) : [...currentClientIds, c.id];
+                              try {
+                                const res = await fetch(`/api/leaderboard/groups/${grp.id}/members`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientIds: newIds }) });
+                                const data = await res.json();
+                                if (data.members) {
+                                  const refreshRes = await fetch("/api/leaderboard/groups");
+                                  const refreshData = await refreshRes.json();
+                                  if (refreshData.groups) { setLbGroups(refreshData.groups); setActiveLbGroup(refreshData.groups.find((g: any) => g.id === grp.id) ?? null); }
+                                }
+                              } catch {}
+                            }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 8, marginBottom: 4, background: inGroup ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.02)", cursor: "pointer", border: `1px solid ${inGroup ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.05)"}` }}>
+                              <span style={{ fontSize: 13, color: inGroup ? "#4ECDC4" : "rgba(255,255,255,0.6)" }}>@{c.username}</span>
+                              <span style={{ fontSize: 16 }}>{inGroup ? "✓" : "+"}</span>
+                            </div>
+                          );
+                        })}
+                        {/* Invite other trainer */}
+                        <div style={{ marginTop: 14 }}>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>INVITE TRAINER</div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <input value={trainerSearchForLb} onChange={e => setTrainerSearchForLb(e.target.value)} placeholder="Search by username…" style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif" }} />
+                            <button onClick={async () => {
+                              if (trainerSearchForLb.trim().length < 2) return;
+                              setTrainerSearchingLb(true);
+                              try {
+                                const res = await fetch(`/api/trainer/search?q=${encodeURIComponent(trainerSearchForLb.trim())}&type=trainer`);
+                                const data = await res.json();
+                                setTrainerSearchResultsLb(data.results ?? []);
+                              } catch {} finally { setTrainerSearchingLb(false); }
+                            }} style={{ padding: "7px 12px", background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.25)", borderRadius: 8, color: "#a29bfe", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                              {trainerSearchingLb ? "…" : "FIND"}
+                            </button>
+                          </div>
+                          {trainerSearchResultsLb.map((t: any) => {
+                            const alreadyInvited = grp.invites?.some((inv: any) => inv.inviteeId === t.id);
+                            const alreadyMember = grp.members?.some((m: any) => m.userId === t.id);
+                            return (
+                              <div key={t.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 8, marginTop: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                                <span style={{ fontSize: 13, color: "#fff" }}>@{t.username}</span>
+                                {alreadyMember ? (
+                                  <span style={{ fontSize: 10, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>MEMBER</span>
+                                ) : alreadyInvited ? (
+                                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>INVITED</span>
+                                ) : (
+                                  <button onClick={async () => {
+                                    try {
+                                      const res = await fetch(`/api/leaderboard/groups/${grp.id}/invite`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inviteeId: t.id }) });
+                                      if (res.ok) {
+                                        const refreshRes = await fetch("/api/leaderboard/groups");
+                                        const refreshData = await refreshRes.json();
+                                        if (refreshData.groups) { setLbGroups(refreshData.groups); setActiveLbGroup(refreshData.groups.find((g: any) => g.id === grp.id) ?? null); }
+                                        setTrainerSearchResultsLb([]);
+                                        setTrainerSearchForLb("");
+                                      }
+                                    } catch {}
+                                  }} style={{ padding: "4px 10px", background: "rgba(162,155,254,0.14)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 6, color: "#a29bfe", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>INVITE</button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Delete group */}
+                        {grp.createdBy === user.id && (
+                          <button onClick={async () => {
+                            if (!confirm(`Delete "${grp.name}"? This cannot be undone.`)) return;
+                            try {
+                              const res = await fetch(`/api/leaderboard/groups/${grp.id}`, { method: "DELETE" });
+                              if (res.ok) { setLbGroups(p => p.filter(g => g.id !== grp.id)); setActiveLbGroup(null); }
+                            } catch {}
+                          }} style={{ width: "100%", marginTop: 14, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>DELETE GROUP</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+        </>
       )}
 
       {/* ── Trainer: Custom Exercises ── */}
@@ -5201,6 +5461,7 @@ function HomePage() {
                           fontFamily: "'Space Mono', monospace",
                           color: calDateSel === day.date ? "#111" : day.active ? "#fff" : day.isToday ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)",
                         }}>{dateNums[i]}</div>
+                        {day.hasIntensity && <div style={{ fontSize: 7, lineHeight: 1, marginTop: 1 }}>⚡</div>}
                       </div>
                     ))}
                   </div>
@@ -5308,6 +5569,68 @@ function HomePage() {
                 })}
               </div>
             )}
+
+            {/* My Leaderboards (client) */}
+            <div style={{ marginBottom: 14 }}>
+              <button
+                onClick={async () => {
+                  if (showMyLeaderboards) { setShowMyLeaderboards(false); return; }
+                  setMyLeaderboardsLoading(true);
+                  setShowMyLeaderboards(true);
+                  try {
+                    const res = await fetch("/api/leaderboard/mine");
+                    const data = await res.json();
+                    if (data.groups) setMyLeaderboards(data.groups);
+                  } catch {}
+                  setMyLeaderboardsLoading(false);
+                }}
+                style={{ width: "100%", padding: "14px 18px", background: showMyLeaderboards ? "rgba(255,230,109,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${showMyLeaderboards ? "rgba(255,230,109,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, color: showMyLeaderboards ? "#FFE66D" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}
+              >
+                <span style={{ fontSize: 18 }}>🏆</span>
+                <span>My Leaderboards</span>
+                <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>{showMyLeaderboards ? "▲" : "▼"}</span>
+              </button>
+              {showMyLeaderboards && (
+                <div className="fade-in" style={{ marginTop: 8 }}>
+                  {myLeaderboardsLoading ? (
+                    <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "20px 0" }}>Loading…</div>
+                  ) : myLeaderboards.length === 0 ? (
+                    <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "20px 0" }}>You haven't been added to any leaderboard yet</div>
+                  ) : (
+                    myLeaderboards.map((grp: any) => (
+                      <div key={grp.id} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
+                        <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#FFE66D" }}>{grp.name}</div>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{grp.members?.length ?? 0} participants</div>
+                        </div>
+                        {/* Leaderboard rows */}
+                        {grp.leaderboard?.map((entry: any, idx: number) => {
+                          const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : null;
+                          const isMe = entry.userId === user.id;
+                          return (
+                            <div key={entry.userId} style={{ display: "grid", gridTemplateColumns: "28px 1fr 48px 48px", gap: 8, padding: "10px 12px", borderBottom: idx < grp.leaderboard.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: isMe ? "rgba(255,230,109,0.04)" : "transparent" }}>
+                              <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{idx + 1}</span>}</div>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? "#FFE66D" : "#fff" }}>@{entry.username}{isMe ? " (you)" : ""}</div>
+                                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier?.emoji} {entry.tier?.label}</div>
+                              </div>
+                              <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{entry.totalSessions}</div>
+                                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>sess</div>
+                              </div>
+                              <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: (entry.totalIntensityPoints ?? 0) > 0 ? "#FFE66D" : "rgba(255,255,255,0.3)" }}>{entry.totalIntensityPoints ?? 0}</div>
+                                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>⚡ IP</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
 
             {overall.totalSessions === 0 && (
               <div style={{ textAlign: "center", padding: "40px 20px", color: "rgba(255,255,255,0.25)", fontSize: 13 }}>
@@ -6048,7 +6371,14 @@ function HomePage() {
                     setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput("");
                   } else {
                     logSet(ex.id, ns, effectiveWeight, rInput);
-                    if (ns + 1 > ex.sets) setExpanded(null);
+                    if (ns + 1 > ex.sets) {
+                      setExpanded(null);
+                      // Award IP for completing full superset (last exercise, last set)
+                      if (isLastInSuper && ex.groupId && !completedSupersetGroups.current.has(ex.groupId)) {
+                        completedSupersetGroups.current.add(ex.groupId);
+                        awardIP(5, "⚡", "SUPERSET LOCKED");
+                      }
+                    }
                     if (ex.rest) rest.start(ex.rest, () => setNewPBs([]));
                   }
                 };
@@ -6189,6 +6519,10 @@ function HomePage() {
                             setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput("");
                           } else {
                             setPendingDrop(null);
+                            if (!completedDropExes.current.has(ex.id)) {
+                              completedDropExes.current.add(ex.id);
+                              awardIP(3, "🔥", "DROP CHAIN");
+                            }
                             if (pendingDrop!.setNum + 1 > ex.sets) setExpanded(null);
                             if (ex.rest) rest.start(ex.rest, () => setNewPBs([]));
                           }
@@ -6341,6 +6675,14 @@ function HomePage() {
           <button onClick={finish} style={{ width: "100%", padding: "16px", background: "rgba(46,204,113,0.15)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 12, color: "#2ecc71", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>FINISH & SAVE</button>
         </div>
 
+        {/* IP toast */}
+        {ipToast && (
+          <div style={{ position: "fixed", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 250, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,230,109,0.4)", borderRadius: 28, padding: "10px 22px", display: "flex", alignItems: "center", gap: 10, pointerEvents: "none", animation: "goalCelebPop 0.3s ease" }}>
+            <span style={{ fontSize: 22 }}>{ipToast.icon}</span>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>{ipToast.msg}</div>
+          </div>
+        )}
+
         {/* Workout complete animation */}
         {showCompleteAnim && (
           <div className="complete-overlay" style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(16px)", pointerEvents: "none", overflow: "hidden" }}>
@@ -6353,6 +6695,11 @@ function HomePage() {
               </div>
             </div>
             <div className="complete-pop" style={{ marginTop: 32, fontSize: 20, fontWeight: 700, color: "#2ecc71", letterSpacing: 3, fontFamily: "'Space Mono', monospace", animationDelay: "0.2s" }}>SAVED</div>
+            {sessionIP > 0 && (
+              <div className="complete-pop" style={{ marginTop: 14, fontSize: 15, fontWeight: 700, color: "#FFE66D", letterSpacing: 2, fontFamily: "'Space Mono', monospace", animationDelay: "0.35s", display: "flex", alignItems: "center", gap: 8 }}>
+                <span>⚡</span><span>+{sessionIP} INTENSITY PTS</span>
+              </div>
+            )}
           </div>
         )}
 

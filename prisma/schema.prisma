@@ -35,6 +35,10 @@ model User {
   savedRoutines     SavedRoutine[]
   lastSeenAt        DateTime?
   customExercises   CustomExercise[]
+  createdGroups     LeaderboardGroup[]       @relation("CreatedGroups")
+  groupMemberships  LeaderboardGroupMember[] @relation("GroupMemberships")
+  sentGroupInvites  LeaderboardGroupInvite[] @relation("SentGroupInvites")
+  receivedGroupInvites LeaderboardGroupInvite[] @relation("ReceivedGroupInvites")
 }
 
 model TrainerRequest {
@@ -204,13 +208,14 @@ model BodyMetric {
 }
 
 model WorkoutLog {
-  id       String   @id @default(cuid())
-  userId   String
-  dayId    String
-  date     DateTime @default(now())
-  duration String
-  sets     Json
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  userId           String
+  dayId            String
+  date             DateTime @default(now())
+  duration         String
+  sets             Json
+  intensityPoints  Int      @default(0)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, dayId])
   @@index([userId])
@@ -242,4 +247,51 @@ model CustomExercise {
   trainer          User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
   @@index([trainerId])
+}
+
+model LeaderboardGroup {
+  id             String                   @id @default(cuid())
+  name           String
+  createdBy      String
+  privacy        String                   @default("private") // "private" | "public"
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  creator        User                     @relation("CreatedGroups", fields: [createdBy], references: [id], onDelete: Cascade)
+  members        LeaderboardGroupMember[]
+  invites        LeaderboardGroupInvite[]
+
+  @@index([createdBy])
+}
+
+model LeaderboardGroupMember {
+  id              String           @id @default(cuid())
+  groupId         String
+  userId          String
+  role            String           @default("client") // "trainer" | "client"
+  trainerId       String?          // which trainer added this client (null for trainers themselves)
+  includeInRank   Boolean          @default(true)
+  joinedAt        DateTime         @default(now())
+  group           LeaderboardGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user            User             @relation("GroupMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+}
+
+model LeaderboardGroupInvite {
+  id          String           @id @default(cuid())
+  groupId     String
+  inviterId   String
+  inviteeId   String
+  status      String           @default("pending") // "pending" | "accepted" | "declined"
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  group       LeaderboardGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  inviter     User             @relation("SentGroupInvites", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee     User             @relation("ReceivedGroupInvites", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, inviteeId])
+  @@index([groupId])
+  @@index([inviteeId])
 }

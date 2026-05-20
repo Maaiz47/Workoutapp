@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
         id: true,
         username: true,
         workoutLogs: {
-          select: { date: true, duration: true, sets: true },
+          select: { date: true, duration: true, sets: true, intensityPoints: true },
           orderBy: { date: "desc" },
           take: 200,
         },
@@ -73,6 +73,8 @@ export async function GET(req: NextRequest) {
         return sum + Object.values(sets).reduce((s, v) => s + (v.weight || 0) * (v.reps || 0), 0);
       }, 0);
 
+      const totalIntensityPoints = logs.reduce((sum, log) => sum + ((log as any).intensityPoints ?? 0), 0);
+
       return {
         id: c.id,
         username: c.username,
@@ -80,6 +82,7 @@ export async function GET(req: NextRequest) {
         streak,
         prCount,
         totalVolume: Math.round(totalVolume),
+        totalIntensityPoints,
         lastSession: logs[0]?.date.toISOString().slice(0, 10) ?? null,
         profile: c.profile,
       };
