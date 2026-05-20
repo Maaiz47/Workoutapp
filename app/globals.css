@@ -160,3 +160,10 @@ button:active:not(:disabled) { transform: scale(0.96); }
 }
 .ma { fill: var(--mc); animation: muscleExplode 2.2s ease-in-out infinite; }
 .md { fill: rgba(255,255,255,0.04); }
+
+@keyframes goalCelebPop { 0% { transform: scale(0.5) rotate(-8deg); opacity: 0; } 60% { transform: scale(1.08) rotate(3deg); opacity: 1; } 80% { transform: scale(0.96) rotate(-1deg); } 100% { transform: scale(1) rotate(0deg); } }
+.goal-celeb-pop  { animation: goalCelebPop 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes goalCelebIcon { 0% { transform: scale(0) rotate(-20deg); } 60% { transform: scale(1.2) rotate(10deg); } 80% { transform: scale(0.9) rotate(-5deg); } 100% { transform: scale(1) rotate(0deg); } }
+.goal-celeb-icon { animation: goalCelebIcon 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; display: inline-block; }
+@keyframes goalCelebShine { 0% { transform: translateX(-100%) skewX(-15deg); } 100% { transform: translateX(250%) skewX(-15deg); } }
+.goal-celeb-shine { animation: goalCelebShine 0.7s ease 0.5s both; }

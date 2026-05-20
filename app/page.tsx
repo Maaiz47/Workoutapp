@@ -439,14 +439,15 @@ function getOverallStats(history: Record<string, any[]>) {
 }
 
 // Mini bar chart component
-function BodyTrendChart({ items, color, unit }: { items: { value: number; date: string }[]; color: string; unit: string }) {
+function BodyTrendChart({ items, color, unit, goal }: { items: { value: number; date: string }[]; color: string; unit: string; goal?: number }) {
   if (items.length < 2) return null;
   const W = 320, H = 90, PL = 36, PR = 8, PT = 10, PB = 22;
   const times = items.map(i => new Date(i.date).getTime());
   const minT = Math.min(...times), maxT = Math.max(...times);
   const tRange = maxT - minT || 1;
   const vals = items.map(i => i.value);
-  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const allForRange = goal != null ? [...vals, goal] : vals;
+  const minV = Math.min(...allForRange), maxV = Math.max(...allForRange);
   const vRange = maxV - minV || 1;
   const cx = (d: string) => PL + ((new Date(d).getTime() - minT) / tRange) * (W - PL - PR);
   const cy = (v: number) => PT + ((maxV - v) / vRange) * (H - PT - PB);
@@ -476,6 +477,21 @@ function BodyTrendChart({ items, color, unit }: { items: { value: number; date: 
         const isLast = i === items.length - 1;
         return <circle key={i} cx={cx(it.date)} cy={cy(it.value)} r={isLast ? 4 : 2.5} fill={isLast ? color : `${color}70`} />;
       })}
+      {goal != null && (() => {
+        // extend minV/maxV range to include goal so it's always visible
+        const allVals = [...vals, goal];
+        const extMinV = Math.min(...allVals);
+        const extMaxV = Math.max(...allVals);
+        const extRange = extMaxV - extMinV || 1;
+        const goalY = PT + ((extMaxV - goal) / extRange) * (H - PT - PB);
+        if (goalY < PT - 5 || goalY > H - PB + 5) return null;
+        return (
+          <>
+            <line x1={PL} y1={goalY} x2={W - PR} y2={goalY} stroke={color} strokeWidth="1" strokeDasharray="3 3" opacity="0.45" />
+            <text x={PL - 4} y={goalY + 3} fill={color} fontSize="7.5" textAnchor="end" fontFamily="monospace" opacity="0.65">{goal}</text>
+          </>
+        );
+      })()}
       {visibleIdxs.map((idx, i) => {
         const it = items[idx];
         const x = Math.max(PL, Math.min(W - PR, cx(it.date)));
@@ -1244,6 +1260,8 @@ function HomePage() {
   const [loggingMetric, setLoggingMetric] = useState(false);
   const [goalWeight, setGoalWeight] = useState("");
   const [goalBf, setGoalBf] = useState("");
+  const [showGoalCelebration, setShowGoalCelebration] = useState(false);
+  const [goalCelebDetails, setGoalCelebDetails] = useState<{type: 'weight'|'bf'; target: number; value: number}[]>([]);
   const [goalWeightPrev, setGoalWeightPrev] = useState("");
   const [goalBfPrev, setGoalBfPrev] = useState("");
   const [editingGoals, setEditingGoals] = useState(false);
@@ -1938,6 +1956,28 @@ function HomePage() {
         if (metricBf) setOb(o => ({ ...o, bodyFatPct: metricBf }));
         setMetricWeight("");
         setMetricBf("");
+        // Goal reached detection
+        const celebrations: {type: 'weight'|'bf'; target: number; value: number}[] = [];
+        if (goalWeight && data.metric.weightKg != null) {
+          const target = parseFloat(goalWeight);
+          const val = data.metric.weightKg;
+          const prevAtGoal = bodyMetrics.some(m => m.weightKg != null && Math.abs(m.weightKg - target) <= 1.0);
+          if (!prevAtGoal && Math.abs(val - target) <= 1.0) {
+            celebrations.push({ type: 'weight', target, value: val });
+          }
+        }
+        if (goalBf && data.metric.bodyFatPct != null) {
+          const target = parseFloat(goalBf);
+          const val = data.metric.bodyFatPct;
+          const prevAtGoal = bodyMetrics.some(m => m.bodyFatPct != null && Math.abs(m.bodyFatPct - target) <= 1.0);
+          if (!prevAtGoal && Math.abs(val - target) <= 1.0) {
+            celebrations.push({ type: 'bf', target, value: val });
+          }
+        }
+        if (celebrations.length > 0) {
+          setGoalCelebDetails(celebrations);
+          setShowGoalCelebration(true);
+        }
       }
     } catch {}
     setLoggingMetric(false);
@@ -2640,6 +2680,7 @@ function HomePage() {
               { id: "strength", label: "Get Stronger",     desc: "Heavy compound lifts, low reps, long rest",                    img: "/ai/goal-stronger.jpg" },
               { id: "fat_loss", label: "Lose Fat",         desc: "Higher volume, cardio finishers, calorie-burning focus",       img: "/ai/goal-fat.jpg" },
               { id: "fitness",  label: "General Fitness",  desc: "Balanced training to improve overall health and conditioning", img: "/ai/goal-fitness.jpg" },
+              { id: "maintain", label: "Maintain & Recomp", desc: "Hold your current weight while improving body composition", img: "/ai/goal-fitness.jpg" },
             ].map(g => {
               const sel = ob.goals.includes(g.id);
               return (
@@ -2655,6 +2696,9 @@ function HomePage() {
                 </div>
               );
             })}
+            <div style={{ background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.15)", borderRadius: 12, padding: "12px 14px", marginBottom: 8, fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+              <span style={{ color: "#FFD166", fontWeight: 600 }}>💡 Pro tip:</span> Set a 4–8 week target rather than a distant goal — smaller milestones hit faster keep motivation high.
+            </div>
             <button onClick={() => setOnboardingStep(4)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
             <button onClick={() => setOnboardingStep(2)} style={obSkip}>← Back</button>
           </div>
@@ -5331,6 +5375,29 @@ function HomePage() {
         {progressTab === "body" && (
           <div className="fade-in" style={{ padding: "16px 20px 0" }}>
 
+            {showGoalCelebration && (
+              <div style={{ position: "fixed", inset: 0, zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.82)", backdropFilter: "blur(16px)" }} onClick={() => setShowGoalCelebration(false)}>
+                <div className="goal-celeb-pop" onClick={e => e.stopPropagation()} style={{ background: "rgba(12,12,15,0.95)", border: "1px solid rgba(255,215,0,0.35)", borderRadius: 24, padding: "32px 28px", maxWidth: 320, width: "90%", textAlign: "center", position: "relative", overflow: "hidden" }}>
+                  <div className="goal-celeb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.1), transparent)", pointerEvents: "none" }} />
+                  <div className="goal-celeb-icon" style={{ fontSize: 52, marginBottom: 8 }}>🎯</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#FFD700", letterSpacing: 3, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>GOAL REACHED</div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20, lineHeight: 1.6 }}>
+                    {goalCelebDetails.map((g, i) => (
+                      <div key={i} style={{ color: "#fff", fontWeight: 600 }}>
+                        {g.type === 'weight' ? `${g.value}kg` : `${g.value}% body fat`}
+                        <span style={{ color: "#4ECDC4", fontSize: 11, marginLeft: 6 }}>✓ {g.target}{g.type === 'weight' ? 'kg' : '%'} target</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24, lineHeight: 1.5 }}>You crushed it. Time to set your next target.</div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button onClick={() => { setShowGoalCelebration(false); setEditingGoals(true); }} style={{ flex: 1, padding: "13px", background: "linear-gradient(135deg, #FFD700, #f39c12)", border: "none", borderRadius: 12, color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>SET NEW GOAL</button>
+                    <button onClick={() => setShowGoalCelebration(false)} style={{ padding: "13px 18px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer" }}>Done</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Goals section */}
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -5469,7 +5536,7 @@ function HomePage() {
                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>WEIGHT TREND</div>
                         <div style={{ fontSize: 16, fontWeight: 700, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>{weightItems[weightItems.length - 1].value.toFixed(1)}kg</div>
                       </div>
-                      <BodyTrendChart items={weightItems} color="#4ECDC4" unit="kg" />
+                      <BodyTrendChart items={weightItems} color="#4ECDC4" unit="kg" goal={targetW ?? undefined} />
                     </div>
                   )}
                   {bfItems.length >= 2 && (
@@ -5478,7 +5545,7 @@ function HomePage() {
                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>BODY FAT TREND</div>
                         <div style={{ fontSize: 16, fontWeight: 700, color: "#A29BFE", fontFamily: "'Space Mono', monospace" }}>{bfItems[bfItems.length - 1].value.toFixed(1)}%</div>
                       </div>
-                      <BodyTrendChart items={bfItems} color="#A29BFE" unit="%" />
+                      <BodyTrendChart items={bfItems} color="#A29BFE" unit="%" goal={targetBf ?? undefined} />
                     </div>
                   )}
                 </>
