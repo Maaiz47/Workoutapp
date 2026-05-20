@@ -27,6 +27,7 @@ const ROLES = ["user", "trainer", "admin"];
 
 export default function AdminPage() {
   const [key, setKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [authError, setAuthError] = useState("");
   const [users, setUsers] = useState<User[]>([]);
@@ -141,7 +142,15 @@ export default function AdminPage() {
       background: "#0a0a0a",
       color: "#f0f0f0",
       fontFamily: "'Inter', sans-serif",
-      padding: "40px 20px",
+      padding: "20px 12px 40px",
+    },
+    tableScroll: {
+      width: "100%",
+      overflowX: "auto" as const,
+      WebkitOverflowScrolling: "touch" as const,
+      borderRadius: 12,
+      border: "1px solid #1f1f1f",
+      background: "#0e0e0e",
     },
     card: {
       maxWidth: 900,
@@ -259,14 +268,29 @@ export default function AdminPage() {
           <Image src="/admin-icon.svg" alt="Admin" width={88} height={88} style={{ marginBottom: 16 }} priority />
           <div style={{ ...s.heading, marginBottom: 24 }}>Admin</div>
           <form onSubmit={handleLogin}>
-            <input
-              style={s.input}
-              type="password"
-              placeholder="Admin key"
-              value={key}
-              onChange={e => setKey(e.target.value)}
-              autoFocus
-            />
+            <div style={{ position: "relative", marginBottom: 12 }}>
+              <input
+                style={{ ...s.input, marginBottom: 0, paddingRight: 46 }}
+                type={showKey ? "text" : "password"}
+                placeholder="Admin key"
+                value={key}
+                onChange={e => setKey(e.target.value)}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey(v => !v)}
+                aria-label={showKey ? "Hide" : "Show"}
+                tabIndex={-1}
+                style={{
+                  position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+                  height: 36, width: 36, background: "transparent", border: "none",
+                  color: "#888", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 16, padding: 0,
+                }}
+              >{showKey ? "🙈" : "👁"}</button>
+            </div>
             {authError && <div style={s.errMsg}>{authError}</div>}
             <button style={s.btn} type="submit">Enter</button>
           </form>
@@ -400,7 +424,8 @@ export default function AdminPage() {
         {loading ? (
           <div style={{ color: "#555", textAlign: "center", padding: 60 }}>Loading...</div>
         ) : (
-          <table style={s.table}>
+          <div style={s.tableScroll}>
+          <table style={{ ...s.table, minWidth: 720 }}>
             <thead>
               <tr>
                 <th style={s.th}>Username</th>
@@ -454,6 +479,7 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

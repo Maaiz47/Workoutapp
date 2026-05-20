@@ -1152,6 +1152,52 @@ const PHRASES = [
   "Embrace the struggle.",
 ];
 
+// ─── PASSWORD INPUT ─────────────────────────────────────────────────────
+// Standard password input + an eye toggle on the right that flips between
+// type=password and type=text. Used across register / login / setup /
+// must-reset screens.
+function PasswordInput({
+  value, onChange, placeholder, onKeyDown, autoFocus, style,
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  autoFocus?: boolean;
+  style?: React.CSSProperties;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: "relative", width: "100%", maxWidth: style?.maxWidth ?? 300, margin: "0 auto", marginBottom: (style as any)?.marginBottom }}>
+      <input
+        value={value}
+        onChange={onChange}
+        onKeyDown={onKeyDown}
+        placeholder={placeholder}
+        type={show ? "text" : "password"}
+        autoFocus={autoFocus}
+        autoComplete="current-password"
+        style={{ ...style, width: "100%", maxWidth: "100%", margin: 0, paddingRight: 46, marginBottom: 0 }}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(s => !s)}
+        aria-label={show ? "Hide password" : "Show password"}
+        tabIndex={-1}
+        style={{
+          position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+          height: 36, width: 36, background: "transparent", border: "none",
+          color: "rgba(255,255,255,0.5)", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 16, padding: 0,
+        }}
+      >
+        {show ? "🙈" : "👁"}
+      </button>
+    </div>
+  );
+}
+
 // ─── MAIN ───────────────────────────────────────────────────────────────
 function HomePage() {
   const [user, setUser] = useState<{ id: string; username: string; role: string; roleRequest?: string | null } | null>(null);
@@ -2695,8 +2741,8 @@ function HomePage() {
             ) : (
               <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Email" type="email" style={{ ...inputStyle, marginBottom: 8 }} />
             )}
-            <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" type="password" style={{ ...inputStyle, marginBottom: 8 }} />
-            <input value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doRegister()} placeholder="Confirm password" type="password" style={inputStyle} />
+            <PasswordInput value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" style={{ ...inputStyle, marginBottom: 8 }} />
+            <PasswordInput value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doRegister()} placeholder="Confirm password" style={inputStyle} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             <button onClick={doRegister} style={btnPrimary}>CREATE ACCOUNT</button>
             <button onClick={() => { setAuthStep("username"); setAuthError(""); setEmailInput(""); }} style={btnBack}>← Back</button>
@@ -2707,8 +2753,8 @@ function HomePage() {
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Welcome back, <strong style={{ color: "#fff" }}>{nameInput}</strong></div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 20 }}>Set up a password to secure your account</div>
             <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Your email" type="email" style={{ ...inputStyle, marginBottom: 8 }} />
-            <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="New password" type="password" style={{ ...inputStyle, marginBottom: 8 }} />
-            <input value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doSetup()} placeholder="Confirm password" type="password" style={inputStyle} />
+            <PasswordInput value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="New password" style={{ ...inputStyle, marginBottom: 8 }} />
+            <PasswordInput value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doSetup()} placeholder="Confirm password" style={inputStyle} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             <button onClick={doSetup} style={btnPrimary}>SET PASSWORD</button>
             <button onClick={() => { setAuthStep("username"); setAuthError(""); }} style={btnBack}>← Back</button>
@@ -2717,7 +2763,7 @@ function HomePage() {
           {/* ── Step: password (login) ── */}
           {authStep === "password" && (<>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>Welcome back, <strong style={{ color: "#fff" }}>{nameInput}</strong></div>
-            <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doLogin()} placeholder="Password" type="password" autoFocus style={{ ...inputStyle, marginBottom: 4 }} />
+            <PasswordInput value={passwordInput} onChange={e => setPasswordInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doLogin()} placeholder="Password" autoFocus style={{ ...inputStyle, marginBottom: 4 }} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             <button onClick={doLogin} style={btnPrimary}>LOG IN</button>
             <button onClick={() => { setAuthStep("forgot"); setEmailInput(""); setAuthError(""); setForgotSent(false); }} style={{ ...btnBack, display: "block", width: "100%" }}>Forgot password?</button>
@@ -2731,12 +2777,22 @@ function HomePage() {
               <input value={emailInput} onChange={e => setEmailInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doForgot()} placeholder="Your email" type="email" autoFocus style={inputStyle} />
               {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
               <button onClick={doForgot} style={btnPrimary}>SEND RESET EMAIL</button>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 10, lineHeight: 1.5, textAlign: "center" }}>
+                If the email is registered you'll receive a temporary password within a minute. If nothing arrives after 5 min check spam, then contact support.
+              </div>
             </>) : (
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
-                Check your email for a temporary password, then log in to set a new one.
+                Check your email for a temporary password, then log in to set a new one. If nothing arrives, check your spam folder.
               </div>
             )}
-            <button onClick={() => { setAuthStep("password"); setForgotSent(false); setAuthError(""); }} style={btnBack}>← Back to login</button>
+            <button onClick={() => {
+              // Carry the email the user typed for password reset across to the
+              // login screen so they're not stuck logging in as the previous
+              // (different) username they last tried. Login already accepts
+              // username OR email so an email value works here.
+              if (emailInput.trim()) setNameInput(emailInput.trim());
+              setAuthStep("password"); setForgotSent(false); setAuthError("");
+            }} style={btnBack}>← Back to login</button>
           </>)}
         </div>
       </div>
@@ -2756,8 +2812,8 @@ function HomePage() {
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>LIFT · TRACK · PROGRESS</div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Welcome, <strong style={{ color: "#fff" }}>{user.username}</strong></div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 24 }}>Set a new password to continue</div>
-          <input value={newPasswordInput} onChange={e => setNewPasswordInput(e.target.value)} placeholder="New password" type="password" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
-          <input value={newConfirmInput} onChange={e => setNewConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doResetPassword()} placeholder="Confirm password" type="password" style={inputStyle} />
+          <PasswordInput value={newPasswordInput} onChange={e => setNewPasswordInput(e.target.value)} placeholder="New password" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
+          <PasswordInput value={newConfirmInput} onChange={e => setNewConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doResetPassword()} placeholder="Confirm password" style={inputStyle} />
           {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
           <button onClick={doResetPassword} style={btnPrimary}>SET PASSWORD</button>
           <button onClick={doLogout} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 16 }}>Log out</button>
