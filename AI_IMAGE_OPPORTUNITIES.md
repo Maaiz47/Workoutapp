@@ -51,7 +51,7 @@ Each prompt is self-contained — paste it as-is into ChatGPT's image tool. The 
 - [x] 28. trainer.html landing hero
 - [x] 29. client.html landing hero
 - [x] 30. Workout-complete celebration backdrop
-- [ ] 31. ROADMAP "what's next" banner
+- [x] 31. ROADMAP "what's next" banner
 
 ---
 
