@@ -7200,24 +7200,26 @@ function BarbellMark({ width = 300, delay = 0, loop }: { width?: number; delay?:
           <rect x="100" y="39" width="120" height="10" rx="3" fill="rgba(0,0,0,0.22)"/>
         </motion.g>
 
-        {/* Left outer plate — tall thin rect (side/edge view) */}
+        {/* Left big inner plate — arrives first, rendered behind small outer */}
         <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
-          <rect x="10" y="6"  width="18" height="76" rx="5" fill="url(#bm-plo)"/>
-          <rect x="10" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
+          <rect x="14" y="6"  width="24" height="76" rx="5" fill="url(#bm-pli)"/>
+          <rect x="14" y="6"  width="24" height="76" rx="5" fill="none" stroke="rgba(255,120,120,0.18)" strokeWidth="0.8"/>
         </motion.g>
-        {/* Left inner plate — stagger 70ms, slightly shorter */}
+        {/* Left small outer plate — arrives 70ms later, rendered on top */}
         <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
-          <rect x="26" y="16" width="13" height="56" rx="4" fill="url(#bm-pli)"/>
+          <rect x="0"  y="20" width="16" height="48" rx="3" fill="url(#bm-plo)"/>
+          <rect x="0"  y="20" width="16" height="48" rx="3" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
         </motion.g>
 
-        {/* Right outer plate */}
+        {/* Right big inner plate — arrives first, rendered behind small outer */}
         <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
-          <rect x="292" y="6"  width="18" height="76" rx="5" fill="url(#bm-pro)"/>
-          <rect x="292" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
+          <rect x="282" y="6"  width="24" height="76" rx="5" fill="url(#bm-pri)"/>
+          <rect x="282" y="6"  width="24" height="76" rx="5" fill="none" stroke="rgba(255,120,120,0.18)" strokeWidth="0.8"/>
         </motion.g>
-        {/* Right inner plate — stagger 70ms */}
+        {/* Right small outer plate — arrives 70ms later, rendered on top */}
         <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
-          <rect x="281" y="16" width="13" height="56" rx="4" fill="url(#bm-pri)"/>
+          <rect x="304" y="20" width="16" height="48" rx="3" fill="url(#bm-pro)"/>
+          <rect x="304" y="20" width="16" height="48" rx="3" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
         </motion.g>
       </svg>
     </div>
