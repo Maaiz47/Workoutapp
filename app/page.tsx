@@ -713,6 +713,7 @@ function workoutImageFor(title: string): string | null {
   if (t.includes("arm") || t.includes("bicep") || t.includes("tricep")) return "/ai/workout-arms.jpg";
   if (t.includes("core") || t.includes("abs") || t.includes("ab "))     return "/ai/workout-core.jpg";
   if (t.includes("glute"))                                return "/ai/workout-glutes.jpg";
+  if (t.includes("recovery") || t.includes("mobility") || t.includes("stretch")) return "/ai/workout-recovery.jpg";
   if (t.startsWith("full"))                               return "/ai/workout-fullbody.jpg";
   if (t.startsWith("upper"))                              return "/ai/workout-upper.jpg";
   if (t.startsWith("lower"))                              return "/ai/workout-lower.jpg";
