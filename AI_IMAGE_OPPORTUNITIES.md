@@ -35,7 +35,7 @@ Each prompt is self-contained — paste it as-is into ChatGPT's image tool. The 
 - [x] 12. Onboarding goal — Build Muscle
 - [x] 13. Onboarding goal — Get Stronger
 - [x] 14. Onboarding goal — Lose Fat
-- [ ] 15. Onboarding goal — General Fitness
+- [x] 15. Onboarding goal — General Fitness
 - [ ] 16. Onboarding Step 6 — Training Location (3 tiles)
 - [ ] 17. PB / Personal Best celebration overlay
 - [ ] 18. "No workouts logged yet" empty state
