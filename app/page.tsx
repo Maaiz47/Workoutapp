@@ -370,7 +370,7 @@ function getOverallStats(history: Record<string, any[]>) {
   // The grid is 7 columns (S M T W T F S). 
   // We need to figure out which column today falls in, then pad the first row
   // so that 28 days ago lands on its correct weekday.
-  const calendarDays: { active: boolean; isToday: boolean }[] = [];
+  const calendarDays: { active: boolean; isToday: boolean; date: string }[] = [];
   for (let i = 27; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
@@ -378,6 +378,7 @@ function getOverallStats(history: Record<string, any[]>) {
     calendarDays.push({
       active: allSessions.some(s => s.date === dateStr),
       isToday: i === 0,
+      date: dateStr,
     });
   }
   // 28 days ago - what day of week was it?
@@ -1060,6 +1061,7 @@ function HomePage() {
   const [adjustedDuration, setAdjustedDuration] = useState("");
   const [resumeOverlay, setResumeOverlay] = useState<{ title: string; ageStr: string } | null>(null);
   const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history" | "body">("dashboard");
+  const [calDateSel, setCalDateSel] = useState<string | null>(null);
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
 
   // ── In-workout exercise addition ──
@@ -4671,21 +4673,82 @@ function HomePage() {
                       <div key={`pad-${i}`} style={{ aspectRatio: "1" }} />
                     ))}
                     {overall.calendarDays.map((day, i) => (
-                      <div key={i} style={{
-                        aspectRatio: "1", borderRadius: 6, display: "flex", flexDirection: "column",
-                        alignItems: "center", justifyContent: "center",
-                        background: day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
-                        border: day.isToday ? "1px solid rgba(255,255,255,0.4)" : "1px solid transparent",
-                        opacity: day.active || day.isToday ? 1 : 0.35,
-                      }}>
+                      <div key={i}
+                        onClick={() => day.active ? setCalDateSel(calDateSel === day.date ? null : day.date) : undefined}
+                        style={{
+                          aspectRatio: "1", borderRadius: 6, display: "flex", flexDirection: "column",
+                          alignItems: "center", justifyContent: "center",
+                          background: calDateSel === day.date ? "#fff" : day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
+                          border: day.isToday ? "1px solid rgba(255,255,255,0.4)" : "1px solid transparent",
+                          opacity: day.active || day.isToday ? 1 : 0.35,
+                          cursor: day.active ? "pointer" : "default",
+                        }}>
                         <div style={{
                           fontSize: 10, fontWeight: day.isToday ? 700 : 500,
                           fontFamily: "'Space Mono', monospace",
-                          color: day.active ? "#fff" : day.isToday ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)",
+                          color: calDateSel === day.date ? "#111" : day.active ? "#fff" : day.isToday ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)",
                         }}>{dateNums[i]}</div>
                       </div>
                     ))}
                   </div>
+                </div>
+              );
+            })()}
+
+            {/* Calendar Session Recap */}
+            {calDateSel && (() => {
+              const dateLabel = new Date(calDateSel + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+              const daySessions: { dayId: string; session: any }[] = [];
+              for (const [dayId, sessions] of Object.entries(history)) {
+                for (const s of sessions as any[]) {
+                  if (s.date === calDateSel) daySessions.push({ dayId, session: s });
+                }
+              }
+              return (
+                <div className="fade-in" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 4 }}>SESSION RECAP</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{dateLabel}</div>
+                    </div>
+                    <button onClick={() => setCalDateSel(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
+                  </div>
+                  {daySessions.map(({ dayId, session }, si) => {
+                    const dayName = findExName(dayId) !== dayId ? findExName(dayId) : (() => {
+                      for (const d of WORKOUT_DATA) if (d.id === dayId) return d.title;
+                      if (customPlan) for (const d of customPlan as any[]) if (d.id === dayId) return d.title;
+                      return dayId;
+                    })();
+                    const rawSets = (session.sets ?? {}) as Record<string, { weight: number; reps: number }>;
+                    const byEx: Record<string, { name: string; sets: { sn: string; weight: number; reps: number }[] }> = {};
+                    for (const [k, v] of Object.entries(rawSets)) {
+                      const parts = k.split("-"); const sn = parts.pop()!; const eid = parts.join("-");
+                      if (!byEx[eid]) byEx[eid] = { name: findExName(eid), sets: [] };
+                      byEx[eid].sets.push({ sn, weight: v.weight, reps: v.reps });
+                    }
+                    for (const ex of Object.values(byEx)) ex.sets.sort((a, b) => Number(a.sn) - Number(b.sn));
+                    return (
+                      <div key={si} style={{ marginBottom: si < daySessions.length - 1 ? 16 : 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>{dayName}</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", background: "rgba(255,255,255,0.04)", padding: "2px 7px", borderRadius: 4 }}>{session.duration}</div>
+                        </div>
+                        {Object.entries(byEx).map(([eid, ex]) => (
+                          <div key={eid} style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 12, color: "#fff", fontWeight: 500, marginBottom: 5 }}>{ex.name}</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                              {ex.sets.map(set => (
+                                <div key={set.sn} style={{ fontSize: 10, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 8px", fontFamily: "'Space Mono', monospace" }}>
+                                  {set.weight > 0 ? `${set.weight}kg × ${set.reps}` : `${set.reps} reps`}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {daySessions.length === 0 && <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No session data for this date.</div>}
                 </div>
               );
             })()}
@@ -4831,13 +4894,27 @@ function HomePage() {
                       }}>DELETE</button>}
                     </div>
                     <div>
-                      {Object.entries(s.sets as Record<string, { weight: number; reps: number }>).map(([k, v]) => {
-                        const eid = k.split("-").slice(0, -1).join("-"), sn = k.split("-").pop();
-                        const en = findExName(eid);
-                        return <div key={k} style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.8 }}>
-                          {en} <span style={{ color: "rgba(255,255,255,0.2)" }}>S{sn}</span> <span style={{ color: "#fff", fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>{v.weight}kg × {v.reps}</span>
-                        </div>;
-                      })}
+                      {(() => {
+                        const byEx: Record<string, { name: string; sets: { sn: string; w: number; r: number }[] }> = {};
+                        for (const [k, v] of Object.entries(s.sets as Record<string, { weight: number; reps: number }>)) {
+                          const parts = k.split("-"); const sn = parts.pop()!; const eid = parts.join("-");
+                          if (!byEx[eid]) byEx[eid] = { name: findExName(eid), sets: [] };
+                          byEx[eid].sets.push({ sn, w: v.weight, r: v.reps });
+                        }
+                        for (const ex of Object.values(byEx)) ex.sets.sort((a, b) => Number(a.sn) - Number(b.sn));
+                        return Object.entries(byEx).map(([eid, ex]) => (
+                          <div key={eid} style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>{ex.name}</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                              {ex.sets.map(set => (
+                                <div key={set.sn} style={{ fontSize: 10, color: "#fff", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 7px", fontFamily: "'Space Mono', monospace" }}>
+                                  {set.w > 0 ? `${set.w}kg × ${set.r}` : `${set.r} reps`}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ));
+                      })()}
                     </div>
                   </div>
                 ))}
