@@ -1156,6 +1156,8 @@ const PHRASES = [
 function HomePage() {
   const [user, setUser] = useState<{ id: string; username: string; role: string; roleRequest?: string | null } | null>(null);
   const [nameInput, setNameInput] = useState("");
+  const [appTheme, setAppTheme] = useState<"iron"|"mono"|"vivid">("iron");
+  const [accentColor, setAccentColor] = useState("#FF6B6B");
   const [authLoading, setAuthLoading] = useState(true);
   const [splashDone, setSplashDone] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -1395,6 +1397,24 @@ function HomePage() {
     return () => clearInterval(id);
   }, []);
   const phrase = PHRASES[phraseIdx];
+
+  // ── Theme ──
+  useEffect(() => {
+    const t = (localStorage.getItem("ironlog-theme") ?? "iron") as "iron"|"mono"|"vivid";
+    const a = localStorage.getItem("ironlog-accent") ?? "#FF6B6B";
+    setAppTheme(t);
+    setAccentColor(a);
+  }, []);
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", appTheme);
+  }, [appTheme]);
+  useEffect(() => {
+    const [r, g, b] = [accentColor.slice(1,3), accentColor.slice(3,5), accentColor.slice(5,7)].map(h => parseInt(h, 16));
+    document.documentElement.style.setProperty("--accent", accentColor);
+    document.documentElement.style.setProperty("--accent-rgb", `${r},${g},${b}`);
+  }, [accentColor]);
+  const changeTheme = (t: "iron"|"mono"|"vivid") => { setAppTheme(t); localStorage.setItem("ironlog-theme", t); };
+  const changeAccent = (c: string) => { setAccentColor(c); localStorage.setItem("ironlog-accent", c); };
 
   const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "workout"]);
   useSwipeBack(() => {
@@ -3558,12 +3578,12 @@ function HomePage() {
                     }}>
                       {/* Background image */}
                       {img ? (
-                        <img src={img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: isActive ? 0.8 : 0.62, transition: "opacity 0.3s" }} />
-                      ) : (
-                        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${d.color}38, ${d.color}08)` }} />
-                      )}
+                        <img className="day-card-img" src={img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: isActive ? 0.8 : 0.62, transition: "opacity 0.3s" }} />
+                      ) : null}
+                      {/* Fallback gradient (also shown in MONO theme) */}
+                      <div className="day-card-gradient" style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${d.color}38, ${d.color}08)` }} />
                       {/* Vignette gradient */}
-                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.06) 40%, rgba(0,0,0,0.82) 100%)" }} />
+                      <div style={{ position: "absolute", inset: 0, background: twoCol ? "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.1) 35%, rgba(0,0,0,0.88) 100%)" : "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.06) 40%, rgba(0,0,0,0.82) 100%)" }} />
                       {/* Left accent bar */}
                       <div style={{ position: "absolute", top: 0, left: 0, width: isActive ? 5 : 3, height: "100%", background: d.gradient, boxShadow: `0 0 14px ${d.color}90` }} />
                       {/* Day chip — top left */}
@@ -3575,17 +3595,17 @@ function HomePage() {
                         <span style={{ position: "absolute", top: 14, right: 14, fontSize: 9, fontWeight: 700, letterSpacing: 2, color: d.color, background: `${d.color}28`, border: `1px solid ${d.color}60`, borderRadius: 6, padding: "3px 8px", backdropFilter: "blur(6px)" }}>ACTIVE</span>
                       )}
                       {/* Bottom text block */}
-                      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "12px 16px 16px 20px" }}>
-                        <div style={{ fontSize: 19, fontWeight: 700, color: "#fff", letterSpacing: -0.3, textShadow: "0 2px 10px rgba(0,0,0,0.9)", lineHeight: 1.2 }}>{d.title}</div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4, textShadow: "0 1px 6px rgba(0,0,0,0.8)", fontWeight: 300 }}>{d.focus}</div>
+                      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: twoCol ? "10px 12px 12px 14px" : "12px 16px 16px 20px" }}>
+                        <div style={{ fontSize: twoCol ? 14 : 19, fontWeight: 700, color: "#fff", letterSpacing: twoCol ? -0.1 : -0.3, textShadow: "0 2px 10px rgba(0,0,0,0.9)", lineHeight: 1.2, whiteSpace: twoCol ? "nowrap" : "normal", overflow: twoCol ? "hidden" : "visible", textOverflow: twoCol ? "ellipsis" : "clip" }}>{d.title}</div>
+                        <div style={{ fontSize: twoCol ? 10 : 12, color: "rgba(255,255,255,0.6)", marginTop: 3, textShadow: "0 1px 6px rgba(0,0,0,0.8)", fontWeight: 300, whiteSpace: twoCol ? "nowrap" : "normal", overflow: twoCol ? "hidden" : "visible", textOverflow: twoCol ? "ellipsis" : "clip" }}>{d.focus}</div>
                         {isActive && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
-                            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 17, fontWeight: 700, color: d.color, letterSpacing: 2, textShadow: `0 0 16px ${d.color}` }}>{timer.fmt}</div>
-                            <div style={{ fontSize: 10, color: d.color, opacity: 0.9, letterSpacing: 1 }}>TAP TO RESUME →</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: twoCol ? 6 : 10, marginTop: twoCol ? 5 : 8 }}>
+                            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: twoCol ? 13 : 17, fontWeight: 700, color: d.color, letterSpacing: 2, textShadow: `0 0 16px ${d.color}` }}>{timer.fmt}</div>
+                            {!twoCol && <div style={{ fontSize: 10, color: d.color, opacity: 0.9, letterSpacing: 1 }}>TAP TO RESUME →</div>}
                           </div>
                         )}
                         {!isActive && history[d.id]?.[0] && (
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginTop: 5, fontFamily: "'Space Mono', monospace" }}>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.38)", marginTop: 4, fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             Last: {history[d.id][0].date} · {history[d.id][0].duration}
                           </div>
                         )}
@@ -5047,6 +5067,48 @@ function HomePage() {
         </div>
 
         <div style={{ padding: "0 20px" }}>
+
+          {/* ── THEME ── */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", marginBottom: 14 }}>THEME</div>
+
+            {/* Theme selector */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
+              {([
+                { id: "iron",  label: "IRON",  desc: "Dark & bold",        icon: "⚡", accent: "#FF6B6B" },
+                { id: "mono",  label: "MONO",  desc: "Clean & minimal",    icon: "▣",  accent: "#ffffff" },
+                { id: "vivid", label: "VIVID", desc: "Colour & energy",    icon: "✦",  accent: "#e040fb" },
+              ] as const).map(t => {
+                const active = appTheme === t.id;
+                return (
+                  <button key={t.id} onClick={() => changeTheme(t.id)} style={{ background: active ? `rgba(${t.id === "iron" ? "255,107,107" : t.id === "mono" ? "255,255,255" : "224,64,251"},0.1)` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? (t.id === "iron" ? "rgba(255,107,107,0.45)" : t.id === "mono" ? "rgba(255,255,255,0.35)" : "rgba(224,64,251,0.45)") : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: "12px 8px", cursor: "pointer", textAlign: "center" as const, transition: "all 0.2s" }}>
+                    <div style={{ fontSize: 20, marginBottom: 4 }}>{t.icon}</div>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, fontWeight: 700, letterSpacing: 2, color: active ? (t.id === "iron" ? "#FF6B6B" : t.id === "mono" ? "#ffffff" : "#e040fb") : "rgba(255,255,255,0.45)", marginBottom: 2 }}>{t.label}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'DM Sans', sans-serif" }}>{t.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Accent colour */}
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 10 }}>ACCENT COLOUR</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              {["#FF6B6B","#FF8C42","#FFCA28","#4ECDC4","#40C4FF","#e040fb","#69F0AE","#fff"].map(c => (
+                <button key={c} onClick={() => changeAccent(c)} style={{ width: 28, height: 28, borderRadius: "50%", background: c, border: accentColor === c ? "2px solid #fff" : "2px solid transparent", boxShadow: accentColor === c ? `0 0 0 1px ${c}` : "none", cursor: "pointer", transition: "all 0.15s", flexShrink: 0 }} />
+              ))}
+              {/* Custom colour picker */}
+              <label style={{ position: "relative", width: 28, height: 28, borderRadius: "50%", border: "1.5px dashed rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, overflow: "hidden" }}>
+                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1 }}>+</span>
+                <input type="color" value={accentColor} onChange={e => changeAccent(e.target.value)} style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
+              </label>
+            </div>
+            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: accentColor, boxShadow: `0 0 8px ${accentColor}` }} />
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{accentColor.toUpperCase()}</span>
+              {accentColor !== "#FF6B6B" && <button onClick={() => changeAccent("#FF6B6B")} style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", background: "none", border: "none", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>RESET</button>}
+            </div>
+          </div>
+
           {/* Profile card */}
           <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 12 }}>PROFILE</div>

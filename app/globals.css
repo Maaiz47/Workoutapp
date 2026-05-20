@@ -117,6 +117,69 @@ input[type="number"] { -moz-appearance: textfield; }
   .card-lift:hover:not(:active) { transform: translateY(-2px); }
 }
 
+/* ══════════════════════════════════════════════════════
+   THEME SYSTEM
+   ══════════════════════════════════════════════════════ */
+:root {
+  --accent:        #FF6B6B;
+  --accent-rgb:    255,107,107;
+  --secondary:     #4ECDC4;
+  --secondary-rgb: 78,205,196;
+  --app-bg:        #0a0a0f;
+}
+
+/* Logo accent colour driven by CSS variable */
+.logo-log  { color: var(--accent) !important; }
+
+/* ── IRON (default) — no overrides needed ── */
+
+/* ── MONO: clean, minimal, image-free ─────────────────── */
+[data-theme="mono"] {
+  --app-bg: #0c0c0c;
+  --secondary: #999;
+  --secondary-rgb: 153,153,153;
+}
+[data-theme="mono"] html,
+[data-theme="mono"] body { background: #0c0c0c !important; }
+
+/* Hide workout photos, show gradient placeholder instead */
+[data-theme="mono"] .day-card-img { display: none !important; }
+[data-theme="mono"] .day-card-gradient {
+  background: linear-gradient(145deg, rgba(var(--accent-rgb),0.12) 0%, rgba(255,255,255,0.02) 100%) !important;
+}
+
+/* Clean card borders — replace glass with solid line */
+[data-theme="mono"] .mkt-nav,
+[data-theme="mono"] [style*="backdropFilter"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── VIVID: deep purple, neon energy ──────────────────── */
+[data-theme="vivid"] {
+  --app-bg: #0f0520;
+  --secondary: #00d4ff;
+  --secondary-rgb: 0,212,255;
+}
+[data-theme="vivid"] html,
+[data-theme="vivid"] body { background: #0f0520 !important; }
+
+/* Neon card borders */
+[data-theme="vivid"] .tilt-3d-item {
+  border-color: rgba(var(--accent-rgb),0.25) !important;
+  box-shadow: 0 0 18px rgba(var(--accent-rgb),0.08), 0 8px 24px rgba(0,0,0,0.6) !important;
+}
+
+/* Saturate images slightly in vivid mode */
+[data-theme="vivid"] .day-card-img {
+  filter: saturate(1.25) brightness(0.9);
+}
+
+/* Vivid glow on active/selected elements */
+[data-theme="vivid"] [style*="background: rgba(78,205,196"] {
+  --secondary: var(--accent);
+}
+
 /* ── Onboarding step slides ───────────────────────────────────────────── */
 .ob-forward { animation: viewSlideRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .ob-back    { animation: viewSlideLeft  0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
