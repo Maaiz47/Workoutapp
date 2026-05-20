@@ -306,6 +306,40 @@ function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: s
   return { dataPoints: dataPoints.reverse(), pb: { weight: pbWeight, reps: pbReps, date: pbDate } };
 }
 
+// ── Tier systems ─────────────────────────────────────────────────────────────
+
+const CLIENT_TIERS = [
+  { label: "Kitten",  emoji: "🐱", min: 0   },
+  { label: "Monkey",  emoji: "🐒", min: 5   },
+  { label: "Fox",     emoji: "🦊", min: 15  },
+  { label: "Tiger",   emoji: "🐯", min: 30  },
+  { label: "Lion",    emoji: "🦁", min: 60  },
+  { label: "Gorilla", emoji: "🦍", min: 100 },
+];
+
+function getClientTier(totalSessions: number, streak: number, prCount: number) {
+  let idx = 0;
+  for (let i = CLIENT_TIERS.length - 1; i >= 0; i--) {
+    if (totalSessions >= CLIENT_TIERS[i].min) { idx = i; break; }
+  }
+  // Bonus: strong streak + PRs can push up one tier
+  if (streak >= 4 && prCount >= 8 && idx < CLIENT_TIERS.length - 1) idx++;
+  return CLIENT_TIERS[idx];
+}
+
+const TRAINER_TIERS = [
+  { label: "Rookie", emoji: "🏅", min: 0  },
+  { label: "Coach",  emoji: "🎯", min: 3  },
+  { label: "Pro",    emoji: "⚡", min: 10 },
+  { label: "Elite",  emoji: "👑", min: 20 },
+];
+
+function getTrainerTier(clientCount: number) {
+  let tier = TRAINER_TIERS[0];
+  for (const t of TRAINER_TIERS) if (clientCount >= t.min) tier = t;
+  return tier;
+}
+
 function getOverallStats(history: Record<string, any[]>) {
   let totalSessions = 0;
   const exercisePRs: Record<string, { weight: number; reps: number; date: string }> = {};
@@ -1102,6 +1136,19 @@ function HomePage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
 
+  // ── Trainer custom exercises ──
+  const [customExercises, setCustomExercises] = useState<any[]>([]);
+  const [showExCreator, setShowExCreator] = useState(false);
+  const [exCreatorName, setExCreatorName] = useState("");
+  const [exCreatorPrimary, setExCreatorPrimary] = useState<string[]>([]);
+  const [exCreatorSecondary, setExCreatorSecondary] = useState<string[]>([]);
+  const [exCreatorEquip, setExCreatorEquip] = useState<string[]>([]);
+  const [exCreatorType, setExCreatorType] = useState("compound");
+  const [exCreatorDiff, setExCreatorDiff] = useState("intermediate");
+  const [exCreatorPhotos, setExCreatorPhotos] = useState<string[]>([]);
+  const [exCreatorUploading, setExCreatorUploading] = useState(false);
+  const [exCreatorSaving, setExCreatorSaving] = useState(false);
+
   // ── Trainer search ──
   const [trainerSearch, setTrainerSearch] = useState("");
   const [trainerResults, setTrainerResults] = useState<any[]>([]);
@@ -1279,6 +1326,9 @@ function HomePage() {
       }).catch(() => {});
       fetch("/api/trainer/clients").then(r => r.json()).then(data => {
         if (data.clients) setClients(data.clients);
+      }).catch(() => {});
+      fetch("/api/trainer/exercises").then(r => r.json()).then(data => {
+        if (data.exercises) setCustomExercises(data.exercises);
       }).catch(() => {});
     }
     if (user?.role === "user") {
@@ -3121,8 +3171,9 @@ function HomePage() {
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 300, letterSpacing: 1 }}>Welcome back</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
             <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>{user.username}</div>
-            {user.role === "trainer" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 4, padding: "2px 6px" }}>TRAINER</span>}
+            {user.role === "trainer" && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
             {user.role === "admin" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
+            {user.role === "user" && (() => { const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#f0c040", background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
             {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
             <span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }}>›</span>
           </div>
@@ -3376,6 +3427,125 @@ function HomePage() {
                 </div>
               </div>
               <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 18 }}>›</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Trainer: Custom Exercises ── */}
+      {user.role === "trainer" && (
+        <div style={{ padding: "24px 20px 0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>MY EXERCISES</div>
+            <button onClick={() => setShowExCreator(s => !s)} style={{ background: showExCreator ? "rgba(255,107,107,0.12)" : "rgba(78,205,196,0.12)", border: `1px solid ${showExCreator ? "rgba(255,107,107,0.3)" : "rgba(78,205,196,0.3)"}`, borderRadius: 8, color: showExCreator ? "#FF6B6B" : "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 12px" }}>
+              {showExCreator ? "CANCEL" : "+ CREATE"}
+            </button>
+          </div>
+
+          {/* Creator form */}
+          {showExCreator && (() => {
+            const MUSCLES = ["chest","back","shoulders","biceps","triceps","quads","hamstrings","glutes","calves","core","forearms"];
+            const EQUIP = ["barbell","dumbbell","cable","machine","bodyweight","pullup_bar","bench","kettlebell","resistance_band","dip_bar"];
+            const toggleArr = (arr: string[], set: (v: string[]) => void, val: string) =>
+              set(arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]);
+            const chipBtn = (label: string, active: boolean, onClick: () => void, color = "#4ECDC4") => (
+              <button key={label} onClick={onClick} style={{ padding: "4px 10px", borderRadius: 14, fontSize: 10, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, fontWeight: 600, border: `1px solid ${active ? color + "60" : "rgba(255,255,255,0.1)"}`, background: active ? color + "18" : "rgba(255,255,255,0.03)", color: active ? color : "rgba(255,255,255,0.35)" }}>{label.toUpperCase()}</button>
+            );
+            const uploadPhoto = async (file: File) => {
+              setExCreatorUploading(true);
+              try {
+                const fd = new FormData(); fd.append("file", file);
+                const res = await fetch("/api/upload", { method: "POST", body: fd });
+                const data = await res.json();
+                if (data.url) setExCreatorPhotos(p => [...p, data.url]);
+                else alert(data.error ?? "Upload failed");
+              } catch { alert("Upload failed"); } finally { setExCreatorUploading(false); }
+            };
+            const saveExercise = async () => {
+              if (!exCreatorName.trim()) return;
+              setExCreatorSaving(true);
+              try {
+                const res = await fetch("/api/trainer/exercises", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: exCreatorName.trim(), primaryMuscles: exCreatorPrimary, secondaryMuscles: exCreatorSecondary, equipment: exCreatorEquip, type: exCreatorType, difficulty: exCreatorDiff, photoUrls: exCreatorPhotos }) });
+                const data = await res.json();
+                if (data.exercise) { setCustomExercises(p => [data.exercise, ...p]); setShowExCreator(false); setExCreatorName(""); setExCreatorPrimary([]); setExCreatorSecondary([]); setExCreatorEquip([]); setExCreatorPhotos([]); setExCreatorType("compound"); setExCreatorDiff("intermediate"); }
+                else alert(data.error ?? "Save failed");
+              } catch { alert("Save failed"); } finally { setExCreatorSaving(false); }
+            };
+            return (
+              <div className="fade-in" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
+                {/* Name */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>EXERCISE NAME</div>
+                  <input value={exCreatorName} onChange={e => setExCreatorName(e.target.value)} placeholder="e.g. Cable Crossover Twist" style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, padding: "10px 12px", outline: "none", boxSizing: "border-box" }} />
+                </div>
+                {/* Primary muscles */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>PRIMARY MUSCLES</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{MUSCLES.map(m => chipBtn(m, exCreatorPrimary.includes(m), () => toggleArr(exCreatorPrimary, setExCreatorPrimary, m), "#FF6B6B"))}</div>
+                </div>
+                {/* Secondary muscles */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>SECONDARY MUSCLES</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{MUSCLES.map(m => chipBtn(m, exCreatorSecondary.includes(m), () => toggleArr(exCreatorSecondary, setExCreatorSecondary, m), "#A29BFE"))}</div>
+                </div>
+                {/* Equipment */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>EQUIPMENT</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{EQUIP.map(e => chipBtn(e.replace("_"," "), exCreatorEquip.includes(e), () => toggleArr(exCreatorEquip, setExCreatorEquip, e), "#4ECDC4"))}</div>
+                </div>
+                {/* Type + Difficulty */}
+                <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>TYPE</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{["compound","isolation","cardio"].map(t => chipBtn(t, exCreatorType === t, () => setExCreatorType(t), "#FFE66D"))}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>DIFFICULTY</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{["beginner","intermediate","advanced"].map(d => chipBtn(d, exCreatorDiff === d, () => setExCreatorDiff(d), "#96CEB4"))}</div>
+                  </div>
+                </div>
+                {/* Photo upload */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>FORM PHOTOS</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {exCreatorPhotos.map((url, i) => (
+                      <div key={i} style={{ position: "relative" }}>
+                        <img src={url} alt="" style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover", background: "rgba(255,255,255,0.06)" }} />
+                        <button onClick={() => setExCreatorPhotos(p => p.filter((_, j) => j !== i))} style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "#FF6B6B", border: "none", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>×</button>
+                      </div>
+                    ))}
+                    {exCreatorPhotos.length < 5 && (
+                      <label style={{ width: 64, height: 64, borderRadius: 8, border: "1px dashed rgba(255,255,255,0.2)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: exCreatorUploading ? "wait" : "pointer", fontSize: 20, color: "rgba(255,255,255,0.25)" }}>
+                        {exCreatorUploading ? "⏳" : "+"}
+                        <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} disabled={exCreatorUploading} />
+                      </label>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 6, fontFamily: "'Space Mono', monospace" }}>Up to 5 photos. Requires Cloudinary setup.</div>
+                </div>
+                {/* Save */}
+                <button onClick={saveExercise} disabled={!exCreatorName.trim() || exCreatorSaving} style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg,#4ECDC4,#26a69a)", border: "none", borderRadius: 10, color: "#000", fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: exCreatorName.trim() ? "pointer" : "not-allowed", opacity: exCreatorName.trim() ? 1 : 0.4, fontFamily: "'Space Mono', monospace" }}>
+                  {exCreatorSaving ? "SAVING…" : "SAVE EXERCISE"}
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Saved custom exercises list */}
+          {customExercises.length === 0 && !showExCreator && (
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontStyle: "italic", padding: "8px 0" }}>No custom exercises yet — create one above</div>
+          )}
+          {customExercises.map(ex => (
+            <div key={ex.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
+              {ex.photoUrls?.[0] && <img src={ex.photoUrls[0]} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "rgba(255,255,255,0.06)" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+              {!ex.photoUrls?.[0] && <div style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(255,255,255,0.06)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🏋️</div>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+                  {ex.primaryMuscles?.join(" · ").toUpperCase() || "—"}
+                </div>
+              </div>
+              <button onClick={async () => { if (!confirm(`Delete "${ex.name}"?`)) return; const res = await fetch(`/api/trainer/exercises/${ex.id}`, { method: "DELETE" }); if ((await res.json()).ok) setCustomExercises(p => p.filter(e => e.id !== ex.id)); }} style={{ background: "none", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "rgba(255,107,107,0.5)", fontSize: 9, padding: "4px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}>DEL</button>
             </div>
           ))}
         </div>
@@ -4629,6 +4799,29 @@ function HomePage() {
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {progressTab === "dashboard" && (
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
+            {/* Tier Card */}
+            {user.role === "user" && (() => {
+              const tier = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length);
+              const tierIdx = CLIENT_TIERS.findIndex(t => t.label === tier.label);
+              const next = CLIENT_TIERS[tierIdx + 1];
+              const progress = next ? Math.min(1, overall.totalSessions / next.min) : 1;
+              return (
+                <div style={{ background: "linear-gradient(135deg, rgba(240,192,64,0.08), rgba(240,192,64,0.03))", border: "1px solid rgba(240,192,64,0.18)", borderRadius: 14, padding: "16px 18px", marginBottom: 14, display: "flex", alignItems: "center", gap: 16 }}>
+                  <div style={{ fontSize: 40, lineHeight: 1 }}>{tier.emoji}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "#f0c040" }}>{tier.label}</div>
+                      {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{overall.totalSessions}/{next.min} sessions</div>}
+                    </div>
+                    <div style={{ height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
+                      <div className="bar-grow" style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #f0c040, #e17055)", borderRadius: 2 }} />
+                    </div>
+                    {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 4, fontFamily: "'Space Mono', monospace" }}>Next: {next.emoji} {next.label}</div>}
+                    {!next && <div style={{ fontSize: 9, color: "#f0c040", marginTop: 4, fontFamily: "'Space Mono', monospace" }}>MAX RANK — ABSOLUTE UNIT</div>}
+                  </div>
+                </div>
+              );
+            })()}
             {/* Overview Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
               {[

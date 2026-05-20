@@ -34,6 +34,7 @@ model User {
   bodyMetrics       BodyMetric[]
   savedRoutines     SavedRoutine[]
   lastSeenAt        DateTime?
+  customExercises   CustomExercise[]
 }
 
 model TrainerRequest {
@@ -225,4 +226,20 @@ model SavedRoutine {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model CustomExercise {
+  id               String   @id @default(cuid())
+  trainerId        String
+  name             String
+  primaryMuscles   String[]
+  secondaryMuscles String[]
+  equipment        String[]
+  type             String   @default("compound")
+  difficulty       String   @default("intermediate")
+  photoUrls        String[]
+  createdAt        DateTime @default(now())
+  trainer          User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@index([trainerId])
 }
