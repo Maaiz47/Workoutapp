@@ -25,7 +25,7 @@ Each prompt is self-contained — paste it as-is into ChatGPT's image tool. The 
 - [x] 2. Home screen hero strip
 - [x] 3. Workout card — Push
 - [x] 4. Workout card — Pull
-- [ ] 5. Workout card — Legs
+- [x] 5. Workout card — Legs
 - [ ] 6. Workout card — Upper
 - [ ] 7. Workout card — Lower
 - [ ] 8. Workout card — Full Body
