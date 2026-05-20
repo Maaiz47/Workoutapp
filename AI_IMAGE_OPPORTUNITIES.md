@@ -22,7 +22,7 @@ Each prompt is self-contained — paste it as-is into ChatGPT's image tool. The 
 ## Progress tracker
 
 - [x] 1. Login / splash background
-- [ ] 2. Home screen hero strip
+- [x] 2. Home screen hero strip
 - [ ] 3. Workout card — Push
 - [ ] 4. Workout card — Pull
 - [ ] 5. Workout card — Legs
@@ -68,11 +68,12 @@ Cinematic ultra-dark photograph of a knurled olympic barbell loaded with chalked
 
 ---
 
-## 2. Home screen hero strip — above "TODAY'S TRAINING"
+## 2. Home screen hero strip — above "TODAY'S TRAINING" ✅ generated
 
 **Current:** text-only `LIFT · TRACK · PROGRESS` tagline.
 **Why:** Narrow cinematic band sets the tone without competing with workout cards.
-**Format:** 1536×512 ultrawide.
+**Format:** 1536×512 ultrawide (crop from 1536×1024).
+**Save as:** `public/ai/home-hero.jpg`
 
 ```
 Ultrawide cinematic banner, pure black background, single horizontal sliver of warm tungsten light grazing a lifter's chalked hands gripping a barbell at the centre. Crimson key light at low intensity, the rest dissolves into matte black on both sides for clean text overlay. Photoreal, sharp on the hands, shallow depth elsewhere, no faces, no text, no logos. Wide landscape composition, 3:2 aspect ratio (1536x1024) with heavy empty space top and bottom so the centre can be cropped to a 3:1 banner.
