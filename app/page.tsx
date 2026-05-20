@@ -1657,19 +1657,27 @@ function HomePage() {
   };
 
   const doLogout = async () => {
-    // Remove this device's push subscription before clearing the session
+    // Best-effort push subscription cleanup. In private browsing
+    // `navigator.serviceWorker.ready` can hang forever (no SW registered, no
+    // rejection either), which previously left the user stuck logged in. Race
+    // it against a short timeout so logout always completes.
     try {
       if ("serviceWorker" in navigator) {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        if (sub) {
-          await fetch("/api/push/subscribe", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ endpoint: sub.endpoint }),
-          });
-          await sub.unsubscribe();
-        }
+        await Promise.race([
+          (async () => {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+              await fetch("/api/push/subscribe", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ endpoint: sub.endpoint }),
+              });
+              await sub.unsubscribe();
+            }
+          })(),
+          new Promise(resolve => setTimeout(resolve, 1500)),
+        ]);
       }
     } catch {}
     await fetch("/api/auth", { method: "DELETE" });
