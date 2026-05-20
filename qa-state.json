@@ -1,0 +1,915 @@
+{
+  "items": [
+    {
+      "id": "auth-register",
+      "title": "User registration — athlete flow",
+      "area": "Auth",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open the app unauthenticated — you should see the landing page with ATHLETE / TRAINERS tabs",
+        "Ensure 'ATHLETE' tab is selected (default)",
+        "Enter a unique username that does not yet exist in the DB",
+        "Tap 'Continue' — the password-creation step should appear",
+        "Enter a password of at least 8 characters and tap 'Create account'",
+        "Verify the app moves straight to the onboarding flow (not to the dashboard)",
+        "Confirm the new user row exists in the DB with role='user'"
+      ],
+      "notes": "Edge cases: duplicate username → expect an error message. Short password → expect validation message."
+    },
+    {
+      "id": "auth-login",
+      "title": "User login — existing athlete",
+      "area": "Auth",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open the app unauthenticated",
+        "Enter an existing athlete username and tap 'Continue'",
+        "The password field should appear",
+        "Enter correct password and tap 'Sign in'",
+        "Verify you land on the home dashboard and the username appears in the top profile card"
+      ],
+      "notes": "Edge: wrong password → error message. Non-existent username → error message. Empty field → inline validation."
+    },
+    {
+      "id": "auth-trainer-login",
+      "title": "Trainer login via TRAINERS tab",
+      "area": "Auth",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "On the landing page tap the 'TRAINERS' tab — the tab colour should change to teal",
+        "Enter a trainer username and tap 'Continue'",
+        "Enter trainer password and tap 'Sign in'",
+        "Verify the home screen shows the 'MY CLIENTS' section and trainer tier badge in the profile card",
+        "Confirm role='trainer' in the profile card subtitle area"
+      ],
+      "notes": "The TRAINERS tab affects UI copy; both tabs ultimately hit the same /api/auth endpoint."
+    },
+    {
+      "id": "auth-forgot-password",
+      "title": "Forgot password email flow",
+      "area": "Auth",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "On the login screen tap 'Forgot password?'",
+        "Enter a registered email address and submit",
+        "Check the inbox — a reset email should arrive within 60 seconds",
+        "Click the reset link in the email",
+        "Enter and confirm a new password",
+        "Log in with the new password and verify it works"
+      ],
+      "notes": "Requires SMTP env vars set. Check SMTP_FROM appears correctly in the email From field."
+    },
+    {
+      "id": "auth-must-reset",
+      "title": "Forced password reset flow",
+      "area": "Auth",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "In the admin panel set mustResetPassword=true for a test user",
+        "Log in as that user — you should be redirected to the must-reset-password screen, NOT the dashboard",
+        "Enter a new password and confirm",
+        "Verify you are then taken to the dashboard normally",
+        "Confirm mustResetPassword is now false in the DB"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "onboarding-profile-setup",
+      "title": "Onboarding — multi-step profile creation",
+      "area": "Auth",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Register a new user to trigger the onboarding flow",
+        "Step 1 — Date of birth: enter a valid DOB, tap Next",
+        "Step 2 — Gender: select one, tap Next",
+        "Step 3 — Location: select Gym / Home / Both, verify equipment list updates accordingly",
+        "Step 4 — Equipment: toggle several items, tap Next",
+        "Step 5 — Goals: select one or more goals, tap Next",
+        "Step 6 — Days per week: choose 3–5 days, tap Next",
+        "Step 7 — Height & weight: enter values, tap Next",
+        "Step 8 — HIIT preference: select On or Off, if On choose intensity and frequency",
+        "Tap 'Generate my plan' and wait for plan generation",
+        "Verify a WorkoutPlan row is created in the DB and the home screen shows plan days"
+      ],
+      "notes": "Skipping required steps should keep the Next button disabled. Rebuild-mode reuses steps 3–8."
+    },
+    {
+      "id": "workout-session-start",
+      "title": "Starting a workout session",
+      "area": "Workout",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "From the home screen tap a plan day card",
+        "The workout preview screen shows the day title, focus, and exercise list",
+        "Tap 'Start Workout' — the session begins and the elapsed timer starts",
+        "Verify the first exercise is expanded by default"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "workout-set-logging",
+      "title": "Set-by-set logging (weight + reps)",
+      "area": "Workout",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Start a workout session",
+        "Expand an exercise",
+        "Enter weight (kg) and reps for Set 1 — the fields should accept numeric input",
+        "Tap the checkmark/done button to mark Set 1 complete",
+        "Repeat for Sets 2 and 3",
+        "Verify set completion is reflected in the UI (ticked badge, greyed out)",
+        "The rest timer should auto-start after each set completion"
+      ],
+      "notes": "Test on both compound (bench press) and isolation exercises."
+    },
+    {
+      "id": "workout-rest-timer",
+      "title": "Rest timer — countdown, beep, notification",
+      "area": "Workout",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Complete a set — the rest timer should auto-start with the exercise's rest duration",
+        "Verify the countdown ticks down accurately in real time",
+        "Lock the phone / switch to another app for 20 s, then return — timer should still show correct remaining time",
+        "When the timer reaches 0: verify audible beep (double tone), vibration on mobile, and a push notification titled 'IRONLOG' saying rest is over",
+        "Tap 'Skip' — timer should clear immediately"
+      ],
+      "notes": "Notification requires notification permission to be granted. Test with service worker active."
+    },
+    {
+      "id": "workout-pb-detection",
+      "title": "Personal best detection + celebration overlay",
+      "area": "Workout",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Have at least one prior logged workout for an exercise (e.g. Bench Press, prev best 60 kg × 8)",
+        "In a new session, log 65 kg × 8 for the same exercise",
+        "Finish the workout — a gold 'PERSONAL BEST' celebration overlay should appear",
+        "Overlay should list the exercise name and the new weight/reps",
+        "Tap the overlay to dismiss it",
+        "Verify no PB overlay appears when the logged weight/reps does NOT beat the prior best"
+      ],
+      "notes": "PBs are tracked per exercise across all sessions."
+    },
+    {
+      "id": "workout-supersets",
+      "title": "Supersets — paired exercises in-session",
+      "area": "Workout",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open a plan day that contains a superset (or create one via the Customise screen)",
+        "In the session, a superset pair should be visually grouped (labelled 'SUPERSET')",
+        "Log sets for Exercise A, then Exercise B within the superset group",
+        "Verify completing both exercises in a superset round is tracked correctly",
+        "Finish the workout and confirm the superset data is saved in the WorkoutLog sets JSON"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "workout-dropsets",
+      "title": "Drop sets — extra sets within an exercise",
+      "area": "Workout",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open a plan day that has an exercise with dropSets > 0",
+        "In the session, expand the exercise — drop-set rows should appear after the main sets",
+        "Log weight/reps for each drop set",
+        "Verify drop-set data is included in the saved workout log"
+      ],
+      "notes": "dropSets is a field on PlanExercise. Set it to 2 in the customise screen to test."
+    },
+    {
+      "id": "workout-finish-save",
+      "title": "Finishing a workout — duration + intensity saved",
+      "area": "Workout",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Complete all sets in a session",
+        "Tap 'Finish Workout'",
+        "A completion animation should play briefly",
+        "Verify a WorkoutLog row is created in the DB with correct: userId, dayId, date, duration (hh:mm), sets JSON, intensityPoints",
+        "The home screen should update to show the day as completed (e.g. a tick or 'Today' badge)"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "workout-abandon",
+      "title": "Abandoning a workout mid-session",
+      "area": "Workout",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Start a workout and log at least one set",
+        "Tap the back arrow or swipe back",
+        "A confirmation prompt ('Abandon workout?') should appear",
+        "Confirm — you should return to the home screen with no WorkoutLog saved",
+        "Cancel — you should remain in the active session"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "workout-in-session-exercise-add",
+      "title": "Adding an exercise mid-session",
+      "area": "Workout",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Start an active workout session",
+        "Tap '+ Add Exercise' (in-session browser button)",
+        "Search for and select an exercise",
+        "Verify the exercise appears in the current session below existing exercises",
+        "Log sets for the newly added exercise",
+        "Finish the workout — the extra exercise should appear in the saved log"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "plan-customise-add-remove",
+      "title": "Plan customisation — add/remove exercises",
+      "area": "Plan",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "From the home screen tap '✎ Customise' on a plan day",
+        "Tap '+ Add Exercise' to open the exercise browser",
+        "Filter by muscle group, equipment, or type and select an exercise",
+        "Tap 'Add' — the exercise should appear at the bottom of the day's list",
+        "Tap the trash/remove icon on an existing exercise — it should be removed",
+        "Tap 'Save changes' and return to the home screen",
+        "Open the workout for that day and verify the changes are reflected"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "plan-customise-superset",
+      "title": "Plan customisation — creating a superset",
+      "area": "Plan",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open the Customise view for a plan day",
+        "Tap '+ Add Exercise' and switch on 'Superset mode'",
+        "Select 2 or more exercises — a 'Create superset' button appears when ≥ 2 are selected",
+        "Tap 'Create superset' — the exercises are grouped with a SUPERSET label",
+        "Save and reopen the customise view to confirm the grouping persists",
+        "Run a session on that day and verify the superset appears grouped"
+      ],
+      "notes": "Need ≥ 2 selected to enable the button. Selecting 1 shows a hint message."
+    },
+    {
+      "id": "plan-rebuild",
+      "title": "Rebuild my weekly plan",
+      "area": "Plan",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Go to Settings (gear icon in profile card)",
+        "Tap '↺ REBUILD MY WEEKLY PLAN'",
+        "The onboarding flow should re-open at Step 3 (location/equipment)",
+        "Change one or more settings (e.g. days per week)",
+        "Tap 'Generate my plan'",
+        "Return to the home screen — the plan days should reflect the new settings"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "plan-hiit-preference",
+      "title": "HIIT preference — auto-save + plan effect",
+      "area": "Plan",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "In Settings scroll to the HIIT section",
+        "Toggle HIIT on and choose 'High' intensity",
+        "Verify the preference is saved (navigate away, return — the toggle should still show On/High)",
+        "Rebuild the plan — verify at least one day contains a HIIT circuit day",
+        "Toggle HIIT off and rebuild — verify no HIIT days appear"
+      ],
+      "notes": "hiitPreference and hiitIntensity are saved to UserProfile via PATCH /api/profile."
+    },
+    {
+      "id": "routines-save",
+      "title": "Saved routines — save current plan day",
+      "area": "Plan",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open a workout day's customise screen",
+        "Tap 'Save as routine'",
+        "Enter a routine name (e.g. 'Push day A') and tap Save",
+        "Verify the routine appears in the saved routines list on the Settings screen",
+        "Tap the routine to restore it — a confirmation prompt should appear",
+        "Confirm — verify the plan day is now using the restored routine's exercises"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "routines-share",
+      "title": "Saved routines — share with another user",
+      "area": "Plan",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open the saved routines list in Settings",
+        "Tap the share icon on a routine",
+        "Enter a valid username of another user",
+        "Tap 'Send' — a success message 'Sent to @username' should appear",
+        "Log in as the recipient — their saved routines should include the shared routine with sharedBy field set"
+      ],
+      "notes": "Recipient username must exist. Invalid username should produce an error."
+    },
+    {
+      "id": "trainer-request-send",
+      "title": "Trainer connection — athlete sends request",
+      "area": "Trainer",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log in as an athlete",
+        "Tap 'Find a Trainer' / trainer search button",
+        "Search for an existing trainer by username",
+        "Tap the trainer's card — a 'Send request' button should appear",
+        "Tap 'Send request'",
+        "Log in as the trainer — a pending request should appear in the incoming requests section",
+        "Accept the request",
+        "Log in again as the athlete — the trainer should appear as 'Your trainer'"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "trainer-client-management",
+      "title": "Trainer dashboard — MY CLIENTS collapsible + search",
+      "area": "Trainer",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log in as a trainer with at least 2 clients",
+        "On the home screen, find the 'MY CLIENTS' section",
+        "Verify the section is collapsible — tap the header to collapse/expand",
+        "Use the built-in search field to filter clients by username",
+        "Verify filtered results update in real time as you type",
+        "Clear the search — all clients should reappear"
+      ],
+      "notes": "Added in commit 4098899."
+    },
+    {
+      "id": "trainer-client-detail",
+      "title": "Trainer — client detail view (split / history / profile tabs)",
+      "area": "Trainer",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log in as a trainer and tap a client's card",
+        "The client detail view opens — verify three tabs: 'Split', 'History', 'Profile'",
+        "Split tab: shows the client's current workout plan days",
+        "History tab: shows the client's recent workout log entries with date and duration",
+        "Profile tab: shows the client's profile data (DOB, goals, equipment, etc.)",
+        "Tap '← Back' to return to the home screen"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "trainer-generate-plan",
+      "title": "Trainer — generate AI plan for client",
+      "area": "Trainer",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open a client detail view as a trainer",
+        "Tap 'Generate Plan'",
+        "Wait for plan generation (rule-based generator, not AI — should be near-instant)",
+        "Verify a PlanProposal is created with status='pending'",
+        "A message should be sent to the client informing them of the proposal"
+      ],
+      "notes": "Claude API plan generation is blocked pending billing — uses rule-based generator."
+    },
+    {
+      "id": "trainer-plan-proposal-accept",
+      "title": "Plan proposals — client accepts trainer proposal",
+      "area": "Trainer",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "As trainer, generate a plan proposal for a client",
+        "Log in as the client",
+        "Open the Messages screen — there should be a system message linking to the proposal",
+        "Tap the proposal link or button",
+        "Review the proposed plan days",
+        "Tap 'Accept' — the client's WorkoutPlan should be replaced by the proposal",
+        "Verify PlanProposal status is now 'accepted' in the DB"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "trainer-plan-proposal-reject",
+      "title": "Plan proposals — client rejects trainer proposal",
+      "area": "Trainer",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "As trainer, generate a plan proposal for a client",
+        "Log in as the client and open the proposal",
+        "Tap 'Decline'",
+        "Verify PlanProposal status becomes 'rejected'",
+        "Verify the client's existing WorkoutPlan is unchanged"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "trainer-custom-exercises",
+      "title": "Trainer — create custom exercises",
+      "area": "Trainer",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log in as a trainer",
+        "Navigate to the custom exercises section in the trainer dashboard",
+        "Tap 'Create exercise'",
+        "Fill in: name, primary muscles, secondary muscles, equipment, type, difficulty",
+        "Optionally upload a photo URL",
+        "Save — the exercise should appear in the trainer's custom exercise list",
+        "Open a client's plan and verify the custom exercise is available in the exercise browser"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "trainer-leaderboard",
+      "title": "Trainer leaderboard — client rankings",
+      "area": "Trainer",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log in as a trainer with ≥ 2 clients who each have workout logs",
+        "Open the trainer leaderboard section on the home screen",
+        "Verify clients are ranked by sessions (default sort)",
+        "Switch sort to 'Streak' — rankings update",
+        "Switch sort to 'Intensity' — rankings update",
+        "Verify tier badges (Bronze/Silver/Gold/etc.) appear next to each client name"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "messaging-send-receive",
+      "title": "Messaging — send and receive messages",
+      "area": "Messaging",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log in as an athlete who has a trainer connection",
+        "Tap the Messages button on the home screen",
+        "Tap the trainer's conversation",
+        "Type a message and tap Send",
+        "Log in as the trainer — the message should appear in the conversation",
+        "The trainer replies — log in as the athlete and verify the reply appears",
+        "Verify an unread count badge appears on the Messages button when there are unread messages"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "messaging-reactions",
+      "title": "Messaging — emoji reactions on messages",
+      "area": "Messaging",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open a conversation with at least one message",
+        "Long-press (or tap the reaction button) on a message",
+        "Select an emoji from the reaction picker",
+        "Verify the reaction appears below the message with a count of 1",
+        "The other participant logs in and sees the same reaction",
+        "Tap the reaction again to toggle it off — the count should decrement and the reaction disappear if count reaches 0"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "messaging-reply-to",
+      "title": "Messaging — reply-to threading",
+      "area": "Messaging",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open a conversation with multiple messages",
+        "Swipe or tap 'Reply' on a specific message",
+        "A reply-to preview should appear in the message compose area",
+        "Type a reply and send it",
+        "Verify the sent message shows a quoted preview of the original message above it"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "messaging-presence",
+      "title": "Messaging — online presence indicator",
+      "area": "Messaging",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log in as user A on one device/tab",
+        "Log in as user B on another device/tab",
+        "User A opens a conversation with User B",
+        "Verify an 'online' indicator appears next to User B's name (if they were active in the last ~90 s)",
+        "User B logs out or is inactive for > 2 minutes",
+        "Refresh the conversation as User A — the online indicator should no longer appear"
+      ],
+      "notes": "Presence is polled from /api/presence. lastSeenAt is updated every 60 s."
+    },
+    {
+      "id": "progress-dashboard",
+      "title": "Progress — dashboard overview tab",
+      "area": "Progress",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "From the home screen tap 'Progress'",
+        "Verify the 'Dashboard' tab is active by default",
+        "Check that total sessions, current streak, and intensity points are displayed",
+        "Verify a gamification tier badge (e.g. Bronze / Silver) appears based on session count",
+        "Mini charts (sessions over time, intensity trend) should be visible",
+        "Verify the data matches actual workout logs in the DB"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "progress-exercises",
+      "title": "Progress — exercises tab (per-exercise history)",
+      "area": "Progress",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open Progress → 'Exercises' tab",
+        "A list of exercises you have logged at least once should appear",
+        "Tap an exercise — a detail view or expanded section should show all logged sets (date, weight, reps)",
+        "Verify the personal best weight and reps are highlighted",
+        "Verify the muscle diagram shows the primary muscles for the selected exercise"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "progress-history",
+      "title": "Progress — history tab (session log)",
+      "area": "Progress",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open Progress → 'History' tab",
+        "A chronological list of past sessions should appear with date, day title, and duration",
+        "Tap a session to see details — sets logged for each exercise should be visible",
+        "Verify the most recent session is at the top"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "progress-body",
+      "title": "Progress — body tab (metrics tracking)",
+      "area": "Body",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open Progress → 'Body' tab",
+        "Verify weight and body-fat charts are displayed",
+        "Tap '+ Log weight' — enter a weight and tap Save",
+        "Verify the new data point appears on the weight chart",
+        "Repeat for body fat percentage",
+        "Verify goal lines appear on the chart if targetWeightKg or targetBodyFatPct are set in the profile"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "body-metrics-trend",
+      "title": "Body metrics — trend chart accuracy",
+      "area": "Body",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log at least 5 body-weight entries across different dates",
+        "Open the Body tab — the BodyTrendChart should show all points correctly scaled",
+        "Verify the Y-axis labels reflect min/max of the data range",
+        "Verify date labels on the X-axis are readable",
+        "If a goal weight is set, a dashed goal line should be visible on the chart"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "push-notifications-subscribe",
+      "title": "Push notifications — browser subscribe flow",
+      "area": "PWA",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open the app in a supported browser (Chrome/Edge/Firefox on Android or desktop)",
+        "Grant notification permission when prompted (or manually from Settings)",
+        "Verify /api/push/subscribe is called and a PushSubscription row is created in the DB",
+        "Trigger a push test via /api/push/test — verify a push notification arrives on the device",
+        "Verify the notification shows the IRONLOG title"
+      ],
+      "notes": "Requires VAPID env vars. Not supported in Safari on iOS < 16.4."
+    },
+    {
+      "id": "pwa-install",
+      "title": "PWA — install prompt + offline shell",
+      "area": "PWA",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open the app in Chrome on Android or desktop",
+        "The browser install prompt should appear (or be accessible via the address bar '⊕ Install')",
+        "Install the PWA — it should open as a standalone window with no browser chrome",
+        "Verify the app icon is correct and the splash screen shows the IRONLOG branding",
+        "Go offline — the app shell should still load (service worker cache)",
+        "Verify rest timer notifications still fire while the app is installed and backgrounded"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "leaderboard-personal",
+      "title": "Leaderboard — personal ranking (trainer's client list)",
+      "area": "Progress",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log in as a trainer with multiple clients who have workout logs",
+        "Open the leaderboard section on the trainer home screen",
+        "Verify clients are ranked by sessions by default",
+        "Toggle sort to streak and intensity — ranks update",
+        "Verify the logged-in trainer's own row is highlighted or labelled"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "leaderboard-groups-create",
+      "title": "Group leaderboards — create a group",
+      "area": "Progress",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log in as a trainer",
+        "Open the group leaderboards section on the home screen",
+        "Tap 'Create group'",
+        "Enter a group name and choose privacy (private/public)",
+        "Tap Create — the group should appear in 'MY LEADERBOARDS'",
+        "Verify a LeaderboardGroup row is created in the DB"
+      ],
+      "notes": "Added in commit 4098899."
+    },
+    {
+      "id": "leaderboard-groups-invite",
+      "title": "Group leaderboards — invite members",
+      "area": "Progress",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open a group you created as a trainer",
+        "Tap 'Invite member' and enter a client's username",
+        "Tap 'Send invite'",
+        "Log in as the client — an invite notification should appear in the leaderboard invites section",
+        "Accept the invite",
+        "Return to the group as the trainer — the client should appear in the member list with their rank"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "leaderboard-groups-search",
+      "title": "Group leaderboards — MY CLIENTS search",
+      "area": "Progress",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log in as a trainer with ≥ 3 clients",
+        "Expand the 'MY CLIENTS' section on the home screen",
+        "Use the built-in search field to filter by partial username",
+        "Verify only matching clients are shown",
+        "Clear the search field — all clients reappear",
+        "Verify the collapsible state persists if you navigate away and return"
+      ],
+      "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
+    },
+    {
+      "id": "theme-iron-mono-vivid",
+      "title": "Theme system — Iron / Mono / Vivid + accent colour",
+      "area": "UI",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open Settings and scroll to the Theme section",
+        "Select 'Mono' theme — verify the UI switches to a monochrome palette",
+        "Select 'Vivid' theme — verify a colourful palette is applied",
+        "Select 'Iron' (default) — verify the dark crimson palette returns",
+        "Tap the accent colour picker and choose a different colour",
+        "Verify the accent is reflected on buttons, badges, and the progress bar",
+        "Refresh the page — verify the chosen theme and accent persist (stored locally)"
+      ],
+      "notes": "Added in commit b5fc18e. Theme is stored in localStorage."
+    },
+    {
+      "id": "admin-panel",
+      "title": "Admin panel — user management",
+      "area": "Admin",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Navigate to /admin in the browser",
+        "Enter the ADMIN_SECRET password",
+        "Verify a list of all users is displayed with username, email, role, createdAt",
+        "Search or filter for a specific user",
+        "Promote a user to trainer role — verify the role updates in the DB",
+        "Set mustResetPassword=true for a user — verify the field updates",
+        "Log in as that user and confirm the forced reset flow triggers"
+      ],
+      "notes": "ADMIN_SECRET env var must be set. Route: /admin page.tsx + /api/admin."
+    },
+    {
+      "id": "marketing-promo-page",
+      "title": "Marketing — /promo landing page",
+      "area": "Marketing",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Navigate to /promo",
+        "Verify the page loads without errors",
+        "Verify animated counters appear on scroll into view (AnimatedCounter components)",
+        "Verify the 3D tilt effect on cards (Tilt3D component) activates on hover/touch",
+        "Verify Reveal animations trigger as sections scroll into view",
+        "Check the navigation bar and footer render correctly",
+        "Verify all CTAs link to the correct auth/signup paths"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "marketing-trainer-page",
+      "title": "Marketing — /trainer landing page",
+      "area": "Marketing",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Navigate to /trainer",
+        "Verify trainer-specific hero copy and imagery load",
+        "Verify the expandable depth panels (Expandable component) open/close correctly",
+        "Check that gamification feature showcases are visible",
+        "Verify the page is responsive at 375 px (mobile) width",
+        "No broken images or console errors"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "marketing-client-page",
+      "title": "Marketing — /client landing page",
+      "area": "Marketing",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Navigate to /client",
+        "Verify athlete-focused hero copy loads",
+        "Verify all animation components render without layout shift",
+        "Tap or hover all interactive elements — no broken interactions",
+        "Verify the page is mobile-friendly at 375 px width"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "upload-profile-image",
+      "title": "Image upload — /api/upload endpoint",
+      "area": "UI",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Navigate to the profile or an area that triggers image upload",
+        "Select an image file (JPEG/PNG, < 5 MB)",
+        "Tap upload — verify a success response with an image URL",
+        "Verify the uploaded image URL renders in the UI",
+        "Attempt to upload a non-image file — expect an error response"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "trainer-role-request",
+      "title": "Trainer upgrade request flow",
+      "area": "Trainer",
+      "introduced": "2026-05-20",
+      "introducedBy": "4098899",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Log in as an athlete",
+        "Navigate to Settings",
+        "Find 'Upgrade to Trainer' or 'Become a trainer' button",
+        "Submit a role-upgrade request with an optional note",
+        "Verify roleRequest='trainer' and roleRequestNote are set on the User in the DB",
+        "Log in as admin and approve the request — verify role becomes 'trainer'",
+        "Log in as the user — trainer dashboard features should now be visible"
+      ],
+      "notes": "roleRequest, roleRequestNote, roleRequestAt fields on User model."
+    }
+  ]
+}

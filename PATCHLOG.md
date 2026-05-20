@@ -34,6 +34,29 @@ See `ROADMAP.md` for the full future features list.
 
 ---
 
+## Patch 40 · 2026-05-20 — QA sync `4098899`
+**QA infrastructure first-run seed + group leaderboard / MY CLIENTS search**
+
+### Commit `4098899` — Group leaderboards + MY CLIENTS collapsible with built-in search
+- Added collapsible "MY CLIENTS" section on the trainer home screen with an inline search field that filters clients by username in real time
+- Added group leaderboard feature: trainers can create named groups (private or public), invite members, and view a ranked leaderboard within each group
+- New Prisma models: `LeaderboardGroup`, `LeaderboardGroupMember`, `LeaderboardGroupInvite`
+- New API routes: `/api/leaderboard/groups`, `/api/leaderboard/groups/[id]`, `/api/leaderboard/groups/[id]/members`, `/api/leaderboard/groups/[id]/invite`, `/api/leaderboard/invites`, `/api/leaderboard/mine`
+
+### QA artefacts created (first run)
+- `/qa-state.json` — seeded with **47 test items** covering all major feature surfaces
+- `/app/qa/page.tsx` — live QA dashboard: grouped by area, collapsible, status dropdowns, notes textarea, screenshot URL, tester name, submit report button, summary header
+- `/app/api/qa/route.ts` — GET endpoint serving `qa-state.json`
+- `/app/api/qa/report/route.ts` — POST endpoint persisting submitted reports to `QAReport` DB table
+- `/prisma/schema.prisma` — added `QAReport` model (`id`, `ts`, `tester`, `payloadJson`)
+- `/qa-reports/` — write-once report directory initialised
+- `/admin` — QA Dashboard shortcut link added to the admin panel
+
+### QA items added: 47 new, 0 re-flagged, 0 reports processed
+New items: auth-register, auth-login, auth-trainer-login, auth-forgot-password, auth-must-reset, onboarding-profile-setup, workout-session-start, workout-set-logging, workout-rest-timer, workout-pb-detection, workout-supersets, workout-dropsets, workout-finish-save, workout-abandon, workout-in-session-exercise-add, plan-customise-add-remove, plan-customise-superset, plan-rebuild, plan-hiit-preference, routines-save, routines-share, trainer-request-send, trainer-client-management, trainer-client-detail, trainer-generate-plan, trainer-plan-proposal-accept, trainer-plan-proposal-reject, trainer-custom-exercises, trainer-leaderboard, messaging-send-receive, messaging-reactions, messaging-reply-to, messaging-presence, progress-dashboard, progress-exercises, progress-history, progress-body, body-metrics-trend, push-notifications-subscribe, pwa-install, leaderboard-personal, leaderboard-groups-create, leaderboard-groups-invite, leaderboard-groups-search, theme-iron-mono-vivid, admin-panel, marketing-promo-page, marketing-trainer-page, marketing-client-page, upload-profile-image, trainer-role-request
+
+---
+
 ## Patch 39 · 2026-05-19
 **HIIT Programs — Finisher Circuits + Dedicated Days**
 

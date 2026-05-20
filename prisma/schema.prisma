@@ -295,3 +295,10 @@ model LeaderboardGroupInvite {
   @@index([groupId])
   @@index([inviteeId])
 }
+
+model QAReport {
+  id          String   @id @default(cuid())
+  ts          DateTime @default(now())
+  tester      String
+  payloadJson String
+}

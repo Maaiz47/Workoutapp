@@ -292,6 +292,26 @@ export default function AdminPage() {
         </div>
         <div style={s.sub}>Ironlog — developer access only</div>
 
+        {/* QA Dashboard shortcut */}
+        <a
+          href="/qa"
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "12px 16px", marginBottom: 20,
+            background: "rgba(255,107,107,0.06)",
+            border: "1px solid rgba(255,107,107,0.2)",
+            borderRadius: 10, textDecoration: "none",
+            color: "#FF6B6B",
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+            QA DASHBOARD
+          </span>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif" }}>
+            View &amp; submit test reports →
+          </span>
+        </a>
+
         <div style={s.stats}>
           <div style={s.statBox}>
             <div style={s.statNum}>{users.length}</div>
