@@ -41,7 +41,7 @@ Each prompt is self-contained — paste it as-is into ChatGPT's image tool. The 
 - [x] 18. "No workouts logged yet" empty state
 - [x] 19. "No PBs yet" empty state
 - [x] 20. "No messages yet" empty state
-- [ ] 21. "No clients yet" — trainer view
+- [x] 21. "No clients yet" — trainer view
 - [ ] 22. "No users found" — trainer search
 - [ ] 23. "No profile set up yet" empty state
 - [ ] 24. Form demo fallback — "No form demo available"
