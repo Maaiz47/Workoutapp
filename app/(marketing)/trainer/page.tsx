@@ -11,7 +11,7 @@ const WA_LINK =
   "https://wa.me/9609120007?text=Hi%2C+I%27d+like+to+start+my+free+trial+on+IronLog+as+a+trainer";
 
 const FAQ_DATA: { q: string; a: string }[] = [
-  { q: "Do my clients need to pay anything?", a: "No — the IronLog athlete tier is completely free. Your clients download the app, create an account, and connect with you at zero cost. You're the only one who pays." },
+  { q: "Do my clients need to pay anything?", a: "No — the IronLog athlete tier is completely free. Your clients download the app, create an account, and connect with you at zero cost." },
   { q: "Can I see my client's workouts in real time?", a: "You can see their full history after each session, including every set, weight, and reps. There's no live-stream during the workout, but the data is available the moment they finish." },
   { q: "What if my client already has their own plan?", a: "Their existing plan stays until you send them a new one. When you do, it arrives as a proposal — they can review it before it replaces their current program. No surprises." },
   { q: "Can I manage gym clients and remote clients the same way?", a: "Yes. IronLog works for in-person and remote coaching identically. Both client types log workouts, receive plans, and message you through the same interface." },
@@ -327,20 +327,20 @@ export default function TrainerPage() {
 
       <hr className="mkt-divider" />
 
-      {/* PRICING */}
+      {/* EARLY ACCESS */}
       <section className="mkt-section">
         <Reveal>
-          <div className="section-tag">PRICING</div>
-          <h2 className="section-title">Straightforward pricing.<br />No surprises.</h2>
-          <p className="section-lead">Most trainers charge $50–200/client/month. One client paying you for a month covers your IronLog subscription indefinitely.</p>
+          <div className="section-tag">EARLY ACCESS</div>
+          <h2 className="section-title">Start your free trial.<br />No card needed.</h2>
+          <p className="section-lead">IronLog is currently in early access. Get in touch and we&apos;ll set you up with a full 30-day trial — no commitment, no credit card, no catch.</p>
         </Reveal>
         <Reveal direction="up" delay={0.05}>
           <div className="price-hero">
             <div className="price-left">
-              <div className="price-tag">TRAINER STARTER</div>
-              <div className="price-amount"><sup>$</sup>19</div>
-              <div className="price-per">per month · up to 10 clients</div>
-              <div className="price-note">Or $190/year — save 2 months</div>
+              <div className="price-tag">TRAINER ACCESS</div>
+              <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1, margin: "14px 0 4px", color: "#fff" }}>Get in touch</div>
+              <div className="price-per">early access · founding trainer rates</div>
+              <div className="price-note">Founding members lock in special lifetime rates</div>
               <div style={{ marginTop: 20 }}>
                 <a href={WA_LINK} className="btn-primary" style={{ fontSize: 14, padding: "13px 28px" }}>Start 30-Day Free Trial</a>
               </div>
@@ -350,7 +350,6 @@ export default function TrainerPage() {
               <ul>
                 {[
                   "Full workout tracking for you + all clients",
-                  "Up to 10 active clients",
                   "Build & deliver custom programs",
                   "Full client session history",
                   "In-app client messaging",
@@ -370,10 +369,10 @@ export default function TrainerPage() {
         <Reveal direction="up" delay={0.1}>
           <div style={{ marginTop: 16, padding: "18px 20px", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>Need more than 10 clients?</div>
-              <div style={{ fontSize: 12.5, color: "var(--text)" }}>Trainer Pro at $49/month gives you unlimited clients, priority support, and early access to new features.</div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Questions about pricing?</div>
+              <div style={{ fontSize: 12.5, color: "var(--text)" }}>Message us on WhatsApp and we&apos;ll walk you through your options. Founding trainers get preferential rates.</div>
             </div>
-            <a href={WA_LINK} style={{ padding: "10px 20px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>Learn About Pro →</a>
+            <a href={WA_LINK} style={{ padding: "10px 20px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>Chat With Us →</a>
           </div>
         </Reveal>
       </section>
