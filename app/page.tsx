@@ -6299,8 +6299,9 @@ function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: numbe
   const pro = "radial-gradient(ellipse at 62% 32%,#ff7a7a,#dd2b2b 55%,#8a1010)";
   const pri = "radial-gradient(ellipse at 62% 32%,#ff6868,#cc2020 55%,#7a0e0e)";
   const barAnim = (d: number) => `bbBarGrow 0.38s cubic-bezier(0.16,1,0.3,1) ${d}s both`;
-  const slamL   = (d: number) => `bbSlamL 0.65s cubic-bezier(0.17,0.89,0.34,1.25) ${d}s both`;
-  const slamR   = (d: number) => `bbSlamR 0.65s cubic-bezier(0.17,0.89,0.34,1.25) ${d}s both`;
+  // expo-out — fast approach, no overshoot, plates stop cleanly on the sleeve
+  const slamL   = (d: number) => `bbSlamL 0.55s cubic-bezier(0.22,1,0.36,1) ${d}s both`;
+  const slamR   = (d: number) => `bbSlamR 0.55s cubic-bezier(0.22,1,0.36,1) ${d}s both`;
   const seg = (l: number, t: number, w: number, ht: number, r: number, bg: string, extra?: React.CSSProperties): React.CSSProperties => ({
     position: "absolute", left: l*s, top: t*s, width: w*s, height: ht*s, borderRadius: r*s, background: bg, ...extra,
   });
@@ -6312,12 +6313,12 @@ function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: numbe
         <div style={{ ...seg(90,  40,140,  8, 3, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
         <div style={{ ...seg(228, 37, 58, 14, 4, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
         <div style={{ ...seg(100, 41,120,  6, 2, "rgba(0,0,0,0.22)"), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
-        {/* Left plates — fly in from left */}
-        <div style={{ ...seg(8,   5, 22, 78, 5, plo, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamL(pd) }} />
-        <div style={{ ...seg(27, 16, 13, 56, 4, pli), animation: slamL(pd + 0.07) }} />
-        {/* Right plates — fly in from right */}
-        <div style={{ ...seg(290, 5, 22, 78, 5, pro, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamR(pd) }} />
-        <div style={{ ...seg(280,16, 13, 56, 4, pri), animation: slamR(pd + 0.07) }} />
+        {/* Left plates — land on the left sleeve (x=34–90); inner plate first so outer renders on top */}
+        <div style={{ ...seg(52, 16, 13, 56, 4, pli), animation: slamL(pd + 0.06) }} />
+        <div style={{ ...seg(34,  5, 22, 76, 5, plo, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamL(pd) }} />
+        {/* Right plates — land on the right sleeve (x=228–286); inner plate first so outer renders on top */}
+        <div style={{ ...seg(255, 16, 13, 56, 4, pri), animation: slamR(pd + 0.06) }} />
+        <div style={{ ...seg(264,  5, 22, 76, 5, pro, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamR(pd) }} />
       </div>
     </div>
   );
