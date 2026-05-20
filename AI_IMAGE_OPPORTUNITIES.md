@@ -45,7 +45,7 @@ Each prompt is self-contained — paste it as-is into ChatGPT's image tool. The 
 - [x] 22. "No users found" — trainer search
 - [x] 23. "No profile set up yet" empty state
 - [x] 24. Form demo fallback — "No form demo available"
-- [ ] 25. Anatomy thumbnails (chest, back, shoulders, arms, legs, core)
+- [x] 25. Anatomy thumbnails (chest, back, shoulders, arms, legs, core)
 - [ ] 26. Settings profile avatar default
 - [ ] 27. promo.html landing hero
 - [ ] 28. trainer.html landing hero
