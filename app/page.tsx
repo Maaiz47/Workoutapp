@@ -4336,7 +4336,10 @@ function HomePage() {
       })()}
       <div ref={messagesContainerRef} onClick={() => setReactingToMsgId(null)} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {conversationMessages.length === 0 && (
-          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 40 }}>No messages yet</div>
+          <div style={{ textAlign: "center", marginTop: 40 }}>
+            <img src="/ai/empty-messages.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.5, borderRadius: 14, marginBottom: 12 }} />
+            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No messages yet</div>
+          </div>
         )}
         {conversationMessages.map(msg => {
           const isMine = msg.from.id === user.id;
@@ -6106,7 +6109,8 @@ function HomePage() {
 
         {/* Workout complete animation */}
         {showCompleteAnim && (
-          <div className="complete-overlay" style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(16px)", pointerEvents: "none" }}>
+          <div className="complete-overlay" style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(16px)", pointerEvents: "none", overflow: "hidden" }}>
+            <img src="/ai/complete-bg.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.35, mixBlendMode: "screen" }} />
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <div className="complete-ring" style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "3px solid rgba(46,204,113,0.6)" }} />
               <div className="complete-ring" style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "2px solid rgba(46,204,113,0.3)", animationDelay: "0.18s" }} />
