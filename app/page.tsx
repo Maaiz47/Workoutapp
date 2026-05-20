@@ -2636,19 +2636,22 @@ function HomePage() {
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>What are you training for?</div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 24 }}>Select all that apply — your plan will blend them.</div>
             {[
-              { id: "muscle", label: "Build Muscle", desc: "Hypertrophy-focused training with progressive overload" },
-              { id: "strength", label: "Get Stronger", desc: "Heavy compound lifts, low reps, long rest" },
-              { id: "fat_loss", label: "Lose Fat", desc: "Higher volume, cardio finishers, calorie-burning focus" },
-              { id: "fitness", label: "General Fitness", desc: "Balanced training to improve overall health and conditioning" },
+              { id: "muscle",   label: "Build Muscle",     desc: "Hypertrophy-focused training with progressive overload",       img: "/ai/goal-muscle.jpg" },
+              { id: "strength", label: "Get Stronger",     desc: "Heavy compound lifts, low reps, long rest",                    img: "/ai/goal-stronger.jpg" },
+              { id: "fat_loss", label: "Lose Fat",         desc: "Higher volume, cardio finishers, calorie-burning focus",       img: "/ai/goal-fat.jpg" },
+              { id: "fitness",  label: "General Fitness",  desc: "Balanced training to improve overall health and conditioning", img: "/ai/goal-fitness.jpg" },
             ].map(g => {
               const sel = ob.goals.includes(g.id);
               return (
-                <div key={g.id} style={selCard(sel)} onClick={() => setOb(o => { const isSel = o.goals.includes(g.id); return { ...o, goals: isSel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }; })}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <div style={{ color: sel ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{g.label}</div>
-                    {sel && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
+                <div key={g.id} style={{ ...selCard(sel), display: "flex", alignItems: "center", gap: 14 }} onClick={() => setOb(o => { const isSel = o.goals.includes(g.id); return { ...o, goals: isSel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }; })}>
+                  <img src={g.img} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0, boxShadow: sel ? "0 0 0 1px rgba(255,107,107,0.5)" : "0 0 0 1px rgba(255,255,255,0.06)" }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <div style={{ color: sel ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{g.label}</div>
+                      {sel && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
+                    </div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{g.desc}</div>
                   </div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{g.desc}</div>
                 </div>
               );
             })}
@@ -2732,15 +2735,24 @@ function HomePage() {
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>SETUP</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>Where do you train?</div>
             {[
-              { id: "gym", label: "Gym", desc: "Full access to barbells, cables, machines" },
-              { id: "home", label: "Home", desc: "I train at home with my own equipment" },
-              { id: "both", label: "Both", desc: "Mix of gym and home sessions" },
-            ].map(l => (
-              <div key={l.id} style={selCard(ob.location === l.id)} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: (l.id === "gym" || l.id === "both") ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell","smith_machine"] : [] }))}>
-                <div style={{ color: ob.location === l.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{l.label}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{l.desc}</div>
-              </div>
-            ))}
+              { id: "gym",  label: "Gym",  desc: "Full access to barbells, cables, machines", img: "/ai/location-gym.jpg" },
+              { id: "home", label: "Home", desc: "I train at home with my own equipment",     img: "/ai/location-home.jpg" },
+              { id: "both", label: "Both", desc: "Mix of gym and home sessions",               img: "/ai/location-both.jpg" },
+            ].map(l => {
+              const active = ob.location === l.id;
+              return (
+                <div key={l.id} style={{ ...selCard(active), padding: 0, overflow: "hidden", position: "relative" }} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: (l.id === "gym" || l.id === "both") ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell","smith_machine"] : [] }))}>
+                  <div style={{ position: "relative", aspectRatio: "21 / 9" }}>
+                    <img src={l.img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: active ? 0.8 : 0.55 }} />
+                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(10,10,15,0.85) 0%, rgba(10,10,15,0.3) 60%, rgba(10,10,15,0) 100%)" }} />
+                    <div style={{ position: "absolute", inset: 0, padding: "12px 16px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                      <div style={{ color: active ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 2 }}>{l.label}</div>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{l.desc}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
             <button onClick={() => setOnboardingStep(7)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
             <button onClick={() => setOnboardingStep(5)} style={obSkip}>← Back</button>
           </div>
@@ -3134,7 +3146,10 @@ function HomePage() {
                         <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
                       </div>
                     ) : (
-                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No form demo available</div>
+                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", position: "relative" }}>
+                        <img src="/ai/form-fallback.jpg" alt="" style={{ width: "100%", display: "block", objectFit: "cover" }} />
+                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 0 14px", background: "linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.7))", color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>NO FORM DEMO</div>
+                      </div>
                     )}
                     {(() => {
                       const cues = getFormCues(formPreview.id, formPreview.name);
@@ -3229,7 +3244,7 @@ function HomePage() {
         <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
           <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
             <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
-            <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
+            <img src="/ai/pb-celebration.png" alt="" style={{ width: 96, height: 96, display: "block", margin: "0 auto 8px" }} />
             <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
             {newPBs.map((pb, i) => (
               <div key={i} style={{ marginBottom: 6 }}>
@@ -3245,7 +3260,9 @@ function HomePage() {
         <div aria-hidden style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -48%)", opacity: 0.09, pointerEvents: "none", width: "100%" }}>
           <BarbellMark width={420} delay={0.1} />
         </div>
-        <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(12,12,18,0.55)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 16, cursor: "pointer", textAlign: "left", padding: "14px 18px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 24px -8px rgba(0,0,0,0.5)" }}>
+        <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(12,12,18,0.55)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 16, cursor: "pointer", textAlign: "left", padding: "14px 18px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 24px -8px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", gap: 14 }}>
+          <img src="/ai/avatar-default.png" alt="" style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: -0.5 }}>{user.username}</div>
@@ -3254,6 +3271,7 @@ function HomePage() {
             {user.role === "user" && (() => { const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#f0c040", background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
             {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
             <span style={{ marginLeft: "auto", fontSize: 14, color: "rgba(255,255,255,0.25)" }}>›</span>
+          </div>
           </div>
         </button>
       </div>
@@ -3274,7 +3292,11 @@ function HomePage() {
           </div>
         </div>
       )}
-      <div style={{ padding: "20px 20px 0", textAlign: "center" }}>
+      <div style={{ padding: "20px 20px 0", textAlign: "center", position: "relative" }}>
+        <div style={{ position: "relative", margin: "0 -20px 12px", height: 90, overflow: "hidden" }}>
+          <img src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }} />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.55) 0%, rgba(10,10,15,0) 35%, rgba(10,10,15,0) 65%, rgba(10,10,15,0.85) 100%)" }} />
+        </div>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
         <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
       </div>
@@ -3485,7 +3507,10 @@ function HomePage() {
             <div style={{ fontSize: 12, color: "#ff6b6b", textAlign: "center", padding: "12px 0", fontFamily: "'Space Mono', monospace" }}>{trainerSearchError}</div>
           )}
           {trainerHasSearched && !trainerSearching && !trainerSearchError && trainerResults.length === 0 && (
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>No users found matching "{trainerSearch}"</div>
+            <div style={{ textAlign: "center", padding: "16px 0" }}>
+              <img src="/ai/empty-search.jpg" alt="" style={{ width: 110, height: 110, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)" }}>No users found matching "{trainerSearch}"</div>
+            </div>
           )}
         </div>
       )}
@@ -3493,7 +3518,10 @@ function HomePage() {
         <div style={{ padding: "24px 20px 0" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>MY CLIENTS</div>
           {clients.length === 0 ? (
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontStyle: "italic", padding: "8px 0" }}>No accepted clients yet — send requests above</div>
+            <div style={{ textAlign: "center", padding: "16px 0" }}>
+              <img src="/ai/empty-clients.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontStyle: "italic" }}>No accepted clients yet — send requests above</div>
+            </div>
           ) : clients.map(c => (
             <div key={c.id} className="card-hover" onClick={() => openClientDetail(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
               <div>
@@ -4027,7 +4055,10 @@ function HomePage() {
           return (
             <div className="fade-in" style={{ padding: "16px 20px 0" }}>
               {flatHistory.length === 0 && (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "48px 0" }}>No workouts logged yet</div>
+                <div style={{ textAlign: "center", padding: "48px 0" }}>
+                  <img src="/ai/empty-workouts.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.6, borderRadius: 14, marginBottom: 14 }} />
+                  <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No workouts logged yet</div>
+                </div>
               )}
               {flatHistory.map((s: any, i: number) => {
                 const sessionKey = s.id ?? `${s.dayId}-${i}`;
@@ -4126,7 +4157,10 @@ function HomePage() {
         {!clientDataLoading && clientDetailTab === "profile" && (
           <div className="fade-in" style={{ padding: "16px 20px 0" }}>
             {!clientData?.profile ? (
-              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "48px 0" }}>No profile set up yet</div>
+              <div style={{ textAlign: "center", padding: "48px 0" }}>
+                <img src="/ai/empty-profile.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.6, borderRadius: 14, marginBottom: 14 }} />
+                <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No profile set up yet</div>
+              </div>
             ) : (() => {
               const p = clientData.profile;
               const age = p.dob ? Math.floor((Date.now() - new Date(p.dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25)) : null;
@@ -4548,10 +4582,13 @@ function HomePage() {
           {/* Profile card */}
           <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 12 }}>PROFILE</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Member since registration</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                <img src="/ai/avatar-default.png" alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.3), 0 6px 18px rgba(255,107,107,0.18)" }} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Member since registration</div>
+                </div>
               </div>
               {isTrainer
                 ? <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 6, padding: "4px 10px" }}>TRAINER</span>
@@ -5536,7 +5573,7 @@ function HomePage() {
           <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
             <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
               <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
-              <div className="trophy-bounce" style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
+              <img src="/ai/pb-celebration.png" alt="" className="trophy-bounce" style={{ width: 96, height: 96, display: "block", margin: "0 auto 8px" }} />
               <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST</div>
               {newPBs.map((pb, i) => (
                 <div key={i} style={{ marginBottom: 6 }}>
@@ -5680,10 +5717,12 @@ function HomePage() {
                         </div>
                       </div>
                     ) : (
-                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                        <div style={{ fontSize: 32, opacity: 0.3 }}>🏋️</div>
-                        <div>No form demo available</div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.15)" }}>Search YouTube for &ldquo;{formPreview.name} form&rdquo;</div>
+                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", position: "relative" }}>
+                        <img src="/ai/form-fallback.jpg" alt="" style={{ width: "100%", display: "block", objectFit: "cover" }} />
+                        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", padding: "0 16px 14px", background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.75))", gap: 4 }}>
+                          <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>NO FORM DEMO</div>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Search YouTube for &ldquo;{formPreview.name} form&rdquo;</div>
+                        </div>
                       </div>
                     )}
                     {(() => {
