@@ -335,12 +335,12 @@ function parseSetKey(key: string): { eid: string; setNum: string; dropNum: numbe
 // ── Tier systems ─────────────────────────────────────────────────────────────
 
 const CLIENT_TIERS = [
-  { label: "Kitten",  emoji: "🐱", min: 0   },
-  { label: "Monkey",  emoji: "🐒", min: 5   },
-  { label: "Fox",     emoji: "🦊", min: 15  },
-  { label: "Tiger",   emoji: "🐯", min: 30  },
-  { label: "Lion",    emoji: "🦁", min: 60  },
-  { label: "Gorilla", emoji: "🦍", min: 100 },
+  { label: "Kitten",  emoji: "🐱", min: 0,   color: "#94a3b8", bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.25)" },
+  { label: "Monkey",  emoji: "🐒", min: 5,   color: "#a78bfa", bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.3)"  },
+  { label: "Fox",     emoji: "🦊", min: 15,  color: "#fb923c", bg: "rgba(251,146,60,0.08)",  border: "rgba(251,146,60,0.3)"   },
+  { label: "Tiger",   emoji: "🐯", min: 30,  color: "#facc15", bg: "rgba(250,204,21,0.08)",  border: "rgba(250,204,21,0.3)"   },
+  { label: "Lion",    emoji: "🦁", min: 60,  color: "#f97316", bg: "rgba(249,115,22,0.10)",  border: "rgba(249,115,22,0.35)"  },
+  { label: "Gorilla", emoji: "🦍", min: 100, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)"  },
 ];
 
 function getClientTier(totalSessions: number, streak: number, prCount: number) {
@@ -1296,6 +1296,7 @@ function HomePage() {
   const ipToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dayCardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const heroImgRef = useRef<HTMLImageElement>(null);
+  const profileWrapperRef = useRef<HTMLDivElement>(null);
   const SESSION_IP_CAP = 25;
   const [activeClient, setActiveClient] = useState<{ id: string; username: string } | null>(null);
   const [clientData, setClientData] = useState<{ profile: any; history: Record<string, any[]>; plan: any } | null>(null);
@@ -1670,6 +1671,13 @@ function HomePage() {
       // Barbell image parallax — moves at 0.35× scroll speed
       if (heroImgRef.current) {
         heroImgRef.current.style.transform = `translateY(${scrollY * 0.35}px)`;
+      }
+      // Profile card slide-up on scroll
+      if (profileWrapperRef.current) {
+        const progress = Math.min(1, Math.max(0, (scrollY - 180) / 80));
+        const profileH = profileWrapperRef.current.offsetHeight;
+        profileWrapperRef.current.style.transform = `translateY(${-profileH * progress}px)`;
+        profileWrapperRef.current.style.opacity = String(1 - progress * 0.7);
       }
       // 3D card tilt
       const vh = window.innerHeight;
@@ -2524,8 +2532,15 @@ function HomePage() {
       <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ textAlign: "center", zIndex: 1 }}>
+        {/* BarbellMark above wordmark */}
+        <div style={{ marginBottom: 12 }}>
+          <BarbellMark width={220} delay={0.05} loop={7000} />
+        </div>
         {/* Logo + impact effects wrapper */}
         <div style={{ position: "relative", display: "inline-block" }}>
+          {/* Breathing glow ring — persistent */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 160, height: 80, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.35)", animation: "breathe 2.8s ease-in-out infinite", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 200, height: 100, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.15)", animation: "breathe 2.8s ease-in-out 0.5s infinite", pointerEvents: "none" }} />
           {/* Impact glow — flashes outward when logo lands */}
           <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "90vw", height: "90vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.22) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 0.85s both", pointerEvents: "none" }} />
           {/* Shockwave ring 1 */}
@@ -2604,7 +2619,7 @@ function HomePage() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {features.map((f, i) => (
-                <div key={i} style={{ padding: "13px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 12, borderLeft: `2px solid ${accentColor}` }}>
+                <div key={i} className="tilt-3d-item" style={{ padding: "13px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 12, borderLeft: `2px solid ${accentColor}` }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>{f.title}</div>
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>{f.desc}</div>
                 </div>
@@ -3453,16 +3468,16 @@ function HomePage() {
         </div>
       )}
       {/* Profile card — sticky at top, cards slide over it */}
-      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(10,10,15,0.82)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", padding: "12px 20px 10px" }}>
+      <div ref={profileWrapperRef} style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(10,10,15,0.82)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", padding: "12px 20px 10px", transition: "transform 0.25s ease, opacity 0.25s ease", willChange: "transform" }}>
         <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(20,20,28,0.55)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 14, cursor: "pointer", textAlign: "left", padding: "12px 16px", width: "100%", boxSizing: "border-box", boxShadow: "0 2px 16px -6px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", gap: 12 }}>
           <img src="/ai/avatar-default.png" alt="" style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
           <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: -0.5 }}>{user.username}</div>
-            {user.role === "trainer" && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} TRAINER · {t.label.toUpperCase()}</span>; })()}
+            {user.role === "trainer" && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()} · TRAINER</span>; })()}
             {user.role === "admin" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
-            {user.role === "user" && (() => { const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#f0c040", background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
+            {user.role === "user" && (() => { const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
             {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
             <span style={{ marginLeft: "auto", fontSize: 14, color: "rgba(255,255,255,0.25)" }}>›</span>
           </div>
@@ -3486,13 +3501,13 @@ function HomePage() {
           </div>
         </div>
       )}
-      <div style={{ padding: "20px 20px 0", textAlign: "center", position: "relative" }}>
-        <div style={{ position: "relative", margin: "0 -20px 12px", height: 160, overflow: "hidden" }}>
-          <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", top: "-30px", left: 0, width: "100%", height: "calc(100% + 80px)", objectFit: "cover", opacity: 0.55 }} />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.55) 0%, rgba(10,10,15,0) 35%, rgba(10,10,15,0) 65%, rgba(10,10,15,0.85) 100%)" }} />
+      <div style={{ position: "relative", margin: "16px 0 0", height: 160, overflow: "hidden" }}>
+        <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", top: "-30px", left: 0, width: "100%", height: "calc(100% + 80px)", objectFit: "cover", opacity: 0.55 }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.6) 0%, rgba(10,10,15,0) 35%, rgba(10,10,15,0) 55%, rgba(10,10,15,0.92) 100%)" }} />
+        <div style={{ position: "absolute", bottom: 14, left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", letterSpacing: 5, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>LIFT · TRACK · PROGRESS</div>
+          <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontStyle: "italic", marginTop: 5, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
         </div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
-        <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
       </div>
       <div style={{ padding: "20px 16px 0", position: "relative", zIndex: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -3502,75 +3517,83 @@ function HomePage() {
           </div>
         </div>
         {planNote && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 14, fontStyle: "italic", lineHeight: 1.5 }}>{planNote}</div>}
-        {(customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA).map((d, i) => {
-          const isActive = started && activeDay?.id === d.id;
-          const isLocked = started && activeDay?.id !== d.id;
-          const img = workoutImageFor(d.title);
+        {(() => {
+          const plan = customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA;
+          const twoCol = plan.length >= 4;
           return (
-            <div
-              key={d.id}
-              ref={el => { dayCardRefs.current[i] = el; }}
-              style={{
-                marginBottom: 12,
-                cursor: isLocked ? "default" : "pointer",
-                opacity: isLocked ? 0.28 : 1,
-                transition: "transform 0.15s ease, opacity 0.15s ease",
-                willChange: "transform",
-              }}
-              onClick={() => {
-                if (isLocked) return;
-                if (isActive) { setView("workout"); return; }
-                openDay(d);
-              }}
-            >
-              <div style={{
-                borderRadius: 20,
-                height: 188,
-                position: "relative",
-                overflow: "hidden",
-                border: isActive ? `1px solid ${d.color}70` : `1px solid ${d.color}22`,
-                boxShadow: isActive
-                  ? `0 0 28px ${d.color}35, 0 8px 32px rgba(0,0,0,0.55)`
-                  : `0 6px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
-              }}>
-                {/* Background image */}
-                {img ? (
-                  <img src={img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: isActive ? 0.8 : 0.62, transition: "opacity 0.3s" }} />
-                ) : (
-                  <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${d.color}38, ${d.color}08)` }} />
-                )}
-                {/* Vignette gradient */}
-                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.06) 40%, rgba(0,0,0,0.82) 100%)" }} />
-                {/* Left accent bar */}
-                <div style={{ position: "absolute", top: 0, left: 0, width: isActive ? 5 : 3, height: "100%", background: d.gradient, boxShadow: `0 0 14px ${d.color}90` }} />
-                {/* Day chip — top left */}
-                <div style={{ position: "absolute", top: 14, left: 16 }}>
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: d.color, fontWeight: 700, background: "rgba(0,0,0,0.52)", borderRadius: 6, padding: "3px 8px", backdropFilter: "blur(6px)", letterSpacing: 1 }}>{d.label}</span>
-                </div>
-                {/* Active badge */}
-                {isActive && (
-                  <span style={{ position: "absolute", top: 14, right: 14, fontSize: 9, fontWeight: 700, letterSpacing: 2, color: d.color, background: `${d.color}28`, border: `1px solid ${d.color}60`, borderRadius: 6, padding: "3px 8px", backdropFilter: "blur(6px)" }}>ACTIVE</span>
-                )}
-                {/* Bottom text block */}
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "12px 16px 16px 20px" }}>
-                  <div style={{ fontSize: 19, fontWeight: 700, color: "#fff", letterSpacing: -0.3, textShadow: "0 2px 10px rgba(0,0,0,0.9)", lineHeight: 1.2 }}>{d.title}</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4, textShadow: "0 1px 6px rgba(0,0,0,0.8)", fontWeight: 300 }}>{d.focus}</div>
-                  {isActive && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
-                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 17, fontWeight: 700, color: d.color, letterSpacing: 2, textShadow: `0 0 16px ${d.color}` }}>{timer.fmt}</div>
-                      <div style={{ fontSize: 10, color: d.color, opacity: 0.9, letterSpacing: 1 }}>TAP TO RESUME →</div>
+            <div style={twoCol ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } : {}}>
+              {plan.map((d, i) => {
+                const isActive = started && activeDay?.id === d.id;
+                const isLocked = started && activeDay?.id !== d.id;
+                const img = workoutImageFor(d.title);
+                return (
+                  <div
+                    key={d.id}
+                    ref={el => { dayCardRefs.current[i] = el; }}
+                    style={{
+                      marginBottom: twoCol ? 0 : 12,
+                      cursor: isLocked ? "default" : "pointer",
+                      opacity: isLocked ? 0.28 : 1,
+                      transition: "transform 0.15s ease, opacity 0.15s ease",
+                      willChange: "transform",
+                    }}
+                    onClick={() => {
+                      if (isLocked) return;
+                      if (isActive) { setView("workout"); return; }
+                      openDay(d);
+                    }}
+                  >
+                    <div style={{
+                      borderRadius: 20,
+                      height: twoCol ? 160 : 188,
+                      position: "relative",
+                      overflow: "hidden",
+                      border: isActive ? `1px solid ${d.color}70` : `1px solid ${d.color}22`,
+                      boxShadow: isActive
+                        ? `0 0 28px ${d.color}35, 0 8px 32px rgba(0,0,0,0.55)`
+                        : `0 6px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
+                    }}>
+                      {/* Background image */}
+                      {img ? (
+                        <img src={img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: isActive ? 0.8 : 0.62, transition: "opacity 0.3s" }} />
+                      ) : (
+                        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${d.color}38, ${d.color}08)` }} />
+                      )}
+                      {/* Vignette gradient */}
+                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.06) 40%, rgba(0,0,0,0.82) 100%)" }} />
+                      {/* Left accent bar */}
+                      <div style={{ position: "absolute", top: 0, left: 0, width: isActive ? 5 : 3, height: "100%", background: d.gradient, boxShadow: `0 0 14px ${d.color}90` }} />
+                      {/* Day chip — top left */}
+                      <div style={{ position: "absolute", top: 14, left: 16 }}>
+                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: d.color, fontWeight: 700, background: "rgba(0,0,0,0.52)", borderRadius: 6, padding: "3px 8px", backdropFilter: "blur(6px)", letterSpacing: 1 }}>{d.label}</span>
+                      </div>
+                      {/* Active badge */}
+                      {isActive && (
+                        <span style={{ position: "absolute", top: 14, right: 14, fontSize: 9, fontWeight: 700, letterSpacing: 2, color: d.color, background: `${d.color}28`, border: `1px solid ${d.color}60`, borderRadius: 6, padding: "3px 8px", backdropFilter: "blur(6px)" }}>ACTIVE</span>
+                      )}
+                      {/* Bottom text block */}
+                      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "12px 16px 16px 20px" }}>
+                        <div style={{ fontSize: 19, fontWeight: 700, color: "#fff", letterSpacing: -0.3, textShadow: "0 2px 10px rgba(0,0,0,0.9)", lineHeight: 1.2 }}>{d.title}</div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4, textShadow: "0 1px 6px rgba(0,0,0,0.8)", fontWeight: 300 }}>{d.focus}</div>
+                        {isActive && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 17, fontWeight: 700, color: d.color, letterSpacing: 2, textShadow: `0 0 16px ${d.color}` }}>{timer.fmt}</div>
+                            <div style={{ fontSize: 10, color: d.color, opacity: 0.9, letterSpacing: 1 }}>TAP TO RESUME →</div>
+                          </div>
+                        )}
+                        {!isActive && history[d.id]?.[0] && (
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginTop: 5, fontFamily: "'Space Mono', monospace" }}>
+                            Last: {history[d.id][0].date} · {history[d.id][0].duration}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  {!isActive && history[d.id]?.[0] && (
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginTop: 5, fontFamily: "'Space Mono', monospace" }}>
-                      Last: {history[d.id][0].date} · {history[d.id][0].duration}
-                    </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+                );
+              })}
             </div>
           );
-        })}
+        })()}
       </div>
       {/* ── Saved Routines ── */}
       <div style={{ padding: "20px 20px 0" }}>
