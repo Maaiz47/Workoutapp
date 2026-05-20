@@ -1274,6 +1274,8 @@ function HomePage() {
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboardSort, setLeaderboardSort] = useState<"sessions" | "streak" | "intensity">("sessions");
+  const [showMyClients, setShowMyClients] = useState(true);
+  const [showFindClients, setShowFindClients] = useState(false);
   const [lbGroups, setLbGroups] = useState<any[]>([]);
   const [lbGroupsLoading, setLbGroupsLoading] = useState(false);
   const [showLbGroups, setShowLbGroups] = useState(false);
@@ -3734,77 +3736,82 @@ function HomePage() {
         )}
       </div>
       {user.role === "trainer" && (
-        <div style={{ padding: "24px 20px 0" }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>FIND CLIENTS</div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <input
-              value={trainerSearch}
-              onChange={e => { setTrainerSearch(e.target.value); if (!e.target.value.trim()) { setTrainerResults([]); setTrainerHasSearched(false); } }}
-              onKeyDown={e => { if (e.key === "Enter") doTrainerSearch(); }}
-              placeholder="Enter exact username…"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "13px 16px", flex: 1, outline: "none", boxSizing: "border-box" }}
-            />
-            <button onClick={() => doTrainerSearch()} style={{ padding: "13px 18px", background: "#4ECDC4", border: "none", borderRadius: 12, color: "#000", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>SEARCH</button>
-          </div>
-          {trainerSearching && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0" }}>Searching…</div>}
-          {trainerResults.map(u => {
-            const req = trainerRequests.find(r => r.userId === u.id);
-            const status = req?.status ?? null;
-            return (
-              <div key={u.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>@{u.username}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
-                    {u.logCount} workout{u.logCount !== 1 ? "s" : ""} · joined {new Date(u.joinedAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
-                  </div>
-                </div>
-                {status === "pending" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>PENDING</span>}
-                {status === "accepted" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>ACCEPTED</span>}
-                {status === "declined" && (
-                  <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "6px 12px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.7)", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>RE-SEND</button>
-                )}
-                {!status && (
-                  <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "6px 12px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, color: "#4ECDC4", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>{sendingRequest === u.id ? "…" : "SEND REQUEST"}</button>
-                )}
-              </div>
-            );
-          })}
-          {trainerSearchError && (
-            <div style={{ fontSize: 12, color: "#ff6b6b", textAlign: "center", padding: "12px 0", fontFamily: "'Space Mono', monospace" }}>{trainerSearchError}</div>
-          )}
-          {trainerHasSearched && !trainerSearching && !trainerSearchError && trainerResults.length === 0 && (
-            <div style={{ textAlign: "center", padding: "16px 0" }}>
-              <img src="/ai/empty-search.jpg" alt="" style={{ width: 110, height: 110, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)" }}>No users found matching "{trainerSearch}"</div>
-            </div>
-          )}
-        </div>
-      )}
-      {user.role === "trainer" && (
         <div style={{ padding: "20px 20px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <span style={{ fontSize: 18, lineHeight: 1 }}>👥</span>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>MY CLIENTS</div>
             <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{clients.length}</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{clients.length}</span>
+            <button onClick={() => setShowMyClients(s => !s)} style={{ padding: "5px 12px", background: showMyClients ? "rgba(78,205,196,0.16)" : "rgba(255,255,255,0.04)", border: `1px solid ${showMyClients ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, color: showMyClients ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{showMyClients ? "HIDE" : "VIEW"}</button>
           </div>
-          {clients.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "16px 0" }}>
-              <img src="/ai/empty-clients.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontStyle: "italic" }}>No accepted clients yet — send requests above</div>
-            </div>
-          ) : clients.map(c => (
-            <div key={c.id} className="card-hover" onClick={() => openClientDetail(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
-                  {c.logCount} workout{c.logCount !== 1 ? "s" : ""}
-                  {c.lastWorkout ? ` · last ${new Date(c.lastWorkout.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : " · no sessions yet"}
+          {showMyClients && (
+            <div className="fade-in">
+              {clients.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "16px 0" }}>
+                  <img src="/ai/empty-clients.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontStyle: "italic" }}>No accepted clients yet — find one below</div>
                 </div>
-              </div>
-              <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 18 }}>›</span>
+              ) : clients.map(c => (
+                <div key={c.id} className="card-hover" onClick={() => openClientDetail(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+                      {c.logCount} workout{c.logCount !== 1 ? "s" : ""}
+                      {c.lastWorkout ? ` · last ${new Date(c.lastWorkout.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : " · no sessions yet"}
+                    </div>
+                  </div>
+                  <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 18 }}>›</span>
+                </div>
+              ))}
+              {/* ── Find new clients (inline) ── */}
+              <button onClick={() => setShowFindClients(s => !s)} style={{ width: "100%", marginTop: clients.length > 0 ? 6 : 0, padding: "10px 14px", background: showFindClients ? "rgba(255,107,107,0.08)" : "rgba(78,205,196,0.08)", border: `1px solid ${showFindClients ? "rgba(255,107,107,0.25)" : "rgba(78,205,196,0.22)"}`, borderRadius: 12, color: showFindClients ? "#FF6B6B" : "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                {showFindClients ? "CLOSE SEARCH" : "+ FIND CLIENTS"}
+              </button>
+              {showFindClients && (
+                <div className="fade-in" style={{ marginTop: 10, padding: 14, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12 }}>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                    <input
+                      value={trainerSearch}
+                      onChange={e => { setTrainerSearch(e.target.value); if (!e.target.value.trim()) { setTrainerResults([]); setTrainerHasSearched(false); } }}
+                      onKeyDown={e => { if (e.key === "Enter") doTrainerSearch(); }}
+                      placeholder="Enter exact username…"
+                      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 13, fontFamily: "'DM Sans', sans-serif", padding: "10px 12px", flex: 1, outline: "none", boxSizing: "border-box" }}
+                    />
+                    <button onClick={() => doTrainerSearch()} style={{ padding: "10px 14px", background: "#4ECDC4", border: "none", borderRadius: 10, color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>SEARCH</button>
+                  </div>
+                  {trainerSearching && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "10px 0" }}>Searching…</div>}
+                  {trainerResults.map(u => {
+                    const req = trainerRequests.find(r => r.userId === u.id);
+                    const status = req?.status ?? null;
+                    return (
+                      <div key={u.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 12px", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>@{u.username}</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace" }}>
+                            {u.logCount} workout{u.logCount !== 1 ? "s" : ""} · {new Date(u.joinedAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
+                          </div>
+                        </div>
+                        {status === "pending" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>PENDING</span>}
+                        {status === "accepted" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>ACCEPTED</span>}
+                        {status === "declined" && (
+                          <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "5px 10px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.7)", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>RE-SEND</button>
+                        )}
+                        {!status && (
+                          <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "5px 10px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, color: "#4ECDC4", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>{sendingRequest === u.id ? "…" : "SEND REQUEST"}</button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {trainerSearchError && (
+                    <div style={{ fontSize: 12, color: "#ff6b6b", textAlign: "center", padding: "10px 0", fontFamily: "'Space Mono', monospace" }}>{trainerSearchError}</div>
+                  )}
+                  {trainerHasSearched && !trainerSearching && !trainerSearchError && trainerResults.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "12px 0", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>No users found matching &ldquo;{trainerSearch}&rdquo;</div>
+                  )}
+                </div>
+              )}
             </div>
-          ))}
+          )}
         </div>
       )}
 
@@ -4005,23 +4012,115 @@ function HomePage() {
                             </div>
                           ) : null;
                         })()}
+                        {/* Group leaderboard */}
+                        {(() => {
+                          const ranked = (grp.members ?? [])
+                            .filter((m: any) => m.includeInRank)
+                            .map((m: any) => {
+                              const logs: any[] = m.user?.workoutLogs ?? [];
+                              const totalSessions = logs.length;
+                              const totalIntensityPoints = logs.reduce((sum: number, l: any) => sum + (l.intensityPoints || 0), 0);
+                              const totalVolume = Math.round(logs.reduce((sum: number, l: any) => {
+                                const sets = l.sets ?? {};
+                                return sum + (Object.values(sets) as any[]).reduce((s: number, v: any) => s + ((v?.weight || 0) * (v?.reps || 0)), 0);
+                              }, 0));
+                              const dates = Array.from(new Set(logs.map((l: any) => new Date(l.date).toISOString().slice(0,10)))).sort().reverse() as string[];
+                              let streak = 0;
+                              const today = new Date().toISOString().slice(0,10);
+                              const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+                              if (dates[0] === today || dates[0] === yesterday) {
+                                streak = 1;
+                                for (let i = 1; i < dates.length; i++) {
+                                  const prev = new Date(dates[i-1]);
+                                  const curr = new Date(dates[i]);
+                                  if (Math.round((prev.getTime() - curr.getTime()) / 86400000) === 1) streak++;
+                                  else break;
+                                }
+                              }
+                              const prs: Record<string, { weight: number; reps: number }> = {};
+                              for (const log of logs) {
+                                const sets = log.sets ?? {};
+                                for (const [k, v] of Object.entries(sets) as [string, any][]) {
+                                  const parts = k.split("-");
+                                  const last = parts[parts.length - 1];
+                                  const isDropSet = /^d\d+$/.test(last) && parts.length >= 3;
+                                  if (isDropSet) { parts.pop(); parts.pop(); } else { parts.pop(); }
+                                  const eid = parts.join("-");
+                                  const w = v?.weight ?? 0, r = v?.reps ?? 0;
+                                  if (!prs[eid] || w > prs[eid].weight || (w === prs[eid].weight && r > prs[eid].reps)) {
+                                    prs[eid] = { weight: w, reps: r };
+                                  }
+                                }
+                              }
+                              return { userId: m.userId, username: m.user?.username ?? "unknown", role: m.role, totalSessions, totalIntensityPoints, totalVolume, streak, prCount: Object.keys(prs).length };
+                            })
+                            .sort((a: any, b: any) => b.totalSessions - a.totalSessions || b.totalVolume - a.totalVolume);
+
+                          return (
+                            <div style={{ marginBottom: 14 }}>
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>🏆 RANKINGS · {ranked.length}</div>
+                              {ranked.length === 0 ? (
+                                <div style={{ padding: "14px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, fontSize: 11.5, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>
+                                  No members ranked yet — toggle &ldquo;Include me in ranking&rdquo; or add clients below.
+                                </div>
+                              ) : (
+                                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
+                                  <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 38px 38px 38px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                                    {["#","NAME","SESS","STRK","PRs"].map((h, hi) => (
+                                      <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "center" : "left" }}>{h}</div>
+                                    ))}
+                                  </div>
+                                  {ranked.map((m: any, i: number) => {
+                                    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+                                    const tier = CLIENT_TIERS.slice().reverse().find(t => m.totalSessions >= t.min) ?? CLIENT_TIERS[0];
+                                    const isMe = m.userId === user.id;
+                                    return (
+                                      <div key={m.userId} style={{ display: "grid", gridTemplateColumns: "26px 1fr 38px 38px 38px", gap: 6, padding: "9px 10px", borderBottom: i < ranked.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.04)" : isMe ? "rgba(78,205,196,0.04)" : "transparent" }}>
+                                        <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
+                                        <div style={{ minWidth: 0 }}>
+                                          <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : `@${m.username}`}</div>
+                                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.emoji} {tier.label}{m.role === "trainer" ? " · COACH" : ""}</div>
+                                        </div>
+                                        <div style={{ textAlign: "center" }}>
+                                          <div style={{ fontSize: 13, fontWeight: 700, color: "#a29bfe" }}>{m.totalSessions}</div>
+                                        </div>
+                                        <div style={{ textAlign: "center" }}>
+                                          <div style={{ fontSize: 13, fontWeight: 700, color: m.streak >= 3 ? "#FF6B6B" : "#fff" }}>{m.streak}</div>
+                                        </div>
+                                        <div style={{ textAlign: "center" }}>
+                                          <div style={{ fontSize: 13, fontWeight: 700, color: m.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{m.prCount}</div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {/* Client member selection */}
                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>CLIENTS IN GROUP</div>
                         <input value={lbGroupClientSearch} onChange={e => setLbGroupClientSearch(e.target.value)} placeholder="Filter clients…" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
                         {clients.filter(c => !lbGroupClientSearch || c.username.toLowerCase().includes(lbGroupClientSearch.toLowerCase())).map((c: any) => {
                           const inGroup = grp.members?.some((m: any) => m.userId === c.id && m.role === "client");
                           return (
-                            <div key={c.id} onClick={async () => {
+                            <div key={c.id} onClick={() => {
                               const currentClientIds = (grp.members ?? []).filter((m: any) => m.role === "client").map((m: any) => m.userId);
                               const newIds = inGroup ? currentClientIds.filter((id: string) => id !== c.id) : [...currentClientIds, c.id];
-                              try {
-                                const res = await fetch(`/api/leaderboard/groups/${grp.id}/members`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientIds: newIds }) });
-                                if (res.ok) {
-                                  const refreshRes = await fetch("/api/leaderboard/groups");
-                                  const refreshData = await refreshRes.json();
-                                  if (refreshData.groups) { setLbGroups(refreshData.groups); setActiveLbGroup(refreshData.groups.find((g: any) => g.id === grp.id) ?? null); }
-                                }
-                              } catch {}
+                              const snapshotMembers = grp.members ?? [];
+                              // Optimistic update — instant UI feedback
+                              const optimisticMembers = inGroup
+                                ? snapshotMembers.filter((m: any) => !(m.userId === c.id && m.role === "client"))
+                                : [...snapshotMembers, { userId: c.id, role: "client", includeInRank: true, trainerId: user.id, user: { id: c.id, username: c.username, workoutLogs: [] } }];
+                              setLbGroups(prev => prev.map(g => g.id !== grp.id ? g : { ...g, members: optimisticMembers }));
+                              setActiveLbGroup((prev: any) => prev && prev.id === grp.id ? { ...prev, members: optimisticMembers } : prev);
+                              // Fire-and-forget API call; revert on failure
+                              fetch(`/api/leaderboard/groups/${grp.id}/members`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientIds: newIds }) })
+                                .then(res => { if (!res.ok) throw new Error(); })
+                                .catch(() => {
+                                  setLbGroups(prev => prev.map(g => g.id !== grp.id ? g : { ...g, members: snapshotMembers }));
+                                  setActiveLbGroup((prev: any) => prev && prev.id === grp.id ? { ...prev, members: snapshotMembers } : prev);
+                                });
                             }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 8, marginBottom: 4, background: inGroup ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.02)", cursor: "pointer", border: `1px solid ${inGroup ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.05)"}` }}>
                               <span style={{ fontSize: 13, color: inGroup ? "#4ECDC4" : "rgba(255,255,255,0.6)" }}>@{c.username}</span>
                               <span style={{ fontSize: 16 }}>{inGroup ? "✓" : "+"}</span>
