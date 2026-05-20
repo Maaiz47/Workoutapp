@@ -1175,6 +1175,9 @@ function HomePage() {
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [respondingRequest, setRespondingRequest] = useState<string | null>(null);
   const [clients, setClients] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [activeClient, setActiveClient] = useState<{ id: string; username: string } | null>(null);
   const [clientData, setClientData] = useState<{ profile: any; history: Record<string, any[]>; plan: any } | null>(null);
   const [clientDataLoading, setClientDataLoading] = useState(false);
@@ -3184,19 +3187,22 @@ function HomePage() {
           </div>
         </div>
       )}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px 20px 0" }}>
-        <button onClick={() => setView("settings")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "10px 14px" }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 300, letterSpacing: 1 }}>Welcome back</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
-            <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>{user.username}</div>
+      {/* Hero: barbell background + profile card overlay */}
+      <div style={{ position: "relative", padding: "24px 20px 20px", overflow: "hidden" }}>
+        <div aria-hidden style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -48%)", opacity: 0.09, pointerEvents: "none", width: "100%" }}>
+          <BarbellMark width={420} delay={0.1} />
+        </div>
+        <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(12,12,18,0.55)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 16, cursor: "pointer", textAlign: "left", padding: "14px 18px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 24px -8px rgba(0,0,0,0.5)" }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: -0.5 }}>{user.username}</div>
             {user.role === "trainer" && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
             {user.role === "admin" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
             {user.role === "user" && (() => { const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#f0c040", background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
             {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
-            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }}>›</span>
+            <span style={{ marginLeft: "auto", fontSize: 14, color: "rgba(255,255,255,0.25)" }}>›</span>
           </div>
         </button>
-        <button onClick={doLogout} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 14px", color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", letterSpacing: 1 }}>LOG OUT</button>
       </div>
       {showNotifBanner && notifStatus === "idle" && (
         <div style={{ margin: "16px 20px 0", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -3223,7 +3229,7 @@ function HomePage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <button onClick={openCustomise} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>CUSTOMISE</button>
+            <button onClick={openCustomise} style={{ background: "linear-gradient(135deg, rgba(255,107,107,0.12), rgba(238,90,36,0.06))", border: "1px solid rgba(255,107,107,0.22)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, padding: "6px 11px" }}>✏ CUSTOMISE</button>
           </div>
         </div>
         {planNote && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontStyle: "italic", lineHeight: 1.5 }}>{planNote}</div>}
@@ -3450,6 +3456,74 @@ function HomePage() {
         </div>
       )}
 
+      {user.role === "trainer" && (
+        <div style={{ padding: "16px 20px 0" }}>
+          <button
+            onClick={async () => {
+              if (showLeaderboard) { setShowLeaderboard(false); return; }
+              setLeaderboardLoading(true);
+              setShowLeaderboard(true);
+              try {
+                const res = await fetch("/api/trainer/leaderboard");
+                const data = await res.json();
+                if (data.leaderboard) setLeaderboard(data.leaderboard);
+              } catch {}
+              setLeaderboardLoading(false);
+            }}
+            style={{ width: "100%", padding: "14px 18px", background: showLeaderboard ? "rgba(162,155,254,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${showLeaderboard ? "rgba(162,155,254,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, color: showLeaderboard ? "#a29bfe" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}
+          >
+            <span style={{ fontSize: 18 }}>🏆</span>
+            <span>Client Leaderboard</span>
+            <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>{showLeaderboard ? "▲" : "▼"}</span>
+          </button>
+          {showLeaderboard && (
+            <div className="fade-in" style={{ marginTop: 8 }}>
+              {leaderboardLoading ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "20px 0" }}>Loading…</div>
+              ) : leaderboard.length === 0 ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "20px 0" }}>No client data yet</div>
+              ) : (
+                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
+                  {/* Header */}
+                  <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 52px 52px 52px", gap: 8, padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>#</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>CLIENT</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: "center" }}>SESSIONS</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: "center" }}>STREAK</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: "center" }}>PRs</div>
+                  </div>
+                  {leaderboard.map((c, i) => {
+                    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+                    const tier = (() => { const t = CLIENT_TIERS.slice().reverse().find(t => c.totalSessions >= t.min); return t ?? CLIENT_TIERS[0]; })();
+                    return (
+                      <div key={c.id} style={{ display: "grid", gridTemplateColumns: "28px 1fr 52px 52px 52px", gap: 8, padding: "12px 14px", borderBottom: i < leaderboard.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.03)" : "transparent" }}>
+                        <div style={{ fontSize: 14, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.emoji} {tier.label} · {c.totalVolume.toLocaleString()}kg vol</div>
+                        </div>
+                        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{c.totalSessions}</div>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>sessions</div>
+                        </div>
+                        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: c.streak >= 3 ? "#FF6B6B" : "#fff" }}>{c.streak}</div>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>days</div>
+                        </div>
+                        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: c.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{c.prCount}</div>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>PRs</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Trainer: Custom Exercises ── */}
       {user.role === "trainer" && (
         <div style={{ padding: "24px 20px 0" }}>
@@ -3570,11 +3644,17 @@ function HomePage() {
         </div>
       )}
       <div style={{ padding: "12px 20px 0", display: "flex", flexDirection: "column", gap: 8 }}>
-        <button className="card-hover nav-btn" onClick={() => goTo("messages")} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxSizing: "border-box" }}>
-          MESSAGES
-          {unreadCount > 0 && <span style={{ background: "#4ECDC4", color: "#000", borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
+        <button className="card-hover nav-btn" onClick={() => goTo("messages")} style={{ width: "100%", padding: "15px 18px", background: unreadCount > 0 ? "rgba(78,205,196,0.05)" : "rgba(255,255,255,0.03)", border: `1px solid ${unreadCount > 0 ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
+          <span style={{ fontSize: 18, lineHeight: 1 }}>💬</span>
+          <span>Messages</span>
+          {unreadCount > 0 && <span style={{ marginLeft: "auto", background: "#4ECDC4", color: "#000", borderRadius: 10, padding: "1px 8px", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
+          {unreadCount === 0 && <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>›</span>}
         </button>
-        <button className="card-hover nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>VIEW PROGRESS →</button>
+        <button className="card-hover nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} style={{ width: "100%", padding: "15px 18px", background: "rgba(255,107,107,0.04)", border: "1px solid rgba(255,107,107,0.12)", borderRadius: 14, color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
+          <span style={{ fontSize: 18, lineHeight: 1 }}>📊</span>
+          <span>View Progress</span>
+          <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>›</span>
+        </button>
       </div>
     </div>
   );
@@ -4776,6 +4856,8 @@ function HomePage() {
     const findExName = (eid: string) => {
       for (const d of WORKOUT_DATA) for (const s of d.sections) for (const e of s.exercises) if (e.id === eid) return e.name;
       if (customPlan) for (const d of customPlan as any[]) for (const e of (d.exercises ?? [])) if ((e.exerciseId ?? e.id) === eid) return e.name;
+      const libEx = (EXERCISES as any[]).find((e: any) => e.id === eid);
+      if (libEx) return libEx.name;
       return eid;
     };
 
@@ -4789,9 +4871,9 @@ function HomePage() {
 
     return (
       <div key="progress" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
-        <div aria-hidden style={{ position: "absolute", top: "8%", left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
-          {[0, 1, 2, 3].map(n => (
-            <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.025, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
+        <div aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
+          {Array.from({ length: 16 }).map((_, n) => (
+            <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.022, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
           ))}
         </div>
         <div style={{ padding: "24px 20px 0" }}>
@@ -5000,7 +5082,7 @@ function HomePage() {
                         <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,107,107,0.1)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🏋️</div>
                       )}
                       <div>
-                        <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{exName}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>🏆 {exName}</div>
                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>{pr.date}</div>
                       </div>
                     </div>
