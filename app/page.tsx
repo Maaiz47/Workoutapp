@@ -608,6 +608,19 @@ function WorkoutTypeIcon({ title, color, size = 62 }: { title: string; color: st
   );
 }
 
+// Maps a primary muscle key (chest, lat, biceps, etc.) to one of the six
+// AI anatomy thumbnails. Returns null if the muscle group isn't covered.
+function anatomyImageFor(primary: string[]): string | null {
+  const m = primary.map(k => k.toLowerCase()).join(" ");
+  if (/\b(chest|pec)/.test(m))                          return "/ai/anatomy-chest.jpg";
+  if (/(lat|back|trap|rhomb|erector|rear.delt)/.test(m)) return "/ai/anatomy-back.jpg";
+  if (/(delt|shoulder)/.test(m))                         return "/ai/anatomy-shoulders.jpg";
+  if (/(bicep|tricep|arm|forearm)/.test(m))              return "/ai/anatomy-arms.jpg";
+  if (/(quad|hamstring|glute|calf|calve|leg)/.test(m))   return "/ai/anatomy-legs.jpg";
+  if (/(core|abs|obliq|abdomin)/.test(m))                return "/ai/anatomy-core.jpg";
+  return null;
+}
+
 // Maps a workout title to one of the 8 AI workout-card images, or null if the
 // title doesn't cleanly match one of the canonical splits (chest day, arms,
 // etc. fall back to the animated SVG icon).
@@ -2570,6 +2583,10 @@ function HomePage() {
         {/* Step 0: Welcome */}
         {onboardingStep === 0 && (
           <div key={onboardingStep} className={obAnimClass}>
+            <div style={{ position: "relative", margin: "-12px -20px 24px", borderRadius: 16, overflow: "hidden", aspectRatio: "3 / 4", maxHeight: 320 }}>
+              <img src="/ai/onboarding-welcome.jpg" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.55) 0%, rgba(10,10,15,0) 30%, rgba(10,10,15,0) 60%, rgba(10,10,15,0.95) 100%)" }} />
+            </div>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 32, fontWeight: 700, color: "#fff", marginBottom: 8 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Let's build your plan.</div>
             <div style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 32 }}>Answer a few quick questions and we'll put together a personalised workout programme designed around your goals, schedule, and equipment.</div>
@@ -2618,19 +2635,22 @@ function HomePage() {
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>What are you training for?</div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 24 }}>Select all that apply — your plan will blend them.</div>
             {[
-              { id: "muscle", label: "Build Muscle", desc: "Hypertrophy-focused training with progressive overload" },
-              { id: "strength", label: "Get Stronger", desc: "Heavy compound lifts, low reps, long rest" },
-              { id: "fat_loss", label: "Lose Fat", desc: "Higher volume, cardio finishers, calorie-burning focus" },
-              { id: "fitness", label: "General Fitness", desc: "Balanced training to improve overall health and conditioning" },
+              { id: "muscle",   label: "Build Muscle",     desc: "Hypertrophy-focused training with progressive overload",       img: "/ai/goal-muscle.jpg" },
+              { id: "strength", label: "Get Stronger",     desc: "Heavy compound lifts, low reps, long rest",                    img: "/ai/goal-stronger.jpg" },
+              { id: "fat_loss", label: "Lose Fat",         desc: "Higher volume, cardio finishers, calorie-burning focus",       img: "/ai/goal-fat.jpg" },
+              { id: "fitness",  label: "General Fitness",  desc: "Balanced training to improve overall health and conditioning", img: "/ai/goal-fitness.jpg" },
             ].map(g => {
               const sel = ob.goals.includes(g.id);
               return (
-                <div key={g.id} style={selCard(sel)} onClick={() => setOb(o => { const isSel = o.goals.includes(g.id); return { ...o, goals: isSel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }; })}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <div style={{ color: sel ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{g.label}</div>
-                    {sel && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
+                <div key={g.id} style={{ ...selCard(sel), display: "flex", alignItems: "center", gap: 14 }} onClick={() => setOb(o => { const isSel = o.goals.includes(g.id); return { ...o, goals: isSel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }; })}>
+                  <img src={g.img} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0, boxShadow: sel ? "0 0 0 1px rgba(255,107,107,0.5)" : "0 0 0 1px rgba(255,255,255,0.06)" }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <div style={{ color: sel ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{g.label}</div>
+                      {sel && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
+                    </div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{g.desc}</div>
                   </div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{g.desc}</div>
                 </div>
               );
             })}
@@ -2714,15 +2734,24 @@ function HomePage() {
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>SETUP</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>Where do you train?</div>
             {[
-              { id: "gym", label: "Gym", desc: "Full access to barbells, cables, machines" },
-              { id: "home", label: "Home", desc: "I train at home with my own equipment" },
-              { id: "both", label: "Both", desc: "Mix of gym and home sessions" },
-            ].map(l => (
-              <div key={l.id} style={selCard(ob.location === l.id)} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: (l.id === "gym" || l.id === "both") ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell","smith_machine"] : [] }))}>
-                <div style={{ color: ob.location === l.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{l.label}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{l.desc}</div>
-              </div>
-            ))}
+              { id: "gym",  label: "Gym",  desc: "Full access to barbells, cables, machines", img: "/ai/location-gym.jpg" },
+              { id: "home", label: "Home", desc: "I train at home with my own equipment",     img: "/ai/location-home.jpg" },
+              { id: "both", label: "Both", desc: "Mix of gym and home sessions",               img: "/ai/location-both.jpg" },
+            ].map(l => {
+              const active = ob.location === l.id;
+              return (
+                <div key={l.id} style={{ ...selCard(active), padding: 0, overflow: "hidden", position: "relative" }} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: (l.id === "gym" || l.id === "both") ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell","smith_machine"] : [] }))}>
+                  <div style={{ position: "relative", aspectRatio: "21 / 9" }}>
+                    <img src={l.img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: active ? 0.8 : 0.55 }} />
+                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(10,10,15,0.85) 0%, rgba(10,10,15,0.3) 60%, rgba(10,10,15,0) 100%)" }} />
+                    <div style={{ position: "absolute", inset: 0, padding: "12px 16px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                      <div style={{ color: active ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 2 }}>{l.label}</div>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{l.desc}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
             <button onClick={() => setOnboardingStep(7)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
             <button onClick={() => setOnboardingStep(5)} style={obSkip}>← Back</button>
           </div>
@@ -3139,6 +3168,10 @@ function HomePage() {
                   </>
                 ) : (
                   <div style={{ background: "#0b0b0b", borderRadius: 14, overflow: "hidden", padding: "10px 8px 4px" }}>
+                    {(() => {
+                      const thumb = anatomyImageFor(primary);
+                      return thumb ? <img src={thumb} alt="" style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 10, marginBottom: 8, opacity: 0.85 }} /> : null;
+                    })()}
                     <MuscleDiagram primary={primary} secondary={secondary} exerciseId={formPreview.id} exerciseName={formPreview.name}/>
                     {allMuscles.length > 0 && (() => {
                       const det = lookupMuscleDetail(formPreview.id, formPreview.name);
@@ -3250,7 +3283,9 @@ function HomePage() {
       )}
       </AnimatePresence>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px 20px 0" }}>
-        <button onClick={() => setView("settings")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "10px 14px" }}>
+        <button onClick={() => setView("settings")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+          <img src="/ai/avatar-default.png" alt="" style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
+          <div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 300, letterSpacing: 1 }}>Welcome back</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
             <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>{user.username}</div>
@@ -3258,6 +3293,7 @@ function HomePage() {
             {user.role === "admin" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
             {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
             <span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }}>›</span>
+          </div>
           </div>
         </button>
         <button onClick={doLogout} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 14px", color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", letterSpacing: 1 }}>LOG OUT</button>
@@ -3289,7 +3325,11 @@ function HomePage() {
         </motion.div>
       )}
       </AnimatePresence>
-      <div style={{ padding: "20px 20px 0", textAlign: "center" }}>
+      <div style={{ padding: "20px 20px 0", textAlign: "center", position: "relative" }}>
+        <div style={{ position: "relative", margin: "0 -20px 12px", height: 90, overflow: "hidden" }}>
+          <img src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }} />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.55) 0%, rgba(10,10,15,0) 35%, rgba(10,10,15,0) 65%, rgba(10,10,15,0.85) 100%)" }} />
+        </div>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
         <div style={{ minHeight: 16, overflow: "hidden" }}>
           <AnimatePresence mode="wait" initial={false}>
@@ -4457,10 +4497,13 @@ function HomePage() {
           {/* Profile card */}
           <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 12 }}>PROFILE</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Member since registration</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                <img src="/ai/avatar-default.png" alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.3), 0 6px 18px rgba(255,107,107,0.18)" }} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Member since registration</div>
+                </div>
               </div>
               {isTrainer
                 ? <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 6, padding: "4px 10px" }}>TRAINER</span>
@@ -5654,6 +5697,10 @@ function HomePage() {
                   </>
                 ) : (
                   <div style={{ background: "#0b0b0b", borderRadius: 14, overflow: "hidden", padding: "10px 8px 4px" }}>
+                    {(() => {
+                      const thumb = anatomyImageFor(primary);
+                      return thumb ? <img src={thumb} alt="" style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 10, marginBottom: 8, opacity: 0.85 }} /> : null;
+                    })()}
                     <MuscleDiagram primary={primary} secondary={secondary} exerciseId={formPreview.id} exerciseName={formPreview.name}/>
                     {allMuscles.length === 0 && !lookupMuscleDetail(formPreview.id, formPreview.name) && (
                       <div style={{ textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 12, paddingBottom: 12 }}>No muscle data for this exercise</div>
@@ -6014,8 +6061,9 @@ function HomePage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(16px)", pointerEvents: "none" }}
+            style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(16px)", pointerEvents: "none", overflow: "hidden" }}
           >
+            <img src="/ai/complete-bg.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.35, mixBlendMode: "screen" }} />
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <motion.div
                 initial={{ scale: 0.4, opacity: 1 }}
