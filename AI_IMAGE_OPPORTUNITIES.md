@@ -98,7 +98,7 @@ Action: <ACTION_LINE>
 | # | Card | ACTION_LINE |
 |---|---|---|
 | 3 | Push | Mid-rep dumbbell bench press, plates visible at frame edge, chalk dust drifting. |
-| 4 | Pull | Chalk-covered hands at the top of a strict pull-up, lats flared, bar mid-frame. |
+| 4 | Pull | Heavy bent-over barbell row at peak contraction, torso angled ~45 degrees forward, barbell pulled into the belly, elbows driven high and back, lats fanned wide. Side three-quarter angle. |
 | 5 | Legs | Below-parallel back squat in a power rack, barbell across traps, plates compressing. |
 | 6 | Upper | Seated overhead press lockout, dumbbells silhouetted against the rim light. |
 | 7 | Lower | Romanian deadlift mid-descent, barbell tracking shins, hamstrings loaded. |
