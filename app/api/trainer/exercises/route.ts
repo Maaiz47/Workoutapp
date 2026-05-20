@@ -45,6 +45,32 @@ export async function POST(req: NextRequest) {
     if (!name || typeof name !== "string" || name.trim() === "") {
       return json({ error: "name is required" }, 400);
     }
+    if (name.length > 80) return json({ error: "name too long (80 max)" }, 400);
+
+    const okStrArr = (a: unknown, max: number) =>
+      Array.isArray(a) && a.length <= max && a.every(x => typeof x === "string" && x.length <= 40);
+    if (!okStrArr(primaryMuscles, 12) || !okStrArr(secondaryMuscles, 12) || !okStrArr(equipment, 12)) {
+      return json({ error: "Invalid muscle/equipment arrays" }, 400);
+    }
+
+    if (!["compound", "isolation", "cardio", "isometric"].includes(type)) {
+      return json({ error: "Invalid type" }, 400);
+    }
+    if (!["beginner", "intermediate", "advanced"].includes(difficulty)) {
+      return json({ error: "Invalid difficulty" }, 400);
+    }
+
+    // Photos must be Cloudinary HTTPS URLs from this account's cloud
+    const cloud = process.env.CLOUDINARY_CLOUD_NAME;
+    if (!Array.isArray(photoUrls) || photoUrls.length > 5) {
+      return json({ error: "Up to 5 photos allowed" }, 400);
+    }
+    const photosOk = photoUrls.every((u: unknown) =>
+      typeof u === "string" &&
+      u.length <= 500 &&
+      u.startsWith(`https://res.cloudinary.com/${cloud}/`)
+    );
+    if (!photosOk) return json({ error: "Photo URLs must come from our Cloudinary account" }, 400);
 
     const exercise = await prisma.customExercise.create({
       data: {

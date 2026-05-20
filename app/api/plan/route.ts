@@ -98,32 +98,35 @@ export async function POST(req: NextRequest) {
 
     const generated = generatePlan(input);
 
-    await prisma.workoutPlan.deleteMany({ where: { userId: uid } });
-
-    const plan = await prisma.workoutPlan.create({
-      data: {
-        userId: uid,
-        days: {
-          create: generated.days.map((day, i) => ({
-            dayIndex: i,
-            title: day.title,
-            subtitle: day.subtitle,
-            focus: day.focus,
-            exercises: {
-              create: day.exercises.map((ex, j) => ({
-                order: j,
-                exerciseId: ex.exerciseId,
-                name: ex.name,
-                sets: ex.sets,
-                reps: ex.reps,
-                rest: ex.rest,
-                notes: ex.notes ?? null,
-              })),
-            },
-          })),
+    // Atomic replace: delete + create in a single transaction so the user
+    // never ends up with no plan if the create errors.
+    const plan = await prisma.$transaction(async tx => {
+      await tx.workoutPlan.deleteMany({ where: { userId: uid } });
+      return tx.workoutPlan.create({
+        data: {
+          userId: uid,
+          days: {
+            create: generated.days.map((day, i) => ({
+              dayIndex: i,
+              title: day.title,
+              subtitle: day.subtitle,
+              focus: day.focus,
+              exercises: {
+                create: day.exercises.map((ex, j) => ({
+                  order: j,
+                  exerciseId: ex.exerciseId,
+                  name: ex.name,
+                  sets: ex.sets,
+                  reps: ex.reps,
+                  rest: ex.rest,
+                  notes: ex.notes ?? null,
+                })),
+              },
+            })),
+          },
         },
-      },
-      include: { days: { orderBy: { dayIndex: "asc" }, include: { exercises: { orderBy: { order: "asc" } } } } },
+        include: { days: { orderBy: { dayIndex: "asc" }, include: { exercises: { orderBy: { order: "asc" } } } } },
+      });
     });
 
     return json({ plan, planNote: generated.planNote });

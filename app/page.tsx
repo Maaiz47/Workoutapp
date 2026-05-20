@@ -306,6 +306,21 @@ function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: s
   return { dataPoints: dataPoints.reverse(), pb: { weight: pbWeight, reps: pbReps, date: pbDate } };
 }
 
+// ── Set-key parsing (drop-set aware) ────────────────────────────────────────
+// Keys: "eid-sn" for regular sets, "eid-sn-dN" for drop sets.
+function parseSetKey(key: string): { eid: string; setNum: string; dropNum: number | null } {
+  const parts = key.split("-");
+  const last = parts[parts.length - 1];
+  const dropMatch = last.match(/^d(\d+)$/);
+  if (dropMatch && parts.length >= 3) {
+    parts.pop();
+    const setNum = parts.pop()!;
+    return { eid: parts.join("-"), setNum, dropNum: parseInt(dropMatch[1], 10) };
+  }
+  const setNum = parts.pop()!;
+  return { eid: parts.join("-"), setNum, dropNum: null };
+}
+
 // ── Tier systems ─────────────────────────────────────────────────────────────
 
 const CLIENT_TIERS = [
@@ -351,7 +366,7 @@ function getOverallStats(history: Record<string, any[]>) {
       allSessions.push({ date: s.date, duration: s.duration });
       const sets = s.sets as Record<string, { weight: number; reps: number }>;
       for (const k in sets) {
-        const eid = k.split("-").slice(0, -1).join("-");
+        const eid = parseSetKey(k).eid;
         const { weight, reps } = sets[k];
         if (!exercisePRs[eid] || weight > exercisePRs[eid].weight || (weight === exercisePRs[eid].weight && reps > exercisePRs[eid].reps)) {
           exercisePRs[eid] = { weight, reps, date: s.date };
@@ -2117,11 +2132,11 @@ function HomePage() {
     // Detect new PBs before saving (compare session log against history)
     const detectedPBs: { id: string; name: string; weight: number; reps: number }[] = [];
     if (activeDay) {
-      const exIds = Array.from(new Set(Object.keys(log).map(k => k.split("-").slice(0, -1).join("-"))));
+      const exIds = Array.from(new Set(Object.keys(log).map(k => parseSetKey(k).eid)));
       for (const eid of exIds) {
-        const { weight: prevBest } = lastSessionBest(eid);
+        const prevBest = overall.exercisePRs[eid]?.weight ?? 0;
         const sessionSets = Object.entries(log)
-          .filter(([k]) => k.startsWith(eid + "-"))
+          .filter(([k]) => parseSetKey(k).eid === eid)
           .map(([, v]) => v);
         const sessionBest = sessionSets.reduce((b, s) => s.weight > b.weight || (s.weight === b.weight && s.reps > b.reps) ? s : b, { weight: 0, reps: 0 });
         if (sessionBest.weight > 0 && sessionBest.weight > prevBest) {
@@ -2200,7 +2215,7 @@ function HomePage() {
   };
 
   const logSet = (eid: string, sn: number, w: string, r: string, dropNum?: number) => {
-    const key = dropNum ? `${eid}-${sn}-d${dropNum}` : `${eid}-${sn}`;
+    const key = typeof dropNum === "number" && dropNum > 0 ? `${eid}-${sn}-d${dropNum}` : `${eid}-${sn}`;
     const newLog = { ...log, [key]: { weight: parseFloat(w) || 0, reps: parseInt(r) || 0 } };
     setLog(newLog);
     try {
@@ -2217,18 +2232,21 @@ function HomePage() {
   };
   const lastSessionBest = (eid: string) => {
     if (!activeDay) return { weight: 0, reps: 0 };
-    const sessions = history[activeDay.id] || [];
-    if (!sessions.length) return { weight: 0, reps: 0 };
-    const recent = sessions[0];
-    let w = 0, r = 0;
-    const sets = recent.sets as Record<string, { weight: number; reps: number }>;
-    for (const sk in sets) {
-      if (sk.startsWith(eid + "-")) {
-        if (sets[sk].weight > w) w = sets[sk].weight;
-        if (sets[sk].reps > r) r = sets[sk].reps;
+    // Find the most recent session that actually contains this exercise.
+    // Look across all logged days, not just activeDay.id, so duplicate
+    // exercises in multiple plan days carry their history.
+    const allSessions = Object.values(history).flat().sort((a: any, b: any) => (b.date + b.time).localeCompare(a.date + a.time));
+    for (const s of allSessions) {
+      const sets = (s as any).sets as Record<string, { weight: number; reps: number }>;
+      let best: { weight: number; reps: number } | null = null;
+      for (const sk in sets) {
+        if (parseSetKey(sk).eid !== eid) continue;
+        const v = sets[sk];
+        if (!best || v.weight > best.weight || (v.weight === best.weight && v.reps > best.reps)) best = v;
       }
+      if (best) return best;
     }
-    return { weight: w, reps: r };
+    return { weight: 0, reps: 0 };
   };
 
   const overall = useMemo(() => getOverallStats(history), [history]);
@@ -3886,9 +3904,7 @@ function HomePage() {
                 // Group sets by exerciseId
                 const byExercise: Record<string, { name: string; sets: { setNum: string; weight: number; reps: number }[] }> = {};
                 for (const [k, v] of Object.entries(rawSets)) {
-                  const parts = k.split("-");
-                  const setNum = parts.pop()!;
-                  const eid = parts.join("-");
+                  const { eid, setNum } = parseSetKey(k);
                   if (!byExercise[eid]) byExercise[eid] = { name: exNameMap[eid] ?? eid, sets: [] };
                   byExercise[eid].sets.push({ setNum, weight: v.weight, reps: v.reps });
                 }
@@ -4805,7 +4821,8 @@ function HomePage() {
               const tier = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length);
               const tierIdx = CLIENT_TIERS.findIndex(t => t.label === tier.label);
               const next = CLIENT_TIERS[tierIdx + 1];
-              const progress = next ? Math.min(1, overall.totalSessions / next.min) : 1;
+              const curMin = CLIENT_TIERS[tierIdx].min;
+              const progress = next ? Math.min(1, Math.max(0, (overall.totalSessions - curMin) / (next.min - curMin))) : 1;
               return (
                 <div style={{ position: "relative", background: "linear-gradient(135deg, rgba(240,192,64,0.10), rgba(225,112,85,0.04) 60%, rgba(240,192,64,0.02))", border: "1px solid rgba(240,192,64,0.22)", borderRadius: 16, padding: "18px 20px", marginBottom: 14, display: "flex", alignItems: "center", gap: 18, overflow: "hidden", boxShadow: "0 4px 24px -8px rgba(240,192,64,0.18), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
                   <div aria-hidden className="tier-shine" />
@@ -4814,7 +4831,7 @@ function HomePage() {
                   <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
                       <div style={{ fontSize: 17, fontWeight: 800, color: "#f0c040", letterSpacing: 0.3 }}>{tier.label}</div>
-                      {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{overall.totalSessions}/{next.min}</div>}
+                      {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{Math.max(0, overall.totalSessions - curMin)}/{next.min - curMin}</div>}
                     </div>
                     <div style={{ height: 5, background: "rgba(240,192,64,0.10)", borderRadius: 3, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)" }}>
                       <div className="bar-grow" style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #f0c040, #e17055)", borderRadius: 3, boxShadow: "0 0 12px rgba(240,192,64,0.55)" }} />
@@ -4926,7 +4943,7 @@ function HomePage() {
                     const rawSets = (session.sets ?? {}) as Record<string, { weight: number; reps: number }>;
                     const byEx: Record<string, { name: string; sets: { sn: string; weight: number; reps: number }[] }> = {};
                     for (const [k, v] of Object.entries(rawSets)) {
-                      const parts = k.split("-"); const sn = parts.pop()!; const eid = parts.join("-");
+                      const { eid, setNum: sn } = parseSetKey(k);
                       if (!byEx[eid]) byEx[eid] = { name: findExName(eid), sets: [] };
                       byEx[eid].sets.push({ sn, weight: v.weight, reps: v.reps });
                     }
@@ -5104,7 +5121,7 @@ function HomePage() {
                       {(() => {
                         const byEx: Record<string, { name: string; sets: { sn: string; w: number; r: number }[] }> = {};
                         for (const [k, v] of Object.entries(s.sets as Record<string, { weight: number; reps: number }>)) {
-                          const parts = k.split("-"); const sn = parts.pop()!; const eid = parts.join("-");
+                          const { eid, setNum: sn } = parseSetKey(k);
                           if (!byEx[eid]) byEx[eid] = { name: findExName(eid), sets: [] };
                           byEx[eid].sets.push({ sn, w: v.weight, r: v.reps });
                         }
@@ -5435,11 +5452,15 @@ function HomePage() {
                 <button onClick={() => setEditEx(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
               </div>
               <div style={{ flex: 1, overflowY: "auto" }}>
-                {Object.entries(editSets).sort(([a], [b]) => parseInt(a.split("-").pop()!) - parseInt(b.split("-").pop()!)).map(([k, v]) => {
-                  const sn = k.split("-").pop();
+                {Object.entries(editSets).sort(([a], [b]) => {
+                  const pa = parseSetKey(a), pb = parseSetKey(b);
+                  const da = parseInt(pa.setNum) || 0, db = parseInt(pb.setNum) || 0;
+                  return da !== db ? da - db : (pa.dropNum ?? 0) - (pb.dropNum ?? 0);
+                }).map(([k, v]) => {
+                  const { setNum: sn, dropNum } = parseSetKey(k);
                   return (
                     <div key={k} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px", marginBottom: 8 }}>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 12, fontFamily: "'Space Mono', monospace" }}>SET {sn}</div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 12, fontFamily: "'Space Mono', monospace" }}>SET {sn}{dropNum ? ` · DROP ${dropNum}` : ""}</div>
                       <div style={{ display: "flex", gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>WEIGHT (kg)</div>
@@ -5648,7 +5669,8 @@ function HomePage() {
                 const normName = (n: string) => n.toLowerCase().replace(/[^a-z]/g, "").replace(/s$/, "");
                 const exLibData = (EXERCISES as any[]).find((e: any) => e.id === ex.id || normName(e.name) === normName(ex.name));
                 const BW_EQUIP = ["bodyweight", "pullup_bar", "dip_bar"];
-                const isBW = exLibData ? exLibData.equipment?.every((eq: string) => BW_EQUIP.includes(eq)) : false;
+                const isBW = exLibData && Array.isArray(exLibData.equipment) && exLibData.equipment.length > 0
+                  && exLibData.equipment.every((eq: string) => BW_EQUIP.includes(eq));
                 const activeBW = isBW || manualBW;
                 const trackable = ex.trackable !== false;
                 const done = doneCount(ex.id, ex.sets);
@@ -5841,7 +5863,7 @@ function HomePage() {
                         <button
                           onClick={() => {
                             const w = parseFloat(effectiveWeight) || 0;
-                            const { weight: prevBest } = lastSessionBest(ex.id);
+                            const prevBest = overall.exercisePRs[ex.id]?.weight ?? 0;
                             handleLog();
                             setLogFlashId(ex.id);
                             setTimeout(() => setLogFlashId(null), 420);

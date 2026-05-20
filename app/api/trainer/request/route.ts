@@ -91,6 +91,12 @@ export async function PATCH(req: NextRequest) {
     if (request.status !== "pending") return json({ error: "Request already resolved" }, 400);
 
     if (action === "accept") {
+      // Reverify the requesting trainer is still a trainer (could have been demoted)
+      const trainer = await prisma.user.findUnique({ where: { id: request.trainerId }, select: { role: true } });
+      if (!trainer || trainer.role !== "trainer") {
+        await prisma.trainerRequest.update({ where: { id: requestId }, data: { status: "declined" } });
+        return json({ error: "Trainer no longer available" }, 410);
+      }
       await prisma.$transaction([
         prisma.trainerClient.create({ data: { trainerId: request.trainerId, clientId: uid } }),
         prisma.trainerRequest.update({ where: { id: requestId }, data: { status: "accepted" } }),
