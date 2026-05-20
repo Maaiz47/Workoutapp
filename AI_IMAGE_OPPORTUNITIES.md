@@ -265,7 +265,13 @@ Photoreal silhouette of a generic athlete in a neutral standing setup position, 
 ```
 Photoreal anatomical close-up: lit musculature on pure black background, single crimson rim light highlighting the muscle group in focus, the rest of the body dissolves into shadow. Consistent style across the set, no face, no skin blemishes, no text, no labels. Square 1:1 composition (1024x1024).
 
-Muscle group: <chest | upper back / lats | shoulders / deltoids | arms / biceps + triceps | legs / quads + hamstrings | core / abs>
+Muscle group: <chest | upper back / lats | shoulders / deltoids | arms / biceps + triceps | legs (see special leg prompt below — content filters reject thigh framing) | core / abs>
+
+**Note on the Legs entry:** ChatGPT's content filter rejects close-up upper-thigh framing even when the intent is clearly anatomical. Use this clothed-knee-down prompt instead:
+
+```
+Photoreal anatomical close-up on a SOLID DEEP MATTE BLACK BACKGROUND. Cinematic studio lighting with a single crimson rim light from camera-right highlighting an athlete's lower body — wearing dark athletic shorts that end above the knee. Quad sweep visible just below the hem of the shorts (vastus lateralis and the VMO teardrop above the knee), calf head defined further down. Framing from the bottom of the shorts down to mid-shin, three-quarter angle. Everything outside the lit muscle dissolves into deep shadow. No skin blemishes. Sweat highlights catch the rim light subtly. No text, no labels, no logos. Square 1:1 (1024x1024).
+```
 ```
 
 ---
