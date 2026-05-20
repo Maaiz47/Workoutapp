@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IronLog QA Checklist</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #09090f;
+      --surface: #111118;
+      --card: #16161f;
+      --border: rgba(255,255,255,0.07);
+      --text: rgba(255,255,255,0.55);
+      --text-dim: rgba(255,255,255,0.28);
+      --red: #FF6B6B;
+      --teal: #4ECDC4;
+      --yellow: #fdcb6e;
+      --pass: #4ECDC4;
+      --fail: #FF6B6B;
+      --skip: rgba(255,255,255,0.25);
+    }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: #fff;
+      min-height: 100vh;
+      padding: 0 0 80px;
+    }
+
+    /* ── Header ── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(9,9,15,0.92);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .header-logo {
+      font-family: 'Space Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      flex-shrink: 0;
+    }
+    .header-logo span { color: var(--red); }
+    .header-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .progress-pill {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+    .progress-pill span { color: var(--teal); }
+    .btn {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-teal { background: rgba(78,205,196,0.15); color: var(--teal); border: 1px solid rgba(78,205,196,0.3); }
+    .btn-red  { background: rgba(255,107,107,0.12); color: var(--red);  border: 1px solid rgba(255,107,107,0.25); }
+
+    /* ── Layout ── */
+    .container { max-width: 780px; margin: 0 auto; padding: 32px 20px 0; }
+
+    .intro {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 24px;
+      margin-bottom: 32px;
+    }
+    .intro h1 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .intro p  { font-size: 13px; color: var(--text); line-height: 1.7; }
+    .intro p + p { margin-top: 6px; }
+
+    /* ── Section ── */
+    .section { margin-bottom: 28px; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .section-tag {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 3px;
+      font-weight: 700;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+    .section-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .section-desc {
+      font-size: 12px;
+      color: var(--text);
+      margin-bottom: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── Step card ── */
+    .step {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 8px;
+      transition: border-color 0.2s;
+    }
+    .step.is-pass { border-color: rgba(78,205,196,0.3); }
+    .step.is-fail { border-color: rgba(255,107,107,0.35); }
+    .step.is-skip { border-color: rgba(255,255,255,0.12); }
+
+    .step-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .step-num {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      padding-top: 2px;
+      flex-shrink: 0;
+      min-width: 30px;
+    }
+    .step-body { flex: 1; }
+    .step-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+    .step-instruction {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .step-instruction code {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: var(--teal);
+    }
+
+    /* Status pills */
+    .step-status {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .status-btn {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      background: rgba(255,255,255,0.04);
+      color: var(--text-dim);
+      transition: all 0.15s;
+    }
+    .status-btn:hover { opacity: 0.8; }
+    .status-btn.active-pass { background: rgba(78,205,196,0.18);  border-color: rgba(78,205,196,0.45);  color: var(--teal); }
+    .status-btn.active-fail { background: rgba(255,107,107,0.18); border-color: rgba(255,107,107,0.45); color: var(--red); }
+    .status-btn.active-skip { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); color: rgba(255,255,255,0.5); }
+
+    /* Notes textarea */
+    .step-notes {
+      width: 100%;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 12px;
+      font-family: 'DM Sans', sans-serif;
+      padding: 9px 12px;
+      resize: vertical;
+      min-height: 36px;
+      outline: none;
+      line-height: 1.5;
+      transition: border-color 0.2s;
+    }
+    .step-notes:focus { border-color: rgba(255,255,255,0.18); }
+    .step-notes::placeholder { color: var(--text-dim); }
+
+    /* ── Output modal ── */
+    #output-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #output-overlay.open { display: flex; }
+    .output-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 640px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .output-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .output-header h2 { font-size: 14px; font-weight: 700; }
+    .output-header p  { font-size: 11px; color: var(--text); margin-top: 2px; }
+    .output-close {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 6px 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    #output-text {
+      flex: 1;
+      overflow-y: auto;
+      margin: 16px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.75);
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      line-height: 1.7;
+      padding: 14px;
+      white-space: pre-wrap;
+      resize: none;
+      outline: none;
+    }
+    .output-footer {
+      padding: 0 16px 16px;
+      display: flex;
+      gap: 8px;
+    }
+    .btn-copy {
+      flex: 1;
+      padding: 11px;
+      background: linear-gradient(135deg, rgba(78,205,196,0.2), rgba(78,205,196,0.08));
+      border: 1px solid rgba(78,205,196,0.35);
+      border-radius: 10px;
+      color: var(--teal);
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      cursor: pointer;
+    }
+    .btn-copy:active { opacity: 0.7; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-logo">IRON<span>LOG</span></div>
+  <div class="header-right">
+    <div class="progress-pill" id="progress-pill">0 / <span id="total-count">0</span> done</div>
+    <button class="btn btn-teal" onclick="generateReport()">GENERATE REPORT</button>
+    <button class="btn btn-red"  onclick="clearAll()">RESET</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="intro">
+    <h1>IronLog QA Checklist</h1>
+    <p>Work through each section on a real device at <strong>ironlogmv.vercel.app</strong>. For every step, mark it <strong style="color:#4ECDC4">PASS</strong>, <strong style="color:#FF6B6B">FAIL</strong>, or <strong style="color:rgba(255,255,255,0.5)">SKIP</strong> (not applicable), and leave notes for anything that looks wrong or needs attention.</p>
+    <p>When done, hit <strong>GENERATE REPORT</strong> and paste the output back to Claude for review.</p>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       SECTION 1 · SPLASH & ONBOARDING
+  ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-tag">01</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-title">Splash Screen</div>
+    <div class="section-desc">Hard-refresh the app (or clear site data) to see the full splash sequence from scratch.</div>
+
+    <div class="step" id="s-1-1">
+      <div class="step-top">
+        <div class="step-num">1.1</div>
+        <div class="step-body">
+          <div class="step-title">Barbell animation</div>
+          <div class="step-instruction">The barbell bar slides in from the centre, then the plates fly on from off-screen. Big inner plate should land first, smaller outer plate on top.</div>
+        </div>
+      </div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-1-1','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-1-1','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-1-1','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-1-2">
+      <div class="step-top">
+        <div class="step-num">1.2</div>
+        <div class="step-body">
+          <div class="step-title">IRONLOG wordmark impact</div>
+          <div class="step-instruction">Text drops in, shockwave rings fire outward from the centre, floor beam streaks beneath it.</div>
+        </div>
+      </div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-1-2','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-1-2','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-1-2','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-1-3">
+      <div class="step-top">
+        <div class="step-num">1.3</div>
+        <div class="step-body">
+          <div class="step-title">Background &amp; loading bar</div>
+          <div class="step-instruction">The gym image should be visible but very dark behind everything. Shimmer loading bar shows at the bottom. No clutter or overlapping elements.</div>
+        </div>
+      </div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-1-3','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-1-3','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-1-3','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       SECTION 2 · AUTHENTICATION
+  ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-tag">02</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-title">Authentication</div>
+    <div class="section-desc">Test both tabs on the landing page. Use a test account or create a new one.</div>
+
+    <div class="step" id="s-2-1">
+      <div class="step-top"><div class="step-num">2.1</div><div class="step-body">
+        <div class="step-title">Landing page — Athlete tab</div>
+        <div class="step-instruction">Four athlete feature cards visible. Tagline and motivational phrase animate in. "No subscription. No ads." text visible below the input.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-2-1','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-2-1','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-2-1','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-2-2">
+      <div class="step-top"><div class="step-num">2.2</div><div class="step-body">
+        <div class="step-title">Landing page — Trainer tab</div>
+        <div class="step-instruction">Four trainer feature cards visible. No dollar price shown anywhere. CTA says "Get in touch" or similar — not a specific price.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-2-2','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-2-2','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-2-2','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-2-3">
+      <div class="step-top"><div class="step-num">2.3</div><div class="step-body">
+        <div class="step-title">Login — existing user</div>
+        <div class="step-instruction">Enter an existing username → password screen appears → login succeeds and lands on home.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-2-3','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-2-3','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-2-3','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-2-4">
+      <div class="step-top"><div class="step-num">2.4</div><div class="step-body">
+        <div class="step-title">Register — new user</div>
+        <div class="step-instruction">Enter a new username → prompted to create account → fill email + password → account created → lands on onboarding.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-2-4','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-2-4','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-2-4','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-2-5">
+      <div class="step-top"><div class="step-num">2.5</div><div class="step-body">
+        <div class="step-title">Wrong password error</div>
+        <div class="step-instruction">Enter correct username, wrong password → clear error message shown, no crash.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-2-5','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-2-5','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-2-5','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       SECTION 3 · HOME SCREEN
+  ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-tag">03</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-title">Home Screen</div>
+    <div class="section-desc">Logged in as an athlete. Check the hero section and day cards.</div>
+
+    <div class="step" id="s-3-1">
+      <div class="step-top"><div class="step-num">3.1</div><div class="step-body">
+        <div class="step-title">Hero image &amp; text overlay</div>
+        <div class="step-instruction">Gym/barbell image fills the hero area. "LIFT · TRACK · PROGRESS" and a motivational phrase overlay it at a readable size (they should feel prominent, not tiny).</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-3-1','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-3-1','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-3-1','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-3-2">
+      <div class="step-top"><div class="step-num">3.2</div><div class="step-body">
+        <div class="step-title">Profile button overlay</div>
+        <div class="step-instruction">Profile button sits inside the hero image (glass blur, no solid background behind it). Scrolling down fades it out.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-3-2','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-3-2','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-3-2','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-3-3">
+      <div class="step-top"><div class="step-num">3.3</div><div class="step-body">
+        <div class="step-title">Day cards layout</div>
+        <div class="step-instruction">If plan has 4+ days → 2-column grid. Fewer than 4 days → single column. Each card shows the AI workout image.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-3-3','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-3-3','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-3-3','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-3-4">
+      <div class="step-top"><div class="step-num">3.4</div><div class="step-body">
+        <div class="step-title">Scroll parallax &amp; 3D effects</div>
+        <div class="step-instruction">Hero image moves slightly slower than scroll (parallax). Day cards animate in with a subtle 3D entrance effect.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-3-4','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-3-4','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-3-4','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-3-5">
+      <div class="step-top"><div class="step-num">3.5</div><div class="step-body">
+        <div class="step-title">Motivational phrase rotates</div>
+        <div class="step-instruction">Wait ~6 seconds — the phrase should crossfade to a new one. Check it happens smoothly with no flash.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-3-5','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-3-5','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-3-5','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       SECTION 4 · WORKOUT SESSION
+  ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-tag">04</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-title">Workout Session</div>
+    <div class="section-desc">Tap a day card to start a session. Go through at least one exercise fully.</div>
+
+    <div class="step" id="s-4-1">
+      <div class="step-top"><div class="step-num">4.1</div><div class="step-body">
+        <div class="step-title">Start session</div>
+        <div class="step-instruction">Tapping a day card opens the session view. Exercise list loads. Other day cards lock (greyed out).</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-4-1','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-4-1','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-4-1','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-4-2">
+      <div class="step-top"><div class="step-num">4.2</div><div class="step-body">
+        <div class="step-title">Log a set</div>
+        <div class="step-instruction">Enter weight and reps for a set and tap the log button. Set saves and shows in history below. Rest timer starts automatically.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-4-2','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-4-2','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-4-2','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-4-3">
+      <div class="step-top"><div class="step-num">4.3</div><div class="step-body">
+        <div class="step-title">Personal best detection</div>
+        <div class="step-instruction">Log a weight heavier than any previous set for that exercise — a PB indicator should appear.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-4-3','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-4-3','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-4-3','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-4-4">
+      <div class="step-top"><div class="step-num">4.4</div><div class="step-body">
+        <div class="step-title">Add exercise from browser</div>
+        <div class="step-instruction">Tap add exercise → browser opens → search for an exercise → tap to add it to the session.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-4-4','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-4-4','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-4-4','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-4-5">
+      <div class="step-top"><div class="step-num">4.5</div><div class="step-body">
+        <div class="step-title">Finish session</div>
+        <div class="step-instruction">Complete session → summary screen shows sets logged, volume, duration. Session is saved and appears in history.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-4-5','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-4-5','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-4-5','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       SECTION 5 · CUSTOM PLAN
+  ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-tag">05</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-title">Custom Plan</div>
+    <div class="section-desc">Test plan generation and customisation from the home screen.</div>
+
+    <div class="step" id="s-5-1">
+      <div class="step-top"><div class="step-num">5.1</div><div class="step-body">
+        <div class="step-title">Generate plan via onboarding</div>
+        <div class="step-instruction">If no plan yet — onboarding runs, asks about goals/equipment/days → plan generates and replaces the default split on home screen.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-5-1','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-5-1','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-5-1','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-5-2">
+      <div class="step-top"><div class="step-num">5.2</div><div class="step-body">
+        <div class="step-title">Customise a day</div>
+        <div class="step-instruction">Tap CUSTOMISE → select a day → modify exercises → save. Changes persist on home screen.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-5-2','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-5-2','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-5-2','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-5-3">
+      <div class="step-top"><div class="step-num">5.3</div><div class="step-body">
+        <div class="step-title">Regenerate plan</div>
+        <div class="step-instruction">Tap regenerate (if available) → new plan generates with different exercise selection. Old plan replaced.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-5-3','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-5-3','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-5-3','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       SECTION 6 · PROFILE & PROGRESS
+  ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-tag">06</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-title">Profile &amp; Progress</div>
+    <div class="section-desc">Tap the profile button on the home hero to access profile/settings.</div>
+
+    <div class="step" id="s-6-1">
+      <div class="step-top"><div class="step-num">6.1</div><div class="step-body">
+        <div class="step-title">Profile opens</div>
+        <div class="step-instruction">Tapping the profile button opens the full profile view with username, avatar, XP/streak stats, and tier badge.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-6-1','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-6-1','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-6-1','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-6-2">
+      <div class="step-top"><div class="step-num">6.2</div><div class="step-body">
+        <div class="step-title">Client tier badge</div>
+        <div class="step-instruction">Tier badge shows the right animal emoji + tier name. Colour matches the tier (each tier has a distinct colour — Kitten=grey, Monkey=purple, Fox=orange, Tiger=yellow, Lion=orange-gold, Gorilla=red).</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-6-2','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-6-2','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-6-2','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-6-3">
+      <div class="step-top"><div class="step-num">6.3</div><div class="step-body">
+        <div class="step-title">View Progress</div>
+        <div class="step-instruction">Progress section loads charts — strength trends, streaks, body metrics. No blank screens or errors.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-6-3','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-6-3','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-6-3','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-6-4">
+      <div class="step-top"><div class="step-num">6.4</div><div class="step-body">
+        <div class="step-title">Body metrics — log an entry</div>
+        <div class="step-instruction">Add a body weight entry → it saves and appears in the chart. Check the graph updates.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-6-4','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-6-4','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-6-4','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-6-5">
+      <div class="step-top"><div class="step-num">6.5</div><div class="step-body">
+        <div class="step-title">Settings — HIIT preferences save</div>
+        <div class="step-instruction">Change HIIT settings → tap SAVE HIIT SETTINGS → reload page → settings still show the saved values.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-6-5','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-6-5','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-6-5','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-6-6">
+      <div class="step-top"><div class="step-num">6.6</div><div class="step-body">
+        <div class="step-title">Trainer upgrade — no price shown</div>
+        <div class="step-instruction">In Settings, the "BECOME A TRAINER" card should have no dollar amount. Should say something like "Get in touch" or "request upgrade" without a specific price.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-6-6','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-6-6','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-6-6','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       SECTION 7 · MESSAGES
+  ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-tag">07</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-title">Messages</div>
+    <div class="section-desc">Requires at least one conversation thread (trainer↔client relationship needed).</div>
+
+    <div class="step" id="s-7-1">
+      <div class="step-top"><div class="step-num">7.1</div><div class="step-body">
+        <div class="step-title">Inbox loads</div>
+        <div class="step-instruction">Messages section opens and shows conversation list. No infinite spinner.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-7-1','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-7-1','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-7-1','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-7-2">
+      <div class="step-top"><div class="step-num">7.2</div><div class="step-body">
+        <div class="step-title">Send a message</div>
+        <div class="step-instruction">Open a thread → type a message → send. Message appears in the thread immediately with a sent indicator.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-7-2','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-7-2','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-7-2','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-7-3">
+      <div class="step-top"><div class="step-num">7.3</div><div class="step-body">
+        <div class="step-title">Read receipts</div>
+        <div class="step-instruction">When the other party reads a message, the receipt indicator updates (sent → delivered → read).</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-7-3','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-7-3','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-7-3','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       SECTION 8 · TRAINER FEATURES
+  ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-tag">08</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-title">Trainer Features</div>
+    <div class="section-desc">Log in as a trainer account for this section.</div>
+
+    <div class="step" id="s-8-1">
+      <div class="step-top"><div class="step-num">8.1</div><div class="step-body">
+        <div class="step-title">Trainer badge</div>
+        <div class="step-instruction">Profile shows trainer tier badge in format: <code>🎯 COACH · TRAINER</code> (tier name first, then TRAINER). Colour matches the tier.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-8-1','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-8-1','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-8-1','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-8-2">
+      <div class="step-top"><div class="step-num">8.2</div><div class="step-body">
+        <div class="step-title">Search for a client</div>
+        <div class="step-instruction">Use the search bar on home → type a username → results appear → tap to view their profile.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-8-2','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-8-2','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-8-2','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-8-3">
+      <div class="step-top"><div class="step-num">8.3</div><div class="step-body">
+        <div class="step-title">Client roster loads</div>
+        <div class="step-instruction">Client list shows all adopted clients with their names, tier badge, last session, and streak.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-8-3','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-8-3','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-8-3','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-8-4">
+      <div class="step-top"><div class="step-num">8.4</div><div class="step-body">
+        <div class="step-title">View client detail</div>
+        <div class="step-instruction">Tap a client → their session history loads, stats visible, full workout log accessible.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-8-4','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-8-4','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-8-4','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-8-5">
+      <div class="step-top"><div class="step-num">8.5</div><div class="step-body">
+        <div class="step-title">Build &amp; propose a plan</div>
+        <div class="step-instruction">In client detail → Edit Plan → generate or customise → Propose to Client. Client sees it as a proposal in their inbox.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-8-5','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-8-5','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-8-5','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-8-6">
+      <div class="step-top"><div class="step-num">8.6</div><div class="step-body">
+        <div class="step-title">Client leaderboard</div>
+        <div class="step-instruction">Client Leaderboard section loads and ranks clients by intensity points. Tap expand to see the ranking.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-8-6','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-8-6','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-8-6','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       SECTION 9 · LEADERBOARD GROUPS
+  ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-tag">09</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-title">Leaderboard Groups</div>
+    <div class="section-desc">Create and manage a cross-trainer leaderboard group.</div>
+
+    <div class="step" id="s-9-1">
+      <div class="step-top"><div class="step-num">9.1</div><div class="step-body">
+        <div class="step-title">Create a new group</div>
+        <div class="step-instruction">Tap + NEW GROUP → enter name → choose public/private → create. New group appears in the list immediately.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-9-1','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-9-1','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-9-1','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-9-2">
+      <div class="step-top"><div class="step-num">9.2</div><div class="step-body">
+        <div class="step-title">Add a client to the group</div>
+        <div class="step-instruction">Expand a group → tap a client row under CLIENTS IN GROUP — it should toggle the checkmark and the change should persist (client added/removed from group).</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-9-2','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-9-2','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-9-2','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-9-3">
+      <div class="step-top"><div class="step-num">9.3</div><div class="step-body">
+        <div class="step-title">Include me in ranking toggle</div>
+        <div class="step-instruction">Toggle "Include me in ranking" → state saves. Reopen the group panel — toggle reflects saved state.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-9-3','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-9-3','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-9-3','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-9-4">
+      <div class="step-top"><div class="step-num">9.4</div><div class="step-body">
+        <div class="step-title">Invite another trainer</div>
+        <div class="step-instruction">Search for a trainer username → FIND → result appears → tap INVITE. The trainer shows as "INVITED".</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-9-4','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-9-4','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-9-4','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-9-5">
+      <div class="step-top"><div class="step-num">9.5</div><div class="step-body">
+        <div class="step-title">Delete group</div>
+        <div class="step-instruction">Tap DELETE GROUP → confirm prompt → group disappears from list. Only group creator should see this button.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-9-5','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-9-5','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-9-5','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       SECTION 10 · NOTIFICATIONS & PWA
+  ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-tag">10</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-title">Notifications &amp; PWA</div>
+    <div class="section-desc">Best tested on mobile (add to home screen first on iOS).</div>
+
+    <div class="step" id="s-10-1">
+      <div class="step-top"><div class="step-num">10.1</div><div class="step-body">
+        <div class="step-title">Push notification enable</div>
+        <div class="step-instruction">In Settings → Notifications → tap ENABLE → browser prompts for permission → grant it → status changes to ✓ ENABLED.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-10-1','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-10-1','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-10-1','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-10-2">
+      <div class="step-top"><div class="step-num">10.2</div><div class="step-body">
+        <div class="step-title">Test notification fires</div>
+        <div class="step-instruction">Tap SEND TEST NOTIFICATION → a push notification arrives on device within a few seconds.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-10-2','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-10-2','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-10-2','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-10-3">
+      <div class="step-top"><div class="step-num">10.3</div><div class="step-body">
+        <div class="step-title">App installs to home screen</div>
+        <div class="step-instruction">On iOS: Share → Add to Home Screen. On Android: browser install prompt. App opens full-screen with no browser UI.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-10-3','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-10-3','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-10-3','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       SECTION 11 · GENERAL NOTES
+  ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-tag">11</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-title">General Observations</div>
+    <div class="section-desc">Anything that doesn't fit a specific step — performance, visual polish, missing features, ideas.</div>
+
+    <div class="step" id="s-11-1">
+      <div class="step-top"><div class="step-num">11.1</div><div class="step-body">
+        <div class="step-title">Performance &amp; load speed</div>
+        <div class="step-instruction">Any screens that feel slow, laggy, or take more than ~2s to load?</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-11-1','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-11-1','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-11-1','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-11-2">
+      <div class="step-top"><div class="step-num">11.2</div><div class="step-body">
+        <div class="step-title">Visual issues</div>
+        <div class="step-instruction">Any elements that look broken, misaligned, overflow the screen, or have wrong colours?</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-11-2','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-11-2','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-11-2','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+
+    <div class="step" id="s-11-3">
+      <div class="step-top"><div class="step-num">11.3</div><div class="step-body">
+        <div class="step-title">Anything else</div>
+        <div class="step-instruction">Feature requests, UX frustrations, things that felt confusing or are missing.</div>
+      </div></div>
+      <div class="step-status">
+        <button class="status-btn" onclick="setStatus('s-11-3','pass')">✓ PASS</button>
+        <button class="status-btn" onclick="setStatus('s-11-3','fail')">✗ FAIL</button>
+        <button class="status-btn" onclick="setStatus('s-11-3','skip')">— SKIP</button>
+      </div>
+      <textarea class="step-notes" placeholder="Notes…" oninput="save()"></textarea>
+    </div>
+  </div>
+
+</div>
+
+<!-- Output modal -->
+<div id="output-overlay">
+  <div class="output-modal">
+    <div class="output-header">
+      <div>
+        <h2>QA Report</h2>
+        <p>Copy this and paste it back to Claude for review.</p>
+      </div>
+      <button class="output-close" onclick="closeReport()">✕ Close</button>
+    </div>
+    <textarea id="output-text" readonly></textarea>
+    <div class="output-footer">
+      <button class="btn-copy" onclick="copyReport()">COPY TO CLIPBOARD</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Data ──────────────────────────────────────────────────────────────
+  const ALL_STEPS = [
+    's-1-1','s-1-2','s-1-3',
+    's-2-1','s-2-2','s-2-3','s-2-4','s-2-5',
+    's-3-1','s-3-2','s-3-3','s-3-4','s-3-5',
+    's-4-1','s-4-2','s-4-3','s-4-4','s-4-5',
+    's-5-1','s-5-2','s-5-3',
+    's-6-1','s-6-2','s-6-3','s-6-4','s-6-5','s-6-6',
+    's-7-1','s-7-2','s-7-3',
+    's-8-1','s-8-2','s-8-3','s-8-4','s-8-5','s-8-6',
+    's-9-1','s-9-2','s-9-3','s-9-4','s-9-5',
+    's-10-1','s-10-2','s-10-3',
+    's-11-1','s-11-2','s-11-3',
+  ];
+
+  const SECTION_NAMES = {
+    '1': 'Splash Screen', '2': 'Authentication', '3': 'Home Screen',
+    '4': 'Workout Session', '5': 'Custom Plan', '6': 'Profile & Progress',
+    '7': 'Messages', '8': 'Trainer Features', '9': 'Leaderboard Groups',
+    '10': 'Notifications & PWA', '11': 'General Observations',
+  };
+
+  const STEP_TITLES = {
+    's-1-1':'Barbell animation','s-1-2':'IRONLOG wordmark impact','s-1-3':'Background & loading bar',
+    's-2-1':'Landing — Athlete tab','s-2-2':'Landing — Trainer tab (no price)','s-2-3':'Login existing user','s-2-4':'Register new user','s-2-5':'Wrong password error',
+    's-3-1':'Hero image & text overlay','s-3-2':'Profile button overlay','s-3-3':'Day cards layout','s-3-4':'Scroll parallax & 3D','s-3-5':'Phrase rotates',
+    's-4-1':'Start session','s-4-2':'Log a set','s-4-3':'PB detection','s-4-4':'Add exercise','s-4-5':'Finish session',
+    's-5-1':'Generate plan','s-5-2':'Customise a day','s-5-3':'Regenerate plan',
+    's-6-1':'Profile opens','s-6-2':'Client tier badge','s-6-3':'View Progress','s-6-4':'Body metrics log','s-6-5':'HIIT settings save','s-6-6':'No trainer price shown',
+    's-7-1':'Inbox loads','s-7-2':'Send a message','s-7-3':'Read receipts',
+    's-8-1':'Trainer badge format','s-8-2':'Search for client','s-8-3':'Client roster','s-8-4':'Client detail','s-8-5':'Build & propose plan','s-8-6':'Client leaderboard',
+    's-9-1':'Create group','s-9-2':'Add client to group','s-9-3':'Include me toggle','s-9-4':'Invite trainer','s-9-5':'Delete group',
+    's-10-1':'Enable notifications','s-10-2':'Test notification','s-10-3':'Install to home screen',
+    's-11-1':'Performance','s-11-2':'Visual issues','s-11-3':'Anything else',
+  };
+
+  let state = {};
+
+  function loadState() {
+    try { state = JSON.parse(localStorage.getItem('ironlog-qa') || '{}'); } catch { state = {}; }
+    ALL_STEPS.forEach(id => {
+      const s = state[id];
+      if (s) {
+        if (s.status) applyStatus(id, s.status, false);
+        const ta = document.querySelector(`#${id} .step-notes`);
+        if (ta && s.notes) ta.value = s.notes;
+      }
+    });
+    updateProgress();
+  }
+
+  function save() {
+    ALL_STEPS.forEach(id => {
+      const ta = document.querySelector(`#${id} .step-notes`);
+      if (!state[id]) state[id] = {};
+      state[id].notes = ta ? ta.value : '';
+    });
+    localStorage.setItem('ironlog-qa', JSON.stringify(state));
+    updateProgress();
+  }
+
+  function setStatus(id, status) {
+    if (!state[id]) state[id] = {};
+    state[id].status = status;
+    applyStatus(id, status, true);
+    save();
+  }
+
+  function applyStatus(id, status, animate) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'step is-' + status;
+    el.querySelectorAll('.status-btn').forEach(b => {
+      b.className = 'status-btn';
+      if (b.textContent.includes('PASS') && status === 'pass') b.classList.add('active-pass');
+      if (b.textContent.includes('FAIL') && status === 'fail') b.classList.add('active-fail');
+      if (b.textContent.includes('SKIP') && status === 'skip') b.classList.add('active-skip');
+    });
+  }
+
+  function updateProgress() {
+    const done = ALL_STEPS.filter(id => state[id]?.status).length;
+    document.getElementById('total-count').textContent = ALL_STEPS.length;
+    document.getElementById('progress-pill').innerHTML =
+      `<span>${done}</span> / ${ALL_STEPS.length} done`;
+  }
+
+  function clearAll() {
+    if (!confirm('Reset all results? This cannot be undone.')) return;
+    state = {};
+    localStorage.removeItem('ironlog-qa');
+    ALL_STEPS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.className = 'step';
+        el.querySelectorAll('.status-btn').forEach(b => b.className = 'status-btn');
+        const ta = el.querySelector('.step-notes');
+        if (ta) ta.value = '';
+      }
+    });
+    updateProgress();
+  }
+
+  function generateReport() {
+    const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const pass = ALL_STEPS.filter(id => state[id]?.status === 'pass').length;
+    const fail = ALL_STEPS.filter(id => state[id]?.status === 'fail').length;
+    const skip = ALL_STEPS.filter(id => state[id]?.status === 'skip').length;
+    const done = pass + fail + skip;
+
+    let out = `IRONLOG QA REPORT — ${date}\n`;
+    out += `${'─'.repeat(48)}\n`;
+    out += `PASS: ${pass}  FAIL: ${fail}  SKIP: ${skip}  TOTAL: ${done}/${ALL_STEPS.length}\n`;
+    out += `${'─'.repeat(48)}\n\n`;
+
+    let currentSection = '';
+    ALL_STEPS.forEach(id => {
+      const sec = id.split('-').slice(1, -1).join('-');
+      const secNum = id.split('-')[1];
+      if (sec !== currentSection) {
+        currentSection = sec;
+        out += `\n[${secNum.padStart(2,'0')}] ${SECTION_NAMES[secNum] || 'Section ' + secNum}\n`;
+        out += `${'─'.repeat(32)}\n`;
+      }
+      const s = state[id] || {};
+      const status = s.status ? s.status.toUpperCase() : 'UNTESTED';
+      const icon = status === 'PASS' ? '✓' : status === 'FAIL' ? '✗' : status === 'SKIP' ? '—' : '?';
+      const title = STEP_TITLES[id] || id;
+      out += `${icon} ${id.replace('s-','').replace(/-/g,'.')}  ${title}\n`;
+      if (s.notes?.trim()) {
+        out += `   Notes: ${s.notes.trim()}\n`;
+      }
+    });
+
+    out += `\n${'─'.repeat(48)}\n`;
+    const failItems = ALL_STEPS.filter(id => state[id]?.status === 'fail');
+    if (failItems.length) {
+      out += `\nFAILS REQUIRING ATTENTION:\n`;
+      failItems.forEach(id => {
+        const s = state[id] || {};
+        out += `  • ${id.replace('s-','').replace(/-/g,'.')}  ${STEP_TITLES[id]}\n`;
+        if (s.notes?.trim()) out += `    ${s.notes.trim()}\n`;
+      });
+    } else {
+      out += `\nNo failures recorded.\n`;
+    }
+
+    document.getElementById('output-text').value = out;
+    document.getElementById('output-overlay').classList.add('open');
+  }
+
+  function closeReport() {
+    document.getElementById('output-overlay').classList.remove('open');
+  }
+
+  function copyReport() {
+    const ta = document.getElementById('output-text');
+    ta.select();
+    try {
+      navigator.clipboard.writeText(ta.value).catch(() => document.execCommand('copy'));
+    } catch { document.execCommand('copy'); }
+    const btn = document.querySelector('.btn-copy');
+    btn.textContent = '✓ COPIED';
+    setTimeout(() => btn.textContent = 'COPY TO CLIPBOARD', 2000);
+  }
+
+  document.getElementById('output-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeReport();
+  });
+
+  loadState();
+</script>
+</body>
+</html>
