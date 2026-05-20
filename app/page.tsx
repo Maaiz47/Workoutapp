@@ -6313,12 +6313,12 @@ function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: numbe
         <div style={{ ...seg(90,  40,140,  8, 3, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
         <div style={{ ...seg(228, 37, 58, 14, 4, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
         <div style={{ ...seg(100, 41,120,  6, 2, "rgba(0,0,0,0.22)"), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
-        {/* Left plates — land on the left sleeve (x=34–90); inner plate first so outer renders on top */}
-        <div style={{ ...seg(52, 16, 13, 56, 4, pli), animation: slamL(pd + 0.06) }} />
-        <div style={{ ...seg(34,  5, 22, 76, 5, plo, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamL(pd) }} />
-        {/* Right plates — land on the right sleeve (x=228–286); inner plate first so outer renders on top */}
-        <div style={{ ...seg(255, 16, 13, 56, 4, pri), animation: slamR(pd + 0.06) }} />
-        <div style={{ ...seg(264,  5, 22, 76, 5, pro, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamR(pd) }} />
+        {/* Left plates — inner renders first so outer div sits on top */}
+        <div style={{ ...seg(66, 17, 14, 54, 4, pli), animation: slamL(pd + 0.06) }} />
+        <div style={{ ...seg(46,  5, 24, 76, 5, plo, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamL(pd) }} />
+        {/* Right plates — inner renders first so outer div sits on top */}
+        <div style={{ ...seg(240, 17, 14, 54, 4, pri), animation: slamR(pd + 0.06) }} />
+        <div style={{ ...seg(250,  5, 24, 76, 5, pro, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamR(pd) }} />
       </div>
     </div>
   );
