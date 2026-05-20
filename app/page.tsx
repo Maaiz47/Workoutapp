@@ -608,6 +608,40 @@ function WorkoutTypeIcon({ title, color, size = 62 }: { title: string; color: st
   );
 }
 
+// Maps a workout title to one of the 8 AI workout-card images, or null if the
+// title doesn't cleanly match one of the canonical splits (chest day, arms,
+// etc. fall back to the animated SVG icon).
+function workoutImageFor(title: string): string | null {
+  const t = title.toLowerCase();
+  if (t.includes("hiit"))                                 return "/ai/workout-hiit.jpg";
+  if (t.includes("cardio") || t.includes("conditio"))     return "/ai/workout-cardio.jpg";
+  if (t.startsWith("push"))                               return "/ai/workout-push.jpg";
+  if (t.startsWith("pull"))                               return "/ai/workout-pull.jpg";
+  if (t.startsWith("full"))                               return "/ai/workout-fullbody.jpg";
+  if (t.startsWith("upper"))                              return "/ai/workout-upper.jpg";
+  if (t.startsWith("lower"))                              return "/ai/workout-lower.jpg";
+  if (t.startsWith("leg"))                                return "/ai/workout-legs.jpg";
+  return null;
+}
+
+function WorkoutCardIcon({ title, color, size = 60 }: { title: string; color: string; size?: number }) {
+  const src = workoutImageFor(title);
+  if (!src) return <WorkoutTypeIcon title={title} color={color} size={size}/>;
+  return (
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      style={{
+        width: size, height: size, flexShrink: 0,
+        borderRadius: 12, objectFit: "cover",
+        boxShadow: `0 0 0 1px ${color}30, 0 4px 14px rgba(0,0,0,0.4)`,
+      }}
+    />
+  );
+}
+
 // ─── MUSCLE DIAGRAM ──────────────────────────────────────────────────────────
 function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { primary: string[]; secondary: string[]; exerciseId?: string; exerciseName?: string }) {
   // Per-exercise sub-muscle detail; otherwise fall back to broad primary/secondary muscle groups.
@@ -2389,6 +2423,7 @@ function HomePage() {
     // ── Other auth steps — centered card ─────────────────────────────
     _viewKey = `auth-${authStep}`; _content = (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32, position: "relative", overflow: "hidden" }}>
+        <img src="/ai/login-bg.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center bottom", opacity: 0.35, pointerEvents: "none", zIndex: 0 }} />
         <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
@@ -3081,7 +3116,10 @@ function HomePage() {
                         <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
                       </div>
                     ) : (
-                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No form demo available</div>
+                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", position: "relative" }}>
+                        <img src="/ai/form-fallback.jpg" alt="" style={{ width: "100%", display: "block", objectFit: "cover" }} />
+                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 0 14px", background: "linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.7))", color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>NO FORM DEMO</div>
+                      </div>
                     )}
                     {(() => {
                       const cues = getFormCues(formPreview.id, formPreview.name);
@@ -3192,11 +3230,13 @@ function HomePage() {
           >
             <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
             <motion.div
-              initial={{ rotate: -180, scale: 0, opacity: 0 }}
-              animate={{ rotate: [null, 15, -8, 4, 0], scale: [null, 1.35, 0.9, 1.1, 1], opacity: 1, filter: ["drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 24px rgba(255,215,0,0.95))", "drop-shadow(0 0 10px rgba(255,215,0,0.5))"] }}
-              transition={{ duration: 0.85, ease: "easeOut", times: [0, 0.45, 0.65, 0.82, 1], delay: 0.08 }}
-              style={{ fontSize: 36, marginBottom: 8, display: "inline-block", transformOrigin: "center" }}
-            >🏆</motion.div>
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: [null, 1.15, 0.95, 1.05, 1], opacity: 1, filter: ["drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 32px rgba(255,215,0,0.6))", "drop-shadow(0 0 10px rgba(255,215,0,0.4))"] }}
+              transition={{ duration: 0.85, ease: "easeOut", times: [0, 0.5, 0.7, 0.85, 1], delay: 0.08 }}
+              style={{ marginBottom: 8, display: "inline-block", transformOrigin: "center" }}
+            >
+              <img src="/ai/pb-celebration.png" alt="" style={{ width: 96, height: 96, display: "block" }} />
+            </motion.div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
             {newPBs.map((pb, i) => (
               <div key={i} style={{ marginBottom: 6 }}>
@@ -3309,7 +3349,7 @@ function HomePage() {
                     )}
                     {!isActive && history[d.id]?.[0] && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 10, fontFamily: "'Space Mono', monospace" }}>Last: {history[d.id][0].date} · {history[d.id][0].duration}</div>}
                   </div>
-                  <WorkoutTypeIcon title={d.title} color={d.color} size={60}/>
+                  <WorkoutCardIcon title={d.title} color={d.color} size={60}/>
                 </div>
               </div>
             </div>
@@ -3471,7 +3511,10 @@ function HomePage() {
             <div style={{ fontSize: 12, color: "#ff6b6b", textAlign: "center", padding: "12px 0", fontFamily: "'Space Mono', monospace" }}>{trainerSearchError}</div>
           )}
           {trainerHasSearched && !trainerSearching && !trainerSearchError && trainerResults.length === 0 && (
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>No users found matching "{trainerSearch}"</div>
+            <div style={{ textAlign: "center", padding: "16px 0" }}>
+              <img src="/ai/empty-search.jpg" alt="" style={{ width: 110, height: 110, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)" }}>No users found matching "{trainerSearch}"</div>
+            </div>
           )}
         </div>
       )}
@@ -3479,7 +3522,10 @@ function HomePage() {
         <div style={{ padding: "24px 20px 0" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>MY CLIENTS</div>
           {clients.length === 0 ? (
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontStyle: "italic", padding: "8px 0" }}>No accepted clients yet — send requests above</div>
+            <div style={{ textAlign: "center", padding: "16px 0" }}>
+              <img src="/ai/empty-clients.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontStyle: "italic" }}>No accepted clients yet — send requests above</div>
+            </div>
           ) : clients.map(c => (
             <div key={c.id} className="card-hover" onClick={() => openClientDetail(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
               <div>
@@ -3878,7 +3924,10 @@ function HomePage() {
           return (
             <div className="fade-in" style={{ padding: "16px 20px 0" }}>
               {flatHistory.length === 0 && (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "48px 0" }}>No workouts logged yet</div>
+                <div style={{ textAlign: "center", padding: "48px 0" }}>
+                  <img src="/ai/empty-workouts.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.6, borderRadius: 14, marginBottom: 14 }} />
+                  <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No workouts logged yet</div>
+                </div>
               )}
               {flatHistory.map((s: any, i: number) => {
                 const sessionKey = s.id ?? `${s.dayId}-${i}`;
@@ -3979,7 +4028,10 @@ function HomePage() {
         {!clientDataLoading && clientDetailTab === "profile" && (
           <div className="fade-in" style={{ padding: "16px 20px 0" }}>
             {!clientData?.profile ? (
-              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "48px 0" }}>No profile set up yet</div>
+              <div style={{ textAlign: "center", padding: "48px 0" }}>
+                <img src="/ai/empty-profile.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.6, borderRadius: 14, marginBottom: 14 }} />
+                <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No profile set up yet</div>
+              </div>
             ) : (() => {
               const p = clientData.profile;
               const age = p.dob ? Math.floor((Date.now() - new Date(p.dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25)) : null;
@@ -4088,7 +4140,10 @@ function HomePage() {
       </div>
       <div style={{ padding: "0 20px" }}>
         {conversations.length === 0 && (
-          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 60 }}>No messages yet</div>
+          <div style={{ textAlign: "center", marginTop: 60 }}>
+            <img src="/ai/empty-messages.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.55, borderRadius: 14, marginBottom: 14 }} />
+            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No messages yet</div>
+          </div>
         )}
         {conversations.map(c => {
           const lm = c.latestMessage;
@@ -4150,7 +4205,10 @@ function HomePage() {
       })()}
       <div ref={messagesContainerRef} onClick={() => setReactingToMsgId(null)} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {conversationMessages.length === 0 && (
-          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 40 }}>No messages yet</div>
+          <div style={{ textAlign: "center", marginTop: 40 }}>
+            <img src="/ai/empty-messages.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.5, borderRadius: 14, marginBottom: 12 }} />
+            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No messages yet</div>
+          </div>
         )}
         {conversationMessages.map(msg => {
           const isMine = msg.from.id === user.id;
@@ -4438,7 +4496,10 @@ function HomePage() {
                   ))}
                 </div>
               ) : (
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", marginTop: 10 }}>No profile set up yet — tap EDIT to add your details</div>
+                <div style={{ textAlign: "center", marginTop: 10 }}>
+                  <img src="/ai/empty-profile.jpg" alt="" style={{ width: 130, height: 130, opacity: 0.5, borderRadius: 14, marginBottom: 10 }} />
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>No profile set up yet — tap EDIT to add your details</div>
+                </div>
               )
             ) : (
               <div>
@@ -5408,11 +5469,13 @@ function HomePage() {
             >
               <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
               <motion.div
-                initial={{ rotate: -180, scale: 0, opacity: 0 }}
-                animate={{ rotate: [null, 15, -8, 4, 0], scale: [null, 1.35, 0.9, 1.1, 1], opacity: 1, filter: ["drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 24px rgba(255,215,0,0.95))", "drop-shadow(0 0 10px rgba(255,215,0,0.5))"] }}
-                transition={{ duration: 0.85, ease: "easeOut", times: [0, 0.45, 0.65, 0.82, 1], delay: 0.08 }}
-                style={{ fontSize: 36, marginBottom: 8, display: "inline-block", transformOrigin: "center" }}
-              >🏆</motion.div>
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: [null, 1.15, 0.95, 1.05, 1], opacity: 1, filter: ["drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 32px rgba(255,215,0,0.6))", "drop-shadow(0 0 10px rgba(255,215,0,0.4))"] }}
+                transition={{ duration: 0.85, ease: "easeOut", times: [0, 0.5, 0.7, 0.85, 1], delay: 0.08 }}
+                style={{ marginBottom: 8, display: "inline-block", transformOrigin: "center" }}
+              >
+                <img src="/ai/pb-celebration.png" alt="" style={{ width: 96, height: 96, display: "block" }} />
+              </motion.div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
               {newPBs.map((pb, i) => (
                 <div key={i} style={{ marginBottom: 6 }}>
@@ -5565,10 +5628,12 @@ function HomePage() {
                         </div>
                       </div>
                     ) : (
-                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                        <div style={{ fontSize: 32, opacity: 0.3 }}>🏋️</div>
-                        <div>No form demo available</div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.15)" }}>Search YouTube for &ldquo;{formPreview.name} form&rdquo;</div>
+                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", position: "relative" }}>
+                        <img src="/ai/form-fallback.jpg" alt="" style={{ width: "100%", display: "block", objectFit: "cover" }} />
+                        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", padding: "0 16px 14px", background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.75))", gap: 4 }}>
+                          <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>NO FORM DEMO</div>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Search YouTube for &ldquo;{formPreview.name} form&rdquo;</div>
+                        </div>
                       </div>
                     )}
                     {(() => {
