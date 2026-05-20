@@ -8,17 +8,22 @@ function isAuthorized(req: NextRequest) {
   return ADMIN_SECRET && key === ADMIN_SECRET;
 }
 
-// POST /api/qa/admin/migrate-legacy?delete=<bool>
+// POST /api/qa/admin/migrate-legacy?delete=<bool>&markProcessed=<bool>&sha=<sha>
 // Admin-gated. Reads all legacy QAReport rows, explodes each payload into
-// per-item QAComment rows (only items that have a non-empty note), then
-// optionally deletes the original QAReport rows once migrated.
+// per-item QAComment rows (only items that have a non-empty note), optionally
+// deletes the original QAReport rows, and optionally marks the freshly-created
+// QAComment rows as already-processed (use this when Claude has actioned the
+// legacy payloads directly from a pasted JSON dump — closes the loop in one call).
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const shouldDelete = req.nextUrl.searchParams.get("delete") === "true";
+  const markProcessed = req.nextUrl.searchParams.get("markProcessed") === "true";
+  const sha = req.nextUrl.searchParams.get("sha") || null;
   const reports = await (prisma as any).qAReport.findMany({ orderBy: { ts: "asc" } });
 
   let createdComments = 0;
+  const createdIds: string[] = [];
   const migratedReportIds: string[] = [];
 
   for (const r of reports) {
@@ -43,7 +48,7 @@ export async function POST(req: NextRequest) {
       const hasInterestingStatus = status !== "untested";
       if (!hasNote && !hasInterestingStatus) continue;
 
-      await (prisma as any).qAComment.create({
+      const row = await (prisma as any).qAComment.create({
         data: {
           itemId,
           tester,
@@ -51,9 +56,13 @@ export async function POST(req: NextRequest) {
           note: hasNote ? note : `(no note — status set to ${status} on legacy submit)`,
           screenshotUrl,
           ts: r.ts,
+          processed: markProcessed,
+          processedAt: markProcessed ? new Date() : null,
+          processedSha: markProcessed ? sha : null,
         },
       });
       createdComments++;
+      createdIds.push(row.id);
     }
 
     migratedReportIds.push(r.id);
@@ -68,5 +77,6 @@ export async function POST(req: NextRequest) {
     reportsProcessed: reports.length,
     commentsCreated: createdComments,
     legacyDeleted: shouldDelete ? migratedReportIds.length : 0,
+    markedProcessed: markProcessed ? createdIds.length : 0,
   });
 }

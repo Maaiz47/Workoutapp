@@ -35,10 +35,9 @@ fetch the secret from them only if it's not already in this conversation.
    the URL-paste flow is easiest.
 2. **Group comments by `itemId`**. For each item, the comments form a thread —
    read them in chronological order so the LATEST comment carries the most weight.
-3. **Reconcile statuses** in `qa-state.json`:
+3. **Reconcile statuses** in `qa-state.json` (pre-action snapshot — reflects what the tester saw):
    - Latest comment says `passing` → item's `status` = passing, `lastTested` = today.
-   - Latest comment says `failing` → item's `status` = failing, prepend the
-     comment notes (with timestamp + commit sha) to the item's `notes` field.
+   - Latest comment says `failing` → item's `status` = failing.
    - Latest comment says `regression-retest` → item's `status` = regression-retest.
    - If multiple comments say "still broken" / "actually fixed now" over time,
      trust the LATEST one — but note in the item's `notes` that the issue had
@@ -52,6 +51,26 @@ fetch the secret from them only if it's not already in this conversation.
      reason (e.g., "data model change required").
    - Cite the QA item id in commit messages so the audit trail is traceable:
      `fix(auth): show/hide eye on password fields (qa: auth-login)`.
+4a. **Re-reconcile `qa-state.json` AFTER acting** — this is the critical step
+    that closes the loop:
+   - For every item you fixed FULLY: `status` = passing, `lastTested` = today,
+     prepend a line to `notes` like:
+     `[2026-MM-DD <sha7>] Fixed: <one-line summary>.`
+   - For items you fixed PARTIALLY: `status` = regression-retest, `lastTested`
+     = today, prepend:
+     `[2026-MM-DD <sha7>] Partial: <what was done>. Still pending: <what wasn't>.`
+   - For items you DEFERRED: keep current status, prepend:
+     `[2026-MM-DD <sha7>] Deferred: <reason>. Needs: <suggested next step>.`
+   - If the user reported something not in `qa-state.json` (a brand new
+     feature area or a regression in an area we don't have an item for),
+     ADD a new item to `qa-state.json` so it's tracked from now on.
+   - If a bug fix changed the user-visible behaviour, update the item's
+     `steps` to reflect the new flow so the next manual test exercises
+     what actually exists.
+   - Areas that "improved but still need work" should land in
+     `regression-retest` with a note explaining what's still pending — that's
+     the signal to the tester that progress was made but a re-test will
+     surface more.
 5. **Update `PATCHLOG.md`** with one section per processing pass. Use this format:
    ```
    ## QA pass · 2026-MM-DD — <sha7>
