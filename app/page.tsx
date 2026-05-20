@@ -1042,6 +1042,18 @@ function lookupExMuscles(name: string): { muscles: string[]; secondaryMuscles: s
   return { muscles: found?.primaryMuscles ?? [], secondaryMuscles: found?.secondaryMuscles ?? [] };
 }
 
+const DEFAULT_REACTION_EMOJIS = ["👍","❤️","😂","😮","💪","🔥"];
+
+const EMOJI_PICKER_CATS = [
+  { icon: "😀", emojis: ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","😉","😊","😇","🥰","😍","🤩","😘","😚","😋","😜","🤪","🤑","🤗","🤔","😐","😑","😶","😏","😒","🙄","😬","😌","😔","😪","😴","🥱","😷","🤢","🤮","🥵","🥶","😵","🤯","😎","🧐","😕","🙁","☹️","😮","😯","😲","😳","🥺","😦","😢","😭","😱","😤","😡","😠","🤬","😈","👿"] },
+  { icon: "👍", emojis: ["👋","🤚","🖐️","✋","🖖","👌","✌️","🤞","🤟","🤘","🤙","👈","👉","👆","👇","☝️","👍","👎","✊","👊","🤛","🤜","👏","🙌","🤝","🙏","💪","✍️","💅"] },
+  { icon: "❤️", emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖","💘","💝","❤️‍🔥","🫂","💑","👫","👬","👭","😻"] },
+  { icon: "🌸", emojis: ["🌸","🌺","🌻","🌹","🌷","🌼","💐","🍀","🌿","🍃","🍂","🍁","🌱","🌲","🌳","🌴","🌾","🍄","🦋","🐝","🌈","⚡","🔥","💧","🌊","⭐","🌟","✨","💫","☀️","🌙","❄️","🐶","🐱","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐙","🦋"] },
+  { icon: "🍕", emojis: ["🍕","🍔","🍟","🌭","🍿","🧀","🥚","🍳","🥞","🧇","🥓","🍗","🥩","🍱","🍣","🍜","🍝","🍛","🍲","🥗","🌮","🌯","🥪","🍞","🥐","🍰","🎂","🍩","🍪","🍫","🍬","🍭","🍦","🧁","🍷","🍸","🍹","🍺","🥂","☕","🧋","🧃","🥛"] },
+  { icon: "⚽", emojis: ["⚽","🏀","🏈","⚾","🎾","🏐","🏉","🎱","🏓","🏸","🥊","🥋","🎯","🏋️","🏆","🥇","🥈","🥉","🏅","🎪","🎭","🎨","🎬","🎤","🎧","🎹","🥁","🎸","🎮","🕹️","🎲","🎁","🎉","🎊","🎀","🎈","💎","👑","✈️","🚀","🚗","🏎️"] },
+  { icon: "💯", emojis: ["💯","🔥","💥","✨","🎉","💬","💭","💤","💢","💦","💨","💫","💥","💣","❓","❗","‼️","⁉️","🔴","🟠","🟡","🟢","🔵","🟣","⚫","⚪","✅","❌","⭕","🔔","🔑","🗝️","🔒","💰","💸","📱","💻","📷","🔬","📚","✏️","📝"] },
+];
+
 // ─── MOTIVATIONAL PHRASES ───────────────────────────────────────────────
 const PHRASES = [
   "Trust the process.",
@@ -1201,6 +1213,12 @@ function HomePage() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{ id: string; body: string; username: string } | null>(null);
   const [reactingToMsgId, setReactingToMsgId] = useState<string | null>(null);
+  const [recentEmojis, setRecentEmojis] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem("ironlog-recent-emojis") || "[]"); } catch { return []; }
+  });
+  const [showFullPicker, setShowFullPicker] = useState(false);
+  const [fullPickerCat, setFullPickerCat] = useState(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [partnerLastSeen, setPartnerLastSeen] = useState<string | null>(null);
   const lastMsgCreatedAtRef = useRef<string | null>(null);
@@ -2029,6 +2047,12 @@ function HomePage() {
       };
     }));
     setReactingToMsgId(null);
+    setShowFullPicker(false);
+    setRecentEmojis(prev => {
+      const next = [emoji, ...prev.filter(e => e !== emoji)].slice(0, 5);
+      try { localStorage.setItem("ironlog-recent-emojis", JSON.stringify(next)); } catch {}
+      return next;
+    });
     await fetch("/api/reactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2281,7 +2305,7 @@ function HomePage() {
       <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ textAlign: "center", zIndex: 1 }}>
         {/* Barbell — bar first, plates slam in from sides */}
-        <BarbellMark width={300} delay={0.05} />
+        <BarbellMark width={340} delay={0.05} />
         {/* Stacked wordmark */}
         <div style={{ position: "relative", display: "inline-block", marginTop: 16 }}>
           {/* Impact glow + shockwaves timed to plate slam (~0.95s) */}
@@ -2337,19 +2361,14 @@ function HomePage() {
               <span style={{ color: "#fff" }}>IRON</span><span style={{ color: "#FF6B6B" }}>LOG</span>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <a href="/client.html" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(255,107,107,0.35)", color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>ATHLETES</a>
-              <a href="/trainer.html" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(78,205,196,0.35)", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>TRAINERS</a>
+              <a href="/client" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(255,107,107,0.35)", color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>ATHLETES</a>
+              <a href="/trainer" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(78,205,196,0.35)", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>TRAINERS</a>
             </div>
           </div>
 
           {/* Hero */}
           <div style={{ textAlign: "center", padding: "44px 32px 16px", zIndex: 1, position: "relative" }}>
-            {/* Barbell spotlight photo — fades in behind the mark */}
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.2, delay: 0.3 }}
-              style={{ position: "absolute", left: "50%", top: 0, transform: "translateX(-50%)", width: "100vw", maxWidth: 480, height: "100%", backgroundImage: "url(/hero-barbell.jpg)", backgroundSize: "cover", backgroundPosition: "center 60%", opacity: 0.13, pointerEvents: "none", zIndex: 0 }}
-            />
-            <BarbellMark width={260} delay={0.05} />
+            <BarbellMark width={300} delay={0.05} />
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -2408,12 +2427,12 @@ function HomePage() {
           <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, textAlign: "center", marginBottom: 12 }}>LEARN MORE</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <a href="/client.html" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
+              <a href="/client" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#FF6B6B", letterSpacing: 2, marginBottom: 6 }}>FOR ATHLETES</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, marginBottom: 8 }}>Free forever. Log, track, and grow stronger every session.</div>
                 <div style={{ fontSize: 10, color: "rgba(255,107,107,0.7)" }}>See all features →</div>
               </a>
-              <a href="/trainer.html" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
+              <a href="/trainer" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", letterSpacing: 2, marginBottom: 6 }}>FOR TRAINERS</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, marginBottom: 8 }}>$19/mo. Manage clients, deliver plans, track results.</div>
                 <div style={{ fontSize: 10, color: "rgba(78,205,196,0.7)" }}>Request early access →</div>
@@ -4224,7 +4243,7 @@ function HomePage() {
 
   // ─── CONVERSATION ────────────────────────────────────────────────────
   if (view === "conversation" && activeConversation) { _viewKey = `conv-${activeConversation.id}`; _content = (
-    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100dvh" }}>
+    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", height: "100dvh" }}>
       {(() => {
         const isOnline = partnerLastSeen && (Date.now() - new Date(partnerLastSeen).getTime()) < 2 * 60 * 1000;
         const lastSeenText = (() => {
@@ -4362,11 +4381,11 @@ function HomePage() {
             el.style.transform = "translateX(0)";
             if (dx > 48) setReplyingTo({ id: msg.id, body: msg.body, username: msg.from.username });
           };
-          const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "💪", "🔥"];
+          const quickEmojis = recentEmojis.length >= 1
+            ? recentEmojis.slice(0, 5)
+            : DEFAULT_REACTION_EMOJIS.slice(0, 5);
           return (
             <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", position: "relative", maxWidth: "75%" }}>
-              {/* Reply arrow — fades in as user swipes */}
-              <div style={{ position: "absolute", left: isMine ? "auto" : -28, right: isMine ? -28 : "auto", top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "rgba(78,205,196,0.7)", pointerEvents: "none" }}>↩</div>
               {/* Emoji picker — shown on long-press */}
               <AnimatePresence>
               {reactingToMsgId === msg.id && (
@@ -4377,9 +4396,13 @@ function HomePage() {
                   transition={{ duration: 0.15 }}
                   style={{ position: "absolute", bottom: "calc(100% + 6px)", [isMine ? "right" : "left"]: 0, zIndex: 20, background: "rgba(30,30,38,0.97)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "6px 10px", display: "flex", gap: 4, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
                 >
-                  {QUICK_EMOJIS.map(em => (
+                  {quickEmojis.map(em => (
                     <button key={em} onClick={() => toggleReaction(msg.id, em)} style={{ background: reactionGroups[em]?.iMine ? "rgba(78,205,196,0.18)" : "none", border: "none", borderRadius: 16, padding: "4px 5px", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>{em}</button>
                   ))}
+                  <button
+                    onClick={e => { e.stopPropagation(); setShowFullPicker(true); }}
+                    style={{ background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 16, padding: "4px 7px", fontSize: 14, cursor: "pointer", lineHeight: 1, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}
+                  >+</button>
                 </motion.div>
               )}
               </AnimatePresence>
@@ -4387,7 +4410,7 @@ function HomePage() {
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
-                style={{ background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", willChange: "transform" }}
+                style={{ background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", willChange: "transform", userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" as any }}
               >
                 {/* Quoted reply preview */}
                 {msg.replyTo && (
@@ -4451,6 +4474,37 @@ function HomePage() {
           <button onClick={sendMessage} disabled={sendingMessage || !messageText.trim()} style={{ padding: "13px 18px", background: messageText.trim() ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, color: messageText.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: messageText.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", transition: "all 0.15s" }}>SEND</button>
         </div>
       </div>
+      {/* Full emoji picker portal */}
+      {showFullPicker && reactingToMsgId && isMounted && createPortal(
+        <div
+          onClick={() => { setShowFullPicker(false); setReactingToMsgId(null); }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.55)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#17171f", borderRadius: "20px 20px 0 0", padding: "0 0 env(safe-area-inset-bottom)", maxHeight: "60vh", display: "flex", flexDirection: "column" }}
+          >
+            {/* Handle + close row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px 8px" }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto" }} />
+              <button onClick={() => { setShowFullPicker(false); setReactingToMsgId(null); }} style={{ position: "absolute", right: 16, top: 12, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            {/* Category tabs */}
+            <div style={{ display: "flex", gap: 4, padding: "0 12px 8px", overflowX: "auto" }}>
+              {EMOJI_PICKER_CATS.map((cat, i) => (
+                <button key={i} onClick={() => setFullPickerCat(i)} style={{ background: fullPickerCat === i ? "rgba(78,205,196,0.18)" : "none", border: fullPickerCat === i ? "1px solid rgba(78,205,196,0.35)" : "1px solid transparent", borderRadius: 10, padding: "5px 8px", fontSize: 18, cursor: "pointer", flexShrink: 0 }}>{cat.icon}</button>
+              ))}
+            </div>
+            {/* Emoji grid */}
+            <div style={{ overflowY: "auto", padding: "4px 12px 16px", display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4 }}>
+              {EMOJI_PICKER_CATS[fullPickerCat].emojis.map(em => (
+                <button key={em} onClick={() => toggleReaction(reactingToMsgId, em)} style={{ background: "none", border: "none", borderRadius: 8, padding: "6px 0", fontSize: 22, cursor: "pointer", lineHeight: 1, textAlign: "center" }}>{em}</button>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
   }
@@ -6353,75 +6407,49 @@ function LifterIcon({ size = 120, opacity = 1 }: { size?: number; opacity?: numb
 // Vertical barbell mark — plates drop from top and bottom onto the bar.
 // height prop controls rendered height; width is derived from the 40:108 viewBox ratio.
 // Horizontal barbell with round plates — matches the app icon.
-// Plates fly in from off-screen left/right; bar shaft appears first.
+// Uses CSS @keyframes + a client-side ready flag so the animation always
+// starts after the first paint — fixes the SSR issue where the animation
+// would complete before the user sees the splash screen.
 function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: number }) {
-  const h = Math.round(width * 88 / 320);
-  const slam = { type: "spring" as const, stiffness: 500, damping: 18 };
-  const platesDelay = delay + 0.42;
+  const s = width / 320;
+  const h = Math.round(88 * s);
+  // Gate animations on client mount so SSR-rendered HTML doesn't pre-play them
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const pd = delay + 0.42;
+  const chrome = "linear-gradient(180deg,#f0f0f0 0%,#c0c0c0 30%,#808080 65%,#b8b8b8 100%)";
+  const plo = "radial-gradient(ellipse at 38% 32%,#ff7a7a,#dd2b2b 55%,#8a1010)";
+  const pli = "radial-gradient(ellipse at 38% 32%,#ff6868,#cc2020 55%,#7a0e0e)";
+  const pro = "radial-gradient(ellipse at 62% 32%,#ff7a7a,#dd2b2b 55%,#8a1010)";
+  const pri = "radial-gradient(ellipse at 62% 32%,#ff6868,#cc2020 55%,#7a0e0e)";
+  const barA = ready ? `bbBarGrow 0.38s cubic-bezier(0.16,1,0.3,1) ${delay}s both` : undefined;
+  const sL   = (d: number) => ready ? `bbSlamL 0.55s cubic-bezier(0.22,1,0.36,1) ${d}s both` : undefined;
+  const sR   = (d: number) => ready ? `bbSlamR 0.55s cubic-bezier(0.22,1,0.36,1) ${d}s both` : undefined;
+  const seg  = (l: number, t: number, w: number, ht: number, r: number, bg: string, extra?: React.CSSProperties): React.CSSProperties => ({
+    position: "absolute", left: l*s, top: t*s, width: w*s, height: ht*s, borderRadius: r*s, background: bg, ...extra,
+  });
+  // Pre-animation states (keep elements invisible/off-screen until ready)
+  const barPre  = ready ? {} : { transform: "scaleX(0)", opacity: 0 as number };
+  const platePre = (dir: "L" | "R") => ready ? {} : { transform: dir === "L" ? "translateX(-800px)" : "translateX(800px)" };
   return (
-    <div style={{ width, height: h, overflow: "hidden", position: "relative", margin: "0 auto" }}>
-      <svg width={width} height={h} viewBox="0 0 320 88" style={{ overflow: "visible", display: "block" }}>
-        <defs>
-          <linearGradient id="bm-chrome" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-            <stop offset="0%"   stopColor="#f0f0f0"/>
-            <stop offset="30%"  stopColor="#c0c0c0"/>
-            <stop offset="65%"  stopColor="#808080"/>
-            <stop offset="100%" stopColor="#b8b8b8"/>
-          </linearGradient>
-          <radialGradient id="bm-plo" cx="38%" cy="32%" r="68%">
-            <stop offset="0%"   stopColor="#ff7a7a"/>
-            <stop offset="55%"  stopColor="#dd2b2b"/>
-            <stop offset="100%" stopColor="#8a1010"/>
-          </radialGradient>
-          <radialGradient id="bm-pli" cx="38%" cy="32%" r="68%">
-            <stop offset="0%"   stopColor="#ff6868"/>
-            <stop offset="55%"  stopColor="#cc2020"/>
-            <stop offset="100%" stopColor="#7a0e0e"/>
-          </radialGradient>
-          <radialGradient id="bm-pro" cx="62%" cy="32%" r="68%">
-            <stop offset="0%"   stopColor="#ff7a7a"/>
-            <stop offset="55%"  stopColor="#dd2b2b"/>
-            <stop offset="100%" stopColor="#8a1010"/>
-          </radialGradient>
-          <radialGradient id="bm-pri" cx="62%" cy="32%" r="68%">
-            <stop offset="0%"   stopColor="#ff6868"/>
-            <stop offset="55%"  stopColor="#cc2020"/>
-            <stop offset="100%" stopColor="#7a0e0e"/>
-          </radialGradient>
-        </defs>
-
-        {/* Bar shaft — scaleX in from center first */}
-        <motion.g
-          initial={{ scaleX: 0, opacity: 0 }}
-          animate={{ scaleX: 1, opacity: 1 }}
-          style={{ transformOrigin: "160px 44px" }}
-          transition={{ duration: 0.38, delay, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <rect x="0"   y="38" width="320" height="12" rx="5" fill="url(#bm-chrome)"/>
-          {/* Knurling centre section */}
-          <rect x="100" y="39" width="120" height="10" rx="3" fill="rgba(0,0,0,0.22)"/>
-        </motion.g>
-
-        {/* Left outer plate — tall thin rect (side/edge view) */}
-        <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
-          <rect x="10" y="6"  width="18" height="76" rx="5" fill="url(#bm-plo)"/>
-          <rect x="10" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
-        </motion.g>
-        {/* Left inner plate — stagger 70ms, slightly shorter */}
-        <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
-          <rect x="26" y="16" width="13" height="56" rx="4" fill="url(#bm-pli)"/>
-        </motion.g>
-
-        {/* Right outer plate */}
-        <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
-          <rect x="292" y="6"  width="18" height="76" rx="5" fill="url(#bm-pro)"/>
-          <rect x="292" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
-        </motion.g>
-        {/* Right inner plate — stagger 70ms */}
-        <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
-          <rect x="281" y="16" width="13" height="56" rx="4" fill="url(#bm-pri)"/>
-        </motion.g>
-      </svg>
+    <div style={{ width: "100%", height: h, overflow: "hidden", position: "relative" }}>
+      <div style={{ position: "relative", width, height: h, margin: "0 auto" }}>
+        {/* Bar — grows from centre */}
+        <div style={{ ...seg(34,  37, 58, 14, 4, chrome), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
+        <div style={{ ...seg(90,  40,140,  8, 3, chrome), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
+        <div style={{ ...seg(228, 37, 58, 14, 4, chrome), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
+        <div style={{ ...seg(100, 41,120,  6, 2,"rgba(0,0,0,0.22)"), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
+        {/* Left — big inner first, small outer on top */}
+        <div style={{ ...seg(68,  5, 22, 78, 5, plo,{ boxShadow:"inset 0 0 0 1px rgba(255,150,150,0.3)" }), ...platePre("L"), animation: sL(pd) }} />
+        <div style={{ ...seg(56, 17, 14, 54, 4, pli), ...platePre("L"), animation: sL(pd + 0.06) }} />
+        {/* Right — big inner first, small outer on top */}
+        <div style={{ ...seg(230,  5, 22, 78, 5, pro,{ boxShadow:"inset 0 0 0 1px rgba(255,150,150,0.3)" }), ...platePre("R"), animation: sR(pd) }} />
+        <div style={{ ...seg(250, 17, 14, 54, 4, pri), ...platePre("R"), animation: sR(pd + 0.06) }} />
+      </div>
     </div>
   );
 }
