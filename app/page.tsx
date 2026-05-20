@@ -1202,6 +1202,11 @@ function HomePage() {
   const [aiWRest, setAiWRest] = useState(60);
   const [aiWPermanent, setAiWPermanent] = useState(false);
 
+  // ── Session exercise browser ──
+  const [showSessionExBrowser, setShowSessionExBrowser] = useState(false);
+  const [sessionExSearch, setSessionExSearch] = useState("");
+  const [addingSupersetForId, setAddingSupersetForId] = useState<string | null>(null);
+
   // ── Customise ──
   const [editingDay, setEditingDay] = useState<any | null>(null);
   const [superSelection, setSuperSelection] = useState<string[]>([]);
@@ -2375,6 +2380,36 @@ function HomePage() {
 
   const overall = useMemo(() => getOverallStats(history), [history]);
   const bc: Record<string, string> = { compound: "#2ecc71", isolation: "#74b9ff", cardio: "#FF6B6B" };
+
+  const sessionExSuggestions = useMemo(() => {
+    if (!activeDay) return [];
+    const currentMuscles = new Set<string>();
+    const currentIds = new Set<string>();
+    for (const sec of activeDay.sections) {
+      for (const ex of sec.exercises) {
+        currentIds.add(ex.id);
+        const libEx = (EXERCISES as any[]).find((e: any) => e.id === ex.id || e.name.toLowerCase() === ex.name.toLowerCase());
+        if (libEx) {
+          for (const m of (libEx.muscles ?? [])) currentMuscles.add((m as string).toLowerCase());
+        }
+      }
+    }
+    const userEquip = new Set<string>((ob.equipment ?? []).map((e: string) => e.toLowerCase()));
+    type Scored = { ex: any; score: number };
+    const scored: Scored[] = [];
+    for (const libEx of (EXERCISES as any[])) {
+      if (currentIds.has(libEx.id)) continue;
+      const exEquip = (libEx.equipment ?? []) as string[];
+      const equipOk = exEquip.length === 0 || exEquip.every((eq: string) => userEquip.has(eq.toLowerCase()) || userEquip.size === 0);
+      if (!equipOk) continue;
+      const exMuscles = ((libEx.muscles ?? []) as string[]).map((m: string) => m.toLowerCase());
+      const overlap = exMuscles.filter((m: string) => currentMuscles.has(m)).length;
+      if (overlap === 0) continue;
+      scored.push({ ex: libEx, score: overlap });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, 12).map(s => s.ex);
+  }, [activeDay, ob.equipment, showSessionExBrowser]);
 
   const EQUIPMENT_OPTIONS = [
     { id: "dumbbell",        label: "Dumbbells",                gym: true,  home: true  },
@@ -6063,10 +6098,44 @@ function HomePage() {
                           {ex.note === "HIIT circuit" && <span style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT</span>}
                           <button onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }} style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginLeft: 6, flexShrink: 0 }}>FORM</button>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
                           {trackable && done > 0 && (
                             <button onClick={(e) => { e.stopPropagation(); openEditModal(ex.id); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>EDIT</button>
                           )}
+                          {trackable && (
+                            <button onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDay(d => !d ? d : ({
+                                ...d,
+                                sections: d.sections.map(s => ({
+                                  ...s,
+                                  exercises: s.exercises.map(x => x.id !== ex.id ? x : { ...x, dropSets: ((x.dropSets ?? 0) + 1) % 4 })
+                                }))
+                              }));
+                            }} style={{ background: (ex.dropSets ?? 0) > 0 ? "rgba(255,230,109,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${(ex.dropSets ?? 0) > 0 ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: (ex.dropSets ?? 0) > 0 ? "#FFE66D" : "rgba(255,255,255,0.35)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                              {(ex.dropSets ?? 0) > 0 ? `DROP×${ex.dropSets}` : "+ DROP"}
+                            </button>
+                          )}
+                          {trackable && (!ex.groupId ? (
+                            <button onClick={(e) => {
+                              e.stopPropagation();
+                              setAddingSupersetForId(ex.id);
+                              setShowSessionExBrowser(true);
+                              setSessionExSearch("");
+                            }} style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 6, color: "#4ECDC4", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>+ SUPERSET</button>
+                          ) : (
+                            <button onClick={(e) => {
+                              e.stopPropagation();
+                              const gid = ex.groupId;
+                              setActiveDay(d => !d ? d : ({
+                                ...d,
+                                sections: d.sections.map(s => ({
+                                  ...s,
+                                  exercises: s.exercises.map(x => x.groupId === gid ? { ...x, groupId: undefined, groupType: undefined } : x)
+                                }))
+                              }));
+                            }} style={{ background: "rgba(255,230,109,0.1)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 6, color: "#FFE66D", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>⟳ UNGROUP</button>
+                          ))}
                           {(allDone || wuDone) && <span style={{ fontSize: 16, color: "#2ecc71" }}>✓</span>}
                           {!trackable && !wuDone && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>TAP TO MARK DONE</span>}
                         </div>
@@ -6256,15 +6325,17 @@ function HomePage() {
           </div>
         ))}
 
-        <div style={{ padding: "0 20px 12px" }}>
+        <div style={{ padding: "20px 20px 0" }}>
           <button onClick={() => {
-            setShowAddInWorkout(true); setAiWStep("browse"); setAiWSearch(""); setAiWFilterLoc("all"); setAiWFilterMove("all"); setAiWFilterMuscle("all"); setAiWEx(null); setAiWSets(3); setAiWReps("10-12"); setAiWRest(60); setAiWPermanent(false);
-          }} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+            setAddingSupersetForId(null);
+            setShowSessionExBrowser(true);
+            setSessionExSearch("");
+          }} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>
             + ADD EXERCISE
           </button>
         </div>
 
-        <div style={{ padding: "0 20px 20px" }}>
+        <div style={{ padding: "0 20px 20px", marginTop: 12 }}>
           <button onClick={finish} style={{ width: "100%", padding: "16px", background: "rgba(46,204,113,0.15)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 12, color: "#2ecc71", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>FINISH & SAVE</button>
         </div>
 
