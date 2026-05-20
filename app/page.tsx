@@ -1294,6 +1294,7 @@ function HomePage() {
   const completedSupersetGroups = useRef(new Set<string>());
   const completedDropExes = useRef(new Set<string>());
   const ipToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dayCardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const SESSION_IP_CAP = 25;
   const [activeClient, setActiveClient] = useState<{ id: string; username: string } | null>(null);
   const [clientData, setClientData] = useState<{ profile: any; history: Record<string, any[]>; plan: any } | null>(null);
@@ -1659,6 +1660,29 @@ function HomePage() {
 
   // Keep currentViewRef in sync so SW message handler always sees latest view
   useEffect(() => { currentViewRef.current = view; }, [view]);
+
+  // 3D scroll tilt for day cards on home screen
+  useEffect(() => {
+    if (view !== "home") return;
+    const apply = () => {
+      const vh = window.innerHeight;
+      const center = vh * 0.48;
+      dayCardRefs.current.forEach(el => {
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        const offset = (mid - center) / vh; // -0.5 .. 0.5
+        const rotX = offset * 9;
+        const scale = Math.max(0.91, 1 - Math.abs(offset) * 0.085);
+        const opa = Math.max(0.5, 1 - Math.abs(offset) * 0.38);
+        el.style.transform = `perspective(700px) rotateX(${rotX}deg) scale(${scale})`;
+        el.style.opacity = String(opa);
+      });
+    };
+    window.addEventListener("scroll", apply, { passive: true });
+    const t = setTimeout(apply, 80);
+    return () => { window.removeEventListener("scroll", apply); clearTimeout(t); };
+  }, [view]);
 
   const softBeep = useCallback(() => {
     try {
@@ -3463,22 +3487,29 @@ function HomePage() {
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
         <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
       </div>
-      <div style={{ padding: "20px 20px 0" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div style={{ padding: "20px 16px 0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <button onClick={openCustomise} style={{ background: "linear-gradient(135deg, rgba(255,107,107,0.12), rgba(238,90,36,0.06))", border: "1px solid rgba(255,107,107,0.22)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, padding: "6px 11px" }}>✏ CUSTOMISE</button>
           </div>
         </div>
-        {planNote && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontStyle: "italic", lineHeight: 1.5 }}>{planNote}</div>}
+        {planNote && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 14, fontStyle: "italic", lineHeight: 1.5 }}>{planNote}</div>}
         {(customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA).map((d, i) => {
           const isActive = started && activeDay?.id === d.id;
           const isLocked = started && activeDay?.id !== d.id;
+          const img = workoutImageFor(d.title);
           return (
             <div
               key={d.id}
-              className={isLocked ? undefined : "card-hover"}
-              style={{ animationDelay: `${i * 0.06}s`, marginBottom: 10, cursor: isLocked ? "default" : "pointer", opacity: isLocked ? 0.3 : 1, transition: "opacity 0.2s" }}
+              ref={el => { dayCardRefs.current[i] = el; }}
+              style={{
+                marginBottom: 12,
+                cursor: isLocked ? "default" : "pointer",
+                opacity: isLocked ? 0.28 : 1,
+                transition: "transform 0.15s ease, opacity 0.15s ease",
+                willChange: "transform",
+              }}
               onClick={() => {
                 if (isLocked) return;
                 if (isActive) { setView("workout"); return; }
@@ -3486,29 +3517,48 @@ function HomePage() {
               }}
             >
               <div style={{
-                background: isActive ? `linear-gradient(135deg, ${d.color}1c, ${d.color}06 60%, rgba(255,255,255,0.02))` : `linear-gradient(135deg, ${d.color}08, rgba(255,255,255,0.025))`,
-                border: isActive ? `1px solid ${d.color}60` : `1px solid ${d.color}18`,
-                borderRadius: 16, padding: "20px", position: "relative", overflow: "hidden",
-                boxShadow: isActive ? `0 0 22px ${d.color}24, inset 0 1px 0 rgba(255,255,255,0.04)` : `0 2px 14px -8px ${d.color}30, inset 0 1px 0 rgba(255,255,255,0.03)`,
+                borderRadius: 20,
+                height: 188,
+                position: "relative",
+                overflow: "hidden",
+                border: isActive ? `1px solid ${d.color}70` : `1px solid ${d.color}22`,
+                boxShadow: isActive
+                  ? `0 0 28px ${d.color}35, 0 8px 32px rgba(0,0,0,0.55)`
+                  : `0 6px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
               }}>
-                <div style={{ position: "absolute", top: 0, left: 0, width: isActive ? 6 : 4, height: "100%", background: d.gradient, borderRadius: "16px 0 0 16px", boxShadow: isActive ? `0 0 12px ${d.color}80` : `0 0 6px ${d.color}50` }} />
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div style={{ paddingLeft: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: d.color, fontWeight: 700, opacity: 0.7 }}>{d.label}</span>
-                      <span style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>{d.title}</span>
-                      {isActive && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: d.color, background: `${d.color}18`, border: `1px solid ${d.color}40`, borderRadius: 4, padding: "2px 6px" }}>ACTIVE</span>}
+                {/* Background image */}
+                {img ? (
+                  <img src={img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: isActive ? 0.8 : 0.62, transition: "opacity 0.3s" }} />
+                ) : (
+                  <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${d.color}38, ${d.color}08)` }} />
+                )}
+                {/* Vignette gradient */}
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.06) 40%, rgba(0,0,0,0.82) 100%)" }} />
+                {/* Left accent bar */}
+                <div style={{ position: "absolute", top: 0, left: 0, width: isActive ? 5 : 3, height: "100%", background: d.gradient, boxShadow: `0 0 14px ${d.color}90` }} />
+                {/* Day chip — top left */}
+                <div style={{ position: "absolute", top: 14, left: 16 }}>
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: d.color, fontWeight: 700, background: "rgba(0,0,0,0.52)", borderRadius: 6, padding: "3px 8px", backdropFilter: "blur(6px)", letterSpacing: 1 }}>{d.label}</span>
+                </div>
+                {/* Active badge */}
+                {isActive && (
+                  <span style={{ position: "absolute", top: 14, right: 14, fontSize: 9, fontWeight: 700, letterSpacing: 2, color: d.color, background: `${d.color}28`, border: `1px solid ${d.color}60`, borderRadius: 6, padding: "3px 8px", backdropFilter: "blur(6px)" }}>ACTIVE</span>
+                )}
+                {/* Bottom text block */}
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "12px 16px 16px 20px" }}>
+                  <div style={{ fontSize: 19, fontWeight: 700, color: "#fff", letterSpacing: -0.3, textShadow: "0 2px 10px rgba(0,0,0,0.9)", lineHeight: 1.2 }}>{d.title}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4, textShadow: "0 1px 6px rgba(0,0,0,0.8)", fontWeight: 300 }}>{d.focus}</div>
+                  {isActive && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 17, fontWeight: 700, color: d.color, letterSpacing: 2, textShadow: `0 0 16px ${d.color}` }}>{timer.fmt}</div>
+                      <div style={{ fontSize: 10, color: d.color, opacity: 0.9, letterSpacing: 1 }}>TAP TO RESUME →</div>
                     </div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 6, fontWeight: 300 }}>{d.focus}</div>
-                    {isActive && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
-                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: d.color, letterSpacing: 2 }}>{timer.fmt}</div>
-                        <div style={{ fontSize: 11, color: d.color, opacity: 0.7, letterSpacing: 1 }}>TAP TO RESUME →</div>
-                      </div>
-                    )}
-                    {!isActive && history[d.id]?.[0] && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 10, fontFamily: "'Space Mono', monospace" }}>Last: {history[d.id][0].date} · {history[d.id][0].duration}</div>}
-                  </div>
-                  <WorkoutCardIcon title={d.title} color={d.color} size={60}/>
+                  )}
+                  {!isActive && history[d.id]?.[0] && (
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", marginTop: 5, fontFamily: "'Space Mono', monospace" }}>
+                      Last: {history[d.id][0].date} · {history[d.id][0].duration}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
