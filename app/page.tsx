@@ -709,6 +709,7 @@ function workoutImageFor(title: string): string | null {
   if (t.startsWith("pull") && t.includes("width"))        return "/ai/workout-pull-width.jpg";
   if (t.startsWith("pull"))                               return "/ai/workout-pull.jpg";
   if (t.includes("chest"))                                return "/ai/workout-chest.jpg";
+  if (t.includes("back") || t.includes("lat ") || t.endsWith("lat") || t.includes("lats")) return "/ai/workout-back.jpg";
   if (t.includes("shoulder") || t.includes("delt"))       return "/ai/workout-shoulders.jpg";
   if (t.includes("arm") || t.includes("bicep") || t.includes("tricep")) return "/ai/workout-arms.jpg";
   if (t.includes("core") || t.includes("abs") || t.includes("ab "))     return "/ai/workout-core.jpg";
