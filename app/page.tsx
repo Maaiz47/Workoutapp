@@ -1160,7 +1160,7 @@ function HomePage() {
   const [view, setView] = useState("home");
   const [activeDay, setActiveDay] = useState<WorkoutDay | null>(null);
   const [started, setStarted] = useState(false);
-  const [log, setLog] = useState<Record<string, { weight: number; reps: number }>>({});
+  const [log, setLog] = useState<Record<string, { weight: number; reps: number; skipped?: boolean }>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
   const [wInput, setWInput] = useState("");
   const [rInput, setRInput] = useState("");
@@ -1181,7 +1181,7 @@ function HomePage() {
   const [dropWInput, setDropWInput] = useState("");
   const [dropRInput, setDropRInput] = useState("");
   const [editEx, setEditEx] = useState<string | null>(null);
-  const [editSets, setEditSets] = useState<Record<string, { weight: number; reps: number }>>({});
+  const [editSets, setEditSets] = useState<Record<string, { weight: number; reps: number; skipped?: boolean }>>({});
   const [showFinishPrompt, setShowFinishPrompt] = useState(false);
   const [adjustedDuration, setAdjustedDuration] = useState("");
   const [resumeOverlay, setResumeOverlay] = useState<{ title: string; ageStr: string } | null>(null);
@@ -2232,15 +2232,30 @@ function HomePage() {
     setShowFinishPrompt(false);
     timer.stopT();
 
+    // Build final log — fill in any expected sets that have no entry with skipped:true
+    const finalLog: typeof log = { ...log };
+    if (activeDay) {
+      for (const sec of activeDay.sections) {
+        for (const ex of sec.exercises) {
+          if (ex.trackable === false) continue;
+          for (let i = 1; i <= ex.sets; i++) {
+            const k = `${ex.id}-${i}`;
+            if (!(k in finalLog)) finalLog[k] = { weight: 0, reps: 0, skipped: true };
+          }
+        }
+      }
+    }
+
     // Detect new PBs before saving (compare session log against history)
     const detectedPBs: { id: string; name: string; weight: number; reps: number }[] = [];
     if (activeDay) {
-      const exIds = Array.from(new Set(Object.keys(log).map(k => parseSetKey(k).eid)));
+      const exIds = Array.from(new Set(Object.keys(finalLog).map(k => parseSetKey(k).eid)));
       for (const eid of exIds) {
         const prevBest = overall.exercisePRs[eid]?.weight ?? 0;
-        const sessionSets = Object.entries(log)
+        const sessionSets = Object.entries(finalLog)
           .filter(([k]) => parseSetKey(k).eid === eid)
-          .map(([, v]) => v);
+          .map(([, v]) => v)
+          .filter(v => !v.skipped);
         const sessionBest = sessionSets.reduce((b, s) => s.weight > b.weight || (s.weight === b.weight && s.reps > b.reps) ? s : b, { weight: 0, reps: 0 });
         if (sessionBest.weight > 0 && sessionBest.weight > prevBest) {
           const exName = activeDay.sections.flatMap(s => s.exercises).find(e => e.id === eid)?.name ?? eid;
@@ -2256,7 +2271,7 @@ function HomePage() {
         await fetch("/api/workout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dayId: activeDay.id, duration: adjustedDuration, sets: log }),
+          body: JSON.stringify({ dayId: activeDay.id, duration: adjustedDuration, sets: finalLog }),
         });
         const res = await fetch("/api/workout");
         const data = await res.json();
@@ -2278,7 +2293,7 @@ function HomePage() {
   };
 
   const openEditModal = (eid: string) => {
-    const sets: Record<string, { weight: number; reps: number }> = {};
+    const sets: Record<string, { weight: number; reps: number; skipped?: boolean }> = {};
     for (const [k, v] of Object.entries(log)) {
       if (k.startsWith(eid + "-")) sets[k] = { ...v };
     }
@@ -3304,7 +3319,7 @@ function HomePage() {
     <div key="home" className={viewDir === "back" ? "view-back" : "view-forward"} style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
       {/* PB celebration overlay */}
       {newPBs.length > 0 && (
-        <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+        <div className="pb-overlay" onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer" }}>
           <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
             <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
             <img src="/ai/pb-celebration.png" alt="" style={{ width: 96, height: 96, display: "block", margin: "0 auto 8px" }} />
@@ -5661,12 +5676,12 @@ function HomePage() {
 
     return (
       <div key="workout-session" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
-        {newPBs.length > 0 && (
-          <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+        {newPBs.length > 0 && !rest.running && (
+          <div className="pb-overlay" onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer" }}>
             <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
               <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
               <img src="/ai/pb-celebration.png" alt="" className="trophy-bounce" style={{ width: 96, height: 96, display: "block", margin: "0 auto 8px" }} />
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
               {newPBs.map((pb, i) => (
                 <div key={i} style={{ marginBottom: 6 }}>
                   <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{pb.name}</div>
@@ -5722,36 +5737,45 @@ function HomePage() {
                   return da !== db ? da - db : (pa.dropNum ?? 0) - (pb.dropNum ?? 0);
                 }).map(([k, v]) => {
                   const { setNum: sn, dropNum } = parseSetKey(k);
+                  const isSkipped = !!v.skipped;
                   return (
-                    <div key={k} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px", marginBottom: 8 }}>
+                    <div key={k} style={{ background: isSkipped ? "rgba(255,107,107,0.04)" : "rgba(255,255,255,0.04)", border: `1px solid ${isSkipped ? "rgba(255,107,107,0.15)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "16px", marginBottom: 8, opacity: isSkipped ? 0.7 : 1 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>SET {sn}{dropNum ? ` · DROP ${dropNum}` : ""}</div>
-                        <button onClick={() => setEditSets(prev => { const next = { ...prev }; delete next[k]; return next; })} style={{ background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 11, padding: "4px 10px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>DELETE</button>
-                      </div>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>WEIGHT (kg)</div>
-                          <div style={{ display: "flex", alignItems: "center" }}>
-                            <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], weight: +Math.max(0, prev[k].weight - 1.25).toFixed(2) } }))}
-                              style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                            <input type="number" inputMode="decimal" value={v.weight || ""} onChange={e => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], weight: parseFloat(e.target.value) || 0 } }))}
-                              style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
-                            <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], weight: +(prev[k].weight + 1.25).toFixed(2) } }))}
-                              style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                          </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>SET {sn}{dropNum ? ` · DROP ${dropNum}` : ""}</div>
+                          {isSkipped && <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,107,107,0.6)", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 4, padding: "1px 5px", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>SKIPPED</span>}
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>REPS</div>
-                          <div style={{ display: "flex", alignItems: "center" }}>
-                            <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], reps: Math.max(0, prev[k].reps - 1) } }))}
-                              style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                            <input type="number" inputMode="numeric" value={v.reps || ""} onChange={e => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], reps: parseInt(e.target.value) || 0 } }))}
-                              style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
-                            <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], reps: prev[k].reps + 1 } }))}
-                              style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                          </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {isSkipped && <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { weight: 0, reps: 0 } }))} style={{ background: "rgba(46,204,113,0.08)", border: "1px solid rgba(46,204,113,0.2)", borderRadius: 8, color: "#2ecc71", fontSize: 11, padding: "4px 10px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>RESTORE</button>}
+                          <button onClick={() => setEditSets(prev => { const next = { ...prev }; delete next[k]; return next; })} style={{ background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 11, padding: "4px 10px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>DELETE</button>
                         </div>
                       </div>
+                      {!isSkipped && (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>WEIGHT (kg)</div>
+                            <div style={{ display: "flex", alignItems: "center" }}>
+                              <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], weight: +Math.max(0, prev[k].weight - 1.25).toFixed(2) } }))}
+                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                              <input type="number" inputMode="decimal" value={v.weight || ""} onChange={e => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], weight: parseFloat(e.target.value) || 0 } }))}
+                                style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                              <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], weight: +(prev[k].weight + 1.25).toFixed(2) } }))}
+                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                            </div>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>REPS</div>
+                            <div style={{ display: "flex", alignItems: "center" }}>
+                              <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], reps: Math.max(0, prev[k].reps - 1) } }))}
+                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                              <input type="number" inputMode="numeric" value={v.reps || ""} onChange={e => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], reps: parseInt(e.target.value) || 0 } }))}
+                                style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                              <button onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], reps: prev[k].reps + 1 } }))}
+                                style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -5887,8 +5911,9 @@ function HomePage() {
           const progress = rest.total > 0 ? rest.seconds / rest.total : 0;
           const R = 70, C = 2 * Math.PI * R;
           const dash = C * progress;
+          const hasPB = newPBs.length > 0;
           return (
-            <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(20px)", touchAction: "none", overscrollBehavior: "none" }}>
+            <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: hasPB ? "flex-start" : "center", paddingTop: hasPB ? 60 : 0, zIndex: 200, backdropFilter: "blur(20px)", touchAction: "none", overscrollBehavior: "none" }}>
               <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 28, fontFamily: "'Space Mono', monospace" }}>REST</div>
               <div style={{ position: "relative", width: 172, height: 172, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="172" height="172" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
@@ -5899,7 +5924,27 @@ function HomePage() {
                 </svg>
                 <div style={{ fontSize: 72, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>{rest.seconds}</div>
               </div>
-              <button onClick={rest.stop} style={{ marginTop: 36, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 36px", color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "'DM Sans', sans-serif", letterSpacing: 2, cursor: "pointer" }}>SKIP</button>
+              {hasPB && (
+                <div className="pb-pop" style={{ marginTop: 36, background: "rgba(12,12,15,0.85)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 16, padding: "20px 28px", maxWidth: 320, width: "85%", textAlign: "center", position: "relative", overflow: "hidden" }}>
+                  <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
+                  <div className="trophy-bounce" style={{ fontSize: 28, marginBottom: 4 }}>🏆</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
+                  {newPBs.map((pb, i) => (
+                    <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginBottom: 4 }}>
+                      <div style={{ fontWeight: 600 }}>{pb.name}</div>
+                      <div style={{ fontFamily: "'Space Mono', monospace", color: "#FFD700", marginTop: 2 }}>{pb.weight}kg × {pb.reps}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button onClick={() => {
+                const elapsed = rest.stop();
+                if (hasPB && elapsed != null && elapsed < 5000) {
+                  setTimeout(() => setNewPBs([]), 5000);
+                } else {
+                  setNewPBs([]);
+                }
+              }} style={{ marginTop: 36, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 36px", color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "'DM Sans', sans-serif", letterSpacing: 2, cursor: "pointer" }}>SKIP</button>
             </div>
           );
         })()}
@@ -5967,7 +6012,7 @@ function HomePage() {
                   } else {
                     logSet(ex.id, ns, effectiveWeight, rInput);
                     if (ns + 1 > ex.sets) setExpanded(null);
-                    if (ex.rest) rest.start(ex.rest);
+                    if (ex.rest) rest.start(ex.rest, () => setNewPBs([]));
                   }
                 };
 
@@ -6034,8 +6079,10 @@ function HomePage() {
                       {trackable && (
                         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
                           {Array.from({ length: ex.sets }, (_, i) => {
-                            const d = !!log[`${ex.id}-${i + 1}`], c = i + 1 === ns;
-                            return <div key={i} style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace", background: d ? "#2ecc7120" : c ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)", color: d ? "#2ecc71" : c ? "#fff" : "rgba(255,255,255,0.25)", border: c ? "1px solid rgba(255,255,255,0.15)" : "1px solid transparent" }}>{d ? "✓" : i + 1}</div>;
+                            const entry = log[`${ex.id}-${i + 1}`];
+                            const d = !!entry, c = i + 1 === ns;
+                            const skipped = entry?.skipped;
+                            return <div key={i} style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace", background: skipped ? "rgba(255,107,107,0.08)" : d ? "#2ecc7120" : c ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)", color: skipped ? "rgba(255,107,107,0.5)" : d ? "#2ecc71" : c ? "#fff" : "rgba(255,255,255,0.25)", border: c ? "1px solid rgba(255,255,255,0.15)" : skipped ? "1px solid rgba(255,107,107,0.2)" : "1px solid transparent" }}>{skipped ? "−" : d ? "✓" : i + 1}</div>;
                           })}
                         </div>
                       )}
@@ -6072,7 +6119,7 @@ function HomePage() {
                           } else {
                             setPendingDrop(null);
                             if (pendingDrop!.setNum + 1 > ex.sets) setExpanded(null);
-                            if (ex.rest) rest.start(ex.rest);
+                            if (ex.rest) rest.start(ex.rest, () => setNewPBs([]));
                           }
                         }} style={{ width: "100%", padding: "14px", background: "rgba(255,230,109,0.15)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 10, color: "#FFE66D", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
                           LOG DROP {pendingDrop!.dropNum}
@@ -6145,6 +6192,35 @@ function HomePage() {
                           style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: ((!effectiveWeight && !activeBW) && !rInput) ? 0.4 : 1 }}>
                           {logBtnLabel}
                         </button>
+                        <button onClick={() => {
+                          if (!ns) return;
+                          const k = `${ex.id}-${ns}`;
+                          const newLog = { ...log, [k]: { weight: 0, reps: 0, skipped: true } };
+                          setLog(newLog);
+                          try {
+                            const saved = localStorage.getItem("ironlog-session");
+                            if (saved) { const s = JSON.parse(saved); s.log = newLog; localStorage.setItem("ironlog-session", JSON.stringify(s)); }
+                          } catch {}
+                          if (ns + 1 > ex.sets) setExpanded(null);
+                        }} style={{ width: "100%", padding: "12px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace", marginTop: 6 }}>SKIP SET</button>
+                      </div>
+                    )}
+                    {/* Skip exercise link */}
+                    {isExp && trackable && !allDone && (
+                      <div style={{ padding: "6px 16px 12px", textAlign: "right" }}>
+                        <button onClick={() => {
+                          const newLog = { ...log };
+                          for (let i = 1; i <= ex.sets; i++) {
+                            const k = `${ex.id}-${i}`;
+                            if (!(k in newLog)) newLog[k] = { weight: 0, reps: 0, skipped: true };
+                          }
+                          setLog(newLog);
+                          try {
+                            const saved = localStorage.getItem("ironlog-session");
+                            if (saved) { const s = JSON.parse(saved); s.log = newLog; localStorage.setItem("ironlog-session", JSON.stringify(s)); }
+                          } catch {}
+                          setExpanded(null);
+                        }} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1, padding: "4px 0" }}>Skip exercise</button>
                       </div>
                     )}
                   </div>
