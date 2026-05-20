@@ -177,7 +177,7 @@ Hyper-detailed photoreal close-up of a single chalked hand slamming a barbell co
 **Format:** 512×512 square.
 
 ```
-Minimal cinematic illustration on pure black, a single empty barbell resting on the floor under one crimson spotlight, faint chalk dust hanging in the air. Photoreal, moody, no text. Square 1:1 composition (1024x1024).
+Cinematic photograph on a SOLID DEEP MATTE BLACK BACKGROUND — black should fill 90% of the frame. A single empty olympic barbell (no plates loaded) rests on a dark concrete gym floor, lit by one narrow crimson spotlight from camera-left. The mood is quiet and still — NO dust plumes, NO sparks, NO smoke, NO explosions. Just the bar sitting there, waiting. Photoreal, moody, no people, no text, no logos. Centred composition. Square 1:1 (1024x1024).
 ```
 
 ---
