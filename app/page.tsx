@@ -6313,12 +6313,14 @@ function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: numbe
         <div style={{ ...seg(90,  40,140,  8, 3, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
         <div style={{ ...seg(228, 37, 58, 14, 4, chrome), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
         <div style={{ ...seg(100, 41,120,  6, 2, "rgba(0,0,0,0.22)"), transformOrigin: "50% 50%", animation: barAnim(delay) }} />
-        {/* Left plates — inner renders first so outer div sits on top */}
-        <div style={{ ...seg(66, 17, 14, 54, 4, pli), animation: slamL(pd + 0.06) }} />
-        <div style={{ ...seg(46,  5, 24, 76, 5, plo, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamL(pd) }} />
-        {/* Right plates — inner renders first so outer div sits on top */}
-        <div style={{ ...seg(240, 17, 14, 54, 4, pri), animation: slamR(pd + 0.06) }} />
-        <div style={{ ...seg(250,  5, 24, 76, 5, pro, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamR(pd) }} />
+        {/* Left plates — big plate (inner) first, small plate (outer) on top.
+            Chrome tip visible x=34→56, small plate x=56→70, big plate x=68→90 */}
+        <div style={{ ...seg(68,  5, 22, 78, 5, plo, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamL(pd) }} />
+        <div style={{ ...seg(56, 17, 14, 54, 4, pli), animation: slamL(pd + 0.06) }} />
+        {/* Right plates — big plate (inner) first, small plate (outer) on top.
+            Big plate x=230→252, small plate x=250→264, chrome tip visible x=264→286 */}
+        <div style={{ ...seg(230,  5, 22, 78, 5, pro, { boxShadow: "inset 0 0 0 1px rgba(255,150,150,0.3)" }), animation: slamR(pd) }} />
+        <div style={{ ...seg(250, 17, 14, 54, 4, pri), animation: slamR(pd + 0.06) }} />
       </div>
     </div>
   );
