@@ -702,6 +702,7 @@ function workoutImageFor(title: string): string | null {
   const t = title.toLowerCase();
   if (t.includes("hiit"))                                 return "/ai/workout-hiit.jpg";
   if (t.includes("cardio") || t.includes("conditio"))     return "/ai/workout-cardio.jpg";
+  if (t.startsWith("push") && t.includes("volume"))       return "/ai/workout-push-volume.jpg";
   if (t.startsWith("push"))                               return "/ai/workout-push.jpg";
   if (t.startsWith("pull"))                               return "/ai/workout-pull.jpg";
   if (t.startsWith("full"))                               return "/ai/workout-fullbody.jpg";
