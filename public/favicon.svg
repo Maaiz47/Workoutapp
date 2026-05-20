@@ -12,25 +12,27 @@
       <stop offset="0%" stop-color="#f0f0f0" stop-opacity="0.95"/>
       <stop offset="100%" stop-color="#888888" stop-opacity="0.85"/>
     </linearGradient>
-    <radialGradient id="fv-plo" cx="38%" cy="32%" r="70%">
-      <stop offset="0%" stop-color="#ff7a7a"/>
-      <stop offset="55%" stop-color="#dd2b2b"/>
-      <stop offset="100%" stop-color="#8a1010"/>
+    <!-- Small outer plate: brighter red -->
+    <radialGradient id="fv-sm-L" cx="35%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="#ff8888"/>
+      <stop offset="50%" stop-color="#ee3333"/>
+      <stop offset="100%" stop-color="#8a0f0f"/>
     </radialGradient>
-    <radialGradient id="fv-pli" cx="38%" cy="32%" r="70%">
-      <stop offset="0%" stop-color="#ff6868"/>
-      <stop offset="55%" stop-color="#cc2020"/>
-      <stop offset="100%" stop-color="#7a0e0e"/>
+    <radialGradient id="fv-sm-R" cx="65%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="#ff8888"/>
+      <stop offset="50%" stop-color="#ee3333"/>
+      <stop offset="100%" stop-color="#8a0f0f"/>
     </radialGradient>
-    <radialGradient id="fv-pro" cx="62%" cy="32%" r="70%">
-      <stop offset="0%" stop-color="#ff7a7a"/>
-      <stop offset="55%" stop-color="#dd2b2b"/>
-      <stop offset="100%" stop-color="#8a1010"/>
+    <!-- Big inner plate: deeper red -->
+    <radialGradient id="fv-lg-L" cx="35%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="#ff6060"/>
+      <stop offset="50%" stop-color="#c41e1e"/>
+      <stop offset="100%" stop-color="#6e0a0a"/>
     </radialGradient>
-    <radialGradient id="fv-pri" cx="62%" cy="32%" r="70%">
-      <stop offset="0%" stop-color="#ff6868"/>
-      <stop offset="55%" stop-color="#cc2020"/>
-      <stop offset="100%" stop-color="#7a0e0e"/>
+    <radialGradient id="fv-lg-R" cx="65%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="#ff6060"/>
+      <stop offset="50%" stop-color="#c41e1e"/>
+      <stop offset="100%" stop-color="#6e0a0a"/>
     </radialGradient>
   </defs>
 
@@ -39,7 +41,7 @@
   <rect x="0.5" y="0.5" width="63" height="63" rx="13.5" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
 
   <!-- Ambient glow -->
-  <ellipse cx="32" cy="32" rx="20" ry="13" fill="#FF6B6B" opacity="0.06"/>
+  <ellipse cx="32" cy="32" rx="20" ry="13" fill="#FF6B6B" opacity="0.07"/>
 
   <!-- IRON above barbell -->
   <text x="32" y="17" text-anchor="middle"
@@ -47,21 +49,26 @@
         font-weight="900" font-size="11" letter-spacing="1" fill="#ffffff">IRON</text>
 
   <!-- Chrome sleeves + shaft -->
+  <!-- Left sleeve x=4–21, shaft x=21–43, right sleeve x=43–60 -->
   <rect x="4"  y="30" width="17" height="5" rx="2"   fill="url(#fv-steel)"/>
-  <rect x="20" y="31" width="24" height="3" rx="1.5" fill="url(#fv-steel)"/>
+  <rect x="21" y="31" width="22" height="3" rx="1.5" fill="url(#fv-steel)"/>
   <rect x="43" y="30" width="17" height="5" rx="2"   fill="url(#fv-steel)"/>
-  <!-- Knurling -->
-  <rect x="23" y="31.5" width="18" height="2" rx="1" fill="rgba(0,0,0,0.25)"/>
+  <rect x="24" y="31.5" width="16" height="2" rx="1" fill="rgba(0,0,0,0.25)"/>
 
-  <!-- Left big inner plate (toward shaft, behind small plate) -->
-  <rect x="12" y="22" width="9" height="20" rx="2"   fill="url(#fv-plo)" stroke="rgba(255,150,150,0.2)" stroke-width="0.5"/>
-  <!-- Left small outer plate (collar/tip end, in front) -->
-  <rect x="8"  y="25" width="5" height="14" rx="1.5" fill="url(#fv-pli)"/>
+  <!--
+    LEFT:  chrome tip x=4–9 (5px), small outer x=9–13 (4px), big inner x=13–21 (8px)
+    RIGHT: big inner x=43–51 (8px), small outer x=51–55 (4px), chrome tip x=55–60 (5px)
+  -->
 
-  <!-- Right big inner plate (toward shaft, behind small plate) -->
-  <rect x="43" y="22" width="9" height="20" rx="2"   fill="url(#fv-pro)" stroke="rgba(255,150,150,0.2)" stroke-width="0.5"/>
-  <!-- Right small outer plate (collar/tip end, in front) -->
-  <rect x="51" y="25" width="5" height="14" rx="1.5" fill="url(#fv-pri)"/>
+  <!-- Left big inner plate (toward shaft) -->
+  <rect x="13" y="22" width="8" height="22" rx="2"   fill="url(#fv-lg-L)"/>
+  <!-- Left small outer plate (collar/tip end) -->
+  <rect x="9"  y="25" width="4" height="16" rx="1.5" fill="url(#fv-sm-L)"/>
+
+  <!-- Right big inner plate (toward shaft) -->
+  <rect x="43" y="22" width="8" height="22" rx="2"   fill="url(#fv-lg-R)"/>
+  <!-- Right small outer plate (collar/tip end) -->
+  <rect x="51" y="25" width="4" height="16" rx="1.5" fill="url(#fv-sm-R)"/>
 
   <!-- LOG below barbell -->
   <text x="32" y="53" text-anchor="middle"
