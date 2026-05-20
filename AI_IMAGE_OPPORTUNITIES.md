@@ -90,7 +90,7 @@ Ultrawide cinematic banner, pure black background, single horizontal sliver of w
 **Master prompt (repeat per card, swap only the action line):**
 
 ```
-Cinematic gym photograph in a consistent series. Deep matte black studio background, single crimson rim light, secondary cold white key from above. Athlete shot from mid-torso only — no face — wearing a plain charcoal t-shirt and dark shorts. Photoreal, sharp, faint motion blur on the moving limb, gritty film grain, no logos, no text. Square 1:1 composition (1024x1024).
+Cinematic gym photograph in a consistent series. Deep matte black studio background, single crimson rim light, secondary cold white key from above. Athlete wearing a plain charcoal t-shirt and dark shorts. Framing crops naturally at the jawline so the face is out of frame — the head shape is still anatomically present at the very top of the image, NOT erased or replaced with black. Photoreal, sharp, faint motion blur on the moving limb, gritty film grain, no logos, no text. Square 1:1 composition (1024x1024).
 
 Action: <ACTION_LINE>
 ```
