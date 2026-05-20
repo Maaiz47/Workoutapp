@@ -4,8 +4,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
 import { createPortal } from "react-dom";
-import Lottie from "lottie-react";
-import lottieLifterData from "./lottie-lifter.json";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 import { EXERCISES } from "../lib/exercises";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
@@ -308,6 +306,55 @@ function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: s
   return { dataPoints: dataPoints.reverse(), pb: { weight: pbWeight, reps: pbReps, date: pbDate } };
 }
 
+// ── Set-key parsing (drop-set aware) ────────────────────────────────────────
+// Keys: "eid-sn" for regular sets, "eid-sn-dN" for drop sets.
+function parseSetKey(key: string): { eid: string; setNum: string; dropNum: number | null } {
+  const parts = key.split("-");
+  const last = parts[parts.length - 1];
+  const dropMatch = last.match(/^d(\d+)$/);
+  if (dropMatch && parts.length >= 3) {
+    parts.pop();
+    const setNum = parts.pop()!;
+    return { eid: parts.join("-"), setNum, dropNum: parseInt(dropMatch[1], 10) };
+  }
+  const setNum = parts.pop()!;
+  return { eid: parts.join("-"), setNum, dropNum: null };
+}
+
+// ── Tier systems ─────────────────────────────────────────────────────────────
+
+const CLIENT_TIERS = [
+  { label: "Kitten",  emoji: "🐱", min: 0   },
+  { label: "Monkey",  emoji: "🐒", min: 5   },
+  { label: "Fox",     emoji: "🦊", min: 15  },
+  { label: "Tiger",   emoji: "🐯", min: 30  },
+  { label: "Lion",    emoji: "🦁", min: 60  },
+  { label: "Gorilla", emoji: "🦍", min: 100 },
+];
+
+function getClientTier(totalSessions: number, streak: number, prCount: number) {
+  let idx = 0;
+  for (let i = CLIENT_TIERS.length - 1; i >= 0; i--) {
+    if (totalSessions >= CLIENT_TIERS[i].min) { idx = i; break; }
+  }
+  // Bonus: strong streak + PRs can push up one tier
+  if (streak >= 4 && prCount >= 8 && idx < CLIENT_TIERS.length - 1) idx++;
+  return CLIENT_TIERS[idx];
+}
+
+const TRAINER_TIERS = [
+  { label: "Rookie", emoji: "🏅", min: 0  },
+  { label: "Coach",  emoji: "🎯", min: 3  },
+  { label: "Pro",    emoji: "⚡", min: 10 },
+  { label: "Elite",  emoji: "👑", min: 20 },
+];
+
+function getTrainerTier(clientCount: number) {
+  let tier = TRAINER_TIERS[0];
+  for (const t of TRAINER_TIERS) if (clientCount >= t.min) tier = t;
+  return tier;
+}
+
 function getOverallStats(history: Record<string, any[]>) {
   let totalSessions = 0;
   const exercisePRs: Record<string, { weight: number; reps: number; date: string }> = {};
@@ -319,7 +366,7 @@ function getOverallStats(history: Record<string, any[]>) {
       allSessions.push({ date: s.date, duration: s.duration });
       const sets = s.sets as Record<string, { weight: number; reps: number }>;
       for (const k in sets) {
-        const eid = k.split("-").slice(0, -1).join("-");
+        const eid = parseSetKey(k).eid;
         const { weight, reps } = sets[k];
         if (!exercisePRs[eid] || weight > exercisePRs[eid].weight || (weight === exercisePRs[eid].weight && reps > exercisePRs[eid].reps)) {
           exercisePRs[eid] = { weight, reps, date: s.date };
@@ -372,7 +419,7 @@ function getOverallStats(history: Record<string, any[]>) {
   // The grid is 7 columns (S M T W T F S). 
   // We need to figure out which column today falls in, then pad the first row
   // so that 28 days ago lands on its correct weekday.
-  const calendarDays: { active: boolean; isToday: boolean; dateStr: string }[] = [];
+  const calendarDays: { active: boolean; isToday: boolean; date: string }[] = [];
   for (let i = 27; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
@@ -380,7 +427,7 @@ function getOverallStats(history: Record<string, any[]>) {
     calendarDays.push({
       active: allSessions.some(s => s.date === dateStr),
       isToday: i === 0,
-      dateStr,
+      date: dateStr,
     });
   }
   // 28 days ago - what day of week was it?
@@ -605,53 +652,6 @@ function WorkoutTypeIcon({ title, color, size = 62 }: { title: string; color: st
       {B(135,129,11,31,4, "none", so)}
       {B(154,129,11,31,4, "none", so)}
     </svg>
-  );
-}
-
-// Maps a primary muscle key (chest, lat, biceps, etc.) to one of the six
-// AI anatomy thumbnails. Returns null if the muscle group isn't covered.
-function anatomyImageFor(primary: string[]): string | null {
-  const m = primary.map(k => k.toLowerCase()).join(" ");
-  if (/\b(chest|pec)/.test(m))                          return "/ai/anatomy-chest.jpg";
-  if (/(lat|back|trap|rhomb|erector|rear.delt)/.test(m)) return "/ai/anatomy-back.jpg";
-  if (/(delt|shoulder)/.test(m))                         return "/ai/anatomy-shoulders.jpg";
-  if (/(bicep|tricep|arm|forearm)/.test(m))              return "/ai/anatomy-arms.jpg";
-  if (/(quad|hamstring|glute|calf|calve|leg)/.test(m))   return "/ai/anatomy-legs.jpg";
-  if (/(core|abs|obliq|abdomin)/.test(m))                return "/ai/anatomy-core.jpg";
-  return null;
-}
-
-// Maps a workout title to one of the 8 AI workout-card images, or null if the
-// title doesn't cleanly match one of the canonical splits (chest day, arms,
-// etc. fall back to the animated SVG icon).
-function workoutImageFor(title: string): string | null {
-  const t = title.toLowerCase();
-  if (t.includes("hiit"))                                 return "/ai/workout-hiit.jpg";
-  if (t.includes("cardio") || t.includes("conditio"))     return "/ai/workout-cardio.jpg";
-  if (t.startsWith("push"))                               return "/ai/workout-push.jpg";
-  if (t.startsWith("pull"))                               return "/ai/workout-pull.jpg";
-  if (t.startsWith("full"))                               return "/ai/workout-fullbody.jpg";
-  if (t.startsWith("upper"))                              return "/ai/workout-upper.jpg";
-  if (t.startsWith("lower"))                              return "/ai/workout-lower.jpg";
-  if (t.startsWith("leg"))                                return "/ai/workout-legs.jpg";
-  return null;
-}
-
-function WorkoutCardIcon({ title, color, size = 60 }: { title: string; color: string; size?: number }) {
-  const src = workoutImageFor(title);
-  if (!src) return <WorkoutTypeIcon title={title} color={color} size={size}/>;
-  return (
-    <img
-      src={src}
-      alt=""
-      width={size}
-      height={size}
-      style={{
-        width: size, height: size, flexShrink: 0,
-        borderRadius: 12, objectFit: "cover",
-        boxShadow: `0 0 0 1px ${color}30, 0 4px 14px rgba(0,0,0,0.4)`,
-      }}
-    />
   );
 }
 
@@ -1042,18 +1042,6 @@ function lookupExMuscles(name: string): { muscles: string[]; secondaryMuscles: s
   return { muscles: found?.primaryMuscles ?? [], secondaryMuscles: found?.secondaryMuscles ?? [] };
 }
 
-const DEFAULT_REACTION_EMOJIS = ["👍","❤️","😂","😮","💪","🔥"];
-
-const EMOJI_PICKER_CATS = [
-  { icon: "😀", emojis: ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","😉","😊","😇","🥰","😍","🤩","😘","😚","😋","😜","🤪","🤑","🤗","🤔","😐","😑","😶","😏","😒","🙄","😬","😌","😔","😪","😴","🥱","😷","🤢","🤮","🥵","🥶","😵","🤯","😎","🧐","😕","🙁","☹️","😮","😯","😲","😳","🥺","😦","😢","😭","😱","😤","😡","😠","🤬","😈","👿"] },
-  { icon: "👍", emojis: ["👋","🤚","🖐️","✋","🖖","👌","✌️","🤞","🤟","🤘","🤙","👈","👉","👆","👇","☝️","👍","👎","✊","👊","🤛","🤜","👏","🙌","🤝","🙏","💪","✍️","💅"] },
-  { icon: "❤️", emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖","💘","💝","❤️‍🔥","🫂","💑","👫","👬","👭","😻"] },
-  { icon: "🌸", emojis: ["🌸","🌺","🌻","🌹","🌷","🌼","💐","🍀","🌿","🍃","🍂","🍁","🌱","🌲","🌳","🌴","🌾","🍄","🦋","🐝","🌈","⚡","🔥","💧","🌊","⭐","🌟","✨","💫","☀️","🌙","❄️","🐶","🐱","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐙","🦋"] },
-  { icon: "🍕", emojis: ["🍕","🍔","🍟","🌭","🍿","🧀","🥚","🍳","🥞","🧇","🥓","🍗","🥩","🍱","🍣","🍜","🍝","🍛","🍲","🥗","🌮","🌯","🥪","🍞","🥐","🍰","🎂","🍩","🍪","🍫","🍬","🍭","🍦","🧁","🍷","🍸","🍹","🍺","🥂","☕","🧋","🧃","🥛"] },
-  { icon: "⚽", emojis: ["⚽","🏀","🏈","⚾","🎾","🏐","🏉","🎱","🏓","🏸","🥊","🥋","🎯","🏋️","🏆","🥇","🥈","🥉","🏅","🎪","🎭","🎨","🎬","🎤","🎧","🎹","🥁","🎸","🎮","🕹️","🎲","🎁","🎉","🎊","🎀","🎈","💎","👑","✈️","🚀","🚗","🏎️"] },
-  { icon: "💯", emojis: ["💯","🔥","💥","✨","🎉","💬","💭","💤","💢","💦","💨","💫","💥","💣","❓","❗","‼️","⁉️","🔴","🟠","🟡","🟢","🔵","🟣","⚫","⚪","✅","❌","⭕","🔔","🔑","🗝️","🔒","💰","💸","📱","💻","📷","🔬","📚","✏️","📝"] },
-];
-
 // ─── MOTIVATIONAL PHRASES ───────────────────────────────────────────────
 const PHRASES = [
   "Trust the process.",
@@ -1086,6 +1074,7 @@ function HomePage() {
   const [splashDone, setSplashDone] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authStep, setAuthStep] = useState<"username" | "register" | "setup" | "password" | "forgot">("username");
+  const [landingTab, setLandingTab] = useState<"athlete" | "trainer">("athlete");
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [confirmInput, setConfirmInput] = useState("");
@@ -1102,6 +1091,7 @@ function HomePage() {
   const [wInput, setWInput] = useState("");
   const [rInput, setRInput] = useState("");
   const [bwAddWeight, setBwAddWeight] = useState(false);
+  const [manualBW, setManualBW] = useState(false);
   const [logFlashId, setLogFlashId] = useState<string | null>(null);
   const [newPBs, setNewPBs] = useState<{ name: string; weight: number; reps: number }[]>([]);
   const [showCompleteAnim, setShowCompleteAnim] = useState(false);
@@ -1120,7 +1110,7 @@ function HomePage() {
   const [adjustedDuration, setAdjustedDuration] = useState("");
   const [resumeOverlay, setResumeOverlay] = useState<{ title: string; ageStr: string } | null>(null);
   const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history" | "body">("dashboard");
-  const [calendarModalDate, setCalendarModalDate] = useState<string | null>(null);
+  const [calDateSel, setCalDateSel] = useState<string | null>(null);
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
 
   // ── In-workout exercise addition ──
@@ -1143,8 +1133,6 @@ function HomePage() {
   const [browserSupersetMode, setBrowserSupersetMode] = useState(false);
   const [browserSuperSel, setBrowserSuperSel] = useState<string[]>([]);
   const [trainerSuperSel, setTrainerSuperSel] = useState<{ dayIdx: number; exIds: string[] } | null>(null);
-  const [trainerAddExDay, setTrainerAddExDay] = useState<number | null>(null);
-  const [trainerAddExSearch, setTrainerAddExSearch] = useState("");
   const [exSearch, setExSearch] = useState("");
   const [exFilterLoc, setExFilterLoc] = useState("all");
   const [exFilterMove, setExFilterMove] = useState("all");
@@ -1160,9 +1148,21 @@ function HomePage() {
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "unsupported" | "error" | "requesting">("idle");
   const [testingNotif, setTestingNotif] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [showNotifBanner, setShowNotifBanner] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // ── Trainer custom exercises ──
+  const [customExercises, setCustomExercises] = useState<any[]>([]);
+  const [showExCreator, setShowExCreator] = useState(false);
+  const [exCreatorName, setExCreatorName] = useState("");
+  const [exCreatorPrimary, setExCreatorPrimary] = useState<string[]>([]);
+  const [exCreatorSecondary, setExCreatorSecondary] = useState<string[]>([]);
+  const [exCreatorEquip, setExCreatorEquip] = useState<string[]>([]);
+  const [exCreatorType, setExCreatorType] = useState("compound");
+  const [exCreatorDiff, setExCreatorDiff] = useState("intermediate");
+  const [exCreatorPhotos, setExCreatorPhotos] = useState<string[]>([]);
+  const [exCreatorUploading, setExCreatorUploading] = useState(false);
+  const [exCreatorSaving, setExCreatorSaving] = useState(false);
 
   // ── Trainer search ──
   const [trainerSearch, setTrainerSearch] = useState("");
@@ -1175,6 +1175,9 @@ function HomePage() {
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [respondingRequest, setRespondingRequest] = useState<string | null>(null);
   const [clients, setClients] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [activeClient, setActiveClient] = useState<{ id: string; username: string } | null>(null);
   const [clientData, setClientData] = useState<{ profile: any; history: Record<string, any[]>; plan: any } | null>(null);
   const [clientDataLoading, setClientDataLoading] = useState(false);
@@ -1213,12 +1216,6 @@ function HomePage() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{ id: string; body: string; username: string } | null>(null);
   const [reactingToMsgId, setReactingToMsgId] = useState<string | null>(null);
-  const [recentEmojis, setRecentEmojis] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    try { return JSON.parse(localStorage.getItem("ironlog-recent-emojis") || "[]"); } catch { return []; }
-  });
-  const [showFullPicker, setShowFullPicker] = useState(false);
-  const [fullPickerCat, setFullPickerCat] = useState(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [partnerLastSeen, setPartnerLastSeen] = useState<string | null>(null);
   const lastMsgCreatedAtRef = useRef<string | null>(null);
@@ -1302,9 +1299,6 @@ function HomePage() {
     }
   }, []);
 
-  useEffect(() => { setIsMounted(true); }, []);
-
-
   const refreshUser = useCallback(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
       if (data.user) {
@@ -1350,6 +1344,9 @@ function HomePage() {
       }).catch(() => {});
       fetch("/api/trainer/clients").then(r => r.json()).then(data => {
         if (data.clients) setClients(data.clients);
+      }).catch(() => {});
+      fetch("/api/trainer/exercises").then(r => r.json()).then(data => {
+        if (data.exercises) setCustomExercises(data.exercises);
       }).catch(() => {});
     }
     if (user?.role === "user") {
@@ -1626,7 +1623,6 @@ function HomePage() {
       if (data.error) { setAuthError(data.error); return; }
       setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
       if (typeof Notification !== "undefined" && Notification.permission === "default") setShowNotifBanner(true);
-      window.dispatchEvent(new CustomEvent("ironlog-pwa-signup"));
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -1638,7 +1634,6 @@ function HomePage() {
       if (data.error) { setAuthError(data.error); return; }
       setUser({ id: data.id, username: data.username, role: data.role ?? "user" });
       if (typeof Notification !== "undefined" && Notification.permission === "default") setShowNotifBanner(true);
-      window.dispatchEvent(new CustomEvent("ironlog-pwa-signup"));
     } catch { setAuthError("Something went wrong"); }
   };
 
@@ -1675,27 +1670,19 @@ function HomePage() {
   };
 
   const doLogout = async () => {
-    // Best-effort push subscription cleanup. In private browsing
-    // `navigator.serviceWorker.ready` can hang forever (no SW registered, no
-    // rejection either), which previously left the user stuck logged in. Race
-    // it against a short timeout so logout always completes.
+    // Remove this device's push subscription before clearing the session
     try {
       if ("serviceWorker" in navigator) {
-        await Promise.race([
-          (async () => {
-            const reg = await navigator.serviceWorker.ready;
-            const sub = await reg.pushManager.getSubscription();
-            if (sub) {
-              await fetch("/api/push/subscribe", {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ endpoint: sub.endpoint }),
-              });
-              await sub.unsubscribe();
-            }
-          })(),
-          new Promise(resolve => setTimeout(resolve, 1500)),
-        ]);
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await fetch("/api/push/subscribe", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          });
+          await sub.unsubscribe();
+        }
       }
     } catch {}
     await fetch("/api/auth", { method: "DELETE" });
@@ -2047,12 +2034,6 @@ function HomePage() {
       };
     }));
     setReactingToMsgId(null);
-    setShowFullPicker(false);
-    setRecentEmojis(prev => {
-      const next = [emoji, ...prev.filter(e => e !== emoji)].slice(0, 5);
-      try { localStorage.setItem("ironlog-recent-emojis", JSON.stringify(next)); } catch {}
-      return next;
-    });
     await fetch("/api/reactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2124,7 +2105,7 @@ function HomePage() {
 
   const goTo = (v: string, dir: "forward" | "back" = "forward") => { setViewDir(dir); setView(v); };
   const goBack = () => goTo("home", "back");
-  const shownPBs = useRef<Map<string, number>>(new Map());
+  const shownPBs = useRef<Set<string>>(new Set());
   const openDay = (d: WorkoutDay) => { setActiveDay(d); goTo("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); shownPBs.current.clear(); };
   const begin = () => {
     setStarted(true);
@@ -2154,11 +2135,11 @@ function HomePage() {
     // Detect new PBs before saving (compare session log against history)
     const detectedPBs: { id: string; name: string; weight: number; reps: number }[] = [];
     if (activeDay) {
-      const exIds = Array.from(new Set(Object.keys(log).map(k => k.split("-").slice(0, -1).join("-"))));
+      const exIds = Array.from(new Set(Object.keys(log).map(k => parseSetKey(k).eid)));
       for (const eid of exIds) {
-        const { weight: prevBest } = lastSessionBest(eid);
+        const prevBest = overall.exercisePRs[eid]?.weight ?? 0;
         const sessionSets = Object.entries(log)
-          .filter(([k]) => k.startsWith(eid + "-"))
+          .filter(([k]) => parseSetKey(k).eid === eid)
           .map(([, v]) => v);
         const sessionBest = sessionSets.reduce((b, s) => s.weight > b.weight || (s.weight === b.weight && s.reps > b.reps) ? s : b, { weight: 0, reps: 0 });
         if (sessionBest.weight > 0 && sessionBest.weight > prevBest) {
@@ -2186,7 +2167,7 @@ function HomePage() {
 
     setTimeout(() => {
       setShowCompleteAnim(false);
-      const unshownPBs = detectedPBs.filter(pb => pb.weight > (shownPBs.current.get(pb.id) ?? 0));
+      const unshownPBs = detectedPBs.filter(pb => !shownPBs.current.has(pb.id));
       if (unshownPBs.length > 0) {
         setNewPBs(unshownPBs);
         setTimeout(() => setNewPBs([]), 2400);
@@ -2237,7 +2218,7 @@ function HomePage() {
   };
 
   const logSet = (eid: string, sn: number, w: string, r: string, dropNum?: number) => {
-    const key = dropNum ? `${eid}-${sn}-d${dropNum}` : `${eid}-${sn}`;
+    const key = typeof dropNum === "number" && dropNum > 0 ? `${eid}-${sn}-d${dropNum}` : `${eid}-${sn}`;
     const newLog = { ...log, [key]: { weight: parseFloat(w) || 0, reps: parseInt(r) || 0 } };
     setLog(newLog);
     try {
@@ -2254,18 +2235,21 @@ function HomePage() {
   };
   const lastSessionBest = (eid: string) => {
     if (!activeDay) return { weight: 0, reps: 0 };
-    const sessions = history[activeDay.id] || [];
-    if (!sessions.length) return { weight: 0, reps: 0 };
-    const recent = sessions[0];
-    let w = 0, r = 0;
-    const sets = recent.sets as Record<string, { weight: number; reps: number }>;
-    for (const sk in sets) {
-      if (sk.startsWith(eid + "-")) {
-        if (sets[sk].weight > w) w = sets[sk].weight;
-        if (sets[sk].reps > r) r = sets[sk].reps;
+    // Find the most recent session that actually contains this exercise.
+    // Look across all logged days, not just activeDay.id, so duplicate
+    // exercises in multiple plan days carry their history.
+    const allSessions = Object.values(history).flat().sort((a: any, b: any) => (b.date + b.time).localeCompare(a.date + a.time));
+    for (const s of allSessions) {
+      const sets = (s as any).sets as Record<string, { weight: number; reps: number }>;
+      let best: { weight: number; reps: number } | null = null;
+      for (const sk in sets) {
+        if (parseSetKey(sk).eid !== eid) continue;
+        const v = sets[sk];
+        if (!best || v.weight > best.weight || (v.weight === best.weight && v.reps > best.reps)) best = v;
       }
+      if (best) return best;
     }
-    return { weight: w, reps: r };
+    return { weight: 0, reps: 0 };
   };
 
   const overall = useMemo(() => getOverallStats(history), [history]);
@@ -2294,43 +2278,34 @@ function HomePage() {
   const toggleEquip = (id: string) => setOb(o => ({ ...o, equipment: o.equipment.includes(id) ? o.equipment.filter(e => e !== id) : [...o.equipment, id] }));
 
   // ─── LOADING ────────────────────────────────────────────────────────
-  let _content: React.ReactNode = null;
-  let _viewKey = "splash";
-  if (authLoading || !splashDone) { _viewKey = "splash"; _content = (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", position: "relative", overflow: "hidden", background: "#0a0a0f" }}>
-      {/* Background texture */}
-      <div style={{ position: "absolute", inset: 0, backgroundImage: "url(/bg-texture.jpg)", backgroundSize: "cover", backgroundPosition: "center", opacity: 0.18, pointerEvents: "none" }} />
+  if (authLoading || !splashDone) return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
       {/* Ambient blobs */}
       <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: "-25%", right: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 65%)", pointerEvents: "none" }} />
       <div style={{ textAlign: "center", zIndex: 1 }}>
-        {/* Barbell — bar first, plates slam in from sides */}
-        <BarbellMark width={340} delay={0.05} />
-        {/* Stacked wordmark */}
-        <div style={{ position: "relative", display: "inline-block", marginTop: 16 }}>
-          {/* Impact glow + shockwaves timed to plate slam (~0.95s) */}
-          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "90vw", height: "90vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.18) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 0.95s both", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "2px solid rgba(255,107,107,0.8)", animation: "shockwave 1s cubic-bezier(0.1,0.6,0.2,1) 0.95s both", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.45)", animation: "shockwave 1.4s cubic-bezier(0.1,0.6,0.2,1) 1.12s both", pointerEvents: "none" }} />
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.72, ease: [0.16, 1, 0.3, 1] }}
-            style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, letterSpacing: 8, lineHeight: 1.05, position: "relative" }}
-          >
-            <div style={{ fontSize: 62, color: "#fff" }}>IRON</div>
-            <div style={{ fontSize: 62, color: "#FF6B6B" }}>LOG</div>
-          </motion.div>
+        {/* Logo + impact effects wrapper */}
+        <div style={{ position: "relative", display: "inline-block" }}>
+          {/* Impact glow — flashes outward when logo lands */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "90vw", height: "90vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.22) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 0.85s both", pointerEvents: "none" }} />
+          {/* Shockwave ring 1 */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "2px solid rgba(255,107,107,0.8)", animation: "shockwave 1s cubic-bezier(0.1,0.6,0.2,1) 0.85s both", pointerEvents: "none" }} />
+          {/* Shockwave ring 2 */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.45)", animation: "shockwave 1.4s cubic-bezier(0.1,0.6,0.2,1) 1.05s both", pointerEvents: "none" }} />
+          {/* Logo */}
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 64, fontWeight: 700, letterSpacing: 12, overflow: "visible", lineHeight: 1.1, position: "relative" }}>
+            <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+          </div>
         </div>
-        {/* Floor beam */}
-        <div style={{ width: 260, height: 1, margin: "14px auto 0", background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.95), transparent)", animation: "floorBeam 1.3s ease-out 0.95s both" }} />
+        {/* Floor beam — light streak on impact */}
+        <div style={{ width: 260, height: 1, margin: "10px auto 0", background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.95), transparent)", animation: "floorBeam 1.3s ease-out 0.85s both" }} />
         {/* Tagline */}
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginTop: 22, marginBottom: 52, animation: "fadeIn 0.5s ease 1.3s both" }}>LIFT · TRACK · PROGRESS</div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginTop: 22, marginBottom: 52, animation: "fadeIn 0.5s ease 1.25s both" }}>LIFT · TRACK · PROGRESS</div>
         {/* Loading bar */}
         <div style={{ width: 180, height: 2, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.55), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite", margin: "0 auto" }} />
       </div>
     </div>
-  ); } else
+  );
 
   // ─── LOGIN ──────────────────────────────────────────────────────────
   if (!user) {
@@ -2341,108 +2316,65 @@ function HomePage() {
 
     // ── Landing page (username step) ──────────────────────────────────
     if (authStep === "username") {
-      const tips = [
-        { title: "Log every set in seconds", desc: "Your last session's numbers are always right there — just enter weight and reps." },
-        { title: "Rest timer follows you", desc: "Configurable per exercise. Push notification fires even with your screen locked." },
-        { title: "Live personal bests", desc: "A trophy overlay fires the moment you beat a record — no waiting until the end." },
-        { title: "Personalised plan", desc: "Tell us your goals, equipment, and schedule. Get a full weekly split instantly." },
-        { title: "Muscle maps + form cues", desc: "Anatomical diagram shows exactly which muscles fire. Form cues for every exercise." },
-        { title: "Works everywhere", desc: "Installable PWA — add to your home screen on iOS or Android, no app store needed." },
+      const isTrainer = landingTab === "trainer";
+      const accentColor = isTrainer ? "#4ECDC4" : "#FF6B6B";
+      const features = isTrainer ? [
+        { title: "Full client roster", desc: "Manage all your athletes from one screen" },
+        { title: "Plan builder", desc: "Generate, customise, and propose personalised training plans" },
+        { title: "Session history", desc: "Review every set your clients have logged" },
+        { title: "Direct messaging", desc: "Built-in chat with delivery and read receipts" },
+      ] : [
+        { title: "Personalised training plan", desc: "Built for your goals, equipment, and schedule" },
+        { title: "Set-by-set logging", desc: "Weight, reps, rest timer, and live personal best detection" },
+        { title: "Progress analytics", desc: "Strength trends, 28-day streaks, and body metric tracking" },
+        { title: "Trainer connection", desc: "Receive custom plans and message your coach in-app" },
       ];
 
-      _viewKey = `auth-${authStep}`; _content = (
+      return (
         <div style={{ minHeight: "100dvh", position: "relative", overflowY: "auto" }}>
           <div style={{ position: "fixed", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.06) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
           <div style={{ position: "fixed", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.05) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
 
-          {/* Sticky header — pills link to HTML info pages */}
+          {/* Sticky header with tab pills */}
           <div style={{ position: "sticky", top: 0, zIndex: 10, padding: "12px 20px", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: "rgba(10,10,15,0.88)", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 15, fontWeight: 700, letterSpacing: 3 }}>
               <span style={{ color: "#fff" }}>IRON</span><span style={{ color: "#FF6B6B" }}>LOG</span>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <a href="/client" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(255,107,107,0.35)", color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>ATHLETES</a>
-              <a href="/trainer" target="_blank" rel="noopener noreferrer" style={{ padding: "7px 14px", borderRadius: 20, border: "1px solid rgba(78,205,196,0.35)", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'DM Sans', sans-serif", textDecoration: "none" }}>TRAINERS</a>
+              <button onClick={() => setLandingTab("athlete")} style={{ padding: "7px 14px", borderRadius: 20, border: isTrainer ? "1px solid rgba(255,255,255,0.1)" : "none", background: isTrainer ? "transparent" : "linear-gradient(135deg,#FF6B6B,#ee5a24)", color: isTrainer ? "rgba(255,255,255,0.4)" : "#fff", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>ATHLETES</button>
+              <button onClick={() => setLandingTab("trainer")} style={{ padding: "7px 14px", borderRadius: 20, border: isTrainer ? "none" : "1px solid rgba(255,255,255,0.1)", background: isTrainer ? "linear-gradient(135deg,#4ECDC4,#26a69a)" : "transparent", color: isTrainer ? "#fff" : "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>TRAINERS</button>
             </div>
           </div>
 
           {/* Hero */}
-          <div style={{ textAlign: "center", padding: "44px 32px 16px", zIndex: 1, position: "relative" }}>
-            <BarbellMark width={300} delay={0.05} />
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.72, ease: [0.16, 1, 0.3, 1] }}
-              style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, letterSpacing: 6, lineHeight: 1.05, marginTop: 14 }}
-            >
-              <div style={{ fontSize: 44, color: "#fff" }}>IRON</div>
-              <div style={{ fontSize: 44, color: "#FF6B6B" }}>LOG</div>
-            </motion.div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginBottom: 14 }}>LIFT · TRACK · PROGRESS</div>
-            <div style={{ minHeight: 18, overflow: "hidden" }}>
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={phraseIdx}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.35, ease: "easeInOut" }}
-                  style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif" }}
-                >{phrase}</motion.div>
-              </AnimatePresence>
+          <div style={{ textAlign: "center", padding: "52px 32px 28px", zIndex: 1, position: "relative" }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 44, fontWeight: 700, letterSpacing: 8, marginBottom: 6, lineHeight: 1, overflow: "visible" }}>
+              <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 6, fontWeight: 300, marginBottom: 20 }}>LIFT · TRACK · PROGRESS</div>
+            <div style={{ minHeight: 18 }}>
+              <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
             </div>
           </div>
 
-          {/* Stats strip */}
-          <div style={{ display: "flex", padding: "12px 24px 20px", zIndex: 1, position: "relative", maxWidth: 460, margin: "0 auto" }}>
-            {([{ num: "119+", label: "EXERCISES" }, { num: "FREE", label: "FOR ATHLETES" }, { num: "PWA", label: "INSTALLABLE" }] as const).map((s, i) => (
-              <div key={i} style={{ flex: 1, textAlign: "center", padding: "10px 6px", borderRight: i < 2 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: "#FF6B6B", marginBottom: 2 }}>{s.num}</div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: 1.5 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Athlete hero image */}
-          <div style={{ margin: "0 16px 20px", borderRadius: 16, overflow: "hidden", position: "relative", zIndex: 1, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
-            <img src="/hero-athlete.jpg" alt="" style={{ width: "100%", height: 200, objectFit: "cover", objectPosition: "center 20%", display: "block" }} />
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.1) 0%, rgba(10,10,15,0.65) 100%)" }} />
-            <div style={{ position: "absolute", bottom: 14, left: 16, fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: 3 }}>DO THE WORK.</div>
-          </div>
-
-          {/* Tips grid */}
-          <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, textAlign: "center", marginBottom: 12 }}>WHAT YOU GET</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {tips.map((t, i) => (
-                <div key={i} style={{ padding: "12px", background: "rgba(255,255,255,0.03)", borderRadius: 10, borderLeft: "2px solid rgba(255,107,107,0.35)" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{t.title}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", lineHeight: 1.4 }}>{t.desc}</div>
+          {/* Feature cards */}
+          <div style={{ padding: "8px 24px 32px", maxWidth: 420, margin: "0 auto", zIndex: 1, position: "relative" }}>
+            <div style={{ fontSize: 10, color: accentColor, letterSpacing: 3, fontWeight: 700, textAlign: "center", marginBottom: 16, opacity: 0.85 }}>
+              {isTrainer ? "BUILT FOR TRAINERS" : "BUILT FOR ATHLETES"}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {features.map((f, i) => (
+                <div key={i} style={{ padding: "13px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 12, borderLeft: `2px solid ${accentColor}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>{f.title}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>{f.desc}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* For Athletes / For Trainers detail cards */}
-          <div style={{ padding: "0 16px 20px", maxWidth: 460, margin: "0 auto", zIndex: 1, position: "relative" }}>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, textAlign: "center", marginBottom: 12 }}>LEARN MORE</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <a href="/client" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#FF6B6B", letterSpacing: 2, marginBottom: 6 }}>FOR ATHLETES</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, marginBottom: 8 }}>Free forever. Log, track, and grow stronger every session.</div>
-                <div style={{ fontSize: 10, color: "rgba(255,107,107,0.7)" }}>See all features →</div>
-              </a>
-              <a href="/trainer" target="_blank" rel="noopener noreferrer" style={{ padding: "16px 14px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 12, textDecoration: "none", display: "block" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", letterSpacing: 2, marginBottom: 6 }}>FOR TRAINERS</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, marginBottom: 8 }}>$19/mo. Manage clients, deliver plans, track results.</div>
-                <div style={{ fontSize: 10, color: "rgba(78,205,196,0.7)" }}>Request early access →</div>
-              </a>
-            </div>
-          </div>
-
-          {/* Sign in CTA */}
-          <div style={{ padding: "0 24px 60px", maxWidth: 460, margin: "0 auto", textAlign: "center", zIndex: 1, position: "relative" }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginBottom: 16, letterSpacing: 0.5, fontFamily: "'DM Sans', sans-serif" }}>Sign in or create a free account</div>
+          {/* CTA — username input */}
+          <div style={{ padding: "0 24px 60px", maxWidth: 420, margin: "0 auto", textAlign: "center", zIndex: 1, position: "relative" }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginBottom: 16, letterSpacing: 0.5, fontFamily: "'DM Sans', sans-serif" }}>No subscription. No ads. Just your lifts.</div>
             <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={{ ...inputStyleCenter, maxWidth: "100%" }} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             {showEmailSignupPrompt && (
@@ -2454,37 +2386,30 @@ function HomePage() {
                 </div>
               </div>
             )}
-            {!showEmailSignupPrompt && <motion.button whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 17 }} onClick={doCheckUsername} style={{ ...btnPrimary, maxWidth: "100%" }}>CONTINUE</motion.button>}
+            {!showEmailSignupPrompt && <button onClick={doCheckUsername} style={{ ...btnPrimary, maxWidth: "100%" }}>CONTINUE</button>}
           </div>
         </div>
       );
-    } else {
+    }
 
     // ── Other auth steps — centered card ─────────────────────────────
-    _viewKey = `auth-${authStep}`; _content = (
+    return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32, position: "relative", overflow: "hidden" }}>
-        <img src="/ai/login-bg.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center bottom", opacity: 0.35, pointerEvents: "none", zIndex: 0 }} />
         <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
-          <BarbellMark width={260} delay={0.05} loop={7000} />
+        <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, marginBottom: 4, overflow: "visible" }}>
             <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 32 }}>LIFT · TRACK · PROGRESS</div>
 
-          <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={authStep}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
           {/* ── Step: register (new user) ── */}
           {authStep === "register" && (<>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Create your account</div>
-            <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Choose a username" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
+            {nameInput && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 20, letterSpacing: 1 }}>{nameInput}</div>}
+            {!nameInput && (
+              <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Choose a username" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
+            )}
             {emailInput ? (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 16px", marginBottom: 8, textAlign: "left" }}>
                 Email: <span style={{ color: "rgba(255,255,255,0.7)" }}>{emailInput}</span>
@@ -2495,7 +2420,7 @@ function HomePage() {
             <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" type="password" style={{ ...inputStyle, marginBottom: 8 }} />
             <input value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doRegister()} placeholder="Confirm password" type="password" style={inputStyle} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
-            <motion.button whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 17 }} onClick={doRegister} style={btnPrimary}>CREATE ACCOUNT</motion.button>
+            <button onClick={doRegister} style={btnPrimary}>CREATE ACCOUNT</button>
             <button onClick={() => { setAuthStep("username"); setAuthError(""); setEmailInput(""); }} style={btnBack}>← Back</button>
           </>)}
 
@@ -2516,7 +2441,7 @@ function HomePage() {
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>Welcome back, <strong style={{ color: "#fff" }}>{nameInput}</strong></div>
             <input value={passwordInput} onChange={e => setPasswordInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doLogin()} placeholder="Password" type="password" autoFocus style={{ ...inputStyle, marginBottom: 4 }} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
-            <motion.button whileTap={{ scale: 0.95 }} transition={{ type: "spring", stiffness: 400, damping: 17 }} onClick={doLogin} style={btnPrimary}>LOG IN</motion.button>
+            <button onClick={doLogin} style={btnPrimary}>LOG IN</button>
             <button onClick={() => { setAuthStep("forgot"); setEmailInput(""); setAuthError(""); setForgotSent(false); }} style={{ ...btnBack, display: "block", width: "100%" }}>Forgot password?</button>
             <button onClick={() => { setAuthStep("username"); setAuthError(""); setPasswordInput(""); }} style={btnBack}>← Back</button>
           </>)}
@@ -2535,23 +2460,20 @@ function HomePage() {
             )}
             <button onClick={() => { setAuthStep("password"); setForgotSent(false); setAuthError(""); }} style={btnBack}>← Back to login</button>
           </>)}
-          </motion.div>
-          </AnimatePresence>
-        </motion.div>
+        </div>
       </div>
     );
-    }
-  } else
+  }
 
   // ─── MUST RESET PASSWORD ────────────────────────────────────────────
   if (user && mustResetPassword) {
     const inputStyle: React.CSSProperties = { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 15, fontFamily: "'DM Sans', sans-serif", padding: "14px 20px", width: "100%", maxWidth: 300, textAlign: "center" as const, outline: "none", display: "block", boxSizing: "border-box" as const, margin: "0 auto" };
     const btnPrimary: React.CSSProperties = { display: "block", width: "100%", maxWidth: 300, margin: "16px auto 0", padding: "15px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" };
-    _viewKey = "reset-password"; _content = (
+    return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
+        <div className="slide-up" style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, color: "#fff", marginBottom: 4 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>LIFT · TRACK · PROGRESS</div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Welcome, <strong style={{ color: "#fff" }}>{user.username}</strong></div>
@@ -2561,10 +2483,10 @@ function HomePage() {
           {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
           <button onClick={doResetPassword} style={btnPrimary}>SET PASSWORD</button>
           <button onClick={doLogout} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 16 }}>Log out</button>
-        </motion.div>
+        </div>
       </div>
     );
-  } else
+  }
 
   // ─── ONBOARDING ─────────────────────────────────────────────────────
   if (showOnboarding) {
@@ -2595,13 +2517,15 @@ function HomePage() {
       });
     };
 
-    if (generatingPlan) { _viewKey = "onboarding-generating"; _content = (
+    if (generatingPlan) return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", padding: 32 }}>
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 32 }}>BUILDING YOUR PLAN</div>
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 26, fontWeight: 700, color: "#FF6B6B", marginBottom: 16 }}>IRON<span style={{ color: "#fff" }}>LOG</span></div>
         <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", textAlign: "center", lineHeight: 1.7 }}>Analysing your goals and selecting the best exercises for you...</div>
       </div>
-    ); } else { _viewKey = `onboarding-${onboardingStep}`; _content = (
+    );
+
+    return (
       <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", padding: "48px 24px 0", paddingBottom: safeBot }}>
         {/* Progress bar */}
         <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginBottom: 40 }}>
@@ -2611,10 +2535,6 @@ function HomePage() {
         {/* Step 0: Welcome */}
         {onboardingStep === 0 && (
           <div key={onboardingStep} className={obAnimClass}>
-            <div style={{ position: "relative", margin: "-12px -20px 24px", borderRadius: 16, overflow: "hidden", aspectRatio: "3 / 4", maxHeight: 320 }}>
-              <img src="/ai/onboarding-welcome.jpg" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.55) 0%, rgba(10,10,15,0) 30%, rgba(10,10,15,0) 60%, rgba(10,10,15,0.95) 100%)" }} />
-            </div>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 32, fontWeight: 700, color: "#fff", marginBottom: 8 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Let's build your plan.</div>
             <div style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 32 }}>Answer a few quick questions and we'll put together a personalised workout programme designed around your goals, schedule, and equipment.</div>
@@ -2663,22 +2583,19 @@ function HomePage() {
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>What are you training for?</div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 24 }}>Select all that apply — your plan will blend them.</div>
             {[
-              { id: "muscle",   label: "Build Muscle",     desc: "Hypertrophy-focused training with progressive overload",       img: "/ai/goal-muscle.jpg" },
-              { id: "strength", label: "Get Stronger",     desc: "Heavy compound lifts, low reps, long rest",                    img: "/ai/goal-stronger.jpg" },
-              { id: "fat_loss", label: "Lose Fat",         desc: "Higher volume, cardio finishers, calorie-burning focus",       img: "/ai/goal-fat.jpg" },
-              { id: "fitness",  label: "General Fitness",  desc: "Balanced training to improve overall health and conditioning", img: "/ai/goal-fitness.jpg" },
+              { id: "muscle", label: "Build Muscle", desc: "Hypertrophy-focused training with progressive overload" },
+              { id: "strength", label: "Get Stronger", desc: "Heavy compound lifts, low reps, long rest" },
+              { id: "fat_loss", label: "Lose Fat", desc: "Higher volume, cardio finishers, calorie-burning focus" },
+              { id: "fitness", label: "General Fitness", desc: "Balanced training to improve overall health and conditioning" },
             ].map(g => {
               const sel = ob.goals.includes(g.id);
               return (
-                <div key={g.id} style={{ ...selCard(sel), display: "flex", alignItems: "center", gap: 14 }} onClick={() => setOb(o => { const isSel = o.goals.includes(g.id); return { ...o, goals: isSel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }; })}>
-                  <img src={g.img} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0, boxShadow: sel ? "0 0 0 1px rgba(255,107,107,0.5)" : "0 0 0 1px rgba(255,255,255,0.06)" }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                      <div style={{ color: sel ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{g.label}</div>
-                      {sel && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
-                    </div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{g.desc}</div>
+                <div key={g.id} style={selCard(sel)} onClick={() => setOb(o => { const isSel = o.goals.includes(g.id); return { ...o, goals: isSel ? o.goals.filter(x => x !== g.id) : [...o.goals, g.id] }; })}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <div style={{ color: sel ? "#FF6B6B" : "#fff", fontWeight: 600 }}>{g.label}</div>
+                    {sel && <div style={{ color: "#FF6B6B", fontSize: 14 }}>✓</div>}
                   </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{g.desc}</div>
                 </div>
               );
             })}
@@ -2762,24 +2679,15 @@ function HomePage() {
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>SETUP</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>Where do you train?</div>
             {[
-              { id: "gym",  label: "Gym",  desc: "Full access to barbells, cables, machines", img: "/ai/location-gym.jpg" },
-              { id: "home", label: "Home", desc: "I train at home with my own equipment",     img: "/ai/location-home.jpg" },
-              { id: "both", label: "Both", desc: "Mix of gym and home sessions",               img: "/ai/location-both.jpg" },
-            ].map(l => {
-              const active = ob.location === l.id;
-              return (
-                <div key={l.id} style={{ ...selCard(active), padding: 0, overflow: "hidden", position: "relative" }} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: (l.id === "gym" || l.id === "both") ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell","smith_machine"] : [] }))}>
-                  <div style={{ position: "relative", aspectRatio: "21 / 9" }}>
-                    <img src={l.img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: active ? 0.8 : 0.55 }} />
-                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(10,10,15,0.85) 0%, rgba(10,10,15,0.3) 60%, rgba(10,10,15,0) 100%)" }} />
-                    <div style={{ position: "absolute", inset: 0, padding: "12px 16px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <div style={{ color: active ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 2 }}>{l.label}</div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{l.desc}</div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+              { id: "gym", label: "Gym", desc: "Full access to barbells, cables, machines" },
+              { id: "home", label: "Home", desc: "I train at home with my own equipment" },
+              { id: "both", label: "Both", desc: "Mix of gym and home sessions" },
+            ].map(l => (
+              <div key={l.id} style={selCard(ob.location === l.id)} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: (l.id === "gym" || l.id === "both") ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell","smith_machine"] : [] }))}>
+                <div style={{ color: ob.location === l.id ? "#FF6B6B" : "#fff", fontWeight: 600, marginBottom: 4 }}>{l.label}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{l.desc}</div>
+              </div>
+            ))}
             <button onClick={() => setOnboardingStep(7)} disabled={!canNext()} style={{ ...obBtn, opacity: canNext() ? 1 : 0.4 }}>CONTINUE</button>
             <button onClick={() => setOnboardingStep(5)} style={obSkip}>← Back</button>
           </div>
@@ -2849,8 +2757,8 @@ function HomePage() {
           </div>
         )}
       </div>
-    ); }
-  } else
+    );
+  }
 
   // ─── CUSTOMISE ──────────────────────────────────────────────────────
   if (view === "customise") {
@@ -2882,9 +2790,9 @@ function HomePage() {
         return true;
       }).slice(0, 60);
 
-      _viewKey = "customise-edit"; _content = (
+      return (
         <>
-        <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", paddingBottom: "calc(100px + env(safe-area-inset-bottom, 0px))" }}>
+        <div key="customise" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", paddingBottom: "calc(100px + env(safe-area-inset-bottom, 0px))" }}>
           <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
             <button onClick={() => { setEditingDay(null); setShowExBrowser(false); setExSearch(""); setSuperSelection([]); setCustomMultiMode(false); setBrowserSupersetMode(false); setBrowserSuperSel([]); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "#FF6B6B", letterSpacing: 3, flex: 1 }}>EDITING</div>
@@ -3173,10 +3081,7 @@ function HomePage() {
                         <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
                       </div>
                     ) : (
-                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", position: "relative" }}>
-                        <img src="/ai/form-fallback.jpg" alt="" style={{ width: "100%", display: "block", objectFit: "cover" }} />
-                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 0 14px", background: "linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.7))", color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>NO FORM DEMO</div>
-                      </div>
+                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No form demo available</div>
                     )}
                     {(() => {
                       const cues = getFormCues(formPreview.id, formPreview.name);
@@ -3196,10 +3101,6 @@ function HomePage() {
                   </>
                 ) : (
                   <div style={{ background: "#0b0b0b", borderRadius: 14, overflow: "hidden", padding: "10px 8px 4px" }}>
-                    {(() => {
-                      const thumb = anatomyImageFor(primary);
-                      return thumb ? <img src={thumb} alt="" style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 10, marginBottom: 8, opacity: 0.85 }} /> : null;
-                    })()}
                     <MuscleDiagram primary={primary} secondary={secondary} exerciseId={formPreview.id} exerciseName={formPreview.name}/>
                     {allMuscles.length > 0 && (() => {
                       const det = lookupMuscleDetail(formPreview.id, formPreview.name);
@@ -3238,7 +3139,7 @@ function HomePage() {
     }
 
     // Plan overview — list all days
-    _viewKey = "customise"; _content = (
+    return (
       <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", paddingBottom: "calc(100px + env(safe-area-inset-bottom, 0px))" }}>
         <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
@@ -3265,39 +3166,17 @@ function HomePage() {
         </div>
       </div>
     );
-  } else
+  }
 
   // ─── HOME ───────────────────────────────────────────────────────────
-  if (view === "home") { _viewKey = "home"; _content = (
-    <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
+  if (view === "home") return (
+    <div key="home" className={viewDir === "back" ? "view-back" : "view-forward"} style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
       {/* PB celebration overlay */}
-      <AnimatePresence>
       {newPBs.length > 0 && (
-        <motion.div
-          key="pb-overlay"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          onClick={() => setNewPBs([])}
-          style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(0,0,0,0.35)" }}
-        >
-          <motion.div
-            initial={{ scale: 0.5, y: 20, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.9, y: 10, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 320, damping: 22, delay: 0.05 }}
-            style={{ background: "rgba(12,12,15,0.95)", border: "1px solid rgba(255,215,0,0.35)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative", boxShadow: "0 0 60px rgba(255,215,0,0.12)" }}
-          >
+        <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
             <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: [null, 1.15, 0.95, 1.05, 1], opacity: 1, filter: ["drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 32px rgba(255,215,0,0.6))", "drop-shadow(0 0 10px rgba(255,215,0,0.4))"] }}
-              transition={{ duration: 0.85, ease: "easeOut", times: [0, 0.5, 0.7, 0.85, 1], delay: 0.08 }}
-              style={{ marginBottom: 8, display: "inline-block", transformOrigin: "center" }}
-            >
-              <img src="/ai/pb-celebration.png" alt="" style={{ width: 96, height: 96, display: "block" }} />
-            </motion.div>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
             {newPBs.map((pb, i) => (
               <div key={i} style={{ marginBottom: 6 }}>
@@ -3305,37 +3184,28 @@ function HomePage() {
                 <div style={{ fontSize: 12, color: "rgba(255,215,0,0.7)", fontFamily: "'Space Mono', monospace" }}>{pb.weight}kg × {pb.reps}</div>
               </div>
             ))}
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 14, fontFamily: "'DM Sans', sans-serif" }}>Tap to dismiss</div>
-          </motion.div>
-        </motion.div>
-      )}
-      </AnimatePresence>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px 20px 0" }}>
-        <button onClick={() => setView("settings")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-          <img src="/ai/avatar-default.png" alt="" style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
-          <div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontWeight: 300, letterSpacing: 1 }}>Welcome back</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
-            <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>{user.username}</div>
-            {user.role === "trainer" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 4, padding: "2px 6px" }}>TRAINER</span>}
-            {user.role === "admin" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
-            {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
-            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }}>›</span>
           </div>
+        </div>
+      )}
+      {/* Hero: barbell background + profile card overlay */}
+      <div style={{ position: "relative", padding: "24px 20px 20px", overflow: "hidden" }}>
+        <div aria-hidden style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -48%)", opacity: 0.09, pointerEvents: "none", width: "100%" }}>
+          <BarbellMark width={420} delay={0.1} />
+        </div>
+        <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(12,12,18,0.55)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 16, cursor: "pointer", textAlign: "left", padding: "14px 18px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 24px -8px rgba(0,0,0,0.5)" }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: -0.5 }}>{user.username}</div>
+            {user.role === "trainer" && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
+            {user.role === "admin" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
+            {user.role === "user" && (() => { const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#f0c040", background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
+            {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
+            <span style={{ marginLeft: "auto", fontSize: 14, color: "rgba(255,255,255,0.25)" }}>›</span>
           </div>
         </button>
-        <button onClick={doLogout} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 14px", color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", letterSpacing: 1 }}>LOG OUT</button>
       </div>
-      <AnimatePresence>
       {showNotifBanner && notifStatus === "idle" && (
-        <motion.div
-          initial={{ opacity: 0, y: -10, height: 0 }}
-          animate={{ opacity: 1, y: 0, height: "auto" }}
-          exit={{ opacity: 0, y: -10, height: 0 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          style={{ overflow: "hidden", margin: "16px 20px 0" }}
-        >
-        <div style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ margin: "16px 20px 0", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "#4ECDC4", marginBottom: 3 }}>Enable notifications</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>Get notified when you receive a message or a trainer sends you a request.</div>
@@ -3350,33 +3220,16 @@ function HomePage() {
             <button onClick={() => setShowNotifBanner(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: "2px 0", textAlign: "center" }}>Not now</button>
           </div>
         </div>
-        </motion.div>
       )}
-      </AnimatePresence>
-      <div style={{ padding: "20px 20px 0", textAlign: "center", position: "relative" }}>
-        <div style={{ position: "relative", margin: "0 -20px 12px", height: 90, overflow: "hidden" }}>
-          <img src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }} />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.55) 0%, rgba(10,10,15,0) 35%, rgba(10,10,15,0) 65%, rgba(10,10,15,0.85) 100%)" }} />
-        </div>
+      <div style={{ padding: "20px 20px 0", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", fontWeight: 500 }}>LIFT · TRACK · PROGRESS</div>
-        <div style={{ minHeight: 16, overflow: "hidden" }}>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={phraseIdx}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35, ease: "easeInOut" }}
-              style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}
-            >{phrase}</motion.div>
-          </AnimatePresence>
-        </div>
+        <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontStyle: "italic", marginTop: 6, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
       </div>
       <div style={{ padding: "20px 20px 0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <button onClick={openCustomise} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>CUSTOMISE</button>
+            <button onClick={openCustomise} style={{ background: "linear-gradient(135deg, rgba(255,107,107,0.12), rgba(238,90,36,0.06))", border: "1px solid rgba(255,107,107,0.22)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, padding: "6px 11px" }}>✏ CUSTOMISE</button>
           </div>
         </div>
         {planNote && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 16, fontStyle: "italic", lineHeight: 1.5 }}>{planNote}</div>}
@@ -3387,7 +3240,7 @@ function HomePage() {
             <div
               key={d.id}
               className={isLocked ? undefined : "card-hover"}
-              style={{ animation: `fadeIn 0.4s ease ${i * 0.07}s both`, marginBottom: 10, cursor: isLocked ? "default" : "pointer", opacity: isLocked ? 0.3 : 1, transition: "opacity 0.2s" }}
+              style={{ animationDelay: `${i * 0.06}s`, marginBottom: 10, cursor: isLocked ? "default" : "pointer", opacity: isLocked ? 0.3 : 1, transition: "opacity 0.2s" }}
               onClick={() => {
                 if (isLocked) return;
                 if (isActive) { setView("workout"); return; }
@@ -3395,12 +3248,12 @@ function HomePage() {
               }}
             >
               <div style={{
-                background: isActive ? `${d.color}14` : "rgba(255,255,255,0.04)",
-                border: isActive ? `1px solid ${d.color}60` : "1px solid rgba(255,255,255,0.06)",
+                background: isActive ? `linear-gradient(135deg, ${d.color}1c, ${d.color}06 60%, rgba(255,255,255,0.02))` : `linear-gradient(135deg, ${d.color}08, rgba(255,255,255,0.025))`,
+                border: isActive ? `1px solid ${d.color}60` : `1px solid ${d.color}18`,
                 borderRadius: 16, padding: "20px", position: "relative", overflow: "hidden",
-                boxShadow: isActive ? `0 0 20px ${d.color}18` : "none",
+                boxShadow: isActive ? `0 0 22px ${d.color}24, inset 0 1px 0 rgba(255,255,255,0.04)` : `0 2px 14px -8px ${d.color}30, inset 0 1px 0 rgba(255,255,255,0.03)`,
               }}>
-                <div style={{ position: "absolute", top: 0, left: 0, width: isActive ? 6 : 4, height: "100%", background: d.gradient, borderRadius: "16px 0 0 16px" }} />
+                <div style={{ position: "absolute", top: 0, left: 0, width: isActive ? 6 : 4, height: "100%", background: d.gradient, borderRadius: "16px 0 0 16px", boxShadow: isActive ? `0 0 12px ${d.color}80` : `0 0 6px ${d.color}50` }} />
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div style={{ paddingLeft: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -3417,7 +3270,7 @@ function HomePage() {
                     )}
                     {!isActive && history[d.id]?.[0] && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 10, fontFamily: "'Space Mono', monospace" }}>Last: {history[d.id][0].date} · {history[d.id][0].duration}</div>}
                   </div>
-                  <WorkoutCardIcon title={d.title} color={d.color} size={60}/>
+                  <WorkoutTypeIcon title={d.title} color={d.color} size={60}/>
                 </div>
               </div>
             </div>
@@ -3579,10 +3432,7 @@ function HomePage() {
             <div style={{ fontSize: 12, color: "#ff6b6b", textAlign: "center", padding: "12px 0", fontFamily: "'Space Mono', monospace" }}>{trainerSearchError}</div>
           )}
           {trainerHasSearched && !trainerSearching && !trainerSearchError && trainerResults.length === 0 && (
-            <div style={{ textAlign: "center", padding: "16px 0" }}>
-              <img src="/ai/empty-search.jpg" alt="" style={{ width: 110, height: 110, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)" }}>No users found matching "{trainerSearch}"</div>
-            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", textAlign: "center", padding: "16px 0" }}>No users found matching "{trainerSearch}"</div>
           )}
         </div>
       )}
@@ -3590,10 +3440,7 @@ function HomePage() {
         <div style={{ padding: "24px 20px 0" }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>MY CLIENTS</div>
           {clients.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "16px 0" }}>
-              <img src="/ai/empty-clients.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontStyle: "italic" }}>No accepted clients yet — send requests above</div>
-            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontStyle: "italic", padding: "8px 0" }}>No accepted clients yet — send requests above</div>
           ) : clients.map(c => (
             <div key={c.id} className="card-hover" onClick={() => openClientDetail(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
               <div>
@@ -3608,15 +3455,209 @@ function HomePage() {
           ))}
         </div>
       )}
+
+      {user.role === "trainer" && (
+        <div style={{ padding: "16px 20px 0" }}>
+          <button
+            onClick={async () => {
+              if (showLeaderboard) { setShowLeaderboard(false); return; }
+              setLeaderboardLoading(true);
+              setShowLeaderboard(true);
+              try {
+                const res = await fetch("/api/trainer/leaderboard");
+                const data = await res.json();
+                if (data.leaderboard) setLeaderboard(data.leaderboard);
+              } catch {}
+              setLeaderboardLoading(false);
+            }}
+            style={{ width: "100%", padding: "14px 18px", background: showLeaderboard ? "rgba(162,155,254,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${showLeaderboard ? "rgba(162,155,254,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, color: showLeaderboard ? "#a29bfe" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}
+          >
+            <span style={{ fontSize: 18 }}>🏆</span>
+            <span>Client Leaderboard</span>
+            <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>{showLeaderboard ? "▲" : "▼"}</span>
+          </button>
+          {showLeaderboard && (
+            <div className="fade-in" style={{ marginTop: 8 }}>
+              {leaderboardLoading ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "20px 0" }}>Loading…</div>
+              ) : leaderboard.length === 0 ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "20px 0" }}>No client data yet</div>
+              ) : (
+                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
+                  {/* Header */}
+                  <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 52px 52px 52px", gap: 8, padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>#</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>CLIENT</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: "center" }}>SESSIONS</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: "center" }}>STREAK</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: "center" }}>PRs</div>
+                  </div>
+                  {leaderboard.map((c, i) => {
+                    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+                    const tier = (() => { const t = CLIENT_TIERS.slice().reverse().find(t => c.totalSessions >= t.min); return t ?? CLIENT_TIERS[0]; })();
+                    return (
+                      <div key={c.id} style={{ display: "grid", gridTemplateColumns: "28px 1fr 52px 52px 52px", gap: 8, padding: "12px 14px", borderBottom: i < leaderboard.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.03)" : "transparent" }}>
+                        <div style={{ fontSize: 14, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.emoji} {tier.label} · {c.totalVolume.toLocaleString()}kg vol</div>
+                        </div>
+                        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{c.totalSessions}</div>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>sessions</div>
+                        </div>
+                        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: c.streak >= 3 ? "#FF6B6B" : "#fff" }}>{c.streak}</div>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>days</div>
+                        </div>
+                        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: c.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{c.prCount}</div>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>PRs</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Trainer: Custom Exercises ── */}
+      {user.role === "trainer" && (
+        <div style={{ padding: "24px 20px 0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>MY EXERCISES</div>
+            <button onClick={() => setShowExCreator(s => !s)} style={{ background: showExCreator ? "rgba(255,107,107,0.12)" : "rgba(78,205,196,0.12)", border: `1px solid ${showExCreator ? "rgba(255,107,107,0.3)" : "rgba(78,205,196,0.3)"}`, borderRadius: 8, color: showExCreator ? "#FF6B6B" : "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 12px" }}>
+              {showExCreator ? "CANCEL" : "+ CREATE"}
+            </button>
+          </div>
+
+          {/* Creator form */}
+          {showExCreator && (() => {
+            const MUSCLES = ["chest","back","shoulders","biceps","triceps","quads","hamstrings","glutes","calves","core","forearms"];
+            const EQUIP = ["barbell","dumbbell","cable","machine","bodyweight","pullup_bar","bench","kettlebell","resistance_band","dip_bar"];
+            const toggleArr = (arr: string[], set: (v: string[]) => void, val: string) =>
+              set(arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]);
+            const chipBtn = (label: string, active: boolean, onClick: () => void, color = "#4ECDC4") => (
+              <button key={label} onClick={onClick} style={{ padding: "4px 10px", borderRadius: 14, fontSize: 10, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, fontWeight: 600, border: `1px solid ${active ? color + "60" : "rgba(255,255,255,0.1)"}`, background: active ? color + "18" : "rgba(255,255,255,0.03)", color: active ? color : "rgba(255,255,255,0.35)" }}>{label.toUpperCase()}</button>
+            );
+            const uploadPhoto = async (file: File) => {
+              setExCreatorUploading(true);
+              try {
+                const fd = new FormData(); fd.append("file", file);
+                const res = await fetch("/api/upload", { method: "POST", body: fd });
+                const data = await res.json();
+                if (data.url) setExCreatorPhotos(p => [...p, data.url]);
+                else alert(data.error ?? "Upload failed");
+              } catch { alert("Upload failed"); } finally { setExCreatorUploading(false); }
+            };
+            const saveExercise = async () => {
+              if (!exCreatorName.trim()) return;
+              setExCreatorSaving(true);
+              try {
+                const res = await fetch("/api/trainer/exercises", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: exCreatorName.trim(), primaryMuscles: exCreatorPrimary, secondaryMuscles: exCreatorSecondary, equipment: exCreatorEquip, type: exCreatorType, difficulty: exCreatorDiff, photoUrls: exCreatorPhotos }) });
+                const data = await res.json();
+                if (data.exercise) { setCustomExercises(p => [data.exercise, ...p]); setShowExCreator(false); setExCreatorName(""); setExCreatorPrimary([]); setExCreatorSecondary([]); setExCreatorEquip([]); setExCreatorPhotos([]); setExCreatorType("compound"); setExCreatorDiff("intermediate"); }
+                else alert(data.error ?? "Save failed");
+              } catch { alert("Save failed"); } finally { setExCreatorSaving(false); }
+            };
+            return (
+              <div className="fade-in" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
+                {/* Name */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>EXERCISE NAME</div>
+                  <input value={exCreatorName} onChange={e => setExCreatorName(e.target.value)} placeholder="e.g. Cable Crossover Twist" style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, padding: "10px 12px", outline: "none", boxSizing: "border-box" }} />
+                </div>
+                {/* Primary muscles */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>PRIMARY MUSCLES</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{MUSCLES.map(m => chipBtn(m, exCreatorPrimary.includes(m), () => toggleArr(exCreatorPrimary, setExCreatorPrimary, m), "#FF6B6B"))}</div>
+                </div>
+                {/* Secondary muscles */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>SECONDARY MUSCLES</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{MUSCLES.map(m => chipBtn(m, exCreatorSecondary.includes(m), () => toggleArr(exCreatorSecondary, setExCreatorSecondary, m), "#A29BFE"))}</div>
+                </div>
+                {/* Equipment */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>EQUIPMENT</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{EQUIP.map(e => chipBtn(e.replace("_"," "), exCreatorEquip.includes(e), () => toggleArr(exCreatorEquip, setExCreatorEquip, e), "#4ECDC4"))}</div>
+                </div>
+                {/* Type + Difficulty */}
+                <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>TYPE</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{["compound","isolation","cardio"].map(t => chipBtn(t, exCreatorType === t, () => setExCreatorType(t), "#FFE66D"))}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>DIFFICULTY</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{["beginner","intermediate","advanced"].map(d => chipBtn(d, exCreatorDiff === d, () => setExCreatorDiff(d), "#96CEB4"))}</div>
+                  </div>
+                </div>
+                {/* Photo upload */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>FORM PHOTOS</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {exCreatorPhotos.map((url, i) => (
+                      <div key={i} style={{ position: "relative" }}>
+                        <img src={url} alt="" style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover", background: "rgba(255,255,255,0.06)" }} />
+                        <button onClick={() => setExCreatorPhotos(p => p.filter((_, j) => j !== i))} style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "#FF6B6B", border: "none", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>×</button>
+                      </div>
+                    ))}
+                    {exCreatorPhotos.length < 5 && (
+                      <label style={{ width: 64, height: 64, borderRadius: 8, border: "1px dashed rgba(255,255,255,0.2)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: exCreatorUploading ? "wait" : "pointer", fontSize: 20, color: "rgba(255,255,255,0.25)" }}>
+                        {exCreatorUploading ? "⏳" : "+"}
+                        <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ""; }} disabled={exCreatorUploading} />
+                      </label>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginTop: 6, fontFamily: "'Space Mono', monospace" }}>Up to 5 photos. Requires Cloudinary setup.</div>
+                </div>
+                {/* Save */}
+                <button onClick={saveExercise} disabled={!exCreatorName.trim() || exCreatorSaving} style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg,#4ECDC4,#26a69a)", border: "none", borderRadius: 10, color: "#000", fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: exCreatorName.trim() ? "pointer" : "not-allowed", opacity: exCreatorName.trim() ? 1 : 0.4, fontFamily: "'Space Mono', monospace" }}>
+                  {exCreatorSaving ? "SAVING…" : "SAVE EXERCISE"}
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Saved custom exercises list */}
+          {customExercises.length === 0 && !showExCreator && (
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontStyle: "italic", padding: "8px 0" }}>No custom exercises yet — create one above</div>
+          )}
+          {customExercises.map(ex => (
+            <div key={ex.id} style={{ position: "relative", background: "linear-gradient(90deg, rgba(78,205,196,0.04), rgba(255,255,255,0.02))", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px -4px rgba(78,205,196,0.18)" }}>
+              <div aria-hidden style={{ position: "absolute", left: 0, top: 8, bottom: 8, width: 2, background: "linear-gradient(180deg, #4ECDC4, transparent)", borderRadius: 1 }} />
+              {ex.photoUrls?.[0] && <img src={ex.photoUrls[0]} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "rgba(255,255,255,0.06)" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+              {!ex.photoUrls?.[0] && <div style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(255,255,255,0.06)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🏋️</div>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+                  {ex.primaryMuscles?.join(" · ").toUpperCase() || "—"}
+                </div>
+              </div>
+              <button onClick={async () => { if (!confirm(`Delete "${ex.name}"?`)) return; const res = await fetch(`/api/trainer/exercises/${ex.id}`, { method: "DELETE" }); if ((await res.json()).ok) setCustomExercises(p => p.filter(e => e.id !== ex.id)); }} style={{ background: "none", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "rgba(255,107,107,0.5)", fontSize: 9, padding: "4px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}>DEL</button>
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{ padding: "12px 20px 0", display: "flex", flexDirection: "column", gap: 8 }}>
-        <motion.button whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 20 }} className="nav-btn" onClick={() => goTo("messages")} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxSizing: "border-box" }}>
-          MESSAGES
-          {unreadCount > 0 && <span style={{ background: "#4ECDC4", color: "#000", borderRadius: "50%", width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
-        </motion.button>
-        <motion.button whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 20 }} className="nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} style={{ width: "100%", padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>VIEW PROGRESS →</motion.button>
+        <button className="card-hover nav-btn" onClick={() => goTo("messages")} style={{ width: "100%", padding: "15px 18px", background: unreadCount > 0 ? "rgba(78,205,196,0.05)" : "rgba(255,255,255,0.03)", border: `1px solid ${unreadCount > 0 ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
+          <span style={{ fontSize: 18, lineHeight: 1 }}>💬</span>
+          <span>Messages</span>
+          {unreadCount > 0 && <span style={{ marginLeft: "auto", background: "#4ECDC4", color: "#000", borderRadius: 10, padding: "1px 8px", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
+          {unreadCount === 0 && <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>›</span>}
+        </button>
+        <button className="card-hover nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} style={{ width: "100%", padding: "15px 18px", background: "rgba(255,107,107,0.04)", border: "1px solid rgba(255,107,107,0.12)", borderRadius: 14, color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
+          <span style={{ fontSize: 18, lineHeight: 1 }}>📊</span>
+          <span>View Progress</span>
+          <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>›</span>
+        </button>
       </div>
     </div>
-  ); } else
+  );
 
   // ─── CLIENT DETAIL ──────────────────────────────────────────────────
   if (view === "clientDetail" && activeClient) {
@@ -3672,8 +3713,8 @@ function HomePage() {
       if (!lastWorkoutByDay[s.dayId]) lastWorkoutByDay[s.dayId] = s.date;
     }
 
-    _viewKey = "clientDetail"; _content = (
-      <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
+    return (
+      <div key="clientDetail" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
         <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         </div>
@@ -3868,7 +3909,6 @@ function HomePage() {
                               </div>
                             </div>
                           ))}
-                          <button onClick={() => { setTrainerAddExDay(di); setTrainerAddExSearch(""); }} style={{ width: "100%", marginTop: 6, padding: "8px", background: "rgba(255,107,107,0.07)", border: "1px dashed rgba(255,107,107,0.3)", borderRadius: 8, color: "rgba(255,107,107,0.7)", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ EXERCISE</button>
                         </div>
                       </div>
                     </div>
@@ -3909,64 +3949,6 @@ function HomePage() {
                     ? "Client must approve before this becomes their active plan"
                     : "Client will receive a message to accept or decline these changes"}
                 </div>
-                {/* Exercise picker portal — opens when trainerAddExDay is set */}
-                {trainerAddExDay !== null && isMounted && createPortal((() => {
-                  const exMovement = (e: any) => {
-                    const cats = e.category ?? [];
-                    if (cats.includes("cardio") || cats.includes("plyometrics")) return "cardio";
-                    if (cats.includes("stretching") || cats.includes("flexibility")) return "stretch";
-                    return "strength";
-                  };
-                  const filtered = (EXERCISES as any[]).filter(e => {
-                    if (!trainerAddExSearch) return true;
-                    const q = trainerAddExSearch.toLowerCase();
-                    return e.name.toLowerCase().includes(q) ||
-                      (e.primaryMuscles ?? []).some((m: string) => m.toLowerCase().includes(q)) ||
-                      (e.secondaryMuscles ?? []).some((m: string) => m.toLowerCase().includes(q));
-                  }).slice(0, 80);
-                  return (
-                    <div style={{ position: "fixed", inset: 0, zIndex: 9000, display: "flex", flexDirection: "column", justifyContent: "flex-end" }} onClick={() => setTrainerAddExDay(null)}>
-                      <div style={{ background: "rgba(18,18,22,0.98)", borderRadius: "20px 20px 0 0", borderTop: "1px solid rgba(255,255,255,0.08)", maxHeight: "82dvh", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)" }} onClick={e => e.stopPropagation()}>
-                        <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: "#FF6B6B", letterSpacing: 3, fontFamily: "'Space Mono', monospace", flex: 1 }}>ADD EXERCISE — DAY {trainerAddExDay + 1}</div>
-                          <button onClick={() => setTrainerAddExDay(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
-                        </div>
-                        <div style={{ padding: "0 16px 10px", flexShrink: 0 }}>
-                          <input
-                            autoFocus
-                            value={trainerAddExSearch}
-                            onChange={e => setTrainerAddExSearch(e.target.value)}
-                            placeholder="Search by name or muscle…"
-                            style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "10px 14px", outline: "none" }}
-                          />
-                        </div>
-                        <div style={{ overflowY: "auto", flex: 1, padding: "0 12px 12px" }}>
-                          {filtered.length === 0 && (
-                            <div style={{ padding: "24px 0", textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No exercises found</div>
-                          )}
-                          {filtered.map((e: any) => (
-                            <button key={e.id} onClick={() => {
-                              setEditedPlanDays(prev => prev!.map((day, dj) => dj !== trainerAddExDay ? day : {
-                                ...day,
-                                exercises: [...day.exercises, { exerciseId: e.id, name: e.name, sets: 3, reps: "8-12", rest: 60, notes: null, groupId: null, groupType: null, dropSets: 0 }],
-                              }));
-                              setTrainerAddExDay(null);
-                            }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", marginBottom: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, cursor: "pointer", textAlign: "left" }}>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{e.name}</div>
-                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
-                                  {(e.primaryMuscles ?? []).slice(0, 2).join(", ")}
-                                  {e.location ? ` · ${e.location}` : ""}
-                                </div>
-                              </div>
-                              <span style={{ fontSize: 11, color: "#FF6B6B", flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>ADD</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })(), document.body)}
               </>
             )}
           </div>
@@ -3992,10 +3974,7 @@ function HomePage() {
           return (
             <div className="fade-in" style={{ padding: "16px 20px 0" }}>
               {flatHistory.length === 0 && (
-                <div style={{ textAlign: "center", padding: "48px 0" }}>
-                  <img src="/ai/empty-workouts.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.6, borderRadius: 14, marginBottom: 14 }} />
-                  <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No workouts logged yet</div>
-                </div>
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "48px 0" }}>No workouts logged yet</div>
               )}
               {flatHistory.map((s: any, i: number) => {
                 const sessionKey = s.id ?? `${s.dayId}-${i}`;
@@ -4005,9 +3984,7 @@ function HomePage() {
                 // Group sets by exerciseId
                 const byExercise: Record<string, { name: string; sets: { setNum: string; weight: number; reps: number }[] }> = {};
                 for (const [k, v] of Object.entries(rawSets)) {
-                  const parts = k.split("-");
-                  const setNum = parts.pop()!;
-                  const eid = parts.join("-");
+                  const { eid, setNum } = parseSetKey(k);
                   if (!byExercise[eid]) byExercise[eid] = { name: exNameMap[eid] ?? eid, sets: [] };
                   byExercise[eid].sets.push({ setNum, weight: v.weight, reps: v.reps });
                 }
@@ -4096,10 +4073,7 @@ function HomePage() {
         {!clientDataLoading && clientDetailTab === "profile" && (
           <div className="fade-in" style={{ padding: "16px 20px 0" }}>
             {!clientData?.profile ? (
-              <div style={{ textAlign: "center", padding: "48px 0" }}>
-                <img src="/ai/empty-profile.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.6, borderRadius: 14, marginBottom: 14 }} />
-                <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No profile set up yet</div>
-              </div>
+              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "48px 0" }}>No profile set up yet</div>
             ) : (() => {
               const p = clientData.profile;
               const age = p.dob ? Math.floor((Date.now() - new Date(p.dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25)) : null;
@@ -4197,21 +4171,18 @@ function HomePage() {
       )}
       </div>
     );
-  } else
+  }
 
   // ─── MESSAGES LIST ──────────────────────────────────────────────────
-  if (view === "messages") { _viewKey = "messages"; _content = (
-    <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
+  if (view === "messages") return (
+    <div key="messages" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
       <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>MESSAGES</div>
       </div>
       <div style={{ padding: "0 20px" }}>
         {conversations.length === 0 && (
-          <div style={{ textAlign: "center", marginTop: 60 }}>
-            <img src="/ai/empty-messages.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.55, borderRadius: 14, marginBottom: 14 }} />
-            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No messages yet</div>
-          </div>
+          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 60 }}>No messages yet</div>
         )}
         {conversations.map(c => {
           const lm = c.latestMessage;
@@ -4240,11 +4211,13 @@ function HomePage() {
         })}
       </div>
     </div>
-  ); } else
+  );
 
   // ─── CONVERSATION ────────────────────────────────────────────────────
+  let _viewKey: string = view;
+  let _content: React.ReactNode = null;
   if (view === "conversation" && activeConversation) { _viewKey = `conv-${activeConversation.id}`; _content = (
-    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", height: "100dvh" }}>
+    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100dvh" }}>
       {(() => {
         const isOnline = partnerLastSeen && (Date.now() - new Date(partnerLastSeen).getTime()) < 2 * 60 * 1000;
         const lastSeenText = (() => {
@@ -4273,10 +4246,7 @@ function HomePage() {
       })()}
       <div ref={messagesContainerRef} onClick={() => setReactingToMsgId(null)} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {conversationMessages.length === 0 && (
-          <div style={{ textAlign: "center", marginTop: 40 }}>
-            <img src="/ai/empty-messages.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.5, borderRadius: 14, marginBottom: 12 }} />
-            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No messages yet</div>
-          </div>
+          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, marginTop: 40 }}>No messages yet</div>
         )}
         {conversationMessages.map(msg => {
           const isMine = msg.from.id === user.id;
@@ -4382,11 +4352,11 @@ function HomePage() {
             el.style.transform = "translateX(0)";
             if (dx > 48) setReplyingTo({ id: msg.id, body: msg.body, username: msg.from.username });
           };
-          const quickEmojis = recentEmojis.length >= 1
-            ? recentEmojis.slice(0, 5)
-            : DEFAULT_REACTION_EMOJIS.slice(0, 5);
+          const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "💪", "🔥"];
           return (
             <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", position: "relative", maxWidth: "75%" }}>
+              {/* Reply arrow — fades in as user swipes */}
+              <div style={{ position: "absolute", left: isMine ? "auto" : -28, right: isMine ? -28 : "auto", top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "rgba(78,205,196,0.7)", pointerEvents: "none" }}>↩</div>
               {/* Emoji picker — shown on long-press */}
               <AnimatePresence>
               {reactingToMsgId === msg.id && (
@@ -4397,13 +4367,9 @@ function HomePage() {
                   transition={{ duration: 0.15 }}
                   style={{ position: "absolute", bottom: "calc(100% + 6px)", [isMine ? "right" : "left"]: 0, zIndex: 20, background: "rgba(30,30,38,0.97)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "6px 10px", display: "flex", gap: 4, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
                 >
-                  {quickEmojis.map(em => (
+                  {QUICK_EMOJIS.map(em => (
                     <button key={em} onClick={() => toggleReaction(msg.id, em)} style={{ background: reactionGroups[em]?.iMine ? "rgba(78,205,196,0.18)" : "none", border: "none", borderRadius: 16, padding: "4px 5px", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>{em}</button>
                   ))}
-                  <button
-                    onClick={e => { e.stopPropagation(); setShowFullPicker(true); }}
-                    style={{ background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 16, padding: "4px 7px", fontSize: 14, cursor: "pointer", lineHeight: 1, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}
-                  >+</button>
                 </motion.div>
               )}
               </AnimatePresence>
@@ -4411,7 +4377,7 @@ function HomePage() {
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
-                style={{ background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", willChange: "transform", userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" as any }}
+                style={{ background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", willChange: "transform" }}
               >
                 {/* Quoted reply preview */}
                 {msg.replyTo && (
@@ -4475,37 +4441,6 @@ function HomePage() {
           <button onClick={sendMessage} disabled={sendingMessage || !messageText.trim()} style={{ padding: "13px 18px", background: messageText.trim() ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, color: messageText.trim() ? "#000" : "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: messageText.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", transition: "all 0.15s" }}>SEND</button>
         </div>
       </div>
-      {/* Full emoji picker portal */}
-      {showFullPicker && reactingToMsgId && isMounted && createPortal(
-        <div
-          onClick={() => { setShowFullPicker(false); setReactingToMsgId(null); }}
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.55)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ background: "#17171f", borderRadius: "20px 20px 0 0", padding: "0 0 env(safe-area-inset-bottom)", maxHeight: "60vh", display: "flex", flexDirection: "column" }}
-          >
-            {/* Handle + close row */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px 8px" }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto" }} />
-              <button onClick={() => { setShowFullPicker(false); setReactingToMsgId(null); }} style={{ position: "absolute", right: 16, top: 12, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
-            </div>
-            {/* Category tabs */}
-            <div style={{ display: "flex", gap: 4, padding: "0 12px 8px", overflowX: "auto" }}>
-              {EMOJI_PICKER_CATS.map((cat, i) => (
-                <button key={i} onClick={() => setFullPickerCat(i)} style={{ background: fullPickerCat === i ? "rgba(78,205,196,0.18)" : "none", border: fullPickerCat === i ? "1px solid rgba(78,205,196,0.35)" : "1px solid transparent", borderRadius: 10, padding: "5px 8px", fontSize: 18, cursor: "pointer", flexShrink: 0 }}>{cat.icon}</button>
-              ))}
-            </div>
-            {/* Emoji grid */}
-            <div style={{ overflowY: "auto", padding: "4px 12px 16px", display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4 }}>
-              {EMOJI_PICKER_CATS[fullPickerCat].emojis.map(em => (
-                <button key={em} onClick={() => toggleReaction(reactingToMsgId, em)} style={{ background: "none", border: "none", borderRadius: 8, padding: "6px 0", fontSize: 22, cursor: "pointer", lineHeight: 1, textAlign: "center" }}>{em}</button>
-              ))}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   );
   }
@@ -4549,8 +4484,8 @@ function HomePage() {
       setCancellingRequest(false);
     };
 
-    _viewKey = "settings"; _content = (
-      <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", paddingBottom: safeBot }}>
+    return (
+      <div key="settings" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", paddingBottom: safeBot }}>
         <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>ACCOUNT</div>
@@ -4560,13 +4495,10 @@ function HomePage() {
           {/* Profile card */}
           <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 12 }}>PROFILE</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-                <img src="/ai/avatar-default.png" alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.3), 0 6px 18px rgba(255,107,107,0.18)" }} />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Member since registration</div>
-                </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Member since registration</div>
               </div>
               {isTrainer
                 ? <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 6, padding: "4px 10px" }}>TRAINER</span>
@@ -4602,10 +4534,7 @@ function HomePage() {
                   ))}
                 </div>
               ) : (
-                <div style={{ textAlign: "center", marginTop: 10 }}>
-                  <img src="/ai/empty-profile.jpg" alt="" style={{ width: 130, height: 130, opacity: 0.5, borderRadius: 14, marginBottom: 10 }} />
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>No profile set up yet — tap EDIT to add your details</div>
-                </div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", marginTop: 10 }}>No profile set up yet — tap EDIT to add your details</div>
               )
             ) : (
               <div>
@@ -4912,7 +4841,7 @@ function HomePage() {
         </div>
       </div>
     );
-  } else
+  }
 
   // ─── PROGRESS DASHBOARD ─────────────────────────────────────────────
   if (view === "progress") {
@@ -4925,10 +4854,10 @@ function HomePage() {
     }
 
     const findExName = (eid: string) => {
-      // Search customPlan first (user's actual plan), then fall back to default WORKOUT_DATA
-      const planDays = customPlan ?? (WORKOUT_DATA as any[]);
-      for (const d of planDays) for (const s of (d.sections ?? [])) for (const e of (s.exercises ?? [])) if (e.id === eid) return e.name;
       for (const d of WORKOUT_DATA) for (const s of d.sections) for (const e of s.exercises) if (e.id === eid) return e.name;
+      if (customPlan) for (const d of customPlan as any[]) for (const e of (d.exercises ?? [])) if ((e.exerciseId ?? e.id) === eid) return e.name;
+      const libEx = (EXERCISES as any[]).find((e: any) => e.id === eid);
+      if (libEx) return libEx.name;
       return eid;
     };
 
@@ -4940,21 +4869,16 @@ function HomePage() {
     // Day labels for 28-day calendar
     const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
 
-    _viewKey = `progress-${progressTab}`; _content = (
-      <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
-        <div aria-hidden style={{ position: "absolute", top: "8%", left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
-          {[0, 1, 2, 3].map(n => (
-            <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.025, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
+    return (
+      <div key="progress" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
+        <div aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
+          {Array.from({ length: 16 }).map((_, n) => (
+            <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.022, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
           ))}
         </div>
-        {/* Hero banner */}
-        <div style={{ position: "relative", height: 140, overflow: "hidden" }}>
-          <img src="/hero-progress.jpg" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 35%" }} />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.35) 0%, rgba(10,10,15,0.82) 100%)" }} />
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "20px 20px 0" }}>
-            <button onClick={() => { setView("home"); setOpenHist(null); setSelectedExDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
-            <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", marginTop: 8, letterSpacing: 1 }}>Progress</div>
-          </div>
+        <div style={{ padding: "24px 20px 0" }}>
+          <button onClick={() => { setView("home"); setOpenHist(null); setSelectedExDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 12, letterSpacing: 1 }}>Progress</div>
         </div>
 
         {/* Tabs */}
@@ -4972,32 +4896,51 @@ function HomePage() {
         </div>
 
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
-        <AnimatePresence mode="wait" initial={false}>
         {progressTab === "dashboard" && (
-          <motion.div
-            key="dashboard"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            style={{ padding: "20px 20px 0" }}
-          >
+          <div className="fade-in" style={{ padding: "20px 20px 0" }}>
+            {/* Tier Card */}
+            {user.role === "user" && (() => {
+              const tier = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length);
+              const tierIdx = CLIENT_TIERS.findIndex(t => t.label === tier.label);
+              const next = CLIENT_TIERS[tierIdx + 1];
+              const curMin = CLIENT_TIERS[tierIdx].min;
+              const progress = next ? Math.min(1, Math.max(0, (overall.totalSessions - curMin) / (next.min - curMin))) : 1;
+              return (
+                <div style={{ position: "relative", background: "linear-gradient(135deg, rgba(240,192,64,0.10), rgba(225,112,85,0.04) 60%, rgba(240,192,64,0.02))", border: "1px solid rgba(240,192,64,0.22)", borderRadius: 16, padding: "18px 20px", marginBottom: 14, display: "flex", alignItems: "center", gap: 18, overflow: "hidden", boxShadow: "0 4px 24px -8px rgba(240,192,64,0.18), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
+                  <div aria-hidden className="tier-shine" />
+                  <div aria-hidden style={{ position: "absolute", top: -40, right: -40, width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle, rgba(240,192,64,0.18), transparent 70%)", pointerEvents: "none" }} />
+                  <div style={{ fontSize: 44, lineHeight: 1, filter: "drop-shadow(0 2px 8px rgba(240,192,64,0.35))" }}>{tier.emoji}</div>
+                  <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                      <div style={{ fontSize: 17, fontWeight: 800, color: "#f0c040", letterSpacing: 0.3 }}>{tier.label}</div>
+                      {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{Math.max(0, overall.totalSessions - curMin)}/{next.min - curMin}</div>}
+                    </div>
+                    <div style={{ height: 5, background: "rgba(240,192,64,0.10)", borderRadius: 3, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)" }}>
+                      <div className="bar-grow" style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #f0c040, #e17055)", borderRadius: 3, boxShadow: "0 0 12px rgba(240,192,64,0.55)" }} />
+                    </div>
+                    {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>NEXT: {next.emoji} {next.label.toUpperCase()}</div>}
+                    {!next && <div style={{ fontSize: 9, color: "#f0c040", marginTop: 6, fontFamily: "'Space Mono', monospace", letterSpacing: 2, fontWeight: 700 }}>MAX RANK — ABSOLUTE UNIT</div>}
+                  </div>
+                </div>
+              );
+            })()}
             {/* Overview Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
               {[
-                { label: "THIS WEEK", num: overall.thisWeek, suffix: "/5", color: overall.thisWeek >= 5 ? "#2ecc71" : overall.thisWeek >= 3 ? "#f0c040" : "#FF6B6B" },
-                { label: "STREAK", num: overall.streak, suffix: "w", color: "#4ECDC4" },
-                { label: "AVG TIME", num: overall.avgMinutes, suffix: "m", color: "#A29BFE" },
+                { label: "THIS WEEK", value: `${overall.thisWeek}/5`, color: overall.thisWeek >= 5 ? "#2ecc71" : overall.thisWeek >= 3 ? "#f0c040" : "#FF6B6B" },
+                { label: "STREAK", value: `${overall.streak}w`, color: "#4ECDC4" },
+                { label: "AVG TIME", value: overall.avgMinutes > 0 ? `${overall.avgMinutes}m` : "—", color: "#A29BFE" },
               ].map((card, i) => (
                 <div key={i} style={{
-                  background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 12, padding: "16px 12px", textAlign: "center",
-                  animation: `itemIn 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.08}s both`,
+                  position: "relative", overflow: "hidden",
+                  background: `linear-gradient(180deg, ${card.color}10, rgba(255,255,255,0.02))`,
+                  border: `1px solid ${card.color}22`,
+                  borderRadius: 14, padding: "16px 12px", textAlign: "center",
+                  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 12px -6px ${card.color}30`,
                 }}>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>
-                    {card.num > 0 ? <><CountUp end={card.num} duration={1.2} delay={i * 0.12} />{card.suffix}</> : "—"}
-                  </div>
-                  <div style={{ fontSize: 8, color: card.color, letterSpacing: 2, marginTop: 4, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>{card.label}</div>
+                  <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${card.color}, transparent)`, opacity: 0.5 }} />
+                  <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", letterSpacing: -0.5 }}>{card.value}</div>
+                  <div style={{ fontSize: 8, color: card.color, letterSpacing: 2, marginTop: 4, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{card.label}</div>
                 </div>
               ))}
             </div>
@@ -5030,19 +4973,22 @@ function HomePage() {
                     ))}
                     {overall.calendarDays.map((day, i) => (
                       <div key={i}
-                        onClick={() => day.active && setCalendarModalDate(day.dateStr)}
+                        onClick={() => day.active ? setCalDateSel(calDateSel === day.date ? null : day.date) : undefined}
                         style={{
-                          aspectRatio: "1", borderRadius: 6, display: "flex", flexDirection: "column",
+                          aspectRatio: "1", borderRadius: 7, display: "flex", flexDirection: "column",
                           alignItems: "center", justifyContent: "center",
-                          background: day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
-                          border: day.isToday ? "1px solid rgba(255,255,255,0.4)" : "1px solid transparent",
+                          background: calDateSel === day.date ? "linear-gradient(135deg, #fff, #f5f5f5)" : day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
+                          border: day.isToday ? "1px solid rgba(255,255,255,0.45)" : calDateSel === day.date ? "1px solid rgba(255,255,255,0.6)" : "1px solid transparent",
                           opacity: day.active || day.isToday ? 1 : 0.35,
                           cursor: day.active ? "pointer" : "default",
+                          boxShadow: calDateSel === day.date ? "0 0 16px rgba(255,255,255,0.35)" : day.active ? "0 2px 8px -2px rgba(255,107,107,0.35), inset 0 1px 0 rgba(255,255,255,0.12)" : "none",
+                          transition: "transform 0.15s ease, box-shadow 0.2s ease",
+                          transform: calDateSel === day.date ? "scale(1.08)" : "scale(1)",
                         }}>
                         <div style={{
                           fontSize: 10, fontWeight: day.isToday ? 700 : 500,
                           fontFamily: "'Space Mono', monospace",
-                          color: day.active ? "#fff" : day.isToday ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)",
+                          color: calDateSel === day.date ? "#111" : day.active ? "#fff" : day.isToday ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)",
                         }}>{dateNums[i]}</div>
                       </div>
                     ))}
@@ -5051,103 +4997,94 @@ function HomePage() {
               );
             })()}
 
-            {/* Calendar session detail modal */}
-            <AnimatePresence>
-            {calendarModalDate && (() => {
-              // Find the session(s) for this date across all days
-              const sessions: { dayId: string; session: any }[] = [];
-              for (const dayId in history) {
-                for (const s of history[dayId]) {
-                  if (s.date === calendarModalDate) sessions.push({ dayId, session: s });
+            {/* Calendar Session Recap */}
+            {calDateSel && (() => {
+              const dateLabel = new Date(calDateSel + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+              const daySessions: { dayId: string; session: any }[] = [];
+              for (const [dayId, sessions] of Object.entries(history)) {
+                for (const s of sessions as any[]) {
+                  if (s.date === calDateSel) daySessions.push({ dayId, session: s });
                 }
               }
-              const fmt = new Date(calendarModalDate + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
               return (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
-                  onClick={() => setCalendarModalDate(null)}
-                >
-                  <motion.div
-                    initial={{ y: "100%" }}
-                    animate={{ y: 0 }}
-                    exit={{ y: "100%" }}
-                    transition={{ type: "spring", stiffness: 340, damping: 32 }}
-                    onClick={e => e.stopPropagation()}
-                    style={{ background: "#111116", borderRadius: "20px 20px 0 0", padding: "24px 20px 40px", maxHeight: "80dvh", overflowY: "auto" }}
-                  >
-                    <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>SESSION RECAP</div>
-                    <div style={{ fontSize: 17, fontWeight: 600, color: "#fff", marginBottom: 20 }}>{fmt}</div>
-                    {sessions.length === 0 ? (
-                      <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>No session data found.</div>
-                    ) : sessions.map(({ dayId, session }, si) => {
-                      // Group sets by exercise id
-                      const byEx: Record<string, { name: string; sets: { n: number; weight: number; reps: number }[] }> = {};
-                      // Build a name lookup from the plan day that owns this dayId
-                      const planDays = customPlan ?? (WORKOUT_DATA as any[]);
-                      const planDay = planDays.find((d: any) => d.id === dayId);
-                      const exNameMap: Record<string, string> = {};
-                      for (const sec of (planDay?.sections ?? [])) for (const ex of (sec.exercises ?? [])) exNameMap[ex.id] = ex.name;
-                      for (const k in session.sets as Record<string, any>) {
-                        // Keys are like "c1-1" or "c1-1-d1" (drop sets) — strip the trailing set/drop number(s)
-                        const parts = k.split("-");
-                        const isDropSet = parts[parts.length - 1].startsWith("d");
-                        const stripCount = isDropSet ? 2 : 1;
-                        const eid = parts.slice(0, parts.length - stripCount).join("-");
-                        const setN = parseInt(parts[parts.length - (isDropSet ? 2 : 1)]) || 1;
-                        const name = exNameMap[eid] ?? eid;
-                        if (!byEx[eid]) byEx[eid] = { name, sets: [] };
-                        byEx[eid].sets.push({ n: setN, ...session.sets[k] });
-                      }
-                      const exEntries = Object.entries(byEx).sort((a, b) => Math.min(...a[1].sets.map(s => s.n)) - Math.min(...b[1].sets.map(s => s.n)));
-                      const dayName = customPlan?.find((d: any) => d.id === dayId)?.name ?? dayId;
-                      return (
-                        <div key={si} style={{ marginBottom: si < sessions.length - 1 ? 24 : 0 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>{dayName}</div>
-                            {session.duration && session.duration !== "00:00:00" && (
-                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>⏱ {session.duration}</div>
-                            )}
-                          </div>
-                          {exEntries.map(([eid, { name, sets }]) => (
-                            <div key={eid} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                              <div style={{ fontSize: 13, color: "#fff", fontWeight: 500, marginBottom: 6 }}>{name}</div>
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                {sets.sort((a, b) => a.n - b.n).map(s => (
-                                  <div key={s.n} style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.06)", borderRadius: 6, padding: "4px 8px" }}>
-                                    {s.weight > 0 ? `${s.weight}kg × ${s.reps}` : `${s.reps} reps`}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                          {exEntries.length === 0 && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>No set data recorded.</div>}
+                <div className="fade-in" style={{ position: "relative", overflow: "hidden", background: "linear-gradient(180deg, rgba(255,107,107,0.05), rgba(255,255,255,0.02))", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 16, padding: "18px", marginBottom: 12, boxShadow: "0 4px 20px -8px rgba(255,107,107,0.18)" }}>
+                  <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.5), transparent)" }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontSize: 10, color: "#FF6B6B", letterSpacing: 2.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 4 }}>SESSION RECAP</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{dateLabel}</div>
+                    </div>
+                    <button onClick={() => setCalDateSel(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
+                  </div>
+                  {daySessions.map(({ dayId, session }, si) => {
+                    const dayName = findExName(dayId) !== dayId ? findExName(dayId) : (() => {
+                      for (const d of WORKOUT_DATA) if (d.id === dayId) return d.title;
+                      if (customPlan) for (const d of customPlan as any[]) if (d.id === dayId) return d.title;
+                      return dayId;
+                    })();
+                    const rawSets = (session.sets ?? {}) as Record<string, { weight: number; reps: number }>;
+                    const byEx: Record<string, { name: string; sets: { sn: string; weight: number; reps: number }[] }> = {};
+                    for (const [k, v] of Object.entries(rawSets)) {
+                      const { eid, setNum: sn } = parseSetKey(k);
+                      if (!byEx[eid]) byEx[eid] = { name: findExName(eid), sets: [] };
+                      byEx[eid].sets.push({ sn, weight: v.weight, reps: v.reps });
+                    }
+                    for (const ex of Object.values(byEx)) ex.sets.sort((a, b) => Number(a.sn) - Number(b.sn));
+                    return (
+                      <div key={si} style={{ marginBottom: si < daySessions.length - 1 ? 16 : 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>{dayName}</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", background: "rgba(255,255,255,0.04)", padding: "2px 7px", borderRadius: 4 }}>{session.duration}</div>
                         </div>
-                      );
-                    })}
-                    <button onClick={() => setCalendarModalDate(null)} style={{ width: "100%", marginTop: 16, padding: "14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 13, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}>Close</button>
-                  </motion.div>
-                </motion.div>
+                        {Object.entries(byEx).map(([eid, ex]) => (
+                          <div key={eid} style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 12, color: "#fff", fontWeight: 500, marginBottom: 5 }}>{ex.name}</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                              {ex.sets.map(set => (
+                                <div key={set.sn} style={{ fontSize: 10, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 8px", fontFamily: "'Space Mono', monospace" }}>
+                                  {set.weight > 0 ? `${set.weight}kg × ${set.reps}` : `${set.reps} reps`}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {daySessions.length === 0 && <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No session data for this date.</div>}
+                </div>
               );
             })()}
-            </AnimatePresence>
 
             {/* Personal Records */}
             {prList.length > 0 && (
-              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 14 }}>PERSONAL BESTS</div>
-                {prList.map(([eid, pr], i) => (
+              <div style={{ position: "relative", background: "linear-gradient(180deg, rgba(240,192,64,0.04), rgba(255,255,255,0.02))", border: "1px solid rgba(240,192,64,0.14)", borderRadius: 16, padding: "18px", marginBottom: 12, overflow: "hidden", boxShadow: "0 4px 20px -8px rgba(240,192,64,0.12)" }}>
+                <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(240,192,64,0.5), transparent)" }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                  <span style={{ fontSize: 15, filter: "drop-shadow(0 0 6px rgba(240,192,64,0.5))" }}>🏆</span>
+                  <span style={{ fontSize: 10, color: "#f0c040", letterSpacing: 2.5, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>PERSONAL BESTS</span>
+                </div>
+                {prList.map(([eid, pr], i) => {
+                  const exName = findExName(eid);
+                  const imgUrl = getExerciseImageUrls(eid, exName);
+                  return (
                   <div key={eid} style={{
                     display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "10px 0",
+                    padding: "10px 4px 10px 8px",
+                    borderLeft: "2px solid rgba(240,192,64,0.25)",
+                    marginLeft: -8,
                     borderBottom: i < prList.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
                   }}>
-                    <div>
-                      <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{findExName(eid)}</div>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>{pr.date}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {imgUrl ? (
+                        <img src={imgUrl[0]} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "rgba(255,255,255,0.06)" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      ) : (
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,107,107,0.1)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🏋️</div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>🏆 {exName}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>{pr.date}</div>
+                      </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: 16, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>
@@ -5156,7 +5093,8 @@ function HomePage() {
                       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", marginTop: 1 }}>× {pr.reps} reps</div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -5165,21 +5103,12 @@ function HomePage() {
                 Complete your first workout to see analytics here
               </div>
             )}
-          </motion.div>
+          </div>
         )}
-        </AnimatePresence>
 
         {/* ─── EXERCISES TAB ─────────────────────────────────────────── */}
-        <AnimatePresence mode="wait" initial={false}>
         {progressTab === "exercises" && (
-          <motion.div
-            key="exercises"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            style={{ padding: "16px 20px 0" }}
-          >
+          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
             {WORKOUT_DATA.map(d => (
               <div key={d.id} style={{ marginBottom: 8 }}>
                 <div className="card-hover" onClick={() => setSelectedExDay(selectedExDay === d.id ? null : d.id)}
@@ -5240,21 +5169,12 @@ function HomePage() {
                 }))}
               </div>
             ))}
-          </motion.div>
+          </div>
         )}
-        </AnimatePresence>
 
         {/* ─── HISTORY TAB ───────────────────────────────────────────── */}
-        <AnimatePresence mode="wait" initial={false}>
         {progressTab === "history" && (
-          <motion.div
-            key="history"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            style={{ padding: "16px 20px 0" }}
-          >
+          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
             {WORKOUT_DATA.map(d => (
               <div key={d.id} style={{ marginBottom: 4 }}>
                 <div className="card-hover" onClick={() => setOpenHist(openHist === d.id ? null : d.id)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px 18px", cursor: "pointer" }}>
@@ -5280,32 +5200,37 @@ function HomePage() {
                       }}>DELETE</button>}
                     </div>
                     <div>
-                      {Object.entries(s.sets as Record<string, { weight: number; reps: number }>).map(([k, v]) => {
-                        const eid = k.split("-").slice(0, -1).join("-"), sn = k.split("-").pop();
-                        let en = eid; for (const sec of d.sections) for (const ex of sec.exercises) if (ex.id === eid) en = ex.name;
-                        return <div key={k} style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.8 }}>
-                          {en} <span style={{ color: "rgba(255,255,255,0.2)" }}>S{sn}</span> <span style={{ color: "#fff", fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>{v.weight}kg × {v.reps}</span>
-                        </div>;
-                      })}
+                      {(() => {
+                        const byEx: Record<string, { name: string; sets: { sn: string; w: number; r: number }[] }> = {};
+                        for (const [k, v] of Object.entries(s.sets as Record<string, { weight: number; reps: number }>)) {
+                          const { eid, setNum: sn } = parseSetKey(k);
+                          if (!byEx[eid]) byEx[eid] = { name: findExName(eid), sets: [] };
+                          byEx[eid].sets.push({ sn, w: v.weight, r: v.reps });
+                        }
+                        for (const ex of Object.values(byEx)) ex.sets.sort((a, b) => Number(a.sn) - Number(b.sn));
+                        return Object.entries(byEx).map(([eid, ex]) => (
+                          <div key={eid} style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>{ex.name}</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                              {ex.sets.map(set => (
+                                <div key={set.sn} style={{ fontSize: 10, color: "#fff", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 7px", fontFamily: "'Space Mono', monospace" }}>
+                                  {set.w > 0 ? `${set.w}kg × ${set.r}` : `${set.r} reps`}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ));
+                      })()}
                     </div>
                   </div>
                 ))}
               </div>
             ))}
-          </motion.div>
+          </div>
         )}
-        </AnimatePresence>
         {/* ─── BODY TAB ──────────────────────────────────────────────── */}
-        <AnimatePresence mode="wait" initial={false}>
         {progressTab === "body" && (
-          <motion.div
-            key="body"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            style={{ padding: "16px 20px 0" }}
-          >
+          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
 
             {/* Goals section */}
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
@@ -5517,27 +5442,26 @@ function HomePage() {
             {bodyMetricsLoaded && bodyMetrics.length === 0 && (
               <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "24px 0" }}>Log your first measurement above to start tracking</div>
             )}
-          </motion.div>
+          </div>
         )}
-        </AnimatePresence>
       </div>
     );
-  } else
+  }
 
   // ─── WORKOUT ────────────────────────────────────────────────────────
   if (view === "workout" && activeDay) {
     if (!started) {
       const tEx = activeDay.sections.reduce((t, s) => t + s.exercises.filter(e => e.trackable !== false).length, 0);
       const tSets = activeDay.sections.reduce((t, s) => t + s.exercises.filter(e => e.trackable !== false).reduce((a, e) => a + e.sets, 0), 0);
-      _viewKey = "workout-prep"; _content = (
-        <div style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
+      return (
+        <div key="workout-prep" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: "80vw", height: "80vw", borderRadius: "50%", background: `radial-gradient(circle, ${activeDay.color}12 0%, transparent 60%)`, pointerEvents: "none", animation: "breathe 4s ease infinite" }} />
           <div aria-hidden style={{ position: "absolute", top: "10%", left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
             {[0, 1, 2, 3].map(n => (
               <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.03, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
             ))}
           </div>
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ zIndex: 1 }}>
+          <div className="slide-up" style={{ zIndex: 1 }}>
             <button onClick={() => { setView("home"); setActiveDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 48 }}>← Back</button>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: activeDay.color, letterSpacing: 4, marginBottom: 12, opacity: 0.7 }}>DAY {activeDay.label}</div>
             <div style={{ fontSize: 32, fontWeight: 700, color: "#fff", letterSpacing: 1 }}>{activeDay.title}</div>
@@ -5547,53 +5471,29 @@ function HomePage() {
               <div style={{ width: 1, background: "rgba(255,255,255,0.08)" }} />
               <div style={{ textAlign: "center" }}><div style={{ fontSize: 28, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{tSets}</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginTop: 2 }}>TOTAL SETS</div></div>
             </div>
-            <Lottie animationData={lottieLifterData} loop style={{ width: 150, height: 150, margin: "16px auto 0", opacity: 0.88 }} />
-            <motion.button whileTap={{ scale: 0.93 }} transition={{ type: "spring", stiffness: 400, damping: 17 }} onClick={begin} style={{ marginTop: 8, padding: "18px 56px", background: activeDay.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 15, fontWeight: 600, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 8px 32px ${activeDay.color}30` }}>START WORKOUT</motion.button>
-          </motion.div>
+            <button onClick={begin} style={{ marginTop: 48, padding: "18px 56px", background: activeDay.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 15, fontWeight: 600, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 8px 32px ${activeDay.color}30` }}>START WORKOUT</button>
+          </div>
         </div>
       );
-    } else {
-      _viewKey = "workout-session"; _content = (
-      <div style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
-        <AnimatePresence>
+    }
+
+    return (
+      <div key="workout-session" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
         {newPBs.length > 0 && (
-          <motion.div
-            key="pb-overlay-workout"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            onClick={() => setNewPBs([])}
-            style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(0,0,0,0.35)" }}
-          >
-            <motion.div
-              initial={{ scale: 0.5, y: 20, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.9, y: 10, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 22, delay: 0.05 }}
-              style={{ background: "rgba(12,12,15,0.95)", border: "1px solid rgba(255,215,0,0.35)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative", boxShadow: "0 0 60px rgba(255,215,0,0.12)" }}
-            >
+          <div className="pb-overlay" style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+            <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
               <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: [null, 1.15, 0.95, 1.05, 1], opacity: 1, filter: ["drop-shadow(0 0 0px rgba(255,215,0,0))", "drop-shadow(0 0 32px rgba(255,215,0,0.6))", "drop-shadow(0 0 10px rgba(255,215,0,0.4))"] }}
-                transition={{ duration: 0.85, ease: "easeOut", times: [0, 0.5, 0.7, 0.85, 1], delay: 0.08 }}
-                style={{ marginBottom: 8, display: "inline-block", transformOrigin: "center" }}
-              >
-                <img src="/ai/pb-celebration.png" alt="" style={{ width: 96, height: 96, display: "block" }} />
-              </motion.div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
+              <div className="trophy-bounce" style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST</div>
               {newPBs.map((pb, i) => (
                 <div key={i} style={{ marginBottom: 6 }}>
                   <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{pb.name}</div>
                   <div style={{ fontSize: 12, color: "rgba(255,215,0,0.7)", fontFamily: "'Space Mono', monospace" }}>{pb.weight}kg × {pb.reps}</div>
                 </div>
               ))}
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 14, fontFamily: "'DM Sans', sans-serif" }}>Tap to dismiss</div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-        </AnimatePresence>
         {resumeOverlay && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 32 }}>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 32 }}>SESSION RESTORED</div>
@@ -5634,11 +5534,15 @@ function HomePage() {
                 <button onClick={() => setEditEx(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
               </div>
               <div style={{ flex: 1, overflowY: "auto" }}>
-                {Object.entries(editSets).sort(([a], [b]) => parseInt(a.split("-").pop()!) - parseInt(b.split("-").pop()!)).map(([k, v]) => {
-                  const sn = k.split("-").pop();
+                {Object.entries(editSets).sort(([a], [b]) => {
+                  const pa = parseSetKey(a), pb = parseSetKey(b);
+                  const da = parseInt(pa.setNum) || 0, db = parseInt(pb.setNum) || 0;
+                  return da !== db ? da - db : (pa.dropNum ?? 0) - (pb.dropNum ?? 0);
+                }).map(([k, v]) => {
+                  const { setNum: sn, dropNum } = parseSetKey(k);
                   return (
                     <div key={k} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px", marginBottom: 8 }}>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 12, fontFamily: "'Space Mono', monospace" }}>SET {sn}</div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 12, fontFamily: "'Space Mono', monospace" }}>SET {sn}{dropNum ? ` · DROP ${dropNum}` : ""}</div>
                       <div style={{ display: "flex", gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>WEIGHT (kg)</div>
@@ -5675,7 +5579,6 @@ function HomePage() {
           );
         })()}
 
-        <AnimatePresence>
         {formPreview && (() => {
           const urls = getExerciseImageUrls(formPreview.id, formPreview.name);
           const rawPrimary = formPreview.muscles;
@@ -5688,18 +5591,8 @@ function HomePage() {
             : (detFb?.s ?? []).map((k: string) => k.split("-")[0]).filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
           const allMuscles = [...primary, ...secondary].filter((m, i, a) => a.indexOf(m) === i);
           return (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.93)", zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setFormPreview(null)}>
-              <motion.div
-                initial={{ scale: 0.94, y: 16 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.94, y: 16 }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                style={{ width: "100%", maxWidth: 420 }}
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.93)", zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setFormPreview(null)}>
+              <div style={{ width: "100%", maxWidth: 420 }}
                 onClick={e => e.stopPropagation()}
                 onTouchStart={e => { swipeTouchX.current = e.touches[0].clientX; }}
                 onTouchEnd={e => { const dx = e.changedTouches[0].clientX - swipeTouchX.current; if (Math.abs(dx) > 50) setModalSlide(dx < 0 ? 1 : 0); }}
@@ -5734,12 +5627,10 @@ function HomePage() {
                         </div>
                       </div>
                     ) : (
-                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", position: "relative" }}>
-                        <img src="/ai/form-fallback.jpg" alt="" style={{ width: "100%", display: "block", objectFit: "cover" }} />
-                        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", padding: "0 16px 14px", background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.75))", gap: 4 }}>
-                          <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>NO FORM DEMO</div>
-                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Search YouTube for &ldquo;{formPreview.name} form&rdquo;</div>
-                        </div>
+                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 36, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 32, opacity: 0.3 }}>🏋️</div>
+                        <div>No form demo available</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.15)" }}>Search YouTube for &ldquo;{formPreview.name} form&rdquo;</div>
                       </div>
                     )}
                     {(() => {
@@ -5760,10 +5651,6 @@ function HomePage() {
                   </>
                 ) : (
                   <div style={{ background: "#0b0b0b", borderRadius: 14, overflow: "hidden", padding: "10px 8px 4px" }}>
-                    {(() => {
-                      const thumb = anatomyImageFor(primary);
-                      return thumb ? <img src={thumb} alt="" style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 10, marginBottom: 8, opacity: 0.85 }} /> : null;
-                    })()}
                     <MuscleDiagram primary={primary} secondary={secondary} exerciseId={formPreview.id} exerciseName={formPreview.name}/>
                     {allMuscles.length === 0 && !lookupMuscleDetail(formPreview.id, formPreview.name) && (
                       <div style={{ textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 12, paddingBottom: 12 }}>No muscle data for this exercise</div>
@@ -5804,18 +5691,17 @@ function HomePage() {
                 <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.18)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
                   TAP OUTSIDE TO CLOSE
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           );
         })()}
-        </AnimatePresence>
 
-        {rest.running && isMounted && (() => {
+        {rest.running && (() => {
           const progress = rest.total > 0 ? rest.seconds / rest.total : 0;
           const R = 70, C = 2 * Math.PI * R;
           const dash = C * progress;
-          return createPortal(
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 9999, backdropFilter: "blur(20px)", touchAction: "none", overscrollBehavior: "none" }}>
+          return (
+            <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(20px)", touchAction: "none", overscrollBehavior: "none" }}>
               <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 28, fontFamily: "'Space Mono', monospace" }}>REST</div>
               <div style={{ position: "relative", width: 172, height: 172, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="172" height="172" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
@@ -5827,8 +5713,7 @@ function HomePage() {
                 <div style={{ fontSize: 72, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>{rest.seconds}</div>
               </div>
               <button onClick={rest.stop} style={{ marginTop: 36, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 36px", color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "'DM Sans', sans-serif", letterSpacing: 2, cursor: "pointer" }}>SKIP</button>
-            </div>,
-            document.body
+            </div>
           );
         })()}
         <div style={{ padding: "16px 20px 14px", background: `linear-gradient(180deg, ${activeDay.color}10, transparent)`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
@@ -5863,9 +5748,12 @@ function HomePage() {
               }
 
               const renderEx = (ex: typeof sec.exercises[0], superCtx?: { group: typeof sec.exercises; idx: number }) => {
-                const exLibData = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
-                const BW_EQUIPMENT = new Set(["bodyweight", "pullup_bar", "dip_bar"]);
-                const isBW = exLibData?.equipment?.every((eq: string) => BW_EQUIPMENT.has(eq)) ?? false;
+                const normName = (n: string) => n.toLowerCase().replace(/[^a-z]/g, "").replace(/s$/, "");
+                const exLibData = (EXERCISES as any[]).find((e: any) => e.id === ex.id || normName(e.name) === normName(ex.name));
+                const BW_EQUIP = ["bodyweight", "pullup_bar", "dip_bar"];
+                const isBW = exLibData && Array.isArray(exLibData.equipment) && exLibData.equipment.length > 0
+                  && exLibData.equipment.every((eq: string) => BW_EQUIP.includes(eq));
+                const activeBW = isBW || manualBW;
                 const trackable = ex.trackable !== false;
                 const done = doneCount(ex.id, ex.sets);
                 const allDone = done >= ex.sets;
@@ -5876,14 +5764,14 @@ function HomePage() {
                 const wuDone = !trackable && warmupDone[ex.id];
                 const dropCount = (ex.dropSets ?? 0) > 0 || ex.rest === 0 ? 1 : 0;
 
-                const effectiveWeight = isBW && !bwAddWeight ? "0" : wInput;
+                const effectiveWeight = activeBW && !bwAddWeight ? "0" : wInput;
                 const handleLog = () => {
                   if (!ns) return;
                   if (superCtx && superCtx.idx < superCtx.group.length - 1) {
                     logSet(ex.id, ns, effectiveWeight, rInput);
                     const nextEx = superCtx.group[superCtx.idx + 1];
                     const { weight: nw, reps: nr } = lastSessionBest(nextEx.id);
-                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false);
+                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false); setManualBW(false);
                   } else if (dropCount > 0) {
                     logSet(ex.id, ns, effectiveWeight, rInput);
                     const w = parseFloat(effectiveWeight) || 0;
@@ -5923,6 +5811,7 @@ function HomePage() {
                     <div onClick={() => {
                       if (!trackable) { setWarmupDone(prev => ({ ...prev, [ex.id]: !prev[ex.id] })); return; }
                       if (allDone) return;
+                      setManualBW(false);
                       setBwAddWeight(isBW && lw > 0);
                       setExpanded(isExp ? null : ex.id);
                       setWInput(lw ? String(lw) : "");
@@ -6005,31 +5894,36 @@ function HomePage() {
                     )}
 
                     {/* Regular set input */}
-                    <AnimatePresence>
                     {isExp && trackable && ns && !hasDrop && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.22, ease: "easeOut" }}
-                        style={{ overflow: "hidden", padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-                      >
+                      <div className="fade-in" style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 12, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span>Set {ns} of {ex.sets}{superCtx && !isLastInSuper ? ` · then ${superCtx.group[superCtx.idx + 1].name}` : ""}</span>
                           {lw > 0 && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>Last: {lw}kg × {lr}</span>}
                         </div>
-                        {isBW && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>BODYWEIGHT</div>
-                            <button onClick={() => { setBwAddWeight(!bwAddWeight); if (!bwAddWeight) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${bwAddWeight ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.15)"}`, background: bwAddWeight ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)", color: bwAddWeight ? "#FF6B6B" : "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                          {isBW && (
+                            <>
+                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>BODYWEIGHT</div>
+                              <button onClick={() => { setBwAddWeight(!bwAddWeight); if (!bwAddWeight) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${bwAddWeight ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.15)"}`, background: bwAddWeight ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)", color: bwAddWeight ? "#FF6B6B" : "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                                {bwAddWeight ? "− REMOVE WEIGHT" : "+ ADD WEIGHT"}
+                              </button>
+                            </>
+                          )}
+                          {!isBW && (
+                            <button onClick={() => { setManualBW(!manualBW); if (!manualBW) setWInput(""); setBwAddWeight(false); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${manualBW ? "rgba(46,204,113,0.5)" : "rgba(255,255,255,0.12)"}`, background: manualBW ? "rgba(46,204,113,0.12)" : "rgba(255,255,255,0.04)", color: manualBW ? "#2ecc71" : "rgba(255,255,255,0.35)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                              {manualBW ? "✓ BODYWEIGHT" : "BW"}
+                            </button>
+                          )}
+                          {manualBW && !isBW && (
+                            <button onClick={() => { setBwAddWeight(!bwAddWeight); if (!bwAddWeight) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${bwAddWeight ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.12)"}`, background: bwAddWeight ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)", color: bwAddWeight ? "#FF6B6B" : "rgba(255,255,255,0.35)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
                               {bwAddWeight ? "− REMOVE WEIGHT" : "+ ADD WEIGHT"}
                             </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                          {(!isBW || bwAddWeight) && (
+                          {(!activeBW || bwAddWeight) && (
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>{isBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}</div>
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>{activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}</div>
                               <div style={{ display: "flex", alignItems: "center" }}>
                                 <button onClick={() => setWInput(String(Math.max(0, (parseFloat(wInput) || 0) - 1.25)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                                 <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
@@ -6048,28 +5942,25 @@ function HomePage() {
                             {rDiff(parseInt(rInput))}
                           </div>
                         </div>
-                        <motion.button
-                          whileTap={{ scale: 0.94 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                        <button
                           onClick={() => {
                             const w = parseFloat(effectiveWeight) || 0;
-                            const { weight: prevBest } = lastSessionBest(ex.id);
+                            const prevBest = overall.exercisePRs[ex.id]?.weight ?? 0;
                             handleLog();
                             setLogFlashId(ex.id);
                             setTimeout(() => setLogFlashId(null), 420);
-                            if (w > 0 && w > prevBest && w > (shownPBs.current.get(ex.id) ?? 0)) {
-                              shownPBs.current.set(ex.id, w);
+                            if (w > 0 && w > prevBest && !shownPBs.current.has(ex.id)) {
+                              shownPBs.current.add(ex.id);
                               setNewPBs([{ name: ex.name, weight: w, reps: parseFloat(rInput) || 0 }]);
-                              setTimeout(() => setNewPBs([]), 5000);
+                              setTimeout(() => setNewPBs([]), 2400);
                             }
                           }}
                           className={logFlashId === ex.id ? "log-flash" : ""}
-                          style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: ((!effectiveWeight && !isBW) && !rInput) ? 0.4 : 1 }}>
+                          style={{ width: "100%", padding: "14px", background: activeDay.gradient, border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", opacity: ((!effectiveWeight && !activeBW) && !rInput) ? 0.4 : 1 }}>
                           {logBtnLabel}
-                        </motion.button>
-                      </motion.div>
+                        </button>
+                      </div>
                     )}
-                    </AnimatePresence>
                   </div>
                 );
               };
@@ -6116,53 +6007,18 @@ function HomePage() {
         </div>
 
         {/* Workout complete animation */}
-        <AnimatePresence>
         {showCompleteAnim && (
-          <motion.div
-            key="complete-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(16px)", pointerEvents: "none", overflow: "hidden" }}
-          >
-            <img src="/ai/complete-bg.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.35, mixBlendMode: "screen" }} />
+          <div className="complete-overlay" style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(16px)", pointerEvents: "none" }}>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <motion.div
-                initial={{ scale: 0.4, opacity: 1 }}
-                animate={{ scale: 2.4, opacity: 0 }}
-                transition={{ duration: 1, ease: "easeOut", delay: 0.15 }}
-                style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "3px solid rgba(46,204,113,0.6)" }}
-              />
-              <motion.div
-                initial={{ scale: 0.4, opacity: 1 }}
-                animate={{ scale: 2.4, opacity: 0 }}
-                transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
-                style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "2px solid rgba(46,204,113,0.3)" }}
-              />
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.05 }}
-                style={{ width: 80, height: 80, borderRadius: "50%", background: "rgba(46,204,113,0.15)", border: "2px solid rgba(46,204,113,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}
-              >
-                <motion.span
-                  initial={{ scale: 0, rotate: -45 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.2 }}
-                  style={{ fontSize: 36, display: "inline-block" }}
-                >✓</motion.span>
-              </motion.div>
+              <div className="complete-ring" style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "3px solid rgba(46,204,113,0.6)" }} />
+              <div className="complete-ring" style={{ position: "absolute", width: 140, height: 140, borderRadius: "50%", border: "2px solid rgba(46,204,113,0.3)", animationDelay: "0.18s" }} />
+              <div className="complete-pop" style={{ width: 80, height: 80, borderRadius: "50%", background: "rgba(46,204,113,0.15)", border: "2px solid rgba(46,204,113,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: 36 }}>✓</span>
+              </div>
             </div>
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.35 }}
-              style={{ marginTop: 32, fontSize: 20, fontWeight: 700, color: "#2ecc71", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}
-            >SAVED</motion.div>
-          </motion.div>
+            <div className="complete-pop" style={{ marginTop: 32, fontSize: 20, fontWeight: 700, color: "#2ecc71", letterSpacing: 3, fontFamily: "'Space Mono', monospace", animationDelay: "0.2s" }}>SAVED</div>
+          </div>
         )}
-        </AnimatePresence>
 
         {/* ── In-workout exercise add overlay ── */}
         {showAddInWorkout && (() => {
@@ -6355,8 +6211,7 @@ function HomePage() {
           );
         })()}
       </div>
-      );
-    }
+    );
   }
 
   const _isForward = viewDir !== "back";
@@ -6408,57 +6263,75 @@ function LifterIcon({ size = 120, opacity = 1 }: { size?: number; opacity?: numb
 // Vertical barbell mark — plates drop from top and bottom onto the bar.
 // height prop controls rendered height; width is derived from the 40:108 viewBox ratio.
 // Horizontal barbell with round plates — matches the app icon.
-// Uses CSS @keyframes + a client-side ready flag so the animation always
-// starts after the first paint — fixes the SSR issue where the animation
-// would complete before the user sees the splash screen.
-function BarbellMark({ width = 300, delay = 0, loop }: { width?: number; delay?: number; loop?: number }) {
-  const s = width / 320;
-  const h = Math.round(88 * s);
-  // Gate animations on client mount so SSR-rendered HTML doesn't pre-play them
-  const [ready, setReady] = useState(false);
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setReady(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-  // Optional: re-fire the form-up animation periodically by remounting the
-  // animated subtree via a changing key.
-  useEffect(() => {
-    if (!loop) return;
-    const id = setInterval(() => setTick(t => t + 1), loop);
-    return () => clearInterval(id);
-  }, [loop]);
-
-  const pd = delay + 0.42;
-  const chrome = "linear-gradient(180deg,#f0f0f0 0%,#c0c0c0 30%,#808080 65%,#b8b8b8 100%)";
-  const plo = "radial-gradient(ellipse at 38% 32%,#ff7a7a,#dd2b2b 55%,#8a1010)";
-  const pli = "radial-gradient(ellipse at 38% 32%,#ff6868,#cc2020 55%,#7a0e0e)";
-  const pro = "radial-gradient(ellipse at 62% 32%,#ff7a7a,#dd2b2b 55%,#8a1010)";
-  const pri = "radial-gradient(ellipse at 62% 32%,#ff6868,#cc2020 55%,#7a0e0e)";
-  const barA = ready ? `bbBarGrow 0.38s cubic-bezier(0.16,1,0.3,1) ${delay}s both` : undefined;
-  const sL   = (d: number) => ready ? `bbSlamL 0.55s cubic-bezier(0.22,1,0.36,1) ${d}s both` : undefined;
-  const sR   = (d: number) => ready ? `bbSlamR 0.55s cubic-bezier(0.22,1,0.36,1) ${d}s both` : undefined;
-  const seg  = (l: number, t: number, w: number, ht: number, r: number, bg: string, extra?: React.CSSProperties): React.CSSProperties => ({
-    position: "absolute", left: l*s, top: t*s, width: w*s, height: ht*s, borderRadius: r*s, background: bg, ...extra,
-  });
-  // Pre-animation states (keep elements invisible/off-screen until ready)
-  const barPre  = ready ? {} : { transform: "scaleX(0)", opacity: 0 as number };
-  const platePre = (dir: "L" | "R") => ready ? {} : { transform: dir === "L" ? "translateX(-800px)" : "translateX(800px)" };
+// Plates fly in from off-screen left/right; bar shaft appears first.
+function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: number }) {
+  const h = Math.round(width * 88 / 320);
+  const slam = { type: "spring" as const, stiffness: 500, damping: 18 };
+  const platesDelay = delay + 0.42;
   return (
-    <div style={{ width: "100%", height: h, overflow: "hidden", position: "relative" }}>
-      <div key={tick} style={{ position: "relative", width, height: h, margin: "0 auto" }}>
-        {/* Bar — grows from centre */}
-        <div style={{ ...seg(34,  37, 58, 14, 4, chrome), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
-        <div style={{ ...seg(90,  40,140,  8, 3, chrome), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
-        <div style={{ ...seg(228, 37, 58, 14, 4, chrome), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
-        <div style={{ ...seg(100, 41,120,  6, 2,"rgba(0,0,0,0.22)"), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
-        {/* Left — big inner first, small outer on top */}
-        <div style={{ ...seg(68,  5, 22, 78, 5, plo,{ boxShadow:"inset 0 0 0 1px rgba(255,150,150,0.3)" }), ...platePre("L"), animation: sL(pd) }} />
-        <div style={{ ...seg(56, 17, 14, 54, 4, pli), ...platePre("L"), animation: sL(pd + 0.06) }} />
-        {/* Right — big inner first, small outer on top */}
-        <div style={{ ...seg(230,  5, 22, 78, 5, pro,{ boxShadow:"inset 0 0 0 1px rgba(255,150,150,0.3)" }), ...platePre("R"), animation: sR(pd) }} />
-        <div style={{ ...seg(250, 17, 14, 54, 4, pri), ...platePre("R"), animation: sR(pd + 0.06) }} />
-      </div>
+    <div style={{ width, height: h, overflow: "hidden", position: "relative", margin: "0 auto" }}>
+      <svg width={width} height={h} viewBox="0 0 320 88" style={{ overflow: "visible", display: "block" }}>
+        <defs>
+          <linearGradient id="bm-chrome" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+            <stop offset="0%"   stopColor="#f0f0f0"/>
+            <stop offset="30%"  stopColor="#c0c0c0"/>
+            <stop offset="65%"  stopColor="#808080"/>
+            <stop offset="100%" stopColor="#b8b8b8"/>
+          </linearGradient>
+          <radialGradient id="bm-plo" cx="38%" cy="32%" r="68%">
+            <stop offset="0%"   stopColor="#ff7a7a"/>
+            <stop offset="55%"  stopColor="#dd2b2b"/>
+            <stop offset="100%" stopColor="#8a1010"/>
+          </radialGradient>
+          <radialGradient id="bm-pli" cx="38%" cy="32%" r="68%">
+            <stop offset="0%"   stopColor="#ff6868"/>
+            <stop offset="55%"  stopColor="#cc2020"/>
+            <stop offset="100%" stopColor="#7a0e0e"/>
+          </radialGradient>
+          <radialGradient id="bm-pro" cx="62%" cy="32%" r="68%">
+            <stop offset="0%"   stopColor="#ff7a7a"/>
+            <stop offset="55%"  stopColor="#dd2b2b"/>
+            <stop offset="100%" stopColor="#8a1010"/>
+          </radialGradient>
+          <radialGradient id="bm-pri" cx="62%" cy="32%" r="68%">
+            <stop offset="0%"   stopColor="#ff6868"/>
+            <stop offset="55%"  stopColor="#cc2020"/>
+            <stop offset="100%" stopColor="#7a0e0e"/>
+          </radialGradient>
+        </defs>
+
+        {/* Bar shaft — scaleX in from center first */}
+        <motion.g
+          initial={{ scaleX: 0, opacity: 0 }}
+          animate={{ scaleX: 1, opacity: 1 }}
+          style={{ transformOrigin: "160px 44px" }}
+          transition={{ duration: 0.38, delay, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <rect x="0"   y="38" width="320" height="12" rx="5" fill="url(#bm-chrome)"/>
+          {/* Knurling centre section */}
+          <rect x="100" y="39" width="120" height="10" rx="3" fill="rgba(0,0,0,0.22)"/>
+        </motion.g>
+
+        {/* Left outer plate — tall thin rect (side/edge view) */}
+        <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
+          <rect x="10" y="6"  width="18" height="76" rx="5" fill="url(#bm-plo)"/>
+          <rect x="10" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
+        </motion.g>
+        {/* Left inner plate — stagger 70ms, slightly shorter */}
+        <motion.g initial={{ x: -420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
+          <rect x="26" y="16" width="13" height="56" rx="4" fill="url(#bm-pli)"/>
+        </motion.g>
+
+        {/* Right outer plate */}
+        <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay }}>
+          <rect x="292" y="6"  width="18" height="76" rx="5" fill="url(#bm-pro)"/>
+          <rect x="292" y="6"  width="18" height="76" rx="5" fill="none" stroke="rgba(255,150,150,0.3)" strokeWidth="1"/>
+        </motion.g>
+        {/* Right inner plate — stagger 70ms */}
+        <motion.g initial={{ x: 420 }} animate={{ x: 0 }} transition={{ ...slam, delay: platesDelay + 0.07 }}>
+          <rect x="281" y="16" width="13" height="56" rx="4" fill="url(#bm-pri)"/>
+        </motion.g>
+      </svg>
     </div>
   );
 }

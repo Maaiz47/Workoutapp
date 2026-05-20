@@ -40,12 +40,21 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Keep UserProfile current weight/bf in sync
-    const profileUpdate: Record<string, number | null> = {};
-    if (parsedWeight !== null) profileUpdate.weightKg = parsedWeight;
-    if (parsedBf !== null) profileUpdate.bodyFatPct = parsedBf;
-    if (Object.keys(profileUpdate).length > 0) {
-      await prisma.userProfile.updateMany({ where: { userId: uid }, data: profileUpdate });
+    // Keep UserProfile current weight/bf in sync ONLY when this metric is the
+    // most recent (i.e. no later metric exists). Prevents back-dated entries
+    // from clobbering the user's actual current stats.
+    const latest = await prisma.bodyMetric.findFirst({
+      where: { userId: uid },
+      orderBy: { date: "desc" },
+      select: { id: true, date: true },
+    });
+    if (latest && latest.id === metric.id) {
+      const profileUpdate: Record<string, number | null> = {};
+      if (parsedWeight !== null) profileUpdate.weightKg = parsedWeight;
+      if (parsedBf !== null) profileUpdate.bodyFatPct = parsedBf;
+      if (Object.keys(profileUpdate).length > 0) {
+        await prisma.userProfile.updateMany({ where: { userId: uid }, data: profileUpdate });
+      }
     }
 
     return json({ metric });

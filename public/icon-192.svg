@@ -8,18 +8,33 @@
       <stop offset="0%" stop-color="#FF6B6B"/>
       <stop offset="100%" stop-color="#ee5a24"/>
     </linearGradient>
-    <linearGradient id="ic-fire-dim" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FF5050"/>
-      <stop offset="100%" stop-color="#cc3a1a"/>
-    </linearGradient>
     <linearGradient id="ic-steel" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#f0f0f0" stop-opacity="0.95"/>
       <stop offset="50%" stop-color="#c0c0c0" stop-opacity="0.9"/>
       <stop offset="100%" stop-color="#888888" stop-opacity="0.85"/>
     </linearGradient>
-    <filter id="ic-shadow">
-      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#FF6B6B" flood-opacity="0.28"/>
-    </filter>
+    <!-- Small outer plate: brighter red (more visible at collar/tip end) -->
+    <radialGradient id="ic-sm-L" cx="35%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="#ff8888"/>
+      <stop offset="50%" stop-color="#ee3333"/>
+      <stop offset="100%" stop-color="#8a0f0f"/>
+    </radialGradient>
+    <radialGradient id="ic-sm-R" cx="65%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="#ff8888"/>
+      <stop offset="50%" stop-color="#ee3333"/>
+      <stop offset="100%" stop-color="#8a0f0f"/>
+    </radialGradient>
+    <!-- Big inner plate: deeper red (toward shaft) -->
+    <radialGradient id="ic-lg-L" cx="35%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="#ff6060"/>
+      <stop offset="50%" stop-color="#c41e1e"/>
+      <stop offset="100%" stop-color="#6e0a0a"/>
+    </radialGradient>
+    <radialGradient id="ic-lg-R" cx="65%" cy="28%" r="65%">
+      <stop offset="0%" stop-color="#ff6060"/>
+      <stop offset="50%" stop-color="#c41e1e"/>
+      <stop offset="100%" stop-color="#6e0a0a"/>
+    </radialGradient>
   </defs>
 
   <!-- Background -->
@@ -27,41 +42,40 @@
   <rect x="1" y="1" width="190" height="190" rx="41" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
 
   <!-- Ambient glow -->
-  <ellipse cx="96" cy="96" rx="58" ry="38" fill="#FF6B6B" opacity="0.06"/>
+  <ellipse cx="96" cy="96" rx="60" ry="39" fill="#FF6B6B" opacity="0.07"/>
 
   <!-- IRON above barbell -->
-  <text x="96" y="50" text-anchor="middle"
+  <text x="96" y="51" text-anchor="middle"
         font-family="'Arial Black', Impact, sans-serif"
-        font-weight="900" font-size="32" letter-spacing="4" fill="#ffffff">IRON</text>
+        font-weight="900" font-size="33" letter-spacing="3" fill="#ffffff">IRON</text>
 
-  <!-- Barbell — matches login screen BarbellMark layout, scaled 0.6 to 192px viewBox.
-       Big plates sit on the INNER half of each sleeve, small plates sit OUTER.
-       Bar sleeve tips remain visible past the smallest plate. -->
-  <g filter="url(#ic-shadow)">
-    <!-- Left sleeve (x 20-55) -->
-    <rect x="20" y="92" width="35" height="9" rx="3" fill="url(#ic-steel)"/>
-    <!-- Centre shaft (x 54-138) -->
-    <rect x="54" y="94" width="84" height="5" rx="2" fill="url(#ic-steel)"/>
-    <!-- Knurling overlay -->
-    <rect x="60" y="95" width="72" height="3" rx="1" fill="rgba(0,0,0,0.22)"/>
-    <!-- Right sleeve (x 137-172) -->
-    <rect x="137" y="92" width="35" height="9" rx="3" fill="url(#ic-steel)"/>
+  <!-- Chrome sleeves + shaft (no filter — prevents glow bleed onto plates) -->
+  <rect x="12"  y="90" width="51" height="15" rx="6"   fill="url(#ic-steel)"/>
+  <rect x="60"  y="93" width="72" height="9"  rx="4.5" fill="url(#ic-steel)"/>
+  <rect x="129" y="90" width="51" height="15" rx="6"   fill="url(#ic-steel)"/>
+  <rect x="72" y="94.5" width="48" height="6" rx="3" fill="rgba(0,0,0,0.22)"/>
 
-    <!-- LEFT plates: big inner (against shaft) -->
-    <rect x="41" y="73" width="13" height="47" rx="3" fill="url(#ic-fire)"/>
-    <rect x="41" y="73" width="13" height="47" rx="3" fill="none" stroke="rgba(255,150,150,0.3)" stroke-width="1"/>
-    <!-- LEFT plates: small outer (toward bar tip, sits on top) -->
-    <rect x="34" y="80" width="8" height="32" rx="2" fill="url(#ic-fire-dim)"/>
+  <!--
+    LEFT: chrome tip x=12–28 (16px visible), small outer x=28–41 (13px), big inner x=41–63 (22px)
+    RIGHT: big inner x=129–151 (22px), small outer x=151–164 (13px), chrome tip x=164–180 (16px)
+  -->
 
-    <!-- RIGHT plates: big inner -->
-    <rect x="138" y="73" width="13" height="47" rx="3" fill="url(#ic-fire)"/>
-    <rect x="138" y="73" width="13" height="47" rx="3" fill="none" stroke="rgba(255,150,150,0.3)" stroke-width="1"/>
-    <!-- RIGHT plates: small outer -->
-    <rect x="150" y="80" width="8" height="32" rx="2" fill="url(#ic-fire-dim)"/>
-  </g>
+  <!-- Left big inner plate (toward shaft) — drawn FIRST so sits behind if overlap -->
+  <rect x="41" y="65" width="22" height="66" rx="6"
+        fill="url(#ic-lg-L)"/>
+  <!-- Left small outer plate (collar/tip end) — drawn SECOND, clearly to the LEFT of big -->
+  <rect x="28" y="74" width="13" height="48" rx="4"
+        fill="url(#ic-sm-L)"/>
+
+  <!-- Right big inner plate (toward shaft) -->
+  <rect x="129" y="65" width="22" height="66" rx="6"
+        fill="url(#ic-lg-R)"/>
+  <!-- Right small outer plate (collar/tip end) -->
+  <rect x="151" y="74" width="13" height="48" rx="4"
+        fill="url(#ic-sm-R)"/>
 
   <!-- LOG below barbell -->
   <text x="96" y="158" text-anchor="middle"
         font-family="'Arial Black', Impact, sans-serif"
-        font-weight="900" font-size="28" letter-spacing="10" fill="url(#ic-fire)">LOG</text>
+        font-weight="900" font-size="27" letter-spacing="9" fill="url(#ic-fire)">LOG</text>
 </svg>

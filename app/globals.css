@@ -87,13 +87,37 @@ input[type="number"] { -moz-appearance: textfield; }
 
 /* ── PB celebration ───────────────────────────────────────────────────── */
 @keyframes pbShine { 0% { transform: translateX(-100%) skewX(-15deg); } 100% { transform: translateX(250%) skewX(-15deg); } }
-.pb-shine { animation: pbShine 0.7s ease 0.3s both; }
-
+.pb-overlay { animation: pbOverlay 2.4s ease both; pointer-events: none; }
+.pb-pop     { animation: pbPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both; }
+.pb-shine   { animation: pbShine 0.7s ease 0.55s both; }
+@keyframes trophyBounce { 0% { transform: scale(0) rotate(-20deg); opacity: 0; } 55% { transform: scale(1.35) rotate(8deg); opacity: 1; } 75% { transform: scale(0.88) rotate(-4deg); } 100% { transform: scale(1) rotate(0deg); } }
+.trophy-bounce { animation: trophyBounce 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both; display: inline-block; }
 
 /* ── Progress bar grow ────────────────────────────────────────────────── */
 @keyframes barGrow { from { width: 0 !important; } }
 .bar-grow { animation: barGrow 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
+/* ── Tier shimmer ─────────────────────────────────────────────────────── */
+@keyframes tierShine {
+  0%   { transform: translateX(-100%) skewX(-20deg); }
+  100% { transform: translateX(220%)  skewX(-20deg); }
+}
+.tier-shine {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 30%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  pointer-events: none;
+  animation: tierShine 3.5s ease-in-out infinite;
+}
+
+/* ── Card hover lift ──────────────────────────────────────────────────── */
+@media (hover: hover) {
+  .card-lift { transition: transform 0.15s ease, box-shadow 0.2s ease; }
+  .card-lift:hover:not(:active) { transform: translateY(-2px); }
+}
+
+/* ── Onboarding step slides ───────────────────────────────────────────── */
+.ob-forward { animation: viewSlideRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.ob-back    { animation: viewSlideLeft  0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 /* ── Nav button bounce ────────────────────────────────────────────────── */
 @keyframes navBounce { 0% { transform: scale(1); } 35% { transform: scale(0.91); } 70% { transform: scale(1.05); } 100% { transform: scale(1); } }
