@@ -4016,44 +4016,16 @@ function HomePage() {
                         {(() => {
                           const ranked = (grp.members ?? [])
                             .filter((m: any) => m.includeInRank)
-                            .map((m: any) => {
-                              const logs: any[] = m.user?.workoutLogs ?? [];
-                              const totalSessions = logs.length;
-                              const totalIntensityPoints = logs.reduce((sum: number, l: any) => sum + (l.intensityPoints || 0), 0);
-                              const totalVolume = Math.round(logs.reduce((sum: number, l: any) => {
-                                const sets = l.sets ?? {};
-                                return sum + (Object.values(sets) as any[]).reduce((s: number, v: any) => s + ((v?.weight || 0) * (v?.reps || 0)), 0);
-                              }, 0));
-                              const dates = Array.from(new Set(logs.map((l: any) => new Date(l.date).toISOString().slice(0,10)))).sort().reverse() as string[];
-                              let streak = 0;
-                              const today = new Date().toISOString().slice(0,10);
-                              const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
-                              if (dates[0] === today || dates[0] === yesterday) {
-                                streak = 1;
-                                for (let i = 1; i < dates.length; i++) {
-                                  const prev = new Date(dates[i-1]);
-                                  const curr = new Date(dates[i]);
-                                  if (Math.round((prev.getTime() - curr.getTime()) / 86400000) === 1) streak++;
-                                  else break;
-                                }
-                              }
-                              const prs: Record<string, { weight: number; reps: number }> = {};
-                              for (const log of logs) {
-                                const sets = log.sets ?? {};
-                                for (const [k, v] of Object.entries(sets) as [string, any][]) {
-                                  const parts = k.split("-");
-                                  const last = parts[parts.length - 1];
-                                  const isDropSet = /^d\d+$/.test(last) && parts.length >= 3;
-                                  if (isDropSet) { parts.pop(); parts.pop(); } else { parts.pop(); }
-                                  const eid = parts.join("-");
-                                  const w = v?.weight ?? 0, r = v?.reps ?? 0;
-                                  if (!prs[eid] || w > prs[eid].weight || (w === prs[eid].weight && r > prs[eid].reps)) {
-                                    prs[eid] = { weight: w, reps: r };
-                                  }
-                                }
-                              }
-                              return { userId: m.userId, username: m.user?.username ?? "unknown", role: m.role, totalSessions, totalIntensityPoints, totalVolume, streak, prCount: Object.keys(prs).length };
-                            })
+                            .map((m: any) => ({
+                              userId: m.userId,
+                              username: m.user?.username ?? "unknown",
+                              role: m.role,
+                              totalSessions: m.stats?.totalSessions ?? 0,
+                              totalIntensityPoints: m.stats?.totalIntensityPoints ?? 0,
+                              totalVolume: m.stats?.totalVolume ?? 0,
+                              streak: m.stats?.streak ?? 0,
+                              prCount: m.stats?.prCount ?? 0,
+                            }))
                             .sort((a: any, b: any) => b.totalSessions - a.totalSessions || b.totalVolume - a.totalVolume);
 
                           return (

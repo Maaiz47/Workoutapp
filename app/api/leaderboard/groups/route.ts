@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { computeStatsForUsers } from "../../../../lib/leaderboardStats";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
@@ -8,7 +9,6 @@ export async function GET(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
   try {
-    // Get all groups this user is a member of
     const memberships = await prisma.leaderboardGroupMember.findMany({
       where: { userId: uid },
       select: { groupId: true },
@@ -19,9 +19,7 @@ export async function GET(req: NextRequest) {
       where: { id: { in: groupIds } },
       include: {
         members: {
-          include: {
-            user: { select: { id: true, username: true, workoutLogs: { select: { date: true, duration: true, intensityPoints: true, sets: true }, orderBy: { date: "desc" }, take: 200 } } }
-          }
+          include: { user: { select: { id: true, username: true } } }
         },
         invites: {
           where: { status: "pending" },
@@ -31,7 +29,16 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return json({ groups });
+    // Batch-compute stats for every member across all groups in a single query
+    const allUserIds = Array.from(new Set(groups.flatMap(g => g.members.map(m => m.userId))));
+    const statsByUser = await computeStatsForUsers(allUserIds);
+
+    const result = groups.map(g => ({
+      ...g,
+      members: g.members.map(m => ({ ...m, stats: statsByUser.get(m.userId) ?? null })),
+    }));
+
+    return json({ groups: result });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);
   }
