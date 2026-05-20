@@ -704,6 +704,7 @@ function workoutImageFor(title: string): string | null {
   if (t.includes("cardio") || t.includes("conditio"))     return "/ai/workout-cardio.jpg";
   if (t.startsWith("push") && t.includes("volume"))       return "/ai/workout-push-volume.jpg";
   if (t.startsWith("push"))                               return "/ai/workout-push.jpg";
+  if (t.startsWith("pull") && t.includes("width"))        return "/ai/workout-pull-width.jpg";
   if (t.startsWith("pull"))                               return "/ai/workout-pull.jpg";
   if (t.startsWith("full"))                               return "/ai/workout-fullbody.jpg";
   if (t.startsWith("upper"))                              return "/ai/workout-upper.jpg";
