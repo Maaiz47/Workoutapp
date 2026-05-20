@@ -3224,12 +3224,12 @@ function HomePage() {
               }}
             >
               <div style={{
-                background: isActive ? `${d.color}14` : "rgba(255,255,255,0.04)",
-                border: isActive ? `1px solid ${d.color}60` : "1px solid rgba(255,255,255,0.06)",
+                background: isActive ? `linear-gradient(135deg, ${d.color}1c, ${d.color}06 60%, rgba(255,255,255,0.02))` : `linear-gradient(135deg, ${d.color}08, rgba(255,255,255,0.025))`,
+                border: isActive ? `1px solid ${d.color}60` : `1px solid ${d.color}18`,
                 borderRadius: 16, padding: "20px", position: "relative", overflow: "hidden",
-                boxShadow: isActive ? `0 0 20px ${d.color}18` : "none",
+                boxShadow: isActive ? `0 0 22px ${d.color}24, inset 0 1px 0 rgba(255,255,255,0.04)` : `0 2px 14px -8px ${d.color}30, inset 0 1px 0 rgba(255,255,255,0.03)`,
               }}>
-                <div style={{ position: "absolute", top: 0, left: 0, width: isActive ? 6 : 4, height: "100%", background: d.gradient, borderRadius: "16px 0 0 16px" }} />
+                <div style={{ position: "absolute", top: 0, left: 0, width: isActive ? 6 : 4, height: "100%", background: d.gradient, borderRadius: "16px 0 0 16px", boxShadow: isActive ? `0 0 12px ${d.color}80` : `0 0 6px ${d.color}50` }} />
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div style={{ paddingLeft: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -3536,7 +3536,8 @@ function HomePage() {
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontStyle: "italic", padding: "8px 0" }}>No custom exercises yet — create one above</div>
           )}
           {customExercises.map(ex => (
-            <div key={ex.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
+            <div key={ex.id} style={{ position: "relative", background: "linear-gradient(90deg, rgba(78,205,196,0.04), rgba(255,255,255,0.02))", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px -4px rgba(78,205,196,0.18)" }}>
+              <div aria-hidden style={{ position: "absolute", left: 0, top: 8, bottom: 8, width: 2, background: "linear-gradient(180deg, #4ECDC4, transparent)", borderRadius: 1 }} />
               {ex.photoUrls?.[0] && <img src={ex.photoUrls[0]} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "rgba(255,255,255,0.06)" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />}
               {!ex.photoUrls?.[0] && <div style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(255,255,255,0.06)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🏋️</div>}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -4806,18 +4807,20 @@ function HomePage() {
               const next = CLIENT_TIERS[tierIdx + 1];
               const progress = next ? Math.min(1, overall.totalSessions / next.min) : 1;
               return (
-                <div style={{ background: "linear-gradient(135deg, rgba(240,192,64,0.08), rgba(240,192,64,0.03))", border: "1px solid rgba(240,192,64,0.18)", borderRadius: 14, padding: "16px 18px", marginBottom: 14, display: "flex", alignItems: "center", gap: 16 }}>
-                  <div style={{ fontSize: 40, lineHeight: 1 }}>{tier.emoji}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: "#f0c040" }}>{tier.label}</div>
-                      {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{overall.totalSessions}/{next.min} sessions</div>}
+                <div style={{ position: "relative", background: "linear-gradient(135deg, rgba(240,192,64,0.10), rgba(225,112,85,0.04) 60%, rgba(240,192,64,0.02))", border: "1px solid rgba(240,192,64,0.22)", borderRadius: 16, padding: "18px 20px", marginBottom: 14, display: "flex", alignItems: "center", gap: 18, overflow: "hidden", boxShadow: "0 4px 24px -8px rgba(240,192,64,0.18), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
+                  <div aria-hidden className="tier-shine" />
+                  <div aria-hidden style={{ position: "absolute", top: -40, right: -40, width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle, rgba(240,192,64,0.18), transparent 70%)", pointerEvents: "none" }} />
+                  <div style={{ fontSize: 44, lineHeight: 1, filter: "drop-shadow(0 2px 8px rgba(240,192,64,0.35))" }}>{tier.emoji}</div>
+                  <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                      <div style={{ fontSize: 17, fontWeight: 800, color: "#f0c040", letterSpacing: 0.3 }}>{tier.label}</div>
+                      {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{overall.totalSessions}/{next.min}</div>}
                     </div>
-                    <div style={{ height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
-                      <div className="bar-grow" style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #f0c040, #e17055)", borderRadius: 2 }} />
+                    <div style={{ height: 5, background: "rgba(240,192,64,0.10)", borderRadius: 3, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)" }}>
+                      <div className="bar-grow" style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #f0c040, #e17055)", borderRadius: 3, boxShadow: "0 0 12px rgba(240,192,64,0.55)" }} />
                     </div>
-                    {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 4, fontFamily: "'Space Mono', monospace" }}>Next: {next.emoji} {next.label}</div>}
-                    {!next && <div style={{ fontSize: 9, color: "#f0c040", marginTop: 4, fontFamily: "'Space Mono', monospace" }}>MAX RANK — ABSOLUTE UNIT</div>}
+                    {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>NEXT: {next.emoji} {next.label.toUpperCase()}</div>}
+                    {!next && <div style={{ fontSize: 9, color: "#f0c040", marginTop: 6, fontFamily: "'Space Mono', monospace", letterSpacing: 2, fontWeight: 700 }}>MAX RANK — ABSOLUTE UNIT</div>}
                   </div>
                 </div>
               );
@@ -4830,11 +4833,15 @@ function HomePage() {
                 { label: "AVG TIME", value: overall.avgMinutes > 0 ? `${overall.avgMinutes}m` : "—", color: "#A29BFE" },
               ].map((card, i) => (
                 <div key={i} style={{
-                  background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 12, padding: "16px 12px", textAlign: "center",
+                  position: "relative", overflow: "hidden",
+                  background: `linear-gradient(180deg, ${card.color}10, rgba(255,255,255,0.02))`,
+                  border: `1px solid ${card.color}22`,
+                  borderRadius: 14, padding: "16px 12px", textAlign: "center",
+                  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 12px -6px ${card.color}30`,
                 }}>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{card.value}</div>
-                  <div style={{ fontSize: 8, color: card.color, letterSpacing: 2, marginTop: 4, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>{card.label}</div>
+                  <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${card.color}, transparent)`, opacity: 0.5 }} />
+                  <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", letterSpacing: -0.5 }}>{card.value}</div>
+                  <div style={{ fontSize: 8, color: card.color, letterSpacing: 2, marginTop: 4, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{card.label}</div>
                 </div>
               ))}
             </div>
@@ -4869,12 +4876,15 @@ function HomePage() {
                       <div key={i}
                         onClick={() => day.active ? setCalDateSel(calDateSel === day.date ? null : day.date) : undefined}
                         style={{
-                          aspectRatio: "1", borderRadius: 6, display: "flex", flexDirection: "column",
+                          aspectRatio: "1", borderRadius: 7, display: "flex", flexDirection: "column",
                           alignItems: "center", justifyContent: "center",
-                          background: calDateSel === day.date ? "#fff" : day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
-                          border: day.isToday ? "1px solid rgba(255,255,255,0.4)" : "1px solid transparent",
+                          background: calDateSel === day.date ? "linear-gradient(135deg, #fff, #f5f5f5)" : day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
+                          border: day.isToday ? "1px solid rgba(255,255,255,0.45)" : calDateSel === day.date ? "1px solid rgba(255,255,255,0.6)" : "1px solid transparent",
                           opacity: day.active || day.isToday ? 1 : 0.35,
                           cursor: day.active ? "pointer" : "default",
+                          boxShadow: calDateSel === day.date ? "0 0 16px rgba(255,255,255,0.35)" : day.active ? "0 2px 8px -2px rgba(255,107,107,0.35), inset 0 1px 0 rgba(255,255,255,0.12)" : "none",
+                          transition: "transform 0.15s ease, box-shadow 0.2s ease",
+                          transform: calDateSel === day.date ? "scale(1.08)" : "scale(1)",
                         }}>
                         <div style={{
                           fontSize: 10, fontWeight: day.isToday ? 700 : 500,
@@ -4898,10 +4908,11 @@ function HomePage() {
                 }
               }
               return (
-                <div className="fade-in" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
+                <div className="fade-in" style={{ position: "relative", overflow: "hidden", background: "linear-gradient(180deg, rgba(255,107,107,0.05), rgba(255,255,255,0.02))", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 16, padding: "18px", marginBottom: 12, boxShadow: "0 4px 20px -8px rgba(255,107,107,0.18)" }}>
+                  <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.5), transparent)" }} />
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                     <div>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 4 }}>SESSION RECAP</div>
+                      <div style={{ fontSize: 10, color: "#FF6B6B", letterSpacing: 2.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 4 }}>SESSION RECAP</div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{dateLabel}</div>
                     </div>
                     <button onClick={() => setCalDateSel(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
@@ -4948,10 +4959,11 @@ function HomePage() {
 
             {/* Personal Records */}
             {prList.length > 0 && (
-              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
-                  <span style={{ fontSize: 14 }}>🏆</span>
-                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>PERSONAL BESTS</span>
+              <div style={{ position: "relative", background: "linear-gradient(180deg, rgba(240,192,64,0.04), rgba(255,255,255,0.02))", border: "1px solid rgba(240,192,64,0.14)", borderRadius: 16, padding: "18px", marginBottom: 12, overflow: "hidden", boxShadow: "0 4px 20px -8px rgba(240,192,64,0.12)" }}>
+                <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(240,192,64,0.5), transparent)" }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                  <span style={{ fontSize: 15, filter: "drop-shadow(0 0 6px rgba(240,192,64,0.5))" }}>🏆</span>
+                  <span style={{ fontSize: 10, color: "#f0c040", letterSpacing: 2.5, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>PERSONAL BESTS</span>
                 </div>
                 {prList.map(([eid, pr], i) => {
                   const exName = findExName(eid);
@@ -4959,7 +4971,9 @@ function HomePage() {
                   return (
                   <div key={eid} style={{
                     display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "10px 0",
+                    padding: "10px 4px 10px 8px",
+                    borderLeft: "2px solid rgba(240,192,64,0.25)",
+                    marginLeft: -8,
                     borderBottom: i < prList.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
                   }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
