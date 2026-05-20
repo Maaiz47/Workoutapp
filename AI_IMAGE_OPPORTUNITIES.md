@@ -33,7 +33,7 @@ Each prompt is self-contained — paste it as-is into ChatGPT's image tool. The 
 - [x] 10. Workout card — HIIT
 - [x] 11. Onboarding Step 0 — Welcome
 - [x] 12. Onboarding goal — Build Muscle
-- [ ] 13. Onboarding goal — Get Stronger
+- [x] 13. Onboarding goal — Get Stronger
 - [ ] 14. Onboarding goal — Lose Fat
 - [ ] 15. Onboarding goal — General Fitness
 - [ ] 16. Onboarding Step 6 — Training Location (3 tiles)
