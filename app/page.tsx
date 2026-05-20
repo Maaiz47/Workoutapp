@@ -71,6 +71,8 @@ function useCountdown() {
   const ref = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioCtx = useRef<AudioContext | null>(null);
   const notifiedRef = useRef(false);
+  const startedAtRef = useRef<number | null>(null);
+  const onFinishRef = useRef<(() => void) | null>(null);
 
   // Request notification permission and register service worker
   const requestNotifPermission = useCallback(async () => {
@@ -130,16 +132,21 @@ function useCountdown() {
     setRunning(false);
     setSeconds(0);
     endTimeRef.current = null;
+    startedAtRef.current = null;
     beep();
     sendNotification();
+    onFinishRef.current?.();
+    onFinishRef.current = null;
   }, [beep, sendNotification]);
 
-  const start = useCallback((secs: number) => {
+  const start = useCallback((secs: number, onFinish?: () => void) => {
     requestNotifPermission();
     if (ref.current) clearInterval(ref.current);
     notifiedRef.current = false;
+    onFinishRef.current = onFinish || null;
     const endTime = Date.now() + secs * 1000;
     endTimeRef.current = endTime;
+    startedAtRef.current = Date.now();
     setSeconds(secs);
     setTotal(secs);
     setRunning(true);
@@ -156,9 +163,13 @@ function useCountdown() {
 
   const stop = useCallback(() => {
     if (ref.current) clearInterval(ref.current);
+    const elapsed = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
     setRunning(false);
     setSeconds(0);
     endTimeRef.current = null;
+    startedAtRef.current = null;
+    onFinishRef.current = null;
+    return elapsed;
   }, []);
 
   // Handle coming back from background — check if timer expired while away
@@ -343,10 +354,10 @@ function getClientTier(totalSessions: number, streak: number, prCount: number) {
 }
 
 const TRAINER_TIERS = [
-  { label: "Rookie", emoji: "🏅", min: 0  },
-  { label: "Coach",  emoji: "🎯", min: 3  },
-  { label: "Pro",    emoji: "⚡", min: 10 },
-  { label: "Elite",  emoji: "👑", min: 20 },
+  { label: "Rookie", emoji: "🏅", min: 0,  color: "#A29BFE", bg: "rgba(162,155,254,0.10)", border: "rgba(162,155,254,0.3)" },
+  { label: "Coach",  emoji: "🎯", min: 3,  color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)" },
+  { label: "Pro",    emoji: "⚡", min: 10, color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
+  { label: "Elite",  emoji: "👑", min: 20, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
 ];
 
 function getTrainerTier(clientCount: number) {
@@ -1157,6 +1168,8 @@ function HomePage() {
   const [manualBW, setManualBW] = useState(false);
   const [logFlashId, setLogFlashId] = useState<string | null>(null);
   const [newPBs, setNewPBs] = useState<{ name: string; weight: number; reps: number }[]>([]);
+  const [restStartTime, setRestStartTime] = useState<number>(0);
+  const [pbAfterRest, setPbAfterRest] = useState<{ name: string; weight: number; reps: number }[]>([]);
   const [showCompleteAnim, setShowCompleteAnim] = useState(false);
   const [viewDir, setViewDir] = useState<"forward" | "back">("forward");
   const prevOnboardingStep = useRef(0);
@@ -2274,7 +2287,13 @@ function HomePage() {
   };
 
   const saveEditSets = () => {
-    const newLog = { ...log, ...editSets };
+    // Remove any keys for this exercise that aren't in editSets (deleted)
+    const newLog: typeof log = {};
+    for (const [k, v] of Object.entries(log)) {
+      if (editEx && k.startsWith(editEx + "-") && !(k in editSets)) continue;
+      newLog[k] = v;
+    }
+    for (const [k, v] of Object.entries(editSets)) newLog[k] = v;
     setLog(newLog);
     try {
       const saved = localStorage.getItem("ironlog-session");
@@ -3299,18 +3318,15 @@ function HomePage() {
           </div>
         </div>
       )}
-      {/* Hero: barbell background + profile card overlay */}
-      <div style={{ position: "relative", padding: "24px 20px 20px", overflow: "hidden" }}>
-        <div aria-hidden style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -48%)", opacity: 0.09, pointerEvents: "none", width: "100%" }}>
-          <BarbellMark width={420} delay={0.1} />
-        </div>
+      {/* Profile card */}
+      <div style={{ position: "relative", padding: "24px 20px 20px" }}>
         <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(12,12,18,0.55)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 16, cursor: "pointer", textAlign: "left", padding: "14px 18px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 24px -8px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", gap: 14 }}>
           <img src="/ai/avatar-default.png" alt="" style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
           <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: -0.5 }}>{user.username}</div>
-            {user.role === "trainer" && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
+            {user.role === "trainer" && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} TRAINER · {t.label.toUpperCase()}</span>; })()}
             {user.role === "admin" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
             {user.role === "user" && (() => { const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#f0c040", background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
             {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
@@ -5708,7 +5724,10 @@ function HomePage() {
                   const { setNum: sn, dropNum } = parseSetKey(k);
                   return (
                     <div key={k} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px", marginBottom: 8 }}>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 12, fontFamily: "'Space Mono', monospace" }}>SET {sn}{dropNum ? ` · DROP ${dropNum}` : ""}</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>SET {sn}{dropNum ? ` · DROP ${dropNum}` : ""}</div>
+                        <button onClick={() => setEditSets(prev => { const next = { ...prev }; delete next[k]; return next; })} style={{ background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 11, padding: "4px 10px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>DELETE</button>
+                      </div>
                       <div style={{ display: "flex", gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>WEIGHT (kg)</div>
@@ -6120,7 +6139,6 @@ function HomePage() {
                             if (w > 0 && w > prevBest && !shownPBs.current.has(ex.id)) {
                               shownPBs.current.add(ex.id);
                               setNewPBs([{ name: ex.name, weight: w, reps: parseFloat(rInput) || 0 }]);
-                              setTimeout(() => setNewPBs([]), 2400);
                             }
                           }}
                           className={logFlashId === ex.id ? "log-flash" : ""}
