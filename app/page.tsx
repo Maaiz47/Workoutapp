@@ -6544,6 +6544,115 @@ function HomePage() {
             </div>
           );
         })()}
+
+        {/* ── Session exercise browser modal ── */}
+        {showSessionExBrowser && (() => {
+          const isSuperMode = !!addingSupersetForId;
+          const partnerEx = isSuperMode ? activeDay?.sections.flatMap(s => s.exercises).find(e => e.id === addingSupersetForId) : null;
+          const searchLower = sessionExSearch.toLowerCase().trim();
+          const filteredAll = (EXERCISES as any[]).filter((e: any) => {
+            if (searchLower && !e.name.toLowerCase().includes(searchLower)) return false;
+            if (activeDay?.sections.some(s => s.exercises.some(x => x.id === e.id))) return false;
+            return true;
+          });
+          const visibleList = searchLower ? filteredAll.slice(0, 40) : null;
+          const handleAdd = (libEx: any) => {
+            const newEx: any = {
+              id: libEx.id,
+              name: libEx.name,
+              sets: 3,
+              reps: "10-12",
+              rest: isSuperMode ? 0 : 60,
+              type: libEx.type ?? "isolation",
+              dropSets: 0,
+            };
+            setActiveDay(d => {
+              if (!d) return d;
+              if (isSuperMode && addingSupersetForId) {
+                const gid = `sup-${Date.now()}`;
+                return {
+                  ...d,
+                  sections: d.sections.map(s => {
+                    const idx = s.exercises.findIndex(x => x.id === addingSupersetForId);
+                    if (idx < 0) return s;
+                    const existingGid = (s.exercises[idx] as any).groupId ?? gid;
+                    const updatedExs = s.exercises.map(x => x.id === addingSupersetForId ? { ...x, groupId: existingGid, groupType: "superset" as const } : x);
+                    updatedExs.splice(idx + 1, 0, { ...newEx, groupId: existingGid, groupType: "superset" as const, rest: 0 });
+                    return { ...s, exercises: updatedExs };
+                  })
+                };
+              } else {
+                const sections = [...d.sections];
+                const bonusIdx = sections.findIndex(s => s.name.toUpperCase() === "BONUS");
+                if (bonusIdx >= 0) {
+                  sections[bonusIdx] = { ...sections[bonusIdx], exercises: [...sections[bonusIdx].exercises, newEx] };
+                } else {
+                  sections.push({ name: "Bonus", exercises: [newEx] });
+                }
+                return { ...d, sections };
+              }
+            });
+            setShowSessionExBrowser(false);
+            setAddingSupersetForId(null);
+            setSessionExSearch("");
+          };
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 250, display: "flex", flexDirection: "column", padding: 20, backdropFilter: "blur(16px)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>
+                    {isSuperMode ? "PICK SUPERSET PARTNER" : "ADD EXERCISE"}
+                  </div>
+                  {isSuperMode && partnerEx && (
+                    <div style={{ fontSize: 13, color: "#4ECDC4", marginTop: 4 }}>Pairs with: <strong>{partnerEx.name}</strong></div>
+                  )}
+                </div>
+                <button onClick={() => { setShowSessionExBrowser(false); setAddingSupersetForId(null); setSessionExSearch(""); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+              </div>
+              <input
+                value={sessionExSearch}
+                onChange={e => setSessionExSearch(e.target.value)}
+                placeholder="Search exercises..."
+                autoFocus
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "12px 16px", width: "100%", outline: "none", boxSizing: "border-box", marginBottom: 12 }}
+              />
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                {!searchLower && sessionExSuggestions.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>
+                      {isSuperMode ? "✨ PAIRS WELL" : "✨ SUGGESTED FOR THIS WORKOUT"}
+                    </div>
+                    {sessionExSuggestions.map((libEx: any) => {
+                      const muscles = ((libEx.muscles ?? []) as string[]).slice(0, 2).join(" · ");
+                      return (
+                        <button key={libEx.id} onClick={() => handleAdd(libEx)} style={{ width: "100%", textAlign: "left", padding: "12px 14px", background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 10, marginBottom: 6, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{libEx.name}</div>
+                            {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
+                          </div>
+                          <span style={{ color: "#4ECDC4", fontSize: 14 }}>+</span>
+                        </button>
+                      );
+                    })}
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: 2, margin: "16px 0 8px", fontFamily: "'Space Mono', monospace" }}>ALL EXERCISES</div>
+                  </>
+                )}
+                {(visibleList ?? (EXERCISES as any[]).filter((e: any) => !activeDay?.sections.some(s => s.exercises.some(x => x.id === e.id))).slice(0, 50)).map((libEx: any) => {
+                  const muscles = ((libEx.muscles ?? []) as string[]).slice(0, 2).join(" · ");
+                  return (
+                    <button key={`all-${libEx.id}`} onClick={() => handleAdd(libEx)} style={{ width: "100%", textAlign: "left", padding: "11px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 6, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{libEx.name}</div>
+                        {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
+                      </div>
+                      <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 14 }}>+</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   }
