@@ -5162,9 +5162,7 @@ function HomePage() {
             ) : (
               <div>
                 {[
-                  { label: "Weight (kg)", key: "weightKg", type: "number", placeholder: "e.g. 80" },
                   { label: "Height (cm)", key: "heightCm", type: "number", placeholder: "e.g. 178" },
-                  { label: "Body Fat %", key: "bodyFatPct", type: "number", placeholder: "e.g. 18 (optional)" },
                   { label: "Date of birth", key: "dob", type: "date", placeholder: "" },
                 ].map(f => (
                   <div key={f.key} style={{ marginBottom: 12 }}>
@@ -5178,6 +5176,16 @@ function HomePage() {
                     />
                   </div>
                 ))}
+                <div style={{ padding: "14px 16px", background: "rgba(78,205,196,0.05)", border: "1px dashed rgba(78,205,196,0.25)", borderRadius: 12, marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.55, marginBottom: 10 }}>
+                    Weight and body fat are logged as recordings over time. Add a new entry to update them.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingProfile(false); goTo("progress"); setProgressTab("body"); }}
+                    style={{ width: "100%", padding: "10px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.35)", borderRadius: 10, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                  >LOG NEW WEIGHT / BODY FAT →</button>
+                </div>
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>GENDER</div>
                   <div style={{ display: "flex", gap: 8 }}>
@@ -5331,11 +5339,11 @@ function HomePage() {
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>INTENSITY</div>
               <div style={{ display: "flex", gap: 8 }}>
                 {[{ id: "light", label: "Light" }, { id: "moderate", label: "Moderate" }, { id: "intense", label: "Intense" }].map(opt => (
-                  <button key={opt.id} onClick={() => setHiitIntensity(opt.id)} style={{ flex: 1, padding: "10px 4px", background: hiitIntensity === opt.id ? "rgba(255,140,66,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${hiitIntensity === opt.id ? "rgba(255,140,66,0.4)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: hiitIntensity === opt.id ? "#FF8C42" : "rgba(255,255,255,0.45)", fontSize: 11, cursor: "pointer", textTransform: "capitalize" }}>{opt.label}</button>
+                  <button key={opt.id} onClick={() => { setHiitIntensity(opt.id); fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hiitPreference: hiitPreference || "none", hiitIntensity: opt.id }) }).catch(() => {}); }} style={{ flex: 1, padding: "10px 4px", background: hiitIntensity === opt.id ? "rgba(255,140,66,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${hiitIntensity === opt.id ? "rgba(255,140,66,0.4)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: hiitIntensity === opt.id ? "#FF8C42" : "rgba(255,255,255,0.45)", fontSize: 11, cursor: "pointer", textTransform: "capitalize" }}>{opt.label}</button>
                 ))}
               </div>
             </div>
-            <div style={{ marginBottom: 14 }}>
+            <div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>MODE</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {[
@@ -5345,7 +5353,7 @@ function HomePage() {
                 ].map(opt => {
                   const sel = hiitPreference === opt.id;
                   return (
-                    <button key={opt.id} onClick={() => setHiitPreference(opt.id)} style={{ padding: "10px 14px", background: sel ? "rgba(255,140,66,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,140,66,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF8C42" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <button key={opt.id} onClick={() => { setHiitPreference(opt.id); fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hiitPreference: opt.id, hiitIntensity: hiitIntensity || "moderate" }) }).catch(() => {}); }} style={{ padding: "10px 14px", background: sel ? "rgba(255,140,66,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(255,140,66,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#FF8C42" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
                         <div style={{ fontWeight: 500 }}>{opt.label}</div>
                         <div style={{ fontSize: 11, color: sel ? "rgba(255,140,66,0.55)" : "rgba(255,255,255,0.25)", marginTop: 2 }}>{opt.desc}</div>
@@ -5356,11 +5364,6 @@ function HomePage() {
                 })}
               </div>
             </div>
-            <button onClick={async () => {
-              try {
-                await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hiitPreference: hiitPreference || "none", hiitIntensity: hiitIntensity || "moderate" }) });
-              } catch {}
-            }} style={{ width: "100%", padding: "11px", background: "rgba(255,140,66,0.08)", border: "1px solid rgba(255,140,66,0.25)", borderRadius: 10, color: "#FF8C42", fontSize: 10, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>SAVE HIIT SETTINGS</button>
           </div>
 
           {/* Trainer upgrade — request flow */}

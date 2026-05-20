@@ -128,56 +128,186 @@ input[type="number"] { -moz-appearance: textfield; }
   --app-bg:        #0a0a0f;
 }
 
-/* Logo accent colour driven by CSS variable */
-.logo-log  { color: var(--accent) !important; }
+/* Smooth fade when theme/accent changes */
+html, body { transition: background-color 0.45s ease, background-image 0.45s ease; }
+.day-card-img { transition: opacity 0.45s ease, filter 0.45s ease; }
+.day-card-gradient { transition: background 0.45s ease; }
+.tilt-3d-item { transition: border-color 0.35s ease, box-shadow 0.35s ease, background 0.35s ease; }
 
-/* ── IRON (default) — no overrides needed ── */
+/* ── ACCENT-DRIVEN OVERRIDES (apply across all themes) ──
+   The app uses hardcoded brand colours (#FF6B6B, #FF6644, #ff6b6b)
+   inline. These selectors retarget those inline styles to use the
+   user-chosen accent so the colour picker actually does something. */
+[style*="#FF6B6B"], [style*="#ff6b6b"], [style*="rgb(255, 107, 107)"], [style*="rgb(255,107,107)"],
+[style*="#FF6644"], [style*="#ff6644"], [style*="rgb(255, 102, 68)"], [style*="rgb(255,102,68)"] {
+  /* This is a marker class — paired with the recolour rules below */
+}
+/* Buttons & filled CTAs */
+button[style*="#FF6B6B"], button[style*="#ff6b6b"],
+button[style*="#FF6644"], button[style*="#ff6644"],
+a[style*="background: #FF6B6B"], a[style*="background:#FF6B6B"],
+a[style*="background: #FF6644"], a[style*="background:#FF6644"] {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+/* Text in the brand colour */
+[style*="color: #FF6B6B"], [style*="color:#FF6B6B"],
+[style*="color: #ff6b6b"], [style*="color:#ff6b6b"],
+[style*="color: #FF6644"], [style*="color:#FF6644"],
+[style*="color: #ff6644"], [style*="color:#ff6644"] {
+  color: var(--accent) !important;
+}
+/* Borders & outlines */
+[style*="border: 1px solid #FF6B6B"], [style*="border: 1px solid #ff6b6b"],
+[style*="border: 1px solid #FF6644"], [style*="border: 1px solid #ff6644"],
+[style*="border-color: #FF6B6B"], [style*="border-color: #ff6b6b"],
+[style*="border-color: #FF6644"], [style*="border-color: #ff6644"],
+[style*="borderColor: #FF6B6B"], [style*="borderColor: #FF6644"] {
+  border-color: var(--accent) !important;
+}
+/* Translucent brand backgrounds (rgba) — retint with accent */
+[style*="rgba(255,107,107"], [style*="rgba(255, 107, 107"],
+[style*="rgba(255,102,68"],  [style*="rgba(255, 102, 68"] {
+  background-color: rgba(var(--accent-rgb), 0.13) !important;
+  border-color: rgba(var(--accent-rgb), 0.32) !important;
+}
 
-/* ── MONO: clean, minimal, image-free ─────────────────── */
+/* Buttons with the brand orange CSS var (marketing) */
+.btn-primary { background: var(--accent) !important; }
+.btn-primary:hover { filter: brightness(1.1); }
+
+/* ── IRON (default) — premium dark + warm bias ── */
+[data-theme="iron"] {
+  --app-bg: #0a0a0f;
+}
+
+/* ── MONO: brutalist, image-free, accent-only ─────────────────── */
 [data-theme="mono"] {
-  --app-bg: #0c0c0c;
-  --secondary: #999;
-  --secondary-rgb: 153,153,153;
+  --app-bg: #0a0a0a;
+  --secondary: #888;
+  --secondary-rgb: 136,136,136;
 }
 [data-theme="mono"] html,
-[data-theme="mono"] body { background: #0c0c0c !important; }
-
-/* Hide workout photos, show gradient placeholder instead */
-[data-theme="mono"] .day-card-img { display: none !important; }
-[data-theme="mono"] .day-card-gradient {
-  background: linear-gradient(145deg, rgba(var(--accent-rgb),0.12) 0%, rgba(255,255,255,0.02) 100%) !important;
+[data-theme="mono"] body {
+  background: #0a0a0a !important;
+  background-image: none !important;
 }
 
-/* Clean card borders — replace glass with solid line */
+/* Hide all decorative imagery */
+[data-theme="mono"] .day-card-img,
+[data-theme="mono"] .hero-banner img,
+[data-theme="mono"] img[src*="/ai/"] { display: none !important; }
+
+/* Session cards become true rectangles: sharper corners,
+   no vignette, prominent accent strip, solid background */
+[data-theme="mono"] .day-card-gradient {
+  background: rgba(255,255,255,0.025) !important;
+  border-top: 1px solid rgba(var(--accent-rgb), 0.22);
+}
+/* Reduce border radii globally */
+[data-theme="mono"] [style*="border-radius: 20"],
+[data-theme="mono"] [style*="borderRadius: 20"],
+[data-theme="mono"] [style*="borderRadius:20"] {
+  border-radius: 6px !important;
+}
+[data-theme="mono"] [style*="border-radius: 12"],
+[data-theme="mono"] [style*="borderRadius: 12"],
+[data-theme="mono"] [style*="borderRadius:12"] {
+  border-radius: 4px !important;
+}
+
+/* Strip glass/blur effects */
 [data-theme="mono"] .mkt-nav,
-[data-theme="mono"] [style*="backdropFilter"] {
+[data-theme="mono"] [style*="backdropFilter"],
+[data-theme="mono"] [style*="backdrop-filter"] {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  background: rgba(0,0,0,0.92) !important;
 }
 
-/* ── VIVID: deep purple, neon energy ──────────────────── */
+/* Suppress glows & coloured shadows */
+[data-theme="mono"] [style*="box-shadow"],
+[data-theme="mono"] [style*="boxShadow"] {
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 2px 10px rgba(0,0,0,0.5) !important;
+}
+[data-theme="mono"] [style*="textShadow"] { text-shadow: none !important; }
+
+/* Desaturate everything except the accent itself */
+[data-theme="mono"] {
+  filter: saturate(0.6);
+}
+[data-theme="mono"] [style*="color: var(--accent)"],
+[data-theme="mono"] .accent-color {
+  filter: saturate(2);
+}
+
+/* ── VIVID: deep purple, neon glow, saturated ──────────────────── */
 [data-theme="vivid"] {
-  --app-bg: #0f0520;
+  --app-bg: #110528;
   --secondary: #00d4ff;
   --secondary-rgb: 0,212,255;
 }
 [data-theme="vivid"] html,
-[data-theme="vivid"] body { background: #0f0520 !important; }
+[data-theme="vivid"] body {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(var(--accent-rgb), 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 80% 100%, rgba(0, 212, 255, 0.15) 0%, transparent 50%),
+    #110528 !important;
+  background-attachment: fixed !important;
+}
 
-/* Neon card borders */
+/* Saturate workout-card images */
+[data-theme="vivid"] .day-card-img,
+[data-theme="vivid"] img[src*="/ai/"] {
+  filter: saturate(1.6) contrast(1.08) brightness(0.92);
+}
+
+/* Neon borders + glow on cards */
 [data-theme="vivid"] .tilt-3d-item {
-  border-color: rgba(var(--accent-rgb),0.25) !important;
-  box-shadow: 0 0 18px rgba(var(--accent-rgb),0.08), 0 8px 24px rgba(0,0,0,0.6) !important;
+  border: 1px solid rgba(var(--accent-rgb), 0.35) !important;
+  box-shadow:
+    0 0 24px rgba(var(--accent-rgb), 0.14),
+    0 0 60px rgba(0, 212, 255, 0.06),
+    0 8px 32px rgba(0,0,0,0.65) !important;
 }
 
-/* Saturate images slightly in vivid mode */
-[data-theme="vivid"] .day-card-img {
-  filter: saturate(1.25) brightness(0.9);
+/* Neon outlines on inputs & buttons */
+[data-theme="vivid"] input:focus,
+[data-theme="vivid"] textarea:focus,
+[data-theme="vivid"] select:focus {
+  outline: 1px solid rgba(var(--accent-rgb), 0.65) !important;
+  box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.35) !important;
 }
 
-/* Vivid glow on active/selected elements */
+/* Buttons get a chunky neon glow */
+[data-theme="vivid"] button[style*="background: #FF6B6B"],
+[data-theme="vivid"] button[style*="background:#FF6B6B"],
+[data-theme="vivid"] .btn-primary,
+[data-theme="vivid"] .btn-teal {
+  box-shadow: 0 0 22px rgba(var(--accent-rgb), 0.55), 0 0 1px rgba(255,255,255,0.4) inset !important;
+}
+
+/* Secondary teal → recoloured by accent when accent is non-default */
 [data-theme="vivid"] [style*="background: rgba(78,205,196"] {
   --secondary: var(--accent);
+}
+
+/* Page-corner aurora that drifts subtly */
+[data-theme="vivid"]::before {
+  content: "";
+  position: fixed;
+  top: -20%;
+  right: -20%;
+  width: 70vw;
+  height: 70vw;
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.18) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  animation: vividAurora 18s ease-in-out infinite alternate;
+}
+@keyframes vividAurora {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.85; }
+  100% { transform: translate(-15vw, 12vh) scale(1.15); opacity: 1; }
 }
 
 /* ── Onboarding step slides ───────────────────────────────────────────── */
