@@ -3781,8 +3781,13 @@ function HomePage() {
         </div>
       )}
       {user.role === "trainer" && (
-        <div style={{ padding: "24px 20px 0" }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>MY CLIENTS</div>
+        <div style={{ padding: "20px 20px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>👥</span>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>MY CLIENTS</div>
+            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{clients.length}</span>
+          </div>
           {clients.length === 0 ? (
             <div style={{ textAlign: "center", padding: "16px 0" }}>
               <img src="/ai/empty-clients.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
@@ -3805,25 +3810,26 @@ function HomePage() {
 
       {user.role === "trainer" && (
         <>
-        <div style={{ padding: "16px 20px 0" }}>
-          <button
-            onClick={async () => {
-              if (showLeaderboard) { setShowLeaderboard(false); return; }
-              setLeaderboardLoading(true);
-              setShowLeaderboard(true);
-              try {
-                const res = await fetch("/api/trainer/leaderboard");
-                const data = await res.json();
-                if (data.leaderboard) setLeaderboard(data.leaderboard);
-              } catch {}
-              setLeaderboardLoading(false);
-            }}
-            style={{ width: "100%", padding: "14px 18px", background: showLeaderboard ? "rgba(162,155,254,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${showLeaderboard ? "rgba(162,155,254,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, color: showLeaderboard ? "#a29bfe" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}
-          >
-            <span style={{ fontSize: 18 }}>🏆</span>
-            <span>Client Leaderboard</span>
-            <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>{showLeaderboard ? "▲" : "▼"}</span>
-          </button>
+        <div style={{ padding: "20px 20px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>🏆</span>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>LEADERBOARD</div>
+            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+            <button
+              onClick={async () => {
+                if (showLeaderboard) { setShowLeaderboard(false); return; }
+                setLeaderboardLoading(true);
+                setShowLeaderboard(true);
+                try {
+                  const res = await fetch("/api/trainer/leaderboard");
+                  const data = await res.json();
+                  if (data.leaderboard) setLeaderboard(data.leaderboard);
+                } catch {}
+                setLeaderboardLoading(false);
+              }}
+              style={{ padding: "5px 12px", background: showLeaderboard ? "rgba(162,155,254,0.16)" : "rgba(255,255,255,0.04)", border: `1px solid ${showLeaderboard ? "rgba(162,155,254,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, color: showLeaderboard ? "#a29bfe" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+            >{showLeaderboard ? "HIDE" : "VIEW"}</button>
+          </div>
           {showLeaderboard && (
             <div className="fade-in" style={{ marginTop: 8 }}>
               {/* Sort chips */}
@@ -3881,25 +3887,26 @@ function HomePage() {
         </div>
 
         {/* ── Leaderboard Groups ── */}
-        <div style={{ padding: "12px 20px 0" }}>
-          <button
-            onClick={async () => {
-              if (showLbGroups) { setShowLbGroups(false); return; }
-              setLbGroupsLoading(true);
-              setShowLbGroups(true);
-              try {
-                const res = await fetch("/api/leaderboard/groups");
-                const data = await res.json();
-                if (data.groups) setLbGroups(data.groups);
-              } catch {}
-              setLbGroupsLoading(false);
-            }}
-            style={{ width: "100%", padding: "14px 18px", background: showLbGroups ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${showLbGroups ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, color: showLbGroups ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}
-          >
-            <span style={{ fontSize: 18 }}>👥</span>
-            <span>Leaderboard Groups</span>
-            <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>{showLbGroups ? "▲" : "▼"}</span>
-          </button>
+        <div style={{ padding: "20px 20px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>🏝️</span>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>GROUPS</div>
+            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+            <button
+              onClick={async () => {
+                if (showLbGroups) { setShowLbGroups(false); return; }
+                setLbGroupsLoading(true);
+                setShowLbGroups(true);
+                try {
+                  const res = await fetch("/api/leaderboard/groups");
+                  const data = await res.json();
+                  if (data.groups) setLbGroups(data.groups);
+                } catch {}
+                setLbGroupsLoading(false);
+              }}
+              style={{ padding: "5px 12px", background: showLbGroups ? "rgba(78,205,196,0.16)" : "rgba(255,255,255,0.04)", border: `1px solid ${showLbGroups ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, color: showLbGroups ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+            >{showLbGroups ? "HIDE" : "VIEW"}</button>
+          </div>
           {showLbGroups && (
             <div className="fade-in" style={{ marginTop: 8 }}>
               {/* Pending invites from other trainers */}
@@ -4089,11 +4096,13 @@ function HomePage() {
 
       {/* ── Trainer: Custom Exercises ── */}
       {user.role === "trainer" && (
-        <div style={{ padding: "24px 20px 0" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>MY EXERCISES</div>
-            <button onClick={() => setShowExCreator(s => !s)} style={{ background: showExCreator ? "rgba(255,107,107,0.12)" : "rgba(78,205,196,0.12)", border: `1px solid ${showExCreator ? "rgba(255,107,107,0.3)" : "rgba(78,205,196,0.3)"}`, borderRadius: 8, color: showExCreator ? "#FF6B6B" : "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 12px" }}>
-              {showExCreator ? "CANCEL" : "+ CREATE"}
+        <div style={{ padding: "20px 20px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>🏋️</span>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>MY EXERCISES</div>
+            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+            <button onClick={() => setShowExCreator(s => !s)} style={{ padding: "5px 12px", background: showExCreator ? "rgba(255,107,107,0.16)" : "rgba(78,205,196,0.16)", border: `1px solid ${showExCreator ? "rgba(255,107,107,0.4)" : "rgba(78,205,196,0.4)"}`, borderRadius: 14, color: showExCreator ? "#FF6B6B" : "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+              {showExCreator ? "CANCEL" : "+ NEW"}
             </button>
           </div>
 
@@ -4206,18 +4215,23 @@ function HomePage() {
           ))}
         </div>
       )}
-      <div style={{ padding: "12px 20px 0", display: "flex", flexDirection: "column", gap: 8 }}>
-        <button className="card-hover nav-btn" onClick={() => goTo("messages")} style={{ width: "100%", padding: "15px 18px", background: unreadCount > 0 ? "rgba(78,205,196,0.05)" : "rgba(255,255,255,0.03)", border: `1px solid ${unreadCount > 0 ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
-          <span style={{ fontSize: 18, lineHeight: 1 }}>💬</span>
-          <span>Messages</span>
-          {unreadCount > 0 && <span style={{ marginLeft: "auto", background: "#4ECDC4", color: "#000", borderRadius: 10, padding: "1px 8px", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
-          {unreadCount === 0 && <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>›</span>}
-        </button>
-        <button className="card-hover nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} style={{ width: "100%", padding: "15px 18px", background: "rgba(255,107,107,0.04)", border: "1px solid rgba(255,107,107,0.12)", borderRadius: 14, color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 500, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
-          <span style={{ fontSize: 18, lineHeight: 1 }}>📊</span>
-          <span>View Progress</span>
-          <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.15)", fontSize: 14 }}>›</span>
-        </button>
+      <div style={{ padding: "20px 20px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <span style={{ fontSize: 18, lineHeight: 1 }}>⚡</span>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>QUICK ACTIONS</div>
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <button className="card-hover nav-btn" onClick={() => goTo("messages")} style={{ position: "relative", padding: "18px 14px", background: unreadCount > 0 ? "rgba(78,205,196,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${unreadCount > 0 ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box" }}>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>💬</span>
+            <span>Messages</span>
+            {unreadCount > 0 && <span style={{ position: "absolute", top: 8, right: 8, background: "#4ECDC4", color: "#000", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
+          </button>
+          <button className="card-hover nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} style={{ padding: "18px 14px", background: "rgba(255,107,107,0.04)", border: "1px solid rgba(255,107,107,0.14)", borderRadius: 14, color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box" }}>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>📊</span>
+            <span>Progress</span>
+          </button>
+        </div>
       </div>
     </div>
   );
