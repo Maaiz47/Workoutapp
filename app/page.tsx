@@ -2467,6 +2467,7 @@ function HomePage() {
         <div style={{ position: "absolute", top: "-30%", left: "-20%", width: "60vw", height: "60vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: "-20%", right: "-20%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(78,205,196,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ textAlign: "center", zIndex: 1, width: "100%", maxWidth: 340 }}>
+          <BarbellMark width={260} delay={0.05} loop={7000} />
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, letterSpacing: 8, marginBottom: 4, overflow: "visible" }}>
             <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
           </div>
@@ -6410,15 +6411,23 @@ function LifterIcon({ size = 120, opacity = 1 }: { size?: number; opacity?: numb
 // Uses CSS @keyframes + a client-side ready flag so the animation always
 // starts after the first paint — fixes the SSR issue where the animation
 // would complete before the user sees the splash screen.
-function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: number }) {
+function BarbellMark({ width = 300, delay = 0, loop }: { width?: number; delay?: number; loop?: number }) {
   const s = width / 320;
   const h = Math.round(88 * s);
   // Gate animations on client mount so SSR-rendered HTML doesn't pre-play them
   const [ready, setReady] = useState(false);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     const id = requestAnimationFrame(() => setReady(true));
     return () => cancelAnimationFrame(id);
   }, []);
+  // Optional: re-fire the form-up animation periodically by remounting the
+  // animated subtree via a changing key.
+  useEffect(() => {
+    if (!loop) return;
+    const id = setInterval(() => setTick(t => t + 1), loop);
+    return () => clearInterval(id);
+  }, [loop]);
 
   const pd = delay + 0.42;
   const chrome = "linear-gradient(180deg,#f0f0f0 0%,#c0c0c0 30%,#808080 65%,#b8b8b8 100%)";
@@ -6437,7 +6446,7 @@ function BarbellMark({ width = 300, delay = 0 }: { width?: number; delay?: numbe
   const platePre = (dir: "L" | "R") => ready ? {} : { transform: dir === "L" ? "translateX(-800px)" : "translateX(800px)" };
   return (
     <div style={{ width: "100%", height: h, overflow: "hidden", position: "relative" }}>
-      <div style={{ position: "relative", width, height: h, margin: "0 auto" }}>
+      <div key={tick} style={{ position: "relative", width, height: h, margin: "0 auto" }}>
         {/* Bar — grows from centre */}
         <div style={{ ...seg(34,  37, 58, 14, 4, chrome), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
         <div style={{ ...seg(90,  40,140,  8, 3, chrome), transformOrigin:"50% 50%", ...barPre, animation: barA }} />
