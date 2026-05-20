@@ -47,7 +47,7 @@ Each prompt is self-contained — paste it as-is into ChatGPT's image tool. The 
 - [x] 24. Form demo fallback — "No form demo available"
 - [x] 25. Anatomy thumbnails (chest, back, shoulders, arms, legs, core)
 - [x] 26. Settings profile avatar default
-- [ ] 27. promo.html landing hero
+- [x] 27. promo.html landing hero
 - [ ] 28. trainer.html landing hero
 - [ ] 29. client.html landing hero
 - [ ] 30. Workout-complete celebration backdrop
