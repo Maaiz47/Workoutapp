@@ -1672,12 +1672,10 @@ function HomePage() {
       if (heroImgRef.current) {
         heroImgRef.current.style.transform = `translateY(${scrollY * 0.35}px)`;
       }
-      // Profile card slide-up on scroll
+      // Profile button fades as user scrolls into the image
       if (profileWrapperRef.current) {
-        const progress = Math.min(1, Math.max(0, (scrollY - 180) / 80));
-        const profileH = profileWrapperRef.current.offsetHeight;
-        profileWrapperRef.current.style.transform = `translateY(${-profileH * progress}px)`;
-        profileWrapperRef.current.style.opacity = String(1 - progress * 0.7);
+        const progress = Math.min(1, Math.max(0, scrollY / 80));
+        profileWrapperRef.current.style.opacity = String(1 - progress * 0.55);
       }
       // 3D card tilt
       const vh = window.innerHeight;
@@ -3467,25 +3465,37 @@ function HomePage() {
           </div>
         </div>
       )}
-      {/* Profile card — sticky at top, cards slide over it */}
-      <div ref={profileWrapperRef} style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(10,10,15,0.82)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", padding: "12px 20px 10px", transition: "transform 0.25s ease, opacity 0.25s ease", willChange: "transform" }}>
-        <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(20,20,28,0.55)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 14, cursor: "pointer", textAlign: "left", padding: "12px 16px", width: "100%", boxSizing: "border-box", boxShadow: "0 2px 16px -6px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", gap: 12 }}>
-          <img src="/ai/avatar-default.png" alt="" style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: -0.5 }}>{user.username}</div>
-            {user.role === "trainer" && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()} · TRAINER</span>; })()}
-            {user.role === "admin" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
-            {user.role === "user" && (() => { const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
-            {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
-            <span style={{ marginLeft: "auto", fontSize: 14, color: "rgba(255,255,255,0.25)" }}>›</span>
-          </div>
-          </div>
-        </button>
+      {/* Full-bleed hero — profile button floats over image, no solid wrapper */}
+      <div style={{ position: "relative", height: 290, overflow: "hidden", zIndex: 5 }}>
+        <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", top: "-40px", left: 0, width: "100%", height: "calc(100% + 100px)", objectFit: "cover", opacity: 0.65 }} />
+        {/* Gradient: dark at top for status bar readability, clear in middle, dark at bottom for text */}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.88) 0%, rgba(10,10,15,0.35) 30%, rgba(10,10,15,0) 52%, rgba(10,10,15,0) 62%, rgba(10,10,15,0.94) 100%)" }} />
+        {/* Profile button — floats over the image */}
+        <div ref={profileWrapperRef} style={{ position: "absolute", top: 14, left: 16, right: 16, zIndex: 10, transition: "transform 0.25s ease, opacity 0.25s ease", willChange: "transform" }}>
+          <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(10,10,18,0.48)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, cursor: "pointer", textAlign: "left", padding: "12px 16px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 24px -6px rgba(0,0,0,0.7)", display: "flex", alignItems: "center", gap: 12 }}>
+            <img src="/ai/avatar-default.png" alt="" style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: -0.5 }}>{user.username}</div>
+              {user.role === "trainer" && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()} · TRAINER</span>; })()}
+              {user.role === "admin" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
+              {user.role === "user" && (() => { const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
+              {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
+              <span style={{ marginLeft: "auto", fontSize: 14, color: "rgba(255,255,255,0.25)" }}>›</span>
+            </div>
+            </div>
+          </button>
+        </div>
+        {/* LIFT / TRACK / PROGRESS + phrase — anchored to bottom of hero */}
+        <div style={{ position: "absolute", bottom: 16, left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", letterSpacing: 5, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>LIFT · TRACK · PROGRESS</div>
+          <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontStyle: "italic", marginTop: 5, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
+        </div>
       </div>
+      {/* Notification banner — sits below the hero */}
       {showNotifBanner && notifStatus === "idle" && (
-        <div style={{ margin: "16px 20px 0", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ margin: "14px 16px 0", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "#4ECDC4", marginBottom: 3 }}>Enable notifications</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>Get notified when you receive a message or a trainer sends you a request.</div>
@@ -3501,14 +3511,6 @@ function HomePage() {
           </div>
         </div>
       )}
-      <div style={{ position: "relative", margin: "16px 0 0", height: 160, overflow: "hidden" }}>
-        <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", top: "-30px", left: 0, width: "100%", height: "calc(100% + 80px)", objectFit: "cover", opacity: 0.55 }} />
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.6) 0%, rgba(10,10,15,0) 35%, rgba(10,10,15,0) 55%, rgba(10,10,15,0.92) 100%)" }} />
-        <div style={{ position: "absolute", bottom: 14, left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", letterSpacing: 5, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>LIFT · TRACK · PROGRESS</div>
-          <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", fontStyle: "italic", marginTop: 5, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
-        </div>
-      </div>
       <div style={{ padding: "20px 16px 0", position: "relative", zIndex: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
