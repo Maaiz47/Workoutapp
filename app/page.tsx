@@ -3989,8 +3989,7 @@ function HomePage() {
                               const newIds = inGroup ? currentClientIds.filter((id: string) => id !== c.id) : [...currentClientIds, c.id];
                               try {
                                 const res = await fetch(`/api/leaderboard/groups/${grp.id}/members`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientIds: newIds }) });
-                                const data = await res.json();
-                                if (data.members) {
+                                if (res.ok) {
                                   const refreshRes = await fetch("/api/leaderboard/groups");
                                   const refreshData = await refreshRes.json();
                                   if (refreshData.groups) { setLbGroups(refreshData.groups); setActiveLbGroup(refreshData.groups.find((g: any) => g.id === grp.id) ?? null); }
