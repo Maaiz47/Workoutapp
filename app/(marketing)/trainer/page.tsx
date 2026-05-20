@@ -33,7 +33,7 @@ export default function TrainerPage() {
       {/* HERO BANNER IMAGE */}
       <div className="hero-banner">
         <motion.img
-          src="/hero-barbell.jpg"
+          src="/hero-trainer.jpg"
           alt=""
           loading="eager"
           style={{ y: bannerY, scale: bannerScale }}
