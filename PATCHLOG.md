@@ -2,6 +2,39 @@
 
 ---
 
+## Fix · 2026-05-21 — Catch-all submissions visible on /qa + processed comments stop reading "FAILING" (qa: qa-dashboard, quick-feedback-fab)
+
+### Two gaps the user flagged
+1. Submissions from the floating 💬 NOTE pill and the Settings → SEND
+   FEEDBACK card both POST with `itemId: "user-feedback"`, but
+   there's no item with that id in `qa-state.json` — so on `/qa`
+   they landed in a black hole. Testers couldn't see whether
+   their drive-by notes were attended or still pending.
+2. `effectiveStatus(item, comments)` just returned the latest
+   comment's status verbatim. After Claude shipped a fix and
+   marked the comment processed, the badge kept reading
+   "FAILING" forever — no visible indication that it had been
+   attended pending re-test.
+
+### Fix
+- New synthetic `USER_FEEDBACK_ITEM` rendered alongside General
+  Notes at the top of /qa (GENERAL section, before the regular
+  area groups). Every pill / SEND FEEDBACK submission shows up
+  here with the same threaded UI as other items — date, tester
+  @handle, status badge, screenshot link, processed ✓ tick.
+- Rewrote `effectiveStatus`:
+  - Any UNPROCESSED comment still drives the badge (so unaddressed
+    reports surface as actionable).
+  - Once all comments are processed, latest failing or retest →
+    `regression-retest` (= "PATCHED · RETEST"), passing stays
+    passing, untested stays untested. So a fixed-and-marked
+    issue reads "PATCHED · RETEST" instead of a stale "FAILING".
+- The dashboard's "N FAILING / N RETEST / N TO PROCESS" chips
+  reflect the new logic — once Claude processes a batch, the
+  FAILING count drops and the RETEST count grows.
+
+---
+
 ## QA pass · 2026-05-21 — Process 14 unactioned comments (qa: auth-register, auth-login, auth-must-reset, onboarding-profile-setup, workout-warmup, qa-dashboard, quick-feedback-fab, tier-pills-clarity, tier-info-modal, settings-identity-tiers, progress-volume-heatmap)
 
 @Amanii's 4 comments + @maaiz's 10 comments (including 2 submitted

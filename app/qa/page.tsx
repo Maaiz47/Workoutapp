@@ -79,6 +79,23 @@ const GENERAL_NOTES_ITEM: QAItem = {
   notes: "Use this thread for thoughts, observations, and asks that don't fit a specific test item.",
 };
 
+// Synthetic thread for the floating 💬 NOTE pill + Settings → SEND
+// FEEDBACK card, both of which POST with itemId="user-feedback".
+// Without this, those submissions were invisible on /qa — they
+// landed in the DB but no UI surfaced them.
+const USER_FEEDBACK_ID = "user-feedback";
+const USER_FEEDBACK_ITEM: QAItem = {
+  id: USER_FEEDBACK_ID,
+  title: "User Feedback (floating pill + SEND FEEDBACK)",
+  area: "General",
+  introduced: "",
+  introducedBy: "",
+  lastTested: null,
+  status: "untested",
+  steps: [],
+  notes: "Every submission from the in-app 💬 NOTE pill or the Settings → SEND FEEDBACK card lands here. Comments stay PENDING until Claude marks them processed (✓) — then the badge flips to PATCHED · RETEST so you know it's been attended. Reply with a passing comment to confirm the fix.",
+};
+
 // ─── Small components ────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: ItemStatus }) {
@@ -122,13 +139,33 @@ function parsePatchHistory(notes: string): PatchEntry[] {
   });
 }
 
-// Derive the item's "live" status: prefer the latest unprocessed comment's
-// status, else the latest comment overall, else the seeded item.status.
+// Derive the item's "live" status. Rules:
+//  - If there are no comments at all → fall back to the item's seeded status.
+//  - If any UNPROCESSED comment exists → use the latest unprocessed
+//    comment's status. This is the "actionable" state — what Claude
+//    hasn't seen yet drives the badge.
+//  - Otherwise (all comments processed) → translate the latest comment:
+//      processed failing/retest → "regression-retest" (= PATCHED · RETEST)
+//      processed passing → stays "passing"
+//      processed untested → stays "untested"
+//  Previously this just returned `sorted[0].status`, so an item where
+//  the tester reported FAILING and Claude shipped a fix would keep
+//  reading FAILING forever — no signal that it was attended. (qa:
+//  user question about whether processed submissions stop being
+//  pending until retested.)
 function effectiveStatus(item: QAItem, comments: Comment[]): ItemStatus {
   const itemComments = comments.filter(c => c.itemId === item.id);
   if (itemComments.length === 0) return item.status;
   const sorted = [...itemComments].sort((a, b) => +new Date(b.ts) - +new Date(a.ts));
-  return sorted[0].status;
+  // Prefer the latest UNPROCESSED comment so unaddressed reports
+  // still surface as pending.
+  const latestPending = sorted.find(c => !c.processed);
+  if (latestPending) return latestPending.status;
+  // All processed — map failing/retest → regression-retest so the
+  // badge reads "PATCHED · RETEST" instead of a stale "FAILING".
+  const latest = sorted[0];
+  if (latest.status === "failing" || latest.status === "regression-retest") return "regression-retest";
+  return latest.status;
 }
 
 // ─── Feedback scoring ────────────────────────────────────────────────────────
@@ -844,6 +881,9 @@ export default function QAPage() {
         if (!next[GENERAL_NOTES_ID]) {
           next[GENERAL_NOTES_ID] = { status: "untested", note: "", screenshotUrl: "" };
         }
+        if (!next[USER_FEEDBACK_ID]) {
+          next[USER_FEEDBACK_ID] = { status: "untested", note: "", screenshotUrl: "" };
+        }
         return next;
       });
     }).finally(() => setLoading(false));
@@ -901,6 +941,11 @@ export default function QAPage() {
   const generalMatches = q
     ? (GENERAL_NOTES_ITEM.title.toLowerCase().includes(q) ||
        comments.some(c => c.itemId === GENERAL_NOTES_ID &&
+         (c.note.toLowerCase().includes(q) || c.tester.toLowerCase().includes(q))))
+    : true;
+  const userFeedbackMatches = q
+    ? (USER_FEEDBACK_ITEM.title.toLowerCase().includes(q) ||
+       comments.some(c => c.itemId === USER_FEEDBACK_ID &&
          (c.note.toLowerCase().includes(q) || c.tester.toLowerCase().includes(q))))
     : true;
 
@@ -1157,22 +1202,39 @@ export default function QAPage() {
         {/* Leaderboard — points + counts per tester. Hidden during searches. */}
         {!q && <Leaderboard comments={comments} />}
 
-        {/* General Notes — always at the top, only hidden when search excludes it */}
-        {generalMatches && (
+        {/* General catch-all threads — General Notes + User Feedback
+            (floating pill + SEND FEEDBACK). Both have synthetic items
+            because they don't live in qa-state.json. Each comment is an
+            independent ask; the item's effective status reflects
+            "any unprocessed pending?" so once Claude marks everything
+            attended the badge flips to PATCHED · RETEST. */}
+        {(generalMatches || userFeedbackMatches) && (
           <div style={{ marginBottom: 18 }}>
             <div style={{
               fontSize: 12, fontWeight: 700, letterSpacing: 3, color: "#4ECDC4",
               fontFamily: "'Space Mono', monospace",
               padding: "8px 4px", marginBottom: 4,
             }}>GENERAL</div>
-            <ItemCard
-              item={GENERAL_NOTES_ITEM}
-              comments={comments}
-              draft={drafts[GENERAL_NOTES_ID] || { status: "untested", note: "", screenshotUrl: "" }}
-              setDraft={d => setDrafts(prev => ({ ...prev, [GENERAL_NOTES_ID]: d }))}
-              tester={tester}
-              onSaved={onSaved}
-            />
+            {generalMatches && (
+              <ItemCard
+                item={GENERAL_NOTES_ITEM}
+                comments={comments}
+                draft={drafts[GENERAL_NOTES_ID] || { status: "untested", note: "", screenshotUrl: "" }}
+                setDraft={d => setDrafts(prev => ({ ...prev, [GENERAL_NOTES_ID]: d }))}
+                tester={tester}
+                onSaved={onSaved}
+              />
+            )}
+            {userFeedbackMatches && (
+              <ItemCard
+                item={USER_FEEDBACK_ITEM}
+                comments={comments}
+                draft={drafts[USER_FEEDBACK_ID] || { status: "untested", note: "", screenshotUrl: "" }}
+                setDraft={d => setDrafts(prev => ({ ...prev, [USER_FEEDBACK_ID]: d }))}
+                tester={tester}
+                onSaved={onSaved}
+              />
+            )}
           </div>
         )}
 
