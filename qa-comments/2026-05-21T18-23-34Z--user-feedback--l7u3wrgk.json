@@ -1,0 +1,10 @@
+{
+  "id": "cmpftk95500005l8al7u3wrgk",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=profile] Ui alignment issues with dob field in edit profile",
+  "screenshotUrl": null,
+  "ts": "2026-05-21T18:23:34.957Z"
+}
