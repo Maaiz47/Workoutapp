@@ -1367,6 +1367,23 @@ function SendFeedbackCard({ username }: { username: string }) {
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 8, lineHeight: 1.5, fontFamily: "'DM Sans', sans-serif" }}>
             Your feedback is logged with your username so the team can follow up. You can send as many notes as you like — they all stack.
           </div>
+
+          {/* Full dashboard link — for structured per-feature testing */}
+          <a
+            href="/qa"
+            style={{
+              marginTop: 12, padding: "10px 12px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 10, textDecoration: "none",
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#fff", fontFamily: "'Space Mono', monospace" }}>OPEN FULL QA DASHBOARD →</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>Per-feature checklists, comment threads, search, status tracking</div>
+            </div>
+          </a>
         </div>
       )}
     </div>
