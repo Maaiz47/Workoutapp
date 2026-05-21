@@ -5351,7 +5351,10 @@ function HomePage() {
           the actual dark space between the profile chip and the cards
           section, not glued to the lower portion of the barbell image. */}
       <div style={{ position: "relative", height: 200, overflow: "hidden", zIndex: 5 }}>
-        <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", top: "-30px", left: 0, width: "100%", height: "calc(100% + 80px)", objectFit: "cover", opacity: 0.65 }} />
+        {/* Hero image — objectPosition pushed toward the top of the
+            source so the bar + plates land low in the visible hero,
+            just above the dashboard / Daily Quest below. */}
+        <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 12%", opacity: 0.65 }} />
         {/* Gradient: dark at top for status bar readability, clear in middle, dark at bottom for text */}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.88) 0%, rgba(10,10,15,0.35) 28%, rgba(10,10,15,0) 50%, rgba(10,10,15,0) 65%, rgba(10,10,15,1) 100%)" }} />
         {/* Profile button — floats over the image */}
