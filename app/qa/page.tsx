@@ -270,6 +270,216 @@ function rankBadge(idx: number): { emoji: string; color: string } {
   return { emoji: `#${idx + 1}`, color: "rgba(255,255,255,0.45)" };
 }
 
+// ─── DASHBOARD METRICS ──────────────────────────────────────────────────
+// Header-only chips at the top of /qa were the previous summary, but the
+// tester asked for a richer at-a-glance dashboard. Surfaces:
+//  - Status segmented progress bar with % passing + raw counts
+//  - Activity row: comments today / last 7d / last 30d, total threads
+//    with unprocessed work, top recent area
+//  - Per-area mini-bars showing % passing per area (greens = healthy,
+//    reds = hotspots)
+//  - Open work: count of unprocessed comments + how many testers
+//    have items pending
+function DashboardMetrics({
+  items, comments,
+}: {
+  items: QAItem[];
+  comments: Comment[];
+}) {
+  const [open, setOpen] = useState(true);
+
+  // Status counts via effectiveStatus per item.
+  let cP = 0, cF = 0, cR = 0, cU = 0;
+  for (const it of items) {
+    const s = effectiveStatus(it, comments);
+    if (s === "passing") cP++;
+    else if (s === "failing") cF++;
+    else if (s === "regression-retest") cR++;
+    else cU++;
+  }
+  const total = items.length || 1;
+  const pctP = Math.round((cP / total) * 100);
+  const pctR = Math.round((cR / total) * 100);
+  const pctF = Math.round((cF / total) * 100);
+  const pctU = Math.max(0, 100 - pctP - pctR - pctF);
+
+  // Activity windows.
+  const now = Date.now();
+  const dayMs = 86400000;
+  const today = comments.filter(c => now - +new Date(c.ts) < dayMs).length;
+  const last7 = comments.filter(c => now - +new Date(c.ts) < 7 * dayMs).length;
+  const last30 = comments.filter(c => now - +new Date(c.ts) < 30 * dayMs).length;
+
+  const unprocessed = comments.filter(c => !c.processed).length;
+  const testersWithPending = new Set(
+    comments.filter(c => !c.processed).map(c => (c.user?.username ?? c.tester ?? "anon").toLowerCase())
+  ).size;
+
+  // Per-area status breakdown.
+  const areaBuckets: Record<string, { total: number; p: number; r: number; f: number; u: number }> = {};
+  for (const it of items) {
+    const a = it.area || "Other";
+    if (!areaBuckets[a]) areaBuckets[a] = { total: 0, p: 0, r: 0, f: 0, u: 0 };
+    areaBuckets[a].total += 1;
+    const s = effectiveStatus(it, comments);
+    if (s === "passing") areaBuckets[a].p++;
+    else if (s === "regression-retest") areaBuckets[a].r++;
+    else if (s === "failing") areaBuckets[a].f++;
+    else areaBuckets[a].u++;
+  }
+  const areaRows = Object.entries(areaBuckets)
+    .map(([area, b]) => ({ area, ...b, pct: Math.round((b.p / b.total) * 100) }))
+    .sort((a, b) => a.pct - b.pct || b.total - a.total); // worst-health areas first
+
+  return (
+    <div style={{
+      marginBottom: 18,
+      background: "linear-gradient(180deg, rgba(78,205,196,0.06) 0%, rgba(255,255,255,0.02) 100%)",
+      border: "1px solid rgba(78,205,196,0.22)",
+      borderRadius: 12,
+      overflow: "hidden",
+    }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: "100%", padding: "14px 16px", background: "transparent",
+          border: "none", color: "#fff", display: "flex", alignItems: "center",
+          justifyContent: "space-between", cursor: "pointer",
+          fontFamily: "'Space Mono', monospace",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>📊</span>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4" }}>DASHBOARD METRICS</span>
+        </span>
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>
+          {pctP}% PASSING · {unprocessed} TO PROCESS {open ? "▲" : "▼"}
+        </span>
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 14px 16px" }}>
+          {/* Status segmented bar — visually shows the health of the whole backlog. */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{
+              height: 10, borderRadius: 5, overflow: "hidden",
+              display: "flex", background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}>
+              {cP > 0 && <div style={{ width: `${pctP}%`, background: "#4caf50" }} title={`${cP} passing`} />}
+              {cR > 0 && <div style={{ width: `${pctR}%`, background: "#FFB74D" }} title={`${cR} retest`} />}
+              {cF > 0 && <div style={{ width: `${pctF}%`, background: "#FF6B6B" }} title={`${cF} failing`} />}
+              {cU > 0 && <div style={{ width: `${pctU}%`, background: "rgba(255,255,255,0.18)" }} title={`${cU} untested`} />}
+            </div>
+            <div style={{
+              display: "flex", justifyContent: "space-between", marginTop: 6,
+              fontSize: 10, color: "rgba(255,255,255,0.5)",
+              fontFamily: "'Space Mono', monospace", letterSpacing: 0.5,
+            }}>
+              <span style={{ color: "#4caf50" }}>✓ {cP} PASS</span>
+              <span style={{ color: "#FFB74D" }}>↻ {cR} RETEST</span>
+              <span style={{ color: "#FF6B6B" }}>✗ {cF} FAIL</span>
+              <span style={{ color: "rgba(255,255,255,0.5)" }}>· {cU} UNTESTED</span>
+            </div>
+          </div>
+
+          {/* Headline cards: % passing big number + activity counts. */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 12 }}>
+            {[
+              { label: "PASSING", value: `${pctP}%`, sub: `${cP}/${total}`, color: "#4caf50" },
+              { label: "OPEN", value: `${cU + cR + cF}`, sub: "items", color: "#FFB74D" },
+              { label: "PENDING", value: `${unprocessed}`, sub: testersWithPending ? `${testersWithPending} ppl` : "—", color: "#4ECDC4" },
+            ].map(card => (
+              <div key={card.label} style={{
+                background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: 10, padding: "10px 8px", textAlign: "center",
+              }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: card.color, fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>
+                  {card.value}
+                </div>
+                <div style={{ fontSize: 8, letterSpacing: 1.5, color: card.color, marginTop: 4, fontFamily: "'Space Mono', monospace" }}>
+                  {card.label}
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 1, fontFamily: "'Space Mono', monospace" }}>
+                  {card.sub}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Activity timeline strip. */}
+          <div style={{
+            display: "flex", gap: 12, marginBottom: 14,
+            padding: "8px 10px",
+            background: "rgba(255,255,255,0.025)",
+            border: "1px solid rgba(255,255,255,0.05)",
+            borderRadius: 8,
+            fontFamily: "'Space Mono', monospace", letterSpacing: 0.5,
+            fontSize: 11,
+          }}>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: today > 0 ? "#FFD700" : "rgba(255,255,255,0.5)" }}>{today}</div>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 2 }}>TODAY</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.06)" }} />
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{last7}</div>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 2 }}>LAST 7D</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.06)" }} />
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.8)" }}>{last30}</div>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 2 }}>LAST 30D</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.06)" }} />
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.8)" }}>{comments.length}</div>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 2 }}>ALL TIME</div>
+            </div>
+          </div>
+
+          {/* Per-area mini bars — worst health first so hotspots are obvious. */}
+          <div>
+            <div style={{
+              fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "rgba(255,255,255,0.5)",
+              fontFamily: "'Space Mono', monospace", marginBottom: 8,
+            }}>HEALTH BY AREA · WORST FIRST</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {areaRows.map(r => (
+                <div key={r.area} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,0.65)",
+                    fontFamily: "'Space Mono', monospace", width: 80, flexShrink: 0,
+                  }}>{r.area.toUpperCase()}</div>
+                  <div style={{
+                    flex: 1, height: 6, borderRadius: 3,
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.04)",
+                    overflow: "hidden", display: "flex",
+                  }}>
+                    {r.p > 0 && <div style={{ width: `${(r.p / r.total) * 100}%`, background: "#4caf50" }} title={`${r.p} passing`} />}
+                    {r.r > 0 && <div style={{ width: `${(r.r / r.total) * 100}%`, background: "#FFB74D" }} title={`${r.r} retest`} />}
+                    {r.f > 0 && <div style={{ width: `${(r.f / r.total) * 100}%`, background: "#FF6B6B" }} title={`${r.f} failing`} />}
+                    {r.u > 0 && <div style={{ width: `${(r.u / r.total) * 100}%`, background: "rgba(255,255,255,0.18)" }} title={`${r.u} untested`} />}
+                  </div>
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, color: r.pct >= 70 ? "#4caf50" : r.pct >= 40 ? "#FFB74D" : "#FF6B6B",
+                    fontFamily: "'Space Mono', monospace", width: 36, textAlign: "right", flexShrink: 0,
+                  }}>{r.pct}%</div>
+                  <div style={{
+                    fontSize: 9, color: "rgba(255,255,255,0.35)",
+                    fontFamily: "'Space Mono', monospace", width: 28, textAlign: "right", flexShrink: 0,
+                  }}>{r.total}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Leaderboard({ comments }: { comments: Comment[] }) {
   const [open, setOpen] = useState(true);
   const [showRubric, setShowRubric] = useState(false);
@@ -1231,6 +1441,7 @@ export default function QAPage() {
         </div>
 
         {/* Leaderboard — points + counts per tester. Hidden during searches. */}
+        {!q && <DashboardMetrics items={allItems} comments={comments} />}
         {!q && <Leaderboard comments={comments} />}
 
         {/* General catch-all threads — General Notes + User Feedback

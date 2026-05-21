@@ -2,6 +2,37 @@
 
 ---
 
+## Feature · 2026-05-21 — /qa Dashboard Metrics + open-/qa overlay from the floating pill (qa: qa-dashboard, quick-feedback-fab)
+
+### Dashboard Metrics card
+New `📊 DASHBOARD METRICS` card at the top of /qa (above the
+leaderboard, hidden during searches). At-a-glance health view:
+- Segmented status progress bar (passing / retest / failing /
+  untested) with raw counts beneath each colour
+- Three headline cards: % passing (big number + `cP/total`),
+  open items (untested + retest + failing), pending comments
+  (with "N ppl" indicator showing how many testers have
+  unprocessed asks)
+- Activity strip: comment counts for today / last 7d / last
+  30d / all-time
+- HEALTH BY AREA mini-bars sorted worst-first — instantly
+  visible which area is the hotspot
+
+Status colours align with the rest of /qa
+(passing → #4caf50, retest → #FFB74D, failing → #FF6B6B,
+untested → grey).
+
+### QA dashboard overlay from the floating 💬 NOTE pill
+The expanded Quick Note form now has a `🥋 VIEW FULL QA
+DASHBOARD →` action that opens /qa in a fullscreen iframe
+overlay (z-index 9700, sits above page content). Testers can
+browse the backlog, search comments, and even post replies
+without losing their place in the active app screen they were
+testing. Close button × in the top-right; close also dismisses
+the FAB sheet beneath.
+
+---
+
 ## Polish · 2026-05-21 — /qa items sorted by status priority within each area (qa: qa-dashboard)
 
 Items within each area group now order by what's most actionable:

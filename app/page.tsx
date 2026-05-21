@@ -2684,6 +2684,11 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
   const [toast, setToast] = useState<{ msg: string; kind: "ok" | "err" } | null>(null);
   const [hiddenForSession, setHiddenForSession] = useState(false);
   const [enabled, setEnabled] = useState(true);
+  // In-place /qa overlay — opens the full QA dashboard in an iframe
+  // on top of the current view so testers can browse the backlog
+  // without losing their place. (qa: user request — "overlay into
+  // full qa via floating button")
+  const [qaOverlayOpen, setQaOverlayOpen] = useState(false);
 
   useEffect(() => {
     try { if (sessionStorage.getItem("ironlog-fab-hidden") === "1") setHiddenForSession(true); } catch {}
@@ -2890,11 +2895,73 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
               >{busy ? "SENDING…" : !status ? "PICK A CHIP" : "SEND NOTE"}</button>
             </div>
 
+            {/* Inline open-full-QA action so the tester can browse
+                the backlog without losing their place in the app.
+                Opens the /qa page in an iframe overlay above this
+                view. (qa: user — "overlay into full qa via
+                floating button") */}
+            <button
+              onClick={() => { setOpen(false); setQaOverlayOpen(true); }}
+              style={{
+                width: "100%", marginTop: 8, padding: "10px 12px",
+                background: "rgba(255,107,107,0.08)",
+                border: "1px dashed rgba(255,107,107,0.35)",
+                borderRadius: 10,
+                color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1.5,
+                fontFamily: "'Space Mono', monospace", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+              }}
+            >
+              <span>🥋 VIEW FULL QA DASHBOARD</span>
+              <span style={{ opacity: 0.65 }}>→</span>
+            </button>
+
             <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 8, lineHeight: 1.5, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>
               LANDS IN /qa AS @{username.toUpperCase()} · ACTIONED ON THE NEXT QA PASS
             </div>
           </div>
         </>
+      )}
+
+      {/* /qa overlay — fullscreen iframe so the tester can read the
+          dashboard, scroll the backlog, and post comments without
+          leaving the page they were testing. ESC + the close button
+          dismiss. iframe sandbox kept default so cookies travel and
+          /qa works normally inside. */}
+      {qaOverlayOpen && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9700,
+          background: "#0a0a0a",
+          display: "flex", flexDirection: "column",
+          paddingTop: "env(safe-area-inset-top, 0px)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "10px 14px",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            background: "rgba(10,10,10,0.95)",
+            fontFamily: "'Space Mono', monospace",
+          }}>
+            <div style={{ fontSize: 11, color: "#FF6B6B", letterSpacing: 2, fontWeight: 700 }}>🥋 QA DASHBOARD</div>
+            <button
+              onClick={() => setQaOverlayOpen(false)}
+              aria-label="Close QA overlay"
+              style={{
+                background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%",
+                width: 32, height: 32, color: "#fff", fontSize: 18, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >×</button>
+          </div>
+          <iframe
+            src="/qa"
+            title="QA dashboard"
+            style={{
+              flex: 1, width: "100%", border: "none", background: "#0a0a0a",
+            }}
+          />
+        </div>
       )}
 
       {toast && (
