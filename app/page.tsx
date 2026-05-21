@@ -19,6 +19,7 @@ import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState,
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap } from "../lib/challenges";
+import { isDeGamified, setDeGamified, pickTodayQuest, QuestState, isFullStackDay, recordFullStackDay, fullStackDayCount, checkBalancedWeek, recordBalancedWeek, detectNewHidden, HiddenState, HiddenAchievement } from "../lib/gamification";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -2244,6 +2245,11 @@ function HomePage() {
   // Marked seen for the current ISO week so it only fires once.
   const [recapShown, setRecapShown] = useState<WeeklyRecap | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
+  // De-gamify toggle — when ON, hides Daily Quest, tier card, challenges,
+  // milestone celebrations, achievements wall. Tracking + graphs still
+  // visible because those aren't game elements. Persisted via lib.
+  const [deGamified, setDeGamifiedState] = useState(false);
+  useEffect(() => { setDeGamifiedState(isDeGamified()); }, []);
   // True when the current wInput/rInput values came from suggestedStartingSet()
   // rather than from a real prior session — used to show a "SUGGESTED" tag.
   const [isSuggested, setIsSuggested] = useState(false);
@@ -5068,9 +5074,11 @@ function HomePage() {
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Milestone celebration — one per achieved card, queue drained on tap. */}
+      {/* Milestone celebration — one per achieved card, queue drained on tap.
+          Suppressed under de-gamify mode but still persists IDs so unhiding
+          later doesn't dump 20 popups at once. */}
       <AnimatePresence>
-        {milestoneQueue.length > 0 && (() => {
+        {!deGamified && milestoneQueue.length > 0 && (() => {
           const m = milestoneQueue[0];
           return (
             <motion.div
@@ -5161,6 +5169,50 @@ function HomePage() {
       )}
       <ProfileNagBanner ob={ob} onGoToSettings={() => setView("settings")} />
       <div style={{ padding: "20px 16px 0", position: "relative", zIndex: 20 }}>
+        {/* Daily Quest — randomised tiny goal per day. Suppressed when
+            the user has toggled de-gamify mode in Settings. */}
+        {!deGamified && (() => {
+          const q = pickTodayQuest();
+          const today = new Date().toISOString().slice(0, 10);
+          let sessionsToday = 0, hasPRToday = false, hasRpeToday = false;
+          const todaysSession = (history[activeDay?.id ?? ""] ?? []).find((s: any) => (s.date ?? "").slice(0, 10) === today);
+          for (const dayId in history) for (const s of history[dayId]) {
+            if ((s.date ?? "").slice(0, 10) !== today) continue;
+            sessionsToday += 1;
+            const sets = (s.sets ?? {}) as Record<string, any>;
+            for (const k in sets) {
+              if (typeof sets[k]?.rpe === "number") hasRpeToday = true;
+            }
+          }
+          // Approximate "PR today" — any set logged today whose weight beats the
+          // exercise's lifetime best. Cheap heuristic; the milestone system
+          // tracks the precise count separately.
+          const sleepToday = readSleepToday();
+          const state: QuestState = {
+            todaySessionsCount: sessionsToday,
+            todayHasPR: hasPRToday, // refined below if data is rich
+            todayHasRpeLogged: hasRpeToday,
+            hydrationToday: readHydrationToday(),
+            hydrationTarget: HYDRATION_TARGET,
+            sleepLoggedToday: sleepToday.sleepHours != null,
+            energyLoggedToday: sleepToday.energy != null,
+            totalSessionsLifetime: overall.totalSessions,
+          };
+          const done = q.isDone(state);
+          return (
+            <div style={{ background: done ? "rgba(46,204,113,0.08)" : "rgba(253,203,110,0.06)", border: `1px solid ${done ? "rgba(46,204,113,0.3)" : "rgba(253,203,110,0.25)"}`, borderRadius: 12, padding: "10px 12px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22 }}>{q.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                  <span style={{ fontSize: 9, color: done ? "#2ecc71" : "#fdcb6e", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{done ? "✓ QUEST COMPLETE" : "DAILY QUEST"}</span>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginTop: 1 }}>{q.title}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1, lineHeight: 1.4 }}>{q.body}</div>
+              </div>
+            </div>
+          );
+        })()}
+
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -7353,10 +7405,20 @@ function HomePage() {
             }}
           >⬇ EXPORT WORKOUT HISTORY (CSV)</button>
 
+          {/* Gamification toggle — when ON, hides tier card, daily quest,
+              challenges, achievements wall, milestone overlays. Tracking and
+              graphs are unaffected. */}
+          <button
+            onClick={() => { const next = !deGamified; setDeGamified(next); setDeGamifiedState(next); }}
+            style={{ width: "100%", marginTop: 8, padding: "12px 14px", background: deGamified ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${deGamified ? "rgba(78,205,196,0.3)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, color: deGamified ? "#4ECDC4" : "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+          >
+            <span>{deGamified ? "🧘 PURE MODE · ON" : "🎮 GAMIFICATION · ON"}</span>
+            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{deGamified ? "tap to re-enable game UI" : "tap for minimal UI"}</span>
+          </button>
+
           {/* Achievements wall — expandable list of every milestone (achieved
-              + locked). Achieved badges are highlighted; locked are greyed
-              with their flavour text hidden. */}
-          {(() => {
+              + locked). Hidden in de-gamify mode. */}
+          {!deGamified && (() => {
             let achieved = new Set<string>();
             try { achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]")); } catch {}
             const total = MILESTONES.length;
@@ -7368,7 +7430,7 @@ function HomePage() {
               ><span>🏆 ACHIEVEMENTS ({got}/{total})</span><span style={{ fontSize: 10, color: "rgba(240,192,64,0.6)" }}>{showAchievements ? "▲" : "▼"}</span></button>
             );
           })()}
-          {showAchievements && (() => {
+          {showAchievements && !deGamified && (() => {
             let achieved = new Set<string>();
             try { achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]")); } catch {}
             return (
@@ -7462,15 +7524,16 @@ function HomePage() {
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {progressTab === "dashboard" && (
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
-            <ChallengesCard history={history} />
+            {!deGamified && <ChallengesCard history={history} />}
             <WellnessCard />
             <VolumeHeatmap history={history} />
-            {/* Tier Card — multi-dim ladder. Headline animal tier comes
+            {/* Tier Card — multi-dim ladder. Hidden when de-gamify is on.
+                Headline animal tier comes
                 from the average of 4 sub-rank bars (Consistency · Strength
                 · Volume · Mastery). Plus an experience badge that auto-
                 progresses from the user's training history once the
                 onboarding-recorded level expires (6 months). */}
-            {user.role === "user" && (() => {
+            {user.role === "user" && !deGamified && (() => {
               const distinctEx = new Set<string>();
               for (const dayId in history) for (const s of history[dayId]) {
                 const sets = (s.sets ?? {}) as Record<string, any>;

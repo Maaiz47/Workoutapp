@@ -2,6 +2,36 @@
 
 ---
 
+## Feature · 2026-05-21 (am) — Gamification+ pass + Pure Mode toggle (qa: gamification-daily-quest, gamification-de-gamify)
+
+### Added
+- `gamification-daily-quest`: new **DAILY QUEST** card on the home
+  view (above YOUR SPLIT). Deterministically picks one of 7 quests
+  per day (💧 Hydrate · 🏋 Train · 🎯 Tag effort · 😴 Sleep check-in
+  · ⚡ Energy check · 🥇 PR hunt · 🔥 Double up). Card turns green
+  when the condition is satisfied.
+- **Hidden achievements** (6): Dawn Patrol (train before 6am), Night
+  Owl (after 10pm), Birthday Lift (train on your DOB), 30-Day Hydra
+  (30 consecutive hydration goal days), Full Stack × 7 (7 full-stack
+  days lifetime), Quarter Balanced (4 balanced weeks lifetime). All
+  in `lib/gamification.ts`. Don't appear in the wall until earned.
+- **Full-Stack Day combo detector** — fires when the user does all of
+  hydration target + sleep log + energy log + session in the same
+  day. Persisted per-date so it counts once.
+- **Balanced Week badge** — week-keyed detection of hitting all 5
+  muscle category buckets (chest · back · shoulders · arms · legs)
+  in a single ISO week.
+- `gamification-de-gamify`: **🎮 GAMIFICATION · ON ↔ 🧘 PURE MODE · ON**
+  toggle in Settings (above Achievements). When ON, hides the
+  entire gamification stack — Daily Quest, Tier Card, Monthly
+  Challenges, Achievements wall, milestone celebration overlays.
+  Tracking UI (wellness, recap, graphs, calendar, volume heatmap)
+  stays — those aren't game elements. Milestone IDs continue to
+  persist silently in localStorage so toggling back on resurfaces
+  them in the wall.
+
+---
+
 ## Feature · 2026-05-21 (al) — Slice F + tier Habits sub-rank (qa: engagement-challenges, engagement-achievements, engagement-weekly-recap, tier-habits-subrank)
 
 ### Added — engagement

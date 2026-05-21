@@ -836,6 +836,44 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "gamification-daily-quest",
+      "title": "Daily Quest + Full-Stack Day combo + Balanced Week + Hidden achievements",
+      "area": "Progress",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass gamification-plus",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open the home view — verify a 'DAILY QUEST' card sits above 'YOUR SPLIT' with an icon + title + body (e.g. 💧 Hydrate / 🏋 Train / 🎯 Tag effort / 😴 Sleep check-in / ⚡ Energy check / 🥇 PR hunt / 🔥 Double up)",
+        "Verify the quest is the SAME quest on a reload (deterministic per-day pick)",
+        "Hit the quest's condition (e.g. log 8 glasses for 💧 Hydrate) — verify the card turns green with '✓ QUEST COMPLETE'",
+        "Different day — verify a different quest may appear (the per-date hash picks one of 7 quests)",
+        "Hidden achievements: train before 6am, after 10pm, or on your birthday — verify a hidden milestone fires (Dawn Patrol / Night Owl / Birthday Lift)",
+        "Hit 30 days of hydration target → verify 💎 30-Day Hydra hidden achievement fires",
+        "Complete 7 lifetime Full Stack Days (hydration + sleep + energy + session in the same day) → verify 🏛 Full Stack × 7 fires"
+      ],
+      "notes": "[2026-05-21] lib/gamification.ts ships QUEST_POOL (7 quests), pickTodayQuest() deterministic by ISO date hash, isFullStackDay(), checkBalancedWeek(), HIDDEN_ACHIEVEMENTS (6 hidden milestones with surprise triggers like training time-of-day, birthday, streak thresholds, full-stack count, balanced-week count). Daily Quest card on home view above YOUR SPLIT. Combo/variety detection wired into session save → fires milestones overlay. Hidden ones don't appear in the achievements wall until earned."
+    },
+    {
+      "id": "gamification-de-gamify",
+      "title": "De-gamify toggle in Settings (Pure Mode)",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass gamification-plus",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings — verify a '🎮 GAMIFICATION · ON' chip sits above the Achievements section",
+        "Tap it — verify it flips to '🧘 PURE MODE · ON' (teal)",
+        "Return to home — verify the Daily Quest card is GONE",
+        "Open Progress → Dashboard — verify the Tier Card AND the Monthly Challenges card are both GONE. Wellness card + Volume heatmap + per-exercise graphs + history calendar are all STILL VISIBLE (these are tracking, not gamification)",
+        "Hit a milestone trigger (e.g. log a session) — verify NO celebration overlay appears",
+        "Return to Settings — verify the Achievements wall button is also hidden",
+        "Tap the chip again to re-enable — verify all gamification UI returns and any milestones earned while OFF are now visible in the wall (they were recorded silently)"
+      ],
+      "notes": "[2026-05-21] localStorage flag ironlog-degamify-v1. Wraps all gamification UI in `!deGamified` checks: Daily Quest card on home, Tier card + Challenges card on Progress dashboard, Achievements section in Settings, milestone celebration overlay. Tracking/observation UI (wellness, recap, graphs, calendar, volume heatmap) remains untouched. Milestone IDs are still added to localStorage when crossed under de-gamify mode — the user just doesn't see the popup. Toggling back ON surfaces them in the wall."
+    },
+    {
       "id": "engagement-challenges",
       "title": "Monthly challenges with personal progress",
       "area": "Progress",
