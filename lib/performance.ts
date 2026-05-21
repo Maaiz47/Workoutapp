@@ -96,6 +96,68 @@ export function detectPlateau(
   };
 }
 
+// Deload-week detector. Walks the user's session dates (ISO YYYY-MM-DD)
+// and the list of past deload events, returns true if it's been ≥ 4 weeks
+// since the last deload AND the user has trained ≥ 10 sessions in that
+// window. Picks a sensible "you're stacking enough volume to deserve a
+// recovery break" threshold without nagging users who only train once a
+// week.
+export function shouldSuggestDeload(opts: {
+  sessionDates: string[];   // ISO dates of all logged sessions, any order
+  pastDeloads: string[];    // ISO dates of accepted deloads
+  snoozeUntilIso?: string | null;  // dismiss snooze
+}): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  if (opts.snoozeUntilIso && opts.snoozeUntilIso > today) return false;
+  const lastDeload = opts.pastDeloads.sort().slice(-1)[0] ?? null;
+  const fourWeeksAgo = new Date(Date.now() - 28 * 86400000).toISOString().slice(0, 10);
+  // If no deload ever, look at first session date as the anchor.
+  if (!lastDeload) {
+    const firstSession = [...opts.sessionDates].sort()[0];
+    if (!firstSession || firstSession > fourWeeksAgo) return false;
+  } else if (lastDeload > fourWeeksAgo) {
+    return false;
+  }
+  const anchor = lastDeload ?? [...opts.sessionDates].sort()[0] ?? today;
+  const sessionsSince = opts.sessionDates.filter(d => d > anchor).length;
+  return sessionsSince >= 10;
+}
+
+// Aggregate volume by muscle group across the user's history. Returns a
+// Record keyed by muscle group, where each value is the total kg-reps
+// lifted that hit that primary muscle in the given window. Walks every
+// logged set, looks up the exercise's primaryMuscles, and credits the
+// volume to each of them.
+export function volumeByMuscle(
+  history: Record<string, any[]>,
+  exerciseMuscles: Record<string, string[]>,
+  windowDays: number = 14,
+): Record<string, number> {
+  const cutoff = new Date(Date.now() - windowDays * 86400000).toISOString().slice(0, 10);
+  const totals: Record<string, number> = {};
+  for (const dayId in history) {
+    for (const session of history[dayId]) {
+      const iso = (() => {
+        const d = new Date(session.date);
+        return isNaN(+d) ? session.date : d.toISOString().slice(0, 10);
+      })();
+      if (iso < cutoff) continue;
+      const sets = session.sets ?? {};
+      for (const k in sets) {
+        const s = sets[k];
+        if (!s || s.skipped) continue;
+        const exKey = k.replace(/-\d+(-d\d+)?$/, "");
+        const muscles = exerciseMuscles[exKey] ?? [];
+        const vol = (s.weight ?? 0) * (s.reps ?? 0);
+        for (const m of muscles) {
+          totals[m] = (totals[m] ?? 0) + vol;
+        }
+      }
+    }
+  }
+  return totals;
+}
+
 // Build a CSV string from a workout history map. One row per logged set
 // across every session, columns: date, dayId, exercise, setKey, weight,
 // reps, RPE, note, est1RM. Used by the Settings "Export CSV" button.

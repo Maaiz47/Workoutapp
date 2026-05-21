@@ -2,6 +2,41 @@
 
 ---
 
+## Feature · 2026-05-21 (ag) — Slice C ⅔ + 3⁄3: deload detector + volume heatmap (qa: workout-deload-detector, progress-volume-heatmap)
+
+### Added — deload detector
+- `workout-deload-detector`: when starting a session, the app checks
+  whether the user has stacked ≥10 sessions and ≥4 weeks since their
+  last deload. If so, a blue `🛟 DELOAD SUGGESTED` banner appears
+  at the top of the session with two actions:
+  - **`✓ ACCEPT DELOAD`** — logs today as a deload event in
+    `localStorage.ironlog-deloads`, replaces the banner with a small
+    `🛟 DELOAD WEEK ACTIVE` chip, and **the pre-fill scales the
+    last-session weight by 0.7** (round to 0.25kg). Reps untouched.
+  - **`SNOOZE 7D`** — writes a 7-day suppression key.
+  Deload state clears at session end so the next session pre-fills
+  normally. `shouldSuggestDeload()` lives in `lib/performance.ts`.
+
+### Added — volume heatmap
+- `progress-volume-heatmap`: Progress → Dashboard tab now opens with
+  a `📊 VOLUME × MUSCLE` card. 2-column grid of 10 muscle groups
+  (chest, back, shoulders, biceps, triceps, quads, hamstrings,
+  glutes, calves, core) coloured by total kg×reps absorbed in the
+  window (default 14D, switchable 7D / 14D / 30D). Greener as
+  volume rises, red when zero ("skipped"). Helps the user spot
+  neglected groups at a glance.
+- `volumeByMuscle()` helper walks every logged set, looks up the
+  exerciseId's `primaryMuscles`, credits weight×reps to each.
+
+### Slice plan progress
+- Slice A (foundation + viewing): done
+- Slice B (smart suggestions): done
+- **Slice C (programming pass): done with this push**
+- Next: Modality Mix (calisthenics flag + recovery day + onboarding chips)
+- Then: athlete/trainer tier-progress clarity (design discussion)
+
+---
+
 ## Feature · 2026-05-21 (af) — Slice C ⅓: auto-substitute on missing equipment (qa: workout-auto-substitute)
 
 ### Added

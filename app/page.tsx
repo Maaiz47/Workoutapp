@@ -12,7 +12,7 @@ import { getFormCues } from "../lib/formCues";
 import { pickWarmupForDay } from "../lib/warmups";
 import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutorial";
-import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTargetReps, detectPlateau } from "../lib/performance";
+import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTargetReps, detectPlateau, shouldSuggestDeload } from "../lib/performance";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -723,6 +723,57 @@ function ExerciseMetricChart({ stats, color }: { stats: Array<{ date: string; av
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
         <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{activeTab.format(min)} · {filtered.length} pts</span>
         <span style={{ fontSize: 9, color, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{activeTab.format(filtered[filtered.length - 1].v)}</span>
+      </div>
+    </div>
+  );
+}
+
+// Volume / frequency heatmap by muscle group — shows how much load each
+// primary muscle has absorbed over the last 14 days. Helps spot
+// neglected groups and over-trained ones. Coloured per muscle, scaled
+// against the user's own max group in the window so the picture is
+// always relative to the user's training.
+import { volumeByMuscle } from "../lib/performance";
+function VolumeHeatmap({ history }: { history: Record<string, any[]> }) {
+  // Build the exerciseId → primaryMuscles map from the library so the
+  // aggregation can credit volume to the right groups.
+  const muscleMap = useMemo(() => {
+    const m: Record<string, string[]> = {};
+    for (const ex of (EXERCISES as any[])) {
+      if (ex.id && Array.isArray(ex.primaryMuscles)) m[ex.id] = ex.primaryMuscles;
+    }
+    return m;
+  }, []);
+  const [windowDays, setWindowDays] = useState<7 | 14 | 30>(14);
+  const totals = useMemo(() => volumeByMuscle(history, muscleMap, windowDays), [history, muscleMap, windowDays]);
+  const muscles = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "calves", "core"];
+  const maxV = Math.max(...muscles.map(m => totals[m] ?? 0), 1);
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 14, marginBottom: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>📊 VOLUME × MUSCLE</div>
+        <div style={{ display: "flex", gap: 3 }}>
+          {([7, 14, 30] as const).map(d => (
+            <button key={d} onClick={() => setWindowDays(d)} style={{ padding: "3px 8px", background: windowDays === d ? "rgba(255,107,107,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${windowDays === d ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, borderRadius: 5, color: windowDays === d ? "#FF6B6B" : "rgba(255,255,255,0.45)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{d}D</button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6 }}>
+        {muscles.map(m => {
+          const v = totals[m] ?? 0;
+          const ratio = v / maxV;
+          const heat = ratio > 0 ? Math.max(0.08, ratio) : 0;
+          const isNeglected = v === 0;
+          return (
+            <div key={m} style={{ padding: "8px 10px", background: isNeglected ? "rgba(255,107,107,0.04)" : `rgba(46,204,113,${heat})`, border: `1px solid ${isNeglected ? "rgba(255,107,107,0.18)" : `rgba(46,204,113,${Math.max(0.18, ratio)})`}`, borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", textTransform: "capitalize" }}>{m}</span>
+              <span style={{ fontSize: 10, color: isNeglected ? "rgba(255,107,107,0.7)" : "rgba(255,255,255,0.65)", fontFamily: "'Space Mono', monospace" }}>{isNeglected ? "skipped" : `${Math.round(v).toLocaleString()}`}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 10, textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+        kg×reps · greener = more load · red = no work this window
       </div>
     </div>
   );
@@ -1995,6 +2046,13 @@ function HomePage() {
   // an exercise they don't have the equipment for. Shows up to 4
   // alternatives matched on primary muscle + available equipment.
   const [subModal, setSubModal] = useState<{ exerciseId: string; name: string; missing: string[] } | null>(null);
+  // Deload-week state. When `deloadActive` is true, the set-input
+  // pre-fill scales last-session weights by 0.7 to give the user a
+  // recovery week. Toggled from a banner on the session view when the
+  // user has accumulated ≥ 10 sessions and 4+ weeks since their last
+  // deload (or first session ever). Cleared at session end.
+  const [deloadActive, setDeloadActive] = useState(false);
+  const [showDeloadBanner, setShowDeloadBanner] = useState(false);
   const [bwAddWeight, setBwAddWeight] = useState(false);
   const [manualBW, setManualBW] = useState(false);
   const [logFlashId, setLogFlashId] = useState<string | null>(null);
@@ -3215,10 +3273,23 @@ function HomePage() {
   const goTo = (v: string, dir: "forward" | "back" = "forward") => { setViewDir(dir); setView(v); };
   const goBack = () => goTo("home", "back");
   const shownPBs = useRef<Map<string, number>>(new Map());
-  const openDay = (d: WorkoutDay) => { setActiveDay(d); goTo("workout"); setLog({}); setExpanded(null); setStarted(false); setWarmupDone({}); shownPBs.current.clear(); };
+  const openDay = (d: WorkoutDay) => { setActiveDay(d); goTo("workout"); setLog({}); setExpanded(null); setStarted(false); setDeloadActive(false); setShowDeloadBanner(false); setWarmupDone({}); shownPBs.current.clear(); };
   const begin = () => {
     setStarted(true);
     timer.startT();
+    // Deload check — fires once per session start. Reads past deloads +
+    // snooze from localStorage, walks session history.
+    try {
+      const pastDeloads: string[] = JSON.parse(localStorage.getItem("ironlog-deloads") ?? "[]");
+      const snooze = localStorage.getItem("ironlog-deload-snooze") || null;
+      const sessionDates = Object.values(history).flat().map((s: any) => {
+        const d = new Date(s.date);
+        return isNaN(+d) ? null : d.toISOString().slice(0, 10);
+      }).filter(Boolean) as string[];
+      if (shouldSuggestDeload({ sessionDates, pastDeloads, snoozeUntilIso: snooze })) {
+        setShowDeloadBanner(true);
+      }
+    } catch {}
     if (user && activeDay) {
       try { localStorage.setItem("ironlog-session", JSON.stringify({ userId: user.id, dayId: activeDay.id, dayData: activeDay, startTime: Date.now(), log: {} })); } catch {}
     }
@@ -3230,7 +3301,7 @@ function HomePage() {
       if (!confirm("No sets logged. Quit without saving?")) return;
       timer.stopT();
       try { localStorage.removeItem("ironlog-session"); } catch {}
-      setView("home"); setActiveDay(null); setLog({}); setStarted(false);
+      setView("home"); setActiveDay(null); setLog({}); setStarted(false); setDeloadActive(false); setShowDeloadBanner(false);
       return;
     }
     setAdjustedDuration(timer.fmt);
@@ -3300,7 +3371,7 @@ function HomePage() {
         setTimeout(() => setNewPBs([]), 2400);
       }
       goBack();
-      setActiveDay(null); setLog({}); setStarted(false); setSessionIP(0);
+      setActiveDay(null); setLog({}); setStarted(false); setDeloadActive(false); setShowDeloadBanner(false); setSessionIP(0);
     }, 1400);
   };
 
@@ -3333,7 +3404,7 @@ function HomePage() {
     if (!confirm("Quit workout? Your progress will NOT be saved.")) return;
     timer.stopT();
     try { localStorage.removeItem("ironlog-session"); } catch {}
-    setView("home"); setActiveDay(null); setLog({}); setStarted(false);
+    setView("home"); setActiveDay(null); setLog({}); setStarted(false); setDeloadActive(false); setShowDeloadBanner(false);
   };
 
   const deleteSession = async (sessionId: string) => {
@@ -6942,6 +7013,7 @@ function HomePage() {
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {progressTab === "dashboard" && (
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
+            <VolumeHeatmap history={history} />
             {/* Tier Card */}
             {user.role === "user" && (() => {
               const tier = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length);
@@ -7764,6 +7836,49 @@ function HomePage() {
             </div>
           </div>
         )}
+        {/* Deload-week banner — surfaced once per session start when
+            the user has stacked enough volume since their last deload.
+            ACCEPT enables deloadActive (pre-fill scales by 0.7) and
+            logs today as a deload. SNOOZE silences for 7 days. */}
+        {showDeloadBanner && !deloadActive && (
+          <div style={{ margin: "12px 16px 0", padding: 14, background: "rgba(116,185,255,0.08)", border: "1px solid rgba(116,185,255,0.3)", borderRadius: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#74b9ff", letterSpacing: 2, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>🛟 DELOAD SUGGESTED</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 4, lineHeight: 1.5 }}>You&apos;ve stacked four+ weeks of training. Time for a recovery week.</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 12, lineHeight: 1.5 }}>If you accept, the system will pre-fill weights at 70% of last session. Same reps. Lower volume. You&apos;ll come back stronger.</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => {
+                  setDeloadActive(true);
+                  setShowDeloadBanner(false);
+                  try {
+                    const past: string[] = JSON.parse(localStorage.getItem("ironlog-deloads") ?? "[]");
+                    past.push(new Date().toISOString().slice(0, 10));
+                    localStorage.setItem("ironlog-deloads", JSON.stringify(past));
+                  } catch {}
+                }}
+                style={{ flex: 1, padding: "10px", background: "rgba(116,185,255,0.2)", border: "1px solid rgba(116,185,255,0.4)", borderRadius: 8, color: "#74b9ff", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+              >✓ ACCEPT DELOAD</button>
+              <button
+                onClick={() => {
+                  setShowDeloadBanner(false);
+                  const next = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+                  try { localStorage.setItem("ironlog-deload-snooze", next); } catch {}
+                }}
+                style={{ padding: "10px 14px", background: "transparent", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, color: "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+              >SNOOZE 7D</button>
+            </div>
+          </div>
+        )}
+        {deloadActive && (
+          <div style={{ margin: "12px 16px 0", padding: "8px 12px", background: "rgba(116,185,255,0.08)", border: "1px solid rgba(116,185,255,0.25)", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 16 }}>🛟</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#74b9ff", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>DELOAD WEEK ACTIVE</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 1 }}>Weights pre-fill at 70% of last session.</div>
+            </div>
+          </div>
+        )}
+
         {newPBs.length > 0 && !rest.running && (
           <div className="pb-overlay" onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer" }}>
             <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
@@ -8160,7 +8275,10 @@ function HomePage() {
                       // at "0". The SUGGESTED tag below the input makes the
                       // intent obvious.
                       if (lw > 0 || lr > 0) {
-                        setWInput(lw ? String(lw) : "");
+                        // Deload week: scale the weight pre-fill to 70%
+                        // (round to nearest 0.25kg). Reps untouched.
+                        const wForPrefill = deloadActive && lw > 0 ? Math.round(lw * 0.7 * 4) / 4 : lw;
+                        setWInput(wForPrefill ? String(wForPrefill) : "");
                         setRInput(lr ? String(lr) : "");
                         setIsSuggested(false);
                         // Compute auto progressive-overload suggestion. Uses

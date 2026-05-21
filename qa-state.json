@@ -836,6 +836,43 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "workout-deload-detector",
+      "title": "Deload-week detector + 70% pre-fill scaling",
+      "area": "Workout",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-C",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Set up history with ≥10 logged sessions over the past 4+ weeks AND no entry in localStorage.ironlog-deloads",
+        "Start a new workout — verify a blue '🛟 DELOAD SUGGESTED' banner appears at the top of the session with two buttons: ✓ ACCEPT DELOAD and SNOOZE 7D",
+        "Tap ACCEPT — verify the banner is replaced by a smaller '🛟 DELOAD WEEK ACTIVE' chip, and a deload entry is appended to localStorage.ironlog-deloads",
+        "Expand an exercise — verify the pre-filled weight is 70% of the last session's weight (rounded to 0.25kg). Reps untouched.",
+        "Finish or abandon the session — verify deloadActive resets (the chip disappears) so the NEXT session pre-fills normally",
+        "Reload, start another session — verify the banner does NOT re-appear (last deload < 4 weeks ago)",
+        "Test SNOOZE 7D: dismiss → banner gone for the next 7 days even if you start more sessions"
+      ],
+      "notes": "[2026-05-21] shouldSuggestDeload() in lib/performance.ts walks session dates + past deloads + snooze. Triggers when ≥4 weeks since last deload AND ≥10 sessions in that window. Banner on session start; ACCEPT logs the deload date and enables deloadActive for this session; SNOOZE writes a 7-day suppression key. Pre-fill scales last-session weight × 0.7 when active."
+    },
+    {
+      "id": "progress-volume-heatmap",
+      "title": "Progress dashboard — volume × muscle heatmap",
+      "area": "Progress",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-C",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard tab",
+        "Verify a '📊 VOLUME × MUSCLE' card sits at the top with a window-size toggle (7D / 14D / 30D, default 14D)",
+        "Verify each of 10 muscle groups (chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, calves, core) has a tile showing the total kg×reps absorbed in the window",
+        "Verify tiles get greener as volume rises (relative to the user's own max in the window) and turn red ('skipped') when zero",
+        "Switch to 30D — verify totals scale up (longer window catches more sessions)",
+        "Verify volume credits to BOTH primary muscles of a compound (e.g. bench press credits chest AND shoulders AND triceps via primaryMuscles + secondaryMuscles)"
+      ],
+      "notes": "[2026-05-21] volumeByMuscle() in lib/performance.ts walks every logged set in the window, looks up the exerciseId's primaryMuscles, credits weight×reps to each. VolumeHeatmap renders a 2-column grid coloured per-tile relative to the user's max group volume in the window. 7/14/30 day windows."
+    },
+    {
       "id": "workout-auto-substitute",
       "title": "Auto-substitute on missing equipment",
       "area": "Workout",
