@@ -138,18 +138,16 @@
       "area": "Workout",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
-        "Start a workout session",
-        "Expand an exercise",
-        "Enter weight (kg) and reps for Set 1 — the fields should accept numeric input",
-        "Tap the checkmark/done button to mark Set 1 complete",
-        "Repeat for Sets 2 and 3",
-        "Verify set completion is reflected in the UI (ticked badge, greyed out)",
-        "The rest timer should auto-start after each set completion"
+        "Start a workout session and expand a brand-new exercise you've NEVER logged before",
+        "Verify the weight + reps inputs are pre-filled with reasonable values (NOT 0) and a ★ SUGGESTED badge appears in the panel header",
+        "Tap the inputs and adjust if needed, then tap LOG SET",
+        "Expand an exercise you HAVE logged before — verify the inputs pre-fill with the last-session values (no SUGGESTED badge)",
+        "Test on both compound (bench press) and isolation (curl) movements"
       ],
-      "notes": "Test on both compound (bench press) and isolation exercises."
+      "notes": "[2026-05-21] Fixed: first-time exercises now get a computed SUGGESTED starting weight × reps via suggestedStartingSet() — pattern-matched against bodyweight for known compounds (deadlift 0.6×, squat 0.5×, bench 0.4×, OHP 0.25×, etc), isolations (curls 0.1×, lateral raise 0.04×), and bodyweight movements (0kg). A ★ SUGGESTED badge sits next to the set header so the user knows to verify before logging.\nTest on both compound (bench press) and isolation exercises."
     },
     {
       "id": "workout-rest-timer",
@@ -157,16 +155,20 @@
       "area": "Workout",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
         "Complete a set — the rest timer should auto-start with the exercise's rest duration",
         "Verify the countdown ticks down accurately in real time",
         "Lock the phone / switch to another app for 20 s, then return — timer should still show correct remaining time",
         "When the timer reaches 0: verify audible beep (double tone), vibration on mobile, and a push notification titled 'IRONLOG' saying rest is over",
+        "CRUCIAL: when the timer ends, the workout UI should STAY at the exercise you were on (NOT scroll to the top)",
+        "Open Settings → Workout Behaviour → toggle 'Auto-advance to next exercise after rest' ON",
+        "Complete all sets of an exercise, let the rest timer end — the next incomplete exercise should auto-expand",
+        "Toggle the setting OFF again — verify after rest the page stays on the current exercise",
         "Tap 'Skip' — timer should clear immediately"
       ],
-      "notes": "Notification requires notification permission to be granted. Test with service worker active."
+      "notes": "[2026-05-21] Fixed: scroll-jump-to-top bug after rest ends. Root cause: the body-scroll-lock useEffect's cleanup function cleared document.body.style.top before the new effect body could read it to restore scrollY. Now stashed in a useRef.\n[2026-05-21] Added: 'Auto-advance to next exercise after rest' opt-in setting in Settings → Workout Behaviour. Default off (stay on current exercise — the requested default behaviour). When on, the next incomplete exercise auto-expands once the rest timer ends.\nNotification requires notification permission to be granted. Test with service worker active."
     },
     {
       "id": "workout-pb-detection",
@@ -192,16 +194,19 @@
       "area": "Workout",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
         "Open a plan day that contains a superset (or create one via the Customise screen)",
         "In the session, a superset pair should be visually grouped (labelled 'SUPERSET')",
         "Log sets for Exercise A, then Exercise B within the superset group",
         "Verify completing both exercises in a superset round is tracked correctly",
-        "Finish the workout and confirm the superset data is saved in the WorkoutLog sets JSON"
+        "Finish the workout and confirm the superset data is saved in the WorkoutLog sets JSON",
+        "MID-WORKOUT PAIR: in an active workout, tap the new ⟳ PAIR button in the header",
+        "Customise screen should open with multi-select already enabled for the current day",
+        "Pick two exercises, tap ⟳ SUPERSET, tap ← Back to return — verify the pair now renders as a SUPERSET group when the workout resumes"
       ],
-      "notes": ""
+      "notes": "[2026-05-21] Slice 1/N — in-session pairing: added a ⟳ PAIR button in the active-workout header that drops the user into the customise screen with multi-select pre-armed for the current day. They can then pick two exercises, tap ⟳ SUPERSET, and return to the workout. Slice 2/N (next pass): true in-session multi-select that creates the superset without exiting to customise."
     },
     {
       "id": "workout-dropsets",
@@ -897,6 +902,22 @@
         "Attempt to upload a non-image file — expect an error response"
       ],
       "notes": ""
+    },
+    {
+      "id": "exercise-form-cues",
+      "title": "Form cues — text coaching summary per exercise",
+      "area": "Workout",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass 4f42838+",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Tap any exercise's FORM button (or its thumbnail) during the customise / browse flow — verify the FORM modal opens with 2-3 form cues",
+        "Try a few different exercises spanning compound lifts, isolations, HIIT movements, and the elliptical specifically",
+        "Start an active workout, expand any exercise — verify a small TIP: <first cue> line shows above the set-input panel",
+        "Confirm the in-session TIP changes when you expand a different exercise"
+      ],
+      "notes": "[2026-05-21] Fixed: elliptical (the one gap in the cue library) now has three cues. getFormCues() now returns a 3-line generic fallback ('move through full ROM', 'brace your core', 'keep tension on the target muscle') for ANY exercise without tailored cues — covers custom trainer-created exercises too. In the active workout, the first cue surfaces inline above the set-input panel as a TIP line so cues aren't buried behind the FORM modal."
     },
     {
       "id": "settings-send-feedback",

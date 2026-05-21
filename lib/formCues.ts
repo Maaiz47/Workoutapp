@@ -676,14 +676,31 @@ export const FORM_CUES: Record<string, string[]> = {
     "Push off the trailing foot to initiate each shuffle — the push is what activates the glutes, not just stepping.",
     "Keep your weight centred and avoid crossing your feet — maintain the athletic stance through each direction change.",
   ],
+  "elliptical": [
+    "Stand tall through the hips and avoid leaning on the handlebars — the legs should be powering the motion, not your arms.",
+    "Push DOWN through each footplate at the bottom of the stride rather than just pulling back — that's where the glute / hamstring engagement comes from.",
+    "Match arm drive to leg drive — opposite hand and foot move together, just like a natural running cadence.",
+  ],
 };
 
-// Lookup by ID first, then by normalised name match.
-export function getFormCues(exerciseId?: string, exerciseName?: string): string[] | null {
+// Universal fallback cues for any exercise we don't have a tailored set for —
+// covers custom trainer-created exercises and any future library additions.
+// These are intentionally generic but actionable, so the FORM modal and the
+// in-session form tip never appear blank.
+const GENERIC_CUES = [
+  "Move through the full range of motion under control — don't shorten reps to keep weight up.",
+  "Brace your core throughout the set so force transfers cleanly through your spine.",
+  "Keep tension on the target muscle from start to finish — don't rest at lockout or the bottom.",
+];
+
+// Lookup by ID first, then by normalised name match, then a generic fallback.
+export function getFormCues(exerciseId?: string, exerciseName?: string): string[] {
   if (exerciseId && FORM_CUES[exerciseId]) return FORM_CUES[exerciseId];
-  if (!exerciseName) return null;
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const key = norm(exerciseName);
-  const match = Object.keys(FORM_CUES).find(k => norm(k) === key || key.includes(norm(k)) || norm(k).includes(key));
-  return match ? FORM_CUES[match] : null;
+  if (exerciseName) {
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const key = norm(exerciseName);
+    const match = Object.keys(FORM_CUES).find(k => norm(k) === key || key.includes(norm(k)) || norm(k).includes(key));
+    if (match) return FORM_CUES[match];
+  }
+  return GENERIC_CUES;
 }

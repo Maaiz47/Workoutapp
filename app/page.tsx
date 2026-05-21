@@ -281,6 +281,50 @@ function useSwipeBack(onBack: () => void, enabled: boolean) {
 }
 
 // ─── ANALYTICS HELPERS ──────────────────────────────────────────────────
+// For a brand-new exercise (no prior session history) suggest a reasonable
+// starting weight × reps based on bodyweight, exercise name pattern, and the
+// library's type tag. Returns null when bodyweight isn't known.
+// The user is told this is a SUGGESTION and can adjust before logging.
+function suggestedStartingSet(exId: string, exName: string, exType: string | undefined, bwKg: number): { weight: number; reps: number } | null {
+  if (!bwKg || bwKg <= 0) return null;
+  const round = (n: number) => Math.max(0, Math.round(n / 1.25) * 1.25);
+  const n = (exName || "").toLowerCase() + " " + (exId || "").toLowerCase();
+  // Bodyweight movements — no external load by default.
+  if (/(push.?up|pull.?up|chin.?up|^dip\b|\bdips\b|plank|hanging.?leg.?raise|hollow.?hold|burpee|jumping.?jack|mountain.?climber)/.test(n)) {
+    return { weight: 0, reps: 8 };
+  }
+  // Pattern-matched compound lifts (multipliers calibrated to a true-beginner load).
+  if (/\bdeadlift\b/.test(n))                                     return { weight: round(bwKg * 0.6),  reps: 5  };
+  if (/(barbell\s+)?back\s*squat|^squat/.test(n) && !/split|goblet/.test(n)) return { weight: round(bwKg * 0.5),  reps: 8  };
+  if (/front\s*squat/.test(n))                                    return { weight: round(bwKg * 0.4),  reps: 8  };
+  if (/hip\s*thrust|glute\s*bridge/.test(n))                      return { weight: round(bwKg * 0.5),  reps: 10 };
+  if (/bench\s*press|chest\s*press/.test(n))                      return { weight: round(bwKg * 0.4),  reps: 8  };
+  if (/incline\s*(db|dumbbell|barbell)?\s*press/.test(n))         return { weight: round(bwKg * 0.3),  reps: 8  };
+  if (/overhead\s*press|military\s*press|\bohp\b|shoulder\s*press/.test(n)) return { weight: round(bwKg * 0.25), reps: 8  };
+  if (/bent[-\s]*over\s*row|barbell\s*row|t.?bar\s*row/.test(n))  return { weight: round(bwKg * 0.4),  reps: 8  };
+  if (/(seated|cable)\s*row/.test(n))                             return { weight: round(bwKg * 0.35), reps: 10 };
+  if (/lat\s*pulldown|pulldown/.test(n))                          return { weight: round(bwKg * 0.5),  reps: 10 };
+  if (/split\s*squat|lunge|bulgarian/.test(n))                    return { weight: round(bwKg * 0.15), reps: 10 };
+  if (/goblet\s*squat/.test(n))                                   return { weight: round(bwKg * 0.2),  reps: 10 };
+  if (/romanian\s*deadlift|\brdl\b/.test(n))                      return { weight: round(bwKg * 0.4),  reps: 8  };
+  // Isolations
+  if (/lateral\s*raise|side\s*raise|rear\s*delt/.test(n))         return { weight: round(bwKg * 0.04), reps: 12 };
+  if (/face\s*pull/.test(n))                                      return { weight: round(bwKg * 0.15), reps: 15 };
+  if (/(bicep|preacher|hammer|incline)\s*curl|ez.?bar\s*curl/.test(n)) return { weight: round(bwKg * 0.1),  reps: 10 };
+  if (/leg\s*curl/.test(n))                                       return { weight: round(bwKg * 0.25), reps: 10 };
+  if (/leg\s*extension/.test(n))                                  return { weight: round(bwKg * 0.3),  reps: 10 };
+  if (/tricep|skull|pushdown|press.?down/.test(n))                return { weight: round(bwKg * 0.12), reps: 12 };
+  if (/\bfly\b|flye/.test(n))                                     return { weight: round(bwKg * 0.1),  reps: 12 };
+  if (/calf\s*raise|standing.?calf|seated.?calf/.test(n))         return { weight: round(bwKg * 0.5),  reps: 15 };
+  if (/cable\s*crossover/.test(n))                                return { weight: round(bwKg * 0.08), reps: 12 };
+  if (/shrug/.test(n))                                            return { weight: round(bwKg * 0.5),  reps: 12 };
+  if (/abductor|adductor/.test(n))                                return { weight: round(bwKg * 0.4),  reps: 12 };
+  // Fallback by library type tag.
+  if (exType === "compound")  return { weight: round(bwKg * 0.3), reps: 8  };
+  if (exType === "cardio")    return { weight: 0,                 reps: 10 };
+  return { weight: round(bwKg * 0.1), reps: 12 };
+}
+
 function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: string) {
   const sessions = history[dayId] || [];
   const dataPoints: { date: string; avgWeight: number; maxWeight: number; totalVolume: number; avgReps: number; setCount: number }[] = [];
@@ -1416,6 +1460,18 @@ function HomePage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [wInput, setWInput] = useState("");
   const [rInput, setRInput] = useState("");
+  // True when the current wInput/rInput values came from suggestedStartingSet()
+  // rather than from a real prior session — used to show a "SUGGESTED" tag.
+  const [isSuggested, setIsSuggested] = useState(false);
+  // When ON, the active workout auto-expands the next incomplete exercise once
+  // the rest timer ends. Persisted in localStorage so the preference sticks.
+  const [autoAdvanceAfterRest, setAutoAdvanceAfterRest] = useState(false);
+  useEffect(() => {
+    try { setAutoAdvanceAfterRest(localStorage.getItem("ironlog-auto-advance") === "1"); } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("ironlog-auto-advance", autoAdvanceAfterRest ? "1" : "0"); } catch {}
+  }, [autoAdvanceAfterRest]);
   const [bwAddWeight, setBwAddWeight] = useState(false);
   const [manualBW, setManualBW] = useState(false);
   const [logFlashId, setLogFlashId] = useState<string | null>(null);
@@ -1898,24 +1954,32 @@ function HomePage() {
     prevOnboardingStep.current = onboardingStep;
   }, [onboardingStep]);
 
-  // Lock body scroll when any full-screen overlay is active (rest timer, complete anim)
+  // Lock body scroll when any full-screen overlay is active (rest timer, complete anim).
+  // We stash scrollY in a ref because React fires the previous cleanup BEFORE the new
+  // effect body, which clears body.style.top before the unlock branch can read it —
+  // that's what was causing the page to snap to the top after every rest period.
+  const scrollLockY = useRef(0);
   useEffect(() => {
     const locked = rest.running || showCompleteAnim;
     if (locked) {
-      const y = window.scrollY;
+      scrollLockY.current = window.scrollY;
       document.body.style.position = "fixed";
-      document.body.style.top = `-${y}px`;
+      document.body.style.top = `-${scrollLockY.current}px`;
       document.body.style.width = "100%";
       document.body.style.overflowY = "scroll";
     } else {
-      const top = document.body.style.top;
       document.body.style.position = "";
       document.body.style.top = "";
       document.body.style.width = "";
       document.body.style.overflowY = "";
-      if (top) window.scrollTo(0, -parseInt(top, 10));
+      if (scrollLockY.current > 0) {
+        window.scrollTo(0, scrollLockY.current);
+        scrollLockY.current = 0;
+      }
     }
     return () => {
+      // Only clear styles — leave scrollLockY intact so the next-render unlock branch
+      // can restore the position correctly.
       document.body.style.position = "";
       document.body.style.top = "";
       document.body.style.width = "";
@@ -1925,6 +1989,37 @@ function HomePage() {
 
   // Keep currentViewRef in sync so SW message handler always sees latest view
   useEffect(() => { currentViewRef.current = view; }, [view]);
+
+  // Auto-advance: when the rest timer ends and the setting is on, expand the
+  // next exercise in the active section that still has incomplete sets. If
+  // the currently-expanded exercise still has sets left, stay there.
+  const prevRestRunning = useRef(false);
+  useEffect(() => {
+    const wasRunning = prevRestRunning.current;
+    prevRestRunning.current = rest.running;
+    if (!wasRunning || rest.running) return;            // only on falling edge
+    if (!autoAdvanceAfterRest) return;
+    if (view !== "workout" || !activeDay || !started) return;
+    const exs = activeDay.sections[0]?.exercises ?? [];
+    // If the currently-expanded exercise still has sets remaining, keep it open.
+    if (expanded) {
+      const cur = exs.find(e => e.id === expanded);
+      if (cur && cur.trackable !== false && doneCount(cur.id, cur.sets) < cur.sets) return;
+    }
+    // Otherwise advance to the next incomplete exercise after the current one.
+    const startIdx = expanded ? exs.findIndex(e => e.id === expanded) + 1 : 0;
+    for (let i = startIdx; i < exs.length; i++) {
+      const e = exs[i];
+      if (e.trackable !== false && doneCount(e.id, e.sets) < e.sets) {
+        setExpanded(e.id);
+        // Reset inputs — the expand handler will refill from history / suggestion
+        // on the next manual tap if needed. Just clear here so stale values
+        // from the previous exercise don't bleed in.
+        setWInput(""); setRInput(""); setIsSuggested(false);
+        return;
+      }
+    }
+  }, [rest.running, autoAdvanceAfterRest, view, activeDay, started, expanded, log]);
 
   // 3D scroll tilt + hero parallax on home screen
   useEffect(() => {
@@ -5801,6 +5896,23 @@ function HomePage() {
             )}
           </div>
 
+          {/* Workout behaviour */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>⚙ WORKOUT BEHAVIOUR</div>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", padding: "8px 0" }}>
+              <input
+                type="checkbox"
+                checked={autoAdvanceAfterRest}
+                onChange={e => setAutoAdvanceAfterRest(e.target.checked)}
+                style={{ flexShrink: 0, marginTop: 3, width: 18, height: 18, accentColor: "#FF6B6B", cursor: "pointer" }}
+              />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>Auto-advance to next exercise after rest</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 3, lineHeight: 1.45 }}>When the rest timer ends, jump straight to the next incomplete exercise instead of staying on the current one. Defaults off — most lifters prefer to stay until all sets of an exercise are done.</div>
+              </div>
+            </label>
+          </div>
+
           {/* Send feedback */}
           <SendFeedbackCard username={user?.username || ""} />
 
@@ -6808,9 +6920,27 @@ function HomePage() {
           );
         })()}
         <div style={{ padding: "16px 20px 14px", background: `linear-gradient(180deg, ${activeDay.color}10, transparent)`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
             <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Home</button>
-            <button onClick={abandonWorkout} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.45)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>QUIT ×</button>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              {/* Jump to multi-select customise for this day — lets the user
+                  pair already-existing exercises into a superset without
+                  hunting for the customise screen first. */}
+              <button
+                onClick={() => {
+                  const pd = customPlan?.find(d => d.id === activeDay.id);
+                  if (pd) {
+                    setEditingDay(pd);
+                    setCustomMultiMode(true);
+                    setSuperSelection([]);
+                    setView("customise");
+                  }
+                }}
+                style={{ background: "rgba(255,230,109,0.08)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 6, padding: "5px 10px", color: "#FFE66D", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                title="Pair exercises into a superset"
+              >⟳ PAIR</button>
+              <button onClick={abandonWorkout} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.45)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>QUIT ×</button>
+            </div>
           </div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginTop: 10 }}>{activeDay.title}</div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>{activeDay.focus}</div>
@@ -6912,8 +7042,27 @@ function HomePage() {
                       setManualBW(false);
                       setBwAddWeight(isBW && lw > 0);
                       setExpanded(isExp ? null : ex.id);
-                      setWInput(lw ? String(lw) : "");
-                      setRInput(lr ? String(lr) : "");
+                      // Prefer real prior-session values; otherwise fall back to a
+                      // computed suggested starting set so the user isn't staring
+                      // at "0". The SUGGESTED tag below the input makes the
+                      // intent obvious.
+                      if (lw > 0 || lr > 0) {
+                        setWInput(lw ? String(lw) : "");
+                        setRInput(lr ? String(lr) : "");
+                        setIsSuggested(false);
+                      } else {
+                        const bw = parseFloat(ob.weightKg || "0");
+                        const sug = suggestedStartingSet(ex.id, ex.name, (ex as any).type, bw);
+                        if (sug) {
+                          setWInput(sug.weight ? String(sug.weight) : "");
+                          setRInput(sug.reps ? String(sug.reps) : "");
+                          setIsSuggested(true);
+                        } else {
+                          setWInput("");
+                          setRInput("");
+                          setIsSuggested(false);
+                        }
+                      }
                     }}
                       style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: (allDone || wuDone) ? 0.3 : 1, cursor: "pointer", transition: "opacity 0.3s", borderLeft: ex.note === "HIIT circuit" ? "3px solid rgba(255,140,66,0.7)" : undefined }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -7034,9 +7183,23 @@ function HomePage() {
                     {/* Regular set input */}
                     {isExp && trackable && ns && !hasDrop && (
                       <div className="fade-in" style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 12, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span>Set {ns} of {ex.sets}{superCtx && !isLastInSuper ? ` · then ${superCtx.group[superCtx.idx + 1].name}` : ""}</span>
-                          {lw > 0 && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>Last: {lw}kg × {lr}</span>}
+                        {(() => {
+                          const cues = getFormCues(ex.id, ex.name);
+                          if (!cues || cues.length === 0) return null;
+                          return (
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 12, fontFamily: "'DM Sans', sans-serif", lineHeight: 1.45, display: "flex", gap: 6, alignItems: "flex-start" }}>
+                              <span style={{ color: "#FF6B6B", fontWeight: 700, fontFamily: "'Space Mono', monospace", fontSize: 9, letterSpacing: 1, flexShrink: 0, marginTop: 2 }}>TIP</span>
+                              <span>{cues[0]}</span>
+                            </div>
+                          );
+                        })()}
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 12, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Set {ns} of {ex.sets}{superCtx && !isLastInSuper ? ` · then ${superCtx.group[superCtx.idx + 1].name}` : ""}</span>
+                          {lw > 0
+                            ? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>Last: {lw}kg × {lr}</span>
+                            : isSuggested
+                              ? <span style={{ fontSize: 10, fontWeight: 700, color: "#FFE66D", background: "rgba(255,230,109,0.1)", border: "1px solid rgba(255,230,109,0.3)", padding: "2px 6px", borderRadius: 4, letterSpacing: 1, fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }} title="First time logging this exercise — these are estimated starting values. Adjust before tapping LOG.">★ SUGGESTED</span>
+                              : null}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                           {isBW && (

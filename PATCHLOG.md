@@ -2,6 +2,44 @@
 
 ---
 
+## QA pass · 2026-05-21 (f) — action 4 mirrored comments from @maaiz
+
+### Addressed
+- `workout-rest-timer`: scroll-to-top bug after rest ends is fixed. The
+  body-scroll-lock useEffect was clearing `document.body.style.top` in
+  its cleanup before the new effect body could read it to restore the
+  scrollY. Stashed scrollY in a useRef so it survives the cleanup. The
+  page now stays exactly where you were when the rest timer dismisses.
+- `workout-rest-timer`: new opt-in setting "Auto-advance to next
+  exercise after rest" in Settings → Workout Behaviour (localStorage-
+  backed). Default off. When on, the next incomplete exercise
+  auto-expands once rest ends and inputs are reset so the next-tap
+  refill from history / suggestion isn't stale.
+- `workout-set-logging`: brand-new exercises (no prior history) now
+  pre-fill with a computed SUGGESTED weight × reps via
+  suggestedStartingSet(). Pattern-matches against bodyweight for known
+  compounds (deadlift 0.6×, squat 0.5×, bench 0.4×, OHP 0.25×, etc),
+  isolations (curls 0.1×, lateral raise 0.04×), and bodyweight
+  movements. ★ SUGGESTED badge sits next to the set header so the user
+  knows it's a suggestion and adjusts before logging. Already-logged
+  exercises still use the historical lastSessionBest() pre-fill.
+- `exercise-form-cues`: elliptical (the one gap in the cue library)
+  now has cues. getFormCues() returns a 3-line generic fallback for
+  any uncovered exercise instead of null — covers custom-trainer
+  exercises too. In the active workout, the first cue surfaces inline
+  as a TIP line above the set-input panel so cues aren't buried.
+- `workout-supersets`: slice 1/N — added a ⟳ PAIR button to the
+  active-workout header that drops you straight into the customise
+  screen with multi-select pre-armed for the current day. Pick two
+  exercises, tap ⟳ SUPERSET, return to the workout. Slice 2/N (next
+  pass) is true in-session multi-select without exiting to customise.
+
+### Slices (shipped first part, more to do)
+- `workout-supersets`: slice 1/N done — shortcut shipped; slice 2/N
+  is the real in-session multi-select.
+
+---
+
 ## QA pass · 2026-05-21 (e) — first end-to-end mirror loop closes
 
 ### Addressed

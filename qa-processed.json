@@ -8,7 +8,23 @@
     "cmpetczrk0000i1g9wzvu9kct": {
       "ts": "2026-05-21T01:30:30Z",
       "sha": "104133e",
-      "summary": "auth-trainer-login marked passing by @maaiz via the /qa thread. No code action; status will flip to passing on the next qa-state.json reconciliation."
+      "summary": "auth-trainer-login marked passing by @maaiz via the /qa thread. Status flipped in qa-state.json on 104133e reconciliation."
+    },
+    "cmpetoriw00041izu94tf1z1w": {
+      "ts": "2026-05-21T02:30:00Z",
+      "summary": "Form cues: added the elliptical entry that was the one library gap; getFormCues now returns a 3-line generic fallback instead of null for anything uncovered (covers custom-trainer exercises too); a TIP line surfaces the first cue inline above the set-input panel during an active workout so the cues aren't buried behind the FORM modal."
+    },
+    "cmpettf57000012tc6hoflssb": {
+      "ts": "2026-05-21T02:30:00Z",
+      "summary": "Slice 1/N — in-session superset: added a ⟳ PAIR button in the active-workout header that jumps directly into the customise screen with multi-select pre-enabled for the current day. User picks two+ exercises, taps ⟳ SUPERSET, comes back to the workout. Slice 2/N (next pass): in-session multi-select without exiting to customise."
+    },
+    "cmpetwrb200001449vjxdat6z": {
+      "ts": "2026-05-21T02:30:00Z",
+      "summary": "First-time exercises now pre-fill with a computed SUGGESTED weight × reps based on user bodyweight + a pattern table covering compound lifts, isolations, and bodyweight movements. A ★ SUGGESTED badge sits next to the inputs so the user knows to adjust. Already-logged exercises still use the historical lastSessionBest() pre-fill."
+    },
+    "cmpeuo2ch0002ezwr2zs0zd0x": {
+      "ts": "2026-05-21T02:30:00Z",
+      "summary": "Rest-timer scroll-jump bug fixed (scroll-y stashed in useRef so the unlock branch can restore the position after React fires the cleanup). Plus: new opt-in 'Auto-advance to next exercise after rest' setting in Settings → Workout Behaviour — default off, when on the next incomplete exercise auto-expands once rest ends. Otherwise stay-in-place is now the correct default behaviour."
     }
   }
 }
