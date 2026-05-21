@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
 import { createPortal } from "react-dom";
+import { createRoot, type Root } from "react-dom/client";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 import { EXERCISES, missingEquipmentFor, suggestSubstitutions } from "../lib/exercises";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
@@ -2705,6 +2706,44 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
   );
 }
 
+// ─── HOME GLOBALS ───────────────────────────────────────────────────────
+// Bundles the floating QuickFeedbackFab and the TierInfoModal so the
+// home page can mount both with a single JSX line. CRITICAL: every
+// view branch of HomePage returns its own JSX early, so this component
+// needs to be inserted into EACH branch's return — there's no
+// single bottom render to attach to.
+function HomeGlobals({
+  user, view, overall, clients, tierModalOpen, setTierModalOpen,
+}: {
+  user: { username: string; role: string; extraRoles?: string[] } | null;
+  view: string;
+  overall: { totalSessions: number; streak: number; exercisePRs: Record<string, any> };
+  clients: any[];
+  tierModalOpen: boolean;
+  setTierModalOpen: (b: boolean) => void;
+}) {
+  const isTrainer = userHasRole(user as any, "trainer");
+  const athleteTier = user
+    ? getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length)
+    : null;
+  const trainerTier = isTrainer ? getTrainerTier(clients.length) : null;
+  return (
+    <>
+      <QuickFeedbackFab username={user?.username || ""} view={view} />
+      <TierInfoModal
+        open={tierModalOpen}
+        onClose={() => setTierModalOpen(false)}
+        isAthlete={true}
+        isTrainer={isTrainer}
+        athleteTier={athleteTier}
+        trainerTier={trainerTier}
+        athleteUnit="more sessions, PRs, streak & habits unlock the next tier"
+        trainerUnit="more active clients unlocks the next tier"
+      />
+    </>
+  );
+}
+
 // ─── TIER INFO MODAL ────────────────────────────────────────────────────
 // Explains the tier system for users who don't know what "Coach" means
 // or where Tiger sits on the ladder. Triggered from any of the tier
@@ -2900,6 +2939,16 @@ function HomePage() {
   // card or the Settings IDENTITY card so users can see what other
   // tiers exist and that "Coach" is a tier of trainers, not a role.
   const [tierModalOpen, setTierModalOpen] = useState(false);
+
+  // Overlay portal refs — HomePage has many view branches that each
+  // early-return their own JSX. Anchoring the FAB + TierInfoModal in
+  // any one branch leaves them invisible on every other view. So we
+  // run a SECOND React root attached to document.body, kept in sync
+  // via the effects below. Both effects fire BEFORE any of the
+  // early-return JSX in this function, because hooks evaluate during
+  // the render phase regardless of which branch ultimately returns.
+  const overlayMountRef = useRef<HTMLDivElement | null>(null);
+  const overlayRootRef = useRef<Root | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [appTheme, setAppTheme] = useState<"iron"|"mono"|"vivid">("iron");
   const [accentColor, setAccentColor] = useState("#FF6B6B");
@@ -2961,6 +3010,54 @@ function HomePage() {
   // Offline-queue indicator — refreshes on online event + after each
   // session save so a "N pending" pill can show in the home header.
   const [pendingSyncs, setPendingSyncs] = useState(0);
+
+  // ── Overlay portal: mount-once container + per-render sync ─────────
+  // First effect sets up a singleton container on document.body and a
+  // dedicated React root. Second effect re-renders the overlay tree
+  // with the latest props on every commit so the FAB / TierInfoModal
+  // see live state. Cleanup defers the unmount one tick so React 18
+  // Strict Mode's dev-only double-invoke doesn't race the new root.
+  useEffect(() => {
+    if (!overlayMountRef.current) {
+      // Reuse an existing container if one is already on the body
+      // (React 18 Strict Mode in dev double-invokes effects; without
+      // this guard we'd leak a div per remount).
+      let div = document.getElementById("ironlog-overlay-root") as HTMLDivElement | null;
+      if (!div) {
+        div = document.createElement("div");
+        div.id = "ironlog-overlay-root";
+        document.body.appendChild(div);
+      }
+      overlayMountRef.current = div;
+      overlayRootRef.current = createRoot(div);
+    }
+    return () => {
+      const root = overlayRootRef.current;
+      const mount = overlayMountRef.current;
+      overlayRootRef.current = null;
+      overlayMountRef.current = null;
+      setTimeout(() => {
+        try { root?.unmount(); } catch {}
+        try { mount?.remove(); } catch {}
+      }, 0);
+    };
+  }, []);
+
+  useEffect(() => {
+    const root = overlayRootRef.current;
+    if (!root) return;
+    root.render(
+      <HomeGlobals
+        user={user}
+        view={view}
+        overall={overall}
+        clients={clients}
+        tierModalOpen={tierModalOpen}
+        setTierModalOpen={setTierModalOpen}
+      />
+    );
+  });
+
   useEffect(() => {
     const refresh = () => setPendingSyncs(queueCount());
     refresh();
@@ -11176,34 +11273,24 @@ function HomePage() {
   }
 
   const _isForward = viewDir !== "back";
+  // Note: QuickFeedbackFab + TierInfoModal are mounted via the
+  // overlay-portal effect at the top of HomePage, NOT here — that
+  // way they render across all view branches (each of which
+  // early-returns its own JSX before this fall-through render
+  // is reached).
   return (
-    <>
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={_viewKey}
-          initial={{ opacity: 0, x: _isForward ? 22 : -22 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: _isForward ? -22 : 22 }}
-          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          style={{ minHeight: "100dvh" }}
-        >
-          {_content}
-        </motion.div>
-      </AnimatePresence>
-      <QuickFeedbackFab username={user?.username || ""} view={view} />
-      {/* Tier info modal — global so any tier pill (home welcome card or
-          Settings IDENTITY card) can open it without view-specific wiring. */}
-      <TierInfoModal
-        open={tierModalOpen}
-        onClose={() => setTierModalOpen(false)}
-        isAthlete={true}
-        isTrainer={userHasRole(user, "trainer")}
-        athleteTier={user ? getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length) : null}
-        trainerTier={userHasRole(user, "trainer") ? getTrainerTier(clients.length) : null}
-        athleteUnit="more sessions, PRs, streak & habits unlock the next tier"
-        trainerUnit="more active clients unlocks the next tier"
-      />
-    </>
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={_viewKey}
+        initial={{ opacity: 0, x: _isForward ? 22 : -22 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: _isForward ? -22 : 22 }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        style={{ minHeight: "100dvh" }}
+      >
+        {_content}
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
