@@ -34,6 +34,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       });
     }
 
+    // If the group already has a shared workout, auto-subscribe every
+    // new client (activated=false until they tap APPLY).
+    const groupWorkout = await (prisma as any).groupWorkout.findUnique({
+      where: { groupId },
+      select: { id: true },
+    });
+    if (groupWorkout && clientIds.length > 0) {
+      await (prisma as any).groupWorkoutSubscription.createMany({
+        data: clientIds.map((cid: string) => ({ userId: cid, groupWorkoutId: groupWorkout.id })),
+        skipDuplicates: true,
+      });
+    }
+
     const group = await prisma.leaderboardGroup.findUnique({
       where: { id: groupId },
       include: { members: { include: { user: { select: { id: true, username: true } } } } },

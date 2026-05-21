@@ -126,12 +126,19 @@ function computeBodyStats(metrics: MetricLike[]) {
 /**
  * Batch-compute stats for many users with a single Prisma query.
  * Returns a Map keyed by userId.
+ *
+ * Pass `groupWorkoutId` to restrict the session count + PRs + volume
+ * to logs tagged with that group workout — used by the filtered group
+ * leaderboard so only "actually doing the prescribed work" counts.
+ * Body metrics are NEVER filtered (weight/BF are user-wide signals).
  */
-export async function computeStatsForUsers(userIds: string[]): Promise<Map<string, LeaderboardMemberStats>> {
+export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: string): Promise<Map<string, LeaderboardMemberStats>> {
   if (userIds.length === 0) return new Map();
   const [allLogs, allMetrics] = await Promise.all([
     prisma.workoutLog.findMany({
-      where: { userId: { in: userIds } },
+      where: groupWorkoutId
+        ? { userId: { in: userIds }, groupWorkoutId }
+        : { userId: { in: userIds } },
       select: { userId: true, date: true, sets: true, intensityPoints: true },
       orderBy: { date: "desc" },
     }),

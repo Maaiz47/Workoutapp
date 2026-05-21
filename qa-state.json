@@ -1668,6 +1668,27 @@
         "Log in as the user — trainer dashboard features should now be visible"
       ],
       "notes": "roleRequest, roleRequestNote, roleRequestAt fields on User model."
+    },
+    {
+      "id": "group-shared-workout",
+      "title": "Group shared workout — trainer pushes a routine, members apply, filtered leaderboard",
+      "area": "Progress",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass group-shared-workout",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Log in as a trainer who already has a leaderboard group with ≥ 1 client",
+        "GET /api/leaderboard/groups/<id>/workout — verify it returns `{ workout: null }` if no workout set, or the workout payload + `isTrainer: true` + `mySubscription` if set",
+        "PUT /api/leaderboard/groups/<id>/workout with `{ name, description?, days: [...] }` — verify a GroupWorkout row is created and a GroupWorkoutSubscription is auto-created for every current group member (activated=false)",
+        "Log in as a member of that group — POST /api/leaderboard/groups/<id>/workout/apply — verify the subscription flips `activated=true` and `activatedAt` is set",
+        "POST /api/workout with the same dayId + `groupWorkoutId` — verify the WorkoutLog row persists with `groupWorkoutId` set (only when the user has an activated subscription; otherwise the field is dropped)",
+        "GET /api/leaderboard/mine — verify the response now includes a `workout` field per group with `myActivated` and `mySubscribed` flags, AND each leaderboard entry now carries `groupSessions`, `groupVolume`, `groupIntensity`, `groupStreak`, `groupActivated`",
+        "Trainer DELETEs /api/leaderboard/groups/<id>/workout — verify the GroupWorkout row is removed; existing WorkoutLogs keep their `groupWorkoutId` as NULL (FK SetNull) so user history stays intact",
+        "Add a NEW client to a group that already has a workout — verify the new client gets an auto-subscription (activated=false)",
+        "Trainer accepts an invite to a group that already has a workout — verify the trainer also gets an auto-subscription"
+      ],
+      "notes": "[2026-05-21] Slice 1/N: schema + API + auto-subscription wiring. Shipped Prisma models GroupWorkout (groupId @unique, name, description, days Json, createdBy, timestamps) and GroupWorkoutSubscription (userId+groupWorkoutId @@unique, activated, joinedAt, activatedAt) with WorkoutLog.groupWorkoutId optional FK (onDelete SetNull). API: GET/PUT/DELETE /api/leaderboard/groups/[id]/workout (PUT is trainer-only and auto-creates subscriptions for every current member; DELETE preserves WorkoutLogs). POST/DELETE /api/leaderboard/groups/[id]/workout/apply for members to flip activated. Existing /api/leaderboard/groups/[id]/members POST and /invite PATCH auto-create subscriptions when new members are added or join. /api/workout POST accepts `groupWorkoutId` and validates the caller has an activated subscription before persisting the tag. /api/leaderboard/mine now exposes per-group workout summary + groupSessions/groupVolume/groupIntensity/groupStreak per member (computed by computeStatsForUsers(ids, groupWorkoutId)). Next slice: trainer SET/EDIT/REMOVE UI in group panel + member APPLY/LEAVE card on Progress dashboard + filter toggle on My Leaderboards + groupWorkoutId tagging on home → session start → /api/workout POST."
     }
   ]
 }

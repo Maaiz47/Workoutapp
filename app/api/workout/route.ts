@@ -114,11 +114,23 @@ export async function POST(req: NextRequest) {
     const uid = req.cookies.get("ironlog-uid")?.value;
     if (!uid) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { dayId, duration, sets, intensityPoints } = await req.json();
+    const { dayId, duration, sets, intensityPoints, groupWorkoutId } = await req.json();
     if (!dayId || !sets) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
+    // If a groupWorkoutId was supplied, validate the user actually has
+    // an activated subscription to it — otherwise drop the tag so a
+    // client can't game the filtered leaderboard.
+    let tagId: string | null = null;
+    if (typeof groupWorkoutId === "string" && groupWorkoutId) {
+      const sub = await (prisma as any).groupWorkoutSubscription.findUnique({
+        where: { userId_groupWorkoutId: { userId: uid, groupWorkoutId } },
+        select: { activated: true },
+      });
+      if (sub?.activated) tagId = groupWorkoutId;
+    }
+
     const log = await prisma.workoutLog.create({
-      data: { userId: uid, dayId, duration: duration || "00:00:00", sets, intensityPoints: typeof intensityPoints === 'number' ? intensityPoints : 0 },
+      data: { userId: uid, dayId, duration: duration || "00:00:00", sets, intensityPoints: typeof intensityPoints === 'number' ? intensityPoints : 0, ...(tagId ? { groupWorkoutId: tagId } : {}) },
     });
 
     return NextResponse.json({ success: true, id: log.id });

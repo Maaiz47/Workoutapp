@@ -2,6 +2,82 @@
 
 ---
 
+## Feature · 2026-05-21 (at) — Group shared workout: schema + API (Slice 1/N) (qa: group-shared-workout)
+
+### Added — Prisma schema
+- `GroupWorkout` (one per `LeaderboardGroup`, groupId @unique). Holds
+  `name`, `description?`, `days` (Json blob, same shape the home view
+  consumes), `createdBy`, timestamps. `onDelete: Cascade` from the
+  parent group.
+- `GroupWorkoutSubscription` — per-user opt-in: `(userId,
+  groupWorkoutId)` composite unique, `activated: Boolean @default(false)`,
+  `joinedAt`, `activatedAt?`. Auto-created when the workout is first
+  set or when a new member joins; the user must explicitly **apply**
+  to flip `activated=true`.
+- `WorkoutLog.groupWorkoutId` — optional FK to GroupWorkout with
+  `onDelete: SetNull`. When the workout is later deleted, past logs
+  keep their slot in the user's history; they just stop counting on
+  the filtered leaderboard.
+
+### Added — API
+- `GET /api/leaderboard/groups/[id]/workout` — returns the group's
+  shared workout + the caller's subscription state + `isTrainer`. Any
+  group member can read.
+- `PUT /api/leaderboard/groups/[id]/workout` (trainer-only) — upserts
+  the workout. Auto-creates a `GroupWorkoutSubscription` (activated
+  false) for every current group member via `createMany {
+  skipDuplicates }`. Trainers can later overwrite the workout in place.
+- `DELETE /api/leaderboard/groups/[id]/workout` (trainer-only) —
+  removes the GroupWorkout row; past WorkoutLogs go null on
+  `groupWorkoutId` via the FK SetNull so they're preserved in
+  per-user history.
+- `POST /api/leaderboard/groups/[id]/workout/apply` — member
+  activates their subscription (`activated=true`, `activatedAt=now`).
+  Group days now eligible to surface in the home view and sessions
+  tagged with this groupWorkoutId now count for the filtered group
+  leaderboard.
+- `DELETE /api/leaderboard/groups/[id]/workout/apply` — member
+  leaves (flips `activated=false`; row is kept so past `activatedAt`
+  is preserved as audit trail).
+
+### Wiring — auto-subscription on member add
+- `POST /api/leaderboard/groups/[id]/members` (trainer adds clients)
+  now auto-creates subscriptions for the new clients if the group
+  already has a workout.
+- `PATCH /api/leaderboard/groups/[id]/invite` (a trainer accepts an
+  invite) now auto-creates a subscription for the joining trainer.
+
+### Wiring — session tagging + filtered leaderboard
+- `POST /api/workout` accepts an optional `groupWorkoutId` field.
+  Before persisting, the route checks the caller has an `activated`
+  GroupWorkoutSubscription for that workout — otherwise the tag is
+  dropped (can't game the leaderboard from a non-applied client).
+- `lib/leaderboardStats.ts → computeStatsForUsers(userIds,
+  groupWorkoutId?)` now takes an optional filter that scopes the
+  WorkoutLog query to logs tagged with that groupWorkoutId. Used by
+  the My Leaderboards endpoint to compute "this group only" sessions
+  alongside overall sessions.
+- `GET /api/leaderboard/mine` response shape extended per group with
+  a `workout` summary (`id`, `name`, `description`, `hasDays`,
+  `myActivated`, `mySubscribed`) and per-member `groupActivated`,
+  `groupSessions`, `groupVolume`, `groupIntensity`, `groupStreak`.
+  Existing fields untouched — purely additive.
+
+### Next slice
+- Trainer-side UI: SET / EDIT / REMOVE buttons in the active-group
+  management panel that POST a customPlan-derived `days` array.
+- Member-side UI: `APPLY GROUP WORKOUT` / `LEAVE` card on the
+  Progress → Dashboard above the My Leaderboards block.
+- Home view: when `mySubscription.activated` is true, surface the
+  group days alongside the personal split with a `▣ GROUP` badge.
+  Starting a workout from a group day must tag the resulting log
+  with `groupWorkoutId`.
+- My Leaderboards: per-group `ALL · GROUP ONLY` toggle that switches
+  the rankings table to use `groupSessions` and filters out
+  non-activated members.
+
+---
+
 ## Feature · 2026-05-21 (as) — home polish v2 + tier intuitiveness (qa: home-polish-v2, tier-system-intuitive)
 
 ### Changed — home

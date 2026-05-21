@@ -235,17 +235,23 @@ model BodyMetric {
 }
 
 model WorkoutLog {
-  id               String   @id @default(cuid())
+  id               String        @id @default(cuid())
   userId           String
   dayId            String
-  date             DateTime @default(now())
+  date             DateTime      @default(now())
   duration         String
   sets             Json
-  intensityPoints  Int      @default(0)
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  intensityPoints  Int           @default(0)
+  // Optional tag — set when the session was started from a day that
+  // belongs to a group's shared workout. Drives the filtered group
+  // leaderboard so only "actually doing the prescribed work" counts.
+  groupWorkoutId   String?
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupWorkout     GroupWorkout? @relation(fields: [groupWorkoutId], references: [id], onDelete: SetNull)
 
   @@index([userId, dayId])
   @@index([userId])
+  @@index([groupWorkoutId])
 }
 
 model SavedRoutine {
@@ -286,8 +292,50 @@ model LeaderboardGroup {
   creator        User                     @relation("CreatedGroups", fields: [createdBy], references: [id], onDelete: Cascade)
   members        LeaderboardGroupMember[]
   invites        LeaderboardGroupInvite[]
+  workout        GroupWorkout?
 
   @@index([createdBy])
+}
+
+// One optional shared workout per leaderboard group. Stored as a JSON
+// blob of days for simplicity — no nested PlanDay/PlanExercise tables.
+// When set, every member is auto-subscribed (activated=false). Members
+// must `apply` it before its days show up in their plan and their
+// sessions count for the group's filtered leaderboard.
+model GroupWorkout {
+  id            String                       @id @default(cuid())
+  groupId       String                       @unique
+  name          String
+  description   String?
+  // Serialised days array — same shape as the existing WorkoutDay /
+  // PlanDay output the home view consumes:
+  //   [{ id, title, focus, color, gradient, exercises: [{id,name,sets,reps,rest,...}] }]
+  days          Json
+  createdBy     String                       // userId of the trainer who set it
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+  group         LeaderboardGroup             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  subscriptions GroupWorkoutSubscription[]
+  workoutLogs   WorkoutLog[]
+}
+
+// Per-user subscription to a GroupWorkout. Auto-created at workout-set
+// time for every existing member; also created when new members join a
+// group that has a workout. `activated=true` only when the user taps
+// APPLY in their own app — gates the group days showing up in home and
+// gates the user appearing in the group's filtered leaderboard.
+model GroupWorkoutSubscription {
+  id              String       @id @default(cuid())
+  userId          String
+  groupWorkoutId  String
+  activated       Boolean      @default(false)
+  joinedAt        DateTime     @default(now())
+  activatedAt     DateTime?
+  groupWorkout    GroupWorkout @relation(fields: [groupWorkoutId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupWorkoutId])
+  @@index([userId])
+  @@index([groupWorkoutId])
 }
 
 model LeaderboardGroupMember {

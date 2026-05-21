@@ -74,6 +74,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         create: { groupId, userId: uid, role: "trainer", includeInRank: false },
         update: { role: "trainer" },
       });
+
+      // If the group already has a shared workout, auto-subscribe the
+      // newly-joined trainer (activated=false). Trainers train too.
+      const groupWorkout = await (prisma as any).groupWorkout.findUnique({
+        where: { groupId },
+        select: { id: true },
+      });
+      if (groupWorkout) {
+        await (prisma as any).groupWorkoutSubscription.upsert({
+          where: { userId_groupWorkoutId: { userId: uid, groupWorkoutId: groupWorkout.id } },
+          create: { userId: uid, groupWorkoutId: groupWorkout.id },
+          update: {},
+        });
+      }
     }
 
     return json({ invite: updated });
