@@ -2,6 +2,40 @@
 
 ---
 
+## QA pass · 2026-05-21 — `01da6f1` + dashboard upgrades
+
+### Addressed
+- `auth-register`: 👁 eye toggle on register password + confirm
+- `auth-login`: 👁 eye toggle on login password
+- `auth-must-reset`: 👁 eye toggle on must-reset password + confirm
+- `admin-panel`: 👁 eye toggle on admin key input
+- `admin-panel`: user table wrapped in horizontal-scroll container, page padding tightened for mobile
+- `auth-forgot-password`: "← Back to login" now carries the typed email into the username field (login accepts username OR email), so user doesn't get stuck logging in as the previous attempt's username
+- `auth-forgot-password`: clearer helper text under the input + on the sent confirmation explaining the "check spam, then contact support" path
+- `qa-dashboard`: added live search across titles/areas/steps/notes/threads
+- `qa-dashboard`: added a "General Notes" thread at the top for free-form notes not tied to a specific test item
+- `settings-send-feedback`: new card inside Settings — any logged-in user can submit feedback that gets logged as a `QAComment` tagged with their userId
+- `qa-comments`: comments now carry a `userId` (set automatically from the `ironlog-uid` cookie); the admin `/qa` view shows `@username` on each comment
+
+### Deferred (need their own scoped work)
+- `auth-login`: "Get started after sign up image not aligned well" — referenced screenshot https://kommodo.ai/i/GU546DBZf0aGwpwXesPk needed to identify which image element
+- `auth-login`: daily nag for incomplete profile (BF% every 7 days) — needs `lastNaggedAt` per profile field on `UserProfile` + banner component
+- `onboarding-profile-setup`: split equipment into homeEquipment / gymEquipment when location='Both' — data-model change + plan-generator updates
+- `onboarding-profile-setup`: in-app tutorial with theme intro — needs UX flow design
+- `onboarding-profile-setup`: "more pro tips" — waiting on concrete content from the user
+- `onboarding-profile-setup`: referenced UI fit screenshot https://kommodo.ai/i/EX97cHmDMifmmYNqHVGq needed to action
+- `admin-panel`: "force-show-password" — impossible by design (passwords are scrypt-hashed, not retrievable). "Force-reset" doable as a future button on a user row but warrants its own pass
+
+### Process changes
+- CLAUDE.md updated with a two-step QA processing flow: when the user invokes "process QA" the response is a SUMMARY of suggestions grouped by submitting user. Fixes only execute on explicit go-ahead.
+- New trigger phrases accepted: "process the feedback logged", "summarise QA feedback".
+- Routine retired entirely — processing is now exclusively user-triggered.
+
+### Schema
+- `QAComment.userId` added (optional FK convention to `User.id`; no relation declared on User to avoid back-ref churn). Vercel's build script will sync on next deploy via `prisma db push`.
+
+---
+
 ## Environment Variables (Vercel + local `.env`)
 
 | Variable | Purpose |

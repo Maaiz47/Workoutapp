@@ -1198,6 +1198,107 @@ function PasswordInput({
   );
 }
 
+// ─── SEND FEEDBACK CARD ─────────────────────────────────────────────────
+// Lives in the Settings view. Lets any logged-in user file a short note that
+// gets stored as a QAComment with their userId attached. Claude picks it up
+// on the next "process QA" pass.
+function SendFeedbackCard({ username }: { username: string }) {
+  const [text, setText] = useState("");
+  const [area, setArea] = useState<string>("Other");
+  const [busy, setBusy] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  const submit = async () => {
+    if (!text.trim()) { setError("Write something first."); return; }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/qa/comment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: "user-feedback",
+          tester: username || "user",
+          status: "failing",
+          note: `[${area}] ${text.trim()}`,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d?.error || "Couldn't send. Try again.");
+        return;
+      }
+      setSavedAt(new Date().toLocaleTimeString());
+      setText("");
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+      <button
+        onClick={() => setExpanded(v => !v)}
+        style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", textAlign: "left" }}
+      >
+        <div>
+          <div style={{ fontSize: 11, color: "#4ECDC4", letterSpacing: 3, marginBottom: 4, fontFamily: "'Space Mono', monospace" }}>💬 SEND FEEDBACK</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Spot a bug or have an idea? Tell the team.</div>
+        </div>
+        <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>{expanded ? "▲" : "▼"}</span>
+      </button>
+
+      {expanded && (
+        <div style={{ marginTop: 14 }}>
+          <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>AREA</label>
+          <select
+            value={area}
+            onChange={e => setArea(e.target.value)}
+            style={{ width: "100%", background: "#111", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "10px 12px", fontSize: 16, fontFamily: "'DM Sans', sans-serif", marginBottom: 10 }}
+          >
+            {["Auth","Workout","Plan","Trainer","Messaging","Progress","Body","UI","PWA","Admin","Marketing","Other"].map(a => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
+
+          <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>WHAT HAPPENED / WHAT YOU&apos;D LIKE</label>
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="Bug, idea, polish — be as specific as you can…"
+            rows={4}
+            style={{ width: "100%", boxSizing: "border-box", background: "#111", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "10px 12px", fontSize: 16, fontFamily: "'DM Sans', sans-serif", resize: "vertical", marginBottom: 10 }}
+          />
+
+          {error && <div style={{ color: "#FF6B6B", fontSize: 12, marginBottom: 8 }}>{error}</div>}
+          {savedAt && <div style={{ color: "#4ECDC4", fontSize: 12, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>Sent ✓ at {savedAt}</div>}
+
+          <button
+            onClick={submit}
+            disabled={busy || !text.trim()}
+            style={{
+              width: "100%", padding: "12px",
+              background: busy || !text.trim() ? "rgba(78,205,196,0.2)" : "rgba(78,205,196,0.9)",
+              border: "none", borderRadius: 10, color: busy || !text.trim() ? "rgba(255,255,255,0.5)" : "#000",
+              fontSize: 13, fontWeight: 700, letterSpacing: 1, cursor: busy || !text.trim() ? "not-allowed" : "pointer",
+              fontFamily: "'Space Mono', monospace", minHeight: 44,
+            }}
+          >
+            {busy ? "SENDING…" : "SEND FEEDBACK"}
+          </button>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 8, lineHeight: 1.5, fontFamily: "'DM Sans', sans-serif" }}>
+            Your feedback is logged with your username so the team can follow up. You can send as many notes as you like — they all stack.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN ───────────────────────────────────────────────────────────────
 function HomePage() {
   const [user, setUser] = useState<{ id: string; username: string; role: string; roleRequest?: string | null } | null>(null);
@@ -5603,6 +5704,9 @@ function HomePage() {
               </button>
             )}
           </div>
+
+          {/* Send feedback */}
+          <SendFeedbackCard username={user?.username || ""} />
 
           {/* Log out */}
           <button onClick={doLogout} style={{ width: "100%", marginTop: 8, padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.35)", fontSize: 12, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>LOG OUT</button>

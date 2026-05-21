@@ -30,18 +30,33 @@ export async function GET(req: NextRequest) {
     orderBy: { ts: "asc" },
   });
 
+  // Resolve userId → username/role for the admin view so Claude can group by user.
+  const userIds = Array.from(new Set(comments.map((c: any) => c.userId).filter(Boolean))) as string[];
+  const users = userIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, username: true, email: true, role: true },
+      })
+    : [];
+  const userById: Record<string, { username: string; email: string | null; role: string }> = {};
+  for (const u of users) userById[u.id] = { username: u.username, email: u.email, role: u.role };
+  const commentsWithUser = comments.map((c: any) => ({
+    ...c,
+    user: c.userId ? (userById[c.userId] ?? null) : null,
+  }));
+
   // Also surface any legacy QAReport rows that haven't been migrated yet.
-  // These are dumped raw so Claude can see what's there during a manual pass.
   const legacyReports = await (prisma as any).qAReport.findMany({
     orderBy: { ts: "asc" },
   });
 
   return NextResponse.json({
-    comments,
+    comments: commentsWithUser,
     legacyReports,
     counts: {
-      comments: comments.length,
+      comments: commentsWithUser.length,
       legacyReports: legacyReports.length,
+      uniqueUsers: userIds.length,
     },
   });
 }

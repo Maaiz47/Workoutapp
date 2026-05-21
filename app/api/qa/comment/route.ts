@@ -23,10 +23,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "note is required" }, { status: 400 });
     }
 
+    // If the request carries the ironlog-uid cookie, attach the user to the
+    // comment so the admin view can group by submitter. Public anonymous
+    // submissions still work (userId stays null).
+    const uid = req.cookies.get("ironlog-uid")?.value || null;
+
     const row = await (prisma as any).qAComment.create({
       data: {
         itemId,
         tester: tester.trim(),
+        userId: uid,
         status,
         note: note.trim(),
         screenshotUrl: screenshotUrl ? String(screenshotUrl).trim() : null,

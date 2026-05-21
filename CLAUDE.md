@@ -14,13 +14,50 @@ If the user says any of the following in a new session, run the **QA processing
 pass** described below:
 
 - "process QA"
-- "work the QA backlog"
+- "process the feedback logged"
 - "process feedback"
+- "work the QA backlog"
 - "check the QA dashboard"
 - "action the latest QA comments"
+- "summarise QA feedback"
 
 The user shouldn't have to repeat the architecture or admin secret each time —
 fetch the secret from them only if it's not already in this conversation.
+
+## Two-step processing flow (IMPORTANT)
+
+The pass is **TWO STEPS**. Do NOT execute fixes on the first invocation —
+present a summary, wait for explicit go-ahead, then execute.
+
+**Step 1 — Summary** (what you do when the user first asks):
+1. Fetch unprocessed comments + legacy reports (see "QA processing pass" below).
+2. Group them by submitting user (`comment.user.username` if set, else
+   `comment.tester`).
+3. For each user, list every distinct suggestion / bug they raised.
+   - Dedupe within a user (multiple comments saying the same thing → one bullet).
+   - Tag each with the affected QA item id where obvious.
+4. Reply to the user with a structured summary like:
+   ```
+   ## QA backlog summary — N comments from M users
+
+   ### @username (3 items)
+   - [auth-login] Add password eye toggle
+   - [onboarding-profile-setup] Split equipment by location when "Both" chosen
+   - [General] Random thought about progress charts
+
+   ### @otherusername (1 item)
+   - [workout-set-logging] Set-edit button overlap on iPhone 12
+   ```
+5. End the summary with: "Reply with **'go ahead'** (or pick a subset) and
+   I'll execute fixes for the items you confirm."
+6. STOP. Do not touch the code, do not write to qa-state.json, do not
+   mark anything processed. Just wait.
+
+**Step 2 — Execute** (when the user says "go ahead" / "fix them all" /
+"do items X and Y" / etc):
+1. Run the full QA processing pass below — fix code, update qa-state.json,
+   write a PATCHLOG entry, mark the addressed comments as processed.
+2. Reply with what was actually done vs deferred, same format as before.
 
 ## QA processing pass — what to do
 

@@ -6,18 +6,19 @@
       "area": "Auth",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
         "Open the app unauthenticated — you should see the landing page with ATHLETE / TRAINERS tabs",
         "Ensure 'ATHLETE' tab is selected (default)",
         "Enter a unique username that does not yet exist in the DB",
         "Tap 'Continue' — the password-creation step should appear",
         "Enter a password of at least 8 characters and tap 'Create account'",
+        "Tap the 👁 eye toggle next to each password field — should reveal the typed characters; tap again to hide",
         "Verify the app moves straight to the onboarding flow (not to the dashboard)",
         "Confirm the new user row exists in the DB with role='user'"
       ],
-      "notes": "Edge cases: duplicate username → expect an error message. Short password → expect validation message."
+      "notes": "[2026-05-21 01da6f1] Fixed: added eye toggle to reveal/hide characters on both password fields.\nEdge cases: duplicate username → expect an error message. Short password → expect validation message."
     },
     {
       "id": "auth-login",
@@ -25,16 +26,17 @@
       "area": "Auth",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
         "Open the app unauthenticated",
         "Enter an existing athlete username and tap 'Continue'",
         "The password field should appear",
+        "Tap the 👁 eye toggle next to the password input — it should reveal the typed characters; tap again to hide",
         "Enter correct password and tap 'Sign in'",
         "Verify you land on the home dashboard and the username appears in the top profile card"
       ],
-      "notes": "Edge: wrong password → error message. Non-existent username → error message. Empty field → inline validation."
+      "notes": "[2026-05-21 01da6f1] Fixed: password field now has eye/hide toggle on login.\n[2026-05-21 01da6f1] Partial: 'Get started after sign up image not aligned well' — needs the screenshot referenced (https://kommodo.ai/i/GU546DBZf0aGwpwXesPk) to know which image; reopen once we can see it.\n[2026-05-21 01da6f1] Deferred: daily nag prompt to finish incomplete onboarding (BF% every 7 days) — needs a `lastNaggedAt` field on UserProfile + banner component; out of scope this pass.\nEdge: wrong password → error message. Non-existent username → error message. Empty field → inline validation."
     },
     {
       "id": "auth-trainer-login",
@@ -59,17 +61,19 @@
       "area": "Auth",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
         "On the login screen tap 'Forgot password?'",
         "Enter a registered email address and submit",
+        "Verify the helper text under the input explains that nothing arriving in 5 min means check spam, then contact support",
         "Check the inbox — a reset email should arrive within 60 seconds",
         "Click the reset link in the email",
         "Enter and confirm a new password",
+        "Tap 'Back to login' — verify the email you just typed is pre-filled in the username field (NOT the previous username you tried)",
         "Log in with the new password and verify it works"
       ],
-      "notes": "Requires SMTP env vars set. Check SMTP_FROM appears correctly in the email From field."
+      "notes": "[2026-05-21 01da6f1] Fixed: 'Back to login' from forgot-password now carries the email into the username field so user logs in with the right identity (login accepts username OR email).\n[2026-05-21 01da6f1] Addressed: added explanatory helper text under the input + on the sent-confirmation screen. NOTE: the API intentionally returns success even when the email isn't found (anti-enumeration); we surface that as 'if it's registered you'll get an email' rather than a hard 'not found' error. If tester wants a stricter not-found error we'd be trading off security to fix it — re-raise to discuss.\nRequires SMTP env vars set. Check SMTP_FROM appears correctly in the email From field."
     },
     {
       "id": "auth-must-reset",
@@ -77,16 +81,17 @@
       "area": "Auth",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
         "In the admin panel set mustResetPassword=true for a test user",
         "Log in as that user — you should be redirected to the must-reset-password screen, NOT the dashboard",
+        "Tap the 👁 eye toggle next to each password field — verify it reveals/hides typed characters",
         "Enter a new password and confirm",
         "Verify you are then taken to the dashboard normally",
         "Confirm mustResetPassword is now false in the DB"
       ],
-      "notes": ""
+      "notes": "[2026-05-21 01da6f1] Fixed: must-reset screen now has eye toggle on both password fields."
     },
     {
       "id": "onboarding-profile-setup",
@@ -94,8 +99,8 @@
       "area": "Auth",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
         "Register a new user to trigger the onboarding flow",
         "Step 1 — Date of birth: enter a valid DOB, tap Next",
@@ -109,7 +114,7 @@
         "Tap 'Generate my plan' and wait for plan generation",
         "Verify a WorkoutPlan row is created in the DB and the home screen shows plan days"
       ],
-      "notes": "Skipping required steps should keep the Next button disabled. Rebuild-mode reuses steps 3–8."
+      "notes": "[2026-05-21 01da6f1] Deferred: when Location='Both' is picked, let user split which equipment is AT HOME vs AT GYM so generated plans respect actual availability per session. Significant data-model change (UserProfile.equipment splits into homeEquipment[] + gymEquipment[]) plus plan-generator updates. Needs its own scoped pass.\n[2026-05-21 01da6f1] Deferred: daily nag prompt for incomplete profile (BF% every 7 days). Needs a `lastNaggedAt` field per profile section + dismissable banner. Out of scope here.\n[2026-05-21 01da6f1] Deferred: in-app tutorial after Get Started with theme settings intro. Needs UX flow design (overlay steps, dismiss state, replay-able from Settings).\n[2026-05-21 01da6f1] Deferred: 'Add more pro tips' — no concrete content provided. Waiting on copy.\n[2026-05-21 01da6f1] Deferred: 'UI fitting issues' on Get Started image after signup — referenced screenshot https://kommodo.ai/i/EX97cHmDMifmmYNqHVGq is needed to know which element to fix.\n[2026-05-21 01da6f1] Already addressed elsewhere: 'I need to be able to save partial QA reports and submit later' — replaced by the new comment-thread QA dashboard (per-item save, localStorage drafts, backup export/restore). Also a General Notes section now lives at the top of /qa for random notes not tied to a specific item.\nSkipping required steps should keep the Next button disabled. Rebuild-mode reuses steps 3–8."
     },
     {
       "id": "workout-session-start",
@@ -808,18 +813,19 @@
       "area": "Admin",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
-        "Navigate to /admin in the browser",
-        "Enter the ADMIN_SECRET password",
+        "Open /admin on a phone (≤ 400px wide) — verify the user table no longer pushes the layout off-screen; the table itself scrolls horizontally inside its container instead",
+        "Tap the 👁 eye toggle next to the admin key input on the login screen — verify it reveals the typed secret; tap again to hide",
+        "Enter the ADMIN_SECRET password and sign in",
         "Verify a list of all users is displayed with username, email, role, createdAt",
         "Search or filter for a specific user",
         "Promote a user to trainer role — verify the role updates in the DB",
         "Set mustResetPassword=true for a user — verify the field updates",
         "Log in as that user and confirm the forced reset flow triggers"
       ],
-      "notes": "ADMIN_SECRET env var must be set. Route: /admin page.tsx + /api/admin."
+      "notes": "[2026-05-21 01da6f1] Fixed: user table now wrapped in horizontally-scrollable container (overflow-x: auto, touch momentum), so on narrow viewports the table scrolls inside its panel instead of breaking page layout. Page padding tightened for mobile.\n[2026-05-21 01da6f1] Fixed: admin key input has the same eye toggle as the user-facing password fields.\n[2026-05-21 01da6f1] Deferred: 'force-show-password' and 'force-reset' admin actions on a user row. Force-show is impossible by design — passwords are scrypt-hashed and not retrievable. Force-reset is doable (button that sets mustResetPassword=true on the target user) but warrants its own pass to agree the confirm UX. Re-raise as a separate item.\nADMIN_SECRET env var must be set. Route: /admin page.tsx + /api/admin."
     },
     {
       "id": "marketing-promo-page",
@@ -891,6 +897,46 @@
         "Attempt to upload a non-image file — expect an error response"
       ],
       "notes": ""
+    },
+    {
+      "id": "settings-send-feedback",
+      "title": "Send Feedback card in Settings",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass 01da6f1",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open Settings while logged in (any user role)",
+        "Scroll until you see the teal '💬 SEND FEEDBACK' card",
+        "Tap to expand it",
+        "Select an area, write a short note, tap SEND FEEDBACK",
+        "Verify a green 'Sent ✓ at HH:MM' confirmation appears and the textarea clears",
+        "Send a second note — confirm it stacks (multiple sends should all succeed)",
+        "As admin, open /qa and confirm both comments appear in the 'user-feedback' thread, tagged with your @username"
+      ],
+      "notes": "Backed by POST /api/qa/comment. itemId is hardcoded to 'user-feedback'. The submitting user is identified via the ironlog-uid cookie automatically."
+    },
+    {
+      "id": "qa-dashboard",
+      "title": "QA dashboard (/qa) — admin view with threads, search, general notes",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass 01da6f1",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Navigate to /qa",
+        "Verify the General Notes card at the top is open by default and accepts comments",
+        "Type in the search box — verify items + general notes filter live",
+        "Tap an area group to collapse/expand it",
+        "Tap an item to expand the thread + comment form",
+        "Submit a comment — verify it appears immediately at the bottom of the thread",
+        "Refresh the page — verify the comment persists (it's server-side)",
+        "Tap BACKUP to download a draft snapshot; tap RESTORE to re-import one",
+        "Each comment shows @username if the submitter was logged in"
+      ],
+      "notes": "Replaces the original whole-form-submit QA dashboard. State lives in QAComment table; drafts persist in localStorage."
     },
     {
       "id": "trainer-role-request",

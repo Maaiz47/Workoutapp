@@ -310,6 +310,7 @@ model QAComment {
   id            String    @id @default(cuid())
   itemId        String
   tester        String
+  userId        String?   // set when the comment came from a logged-in user (via Settings)
   status        String    // untested | passing | failing | regression-retest
   note          String
   screenshotUrl String?
@@ -320,4 +321,5 @@ model QAComment {
 
   @@index([itemId])
   @@index([processed, ts])
+  @@index([userId])
 }

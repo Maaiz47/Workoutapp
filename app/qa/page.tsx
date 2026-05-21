@@ -24,6 +24,8 @@ interface Comment {
   id: string;
   itemId: string;
   tester: string;
+  userId?: string | null;
+  user?: { username: string; email: string | null; role: string } | null;
   status: ItemStatus;
   note: string;
   screenshotUrl: string | null;
@@ -53,6 +55,22 @@ const AREAS = [
 
 const LS_DRAFTS = "qa-drafts-v2";
 const LS_TESTER = "qa-tester";
+
+// Synthetic item ID for the "General Notes" pseudo-section at the top of the
+// dashboard. Notes posted here are stored as QAComment rows like any other
+// item, with this magic itemId so they group together in a single thread.
+const GENERAL_NOTES_ID = "__general__";
+const GENERAL_NOTES_ITEM: QAItem = {
+  id: GENERAL_NOTES_ID,
+  title: "General Notes",
+  area: "General",
+  introduced: "",
+  introducedBy: "",
+  lastTested: null,
+  status: "untested",
+  steps: [],
+  notes: "Use this thread for thoughts, observations, and asks that don't fit a specific test item.",
+};
 
 // ─── Small components ────────────────────────────────────────────────────────
 
@@ -241,7 +259,10 @@ function ItemCard({
                       <span style={{
                         fontSize: 11, color: "rgba(255,255,255,0.6)",
                         fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
-                      }}>{c.tester}</span>
+                      }}>{c.user?.username ? `@${c.user.username}` : c.tester}</span>
+                      {c.user?.role === "trainer" && (
+                        <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 3, padding: "1px 5px" }}>TRAINER</span>
+                      )}
                     </div>
                     <div style={{
                       display: "flex", alignItems: "center", gap: 6,
@@ -456,6 +477,7 @@ export default function QAPage() {
   const [tester, setTester] = useState("");
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const draftWriteTimer = useRef<any>(null);
 
   // ── Initial load ──────────────────────────────────────────────────────────
@@ -480,6 +502,9 @@ export default function QAPage() {
         const next = { ...prev };
         for (const it of state.items) {
           if (!next[it.id]) next[it.id] = { status: "untested", note: "", screenshotUrl: "" };
+        }
+        if (!next[GENERAL_NOTES_ID]) {
+          next[GENERAL_NOTES_ID] = { status: "untested", note: "", screenshotUrl: "" };
         }
         return next;
       });
@@ -547,12 +572,37 @@ export default function QAPage() {
   );
 
   const allItems = qaState?.items ?? [];
-  // Group by area.
+
+  // ── Search filter ─────────────────────────────────────────────────────────
+  // Matches against title, area, steps, notes, AND every comment's tester+note
+  // on that item — so a typo in a thread is findable too.
+  const q = search.trim().toLowerCase();
+  const matchesQuery = (it: QAItem) => {
+    if (!q) return true;
+    if (it.title.toLowerCase().includes(q)) return true;
+    if (it.area.toLowerCase().includes(q)) return true;
+    if (it.id.toLowerCase().includes(q)) return true;
+    if (it.notes && it.notes.toLowerCase().includes(q)) return true;
+    if (it.steps.some(s => s.toLowerCase().includes(q))) return true;
+    if (comments.some(c => c.itemId === it.id && (
+      c.note.toLowerCase().includes(q) || c.tester.toLowerCase().includes(q)
+    ))) return true;
+    return false;
+  };
+  const filteredItems = allItems.filter(matchesQuery);
+  const generalMatches = q
+    ? (GENERAL_NOTES_ITEM.title.toLowerCase().includes(q) ||
+       comments.some(c => c.itemId === GENERAL_NOTES_ID &&
+         (c.note.toLowerCase().includes(q) || c.tester.toLowerCase().includes(q))))
+    : true;
+
+  // Group by area (after filter).
   const grouped = AREAS
-    .map(area => ({ area, items: allItems.filter(i => i.area === area) }))
+    .map(area => ({ area, items: filteredItems.filter(i => i.area === area) }))
     .filter(g => g.items.length > 0);
 
-  // Header summary (using effective status).
+  // Header summary uses the UNFILTERED list — these counts reflect the whole
+  // backlog, not what's currently visible.
   let totalP = 0, totalF = 0, totalR = 0;
   for (const it of allItems) {
     const s = effectiveStatus(it, comments);
@@ -659,9 +709,69 @@ export default function QAPage() {
             {lastSavedAt ? `Draft saved locally at ${lastSavedAt}` : "Drafts auto-save as you type"} ·
             comments save to the server when you tap SAVE COMMENT inside each item
           </div>
+
+          {/* Search */}
+          <div style={{ marginTop: 14, position: "relative" }}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search items, steps, notes, threads…"
+              style={{
+                width: "100%", boxSizing: "border-box",
+                background: "#111", color: "#fff",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 8, padding: "10px 36px 10px 12px",
+                fontSize: 16, fontFamily: "'DM Sans', sans-serif",
+                minHeight: 44,
+              }}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                style={{
+                  position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                  width: 32, height: 32, background: "transparent", border: "none",
+                  color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 16,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >✕</button>
+            )}
+            {q && (
+              <div style={{
+                fontSize: 10, color: "rgba(255,255,255,0.4)",
+                fontFamily: "'Space Mono', monospace", marginTop: 6,
+              }}>{filteredItems.length} item{filteredItems.length === 1 ? "" : "s"} match{filteredItems.length === 1 ? "es" : ""}</div>
+            )}
+          </div>
         </div>
 
+        {/* General Notes — always at the top, only hidden when search excludes it */}
+        {generalMatches && (
+          <div style={{ marginBottom: 18 }}>
+            <div style={{
+              fontSize: 12, fontWeight: 700, letterSpacing: 3, color: "#4ECDC4",
+              fontFamily: "'Space Mono', monospace",
+              padding: "8px 4px", marginBottom: 4,
+            }}>GENERAL</div>
+            <ItemCard
+              item={GENERAL_NOTES_ITEM}
+              comments={comments}
+              draft={drafts[GENERAL_NOTES_ID] || { status: "untested", note: "", screenshotUrl: "" }}
+              setDraft={d => setDrafts(prev => ({ ...prev, [GENERAL_NOTES_ID]: d }))}
+              tester={tester}
+              onSaved={onSaved}
+            />
+          </div>
+        )}
+
         {/* Groups */}
+        {grouped.length === 0 && q && (
+          <div style={{
+            textAlign: "center", padding: "32px 16px",
+            color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", fontSize: 12,
+          }}>No items match &quot;{search}&quot;.</div>
+        )}
         {grouped.map(g => (
           <AreaGroup
             key={g.area}
