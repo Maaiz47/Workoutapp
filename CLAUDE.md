@@ -82,10 +82,15 @@ present a summary, wait for explicit go-ahead, then execute.
 4. **Act on `failing` and `regression-retest` items**:
    - Read each thread's notes carefully. Each note may contain multiple
      distinct asks (bug fixes, feature requests, UI polish).
-   - Fix bugs in the code where the note is concrete and small (under ~50 lines).
-   - For large feature requests, DON'T silently skip — explicitly list them in
-     the PATCHLOG entry as "deferred — needs scoped work" with a one-line
-     reason (e.g., "data model change required").
+   - **Nothing is "deferred".** Every ask gets at least ONE concrete fix
+     shipped this pass — even if it's just the schema, an API skeleton,
+     a placeholder UI, or a stubbed-out endpoint. The item then sits in
+     `regression-retest` with a note describing what shipped and what's
+     next, so the next pass picks up exactly where you left off.
+   - For huge asks (whole-feature builds), ship the smallest meaningful
+     slice you can — usually: schema + one API endpoint + a stub UI hook.
+     The next pass extends it. Never leave a `failing` item with zero
+     code change in any pass.
    - Cite the QA item id in commit messages so the audit trail is traceable:
      `fix(auth): show/hide eye on password fields (qa: auth-login)`.
 4a. **Re-reconcile `qa-state.json` AFTER acting** — this is the critical step
@@ -96,8 +101,10 @@ present a summary, wait for explicit go-ahead, then execute.
    - For items you fixed PARTIALLY: `status` = regression-retest, `lastTested`
      = today, prepend:
      `[2026-MM-DD <sha7>] Partial: <what was done>. Still pending: <what wasn't>.`
-   - For items you DEFERRED: keep current status, prepend:
-     `[2026-MM-DD <sha7>] Deferred: <reason>. Needs: <suggested next step>.`
+   - For items where you shipped a SLICE of a bigger feature: status stays
+     `regression-retest`, `lastTested` = today, prepend:
+     `[2026-MM-DD <sha7>] Slice 1/N: <what shipped this pass>. Next slice: <concrete next step>.`
+     (Never leave an item without at least one slice shipped per pass.)
    - If the user reported something not in `qa-state.json` (a brand new
      feature area or a regression in an area we don't have an item for),
      ADD a new item to `qa-state.json` so it's tracked from now on.
@@ -115,8 +122,8 @@ present a summary, wait for explicit go-ahead, then execute.
    - <item-id>: <one-line summary of what changed>
    ### Partially addressed
    - <item-id>: <what was done> · <what remains>
-   ### Deferred (needs scoped work)
-   - <item-id>: <reason, suggested next step>
+   ### Slices (shipped first part, more to do)
+   - <item-id>: shipped <slice>; next slice: <concrete next step>
    ### Items with no action needed (status flips only)
    - <item-id>: passing → passing (no regression)
    ```

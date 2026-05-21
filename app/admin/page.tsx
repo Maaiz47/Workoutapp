@@ -123,6 +123,29 @@ export default function AdminPage() {
     }
   }
 
+  async function forceReset(userId: string, username: string) {
+    if (!confirm(`Force @${username} to set a new password on their next login?`)) return;
+    setUpdatingId(userId);
+    try {
+      const res = await fetch("/api/admin", {
+        method: "PATCH",
+        headers: { "x-admin-key": key, "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, action: "force-reset" }),
+      });
+      const data = await res.json();
+      if (data.user) {
+        setUsers(u => u.map(x => x.id === userId ? { ...x, mustResetPassword: true } : x));
+        alert(`@${username} will be forced to reset password on next login.`);
+      } else {
+        setError(data.error || "Force-reset failed.");
+      }
+    } catch {
+      setError("Force-reset failed.");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   function badgeStyle(role: string): React.CSSProperties {
     return {
       display: "inline-block",
@@ -466,6 +489,14 @@ export default function AdminPage() {
                       >
                         {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
+                      <button
+                        style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #4a3a18", background: "#1f1a08", color: "#fdcb6e", fontSize: 11, cursor: updatingId === u.id ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
+                        onClick={() => forceReset(u.id, u.username)}
+                        disabled={updatingId === u.id || u.mustResetPassword}
+                        title={u.mustResetPassword ? "Already pending reset" : "Force this user to set a new password on next login"}
+                      >
+                        {u.mustResetPassword ? "Reset pending" : "Force reset"}
+                      </button>
                       <button
                         style={s.deleteBtn}
                         onClick={() => deleteUser(u.id, u.username)}

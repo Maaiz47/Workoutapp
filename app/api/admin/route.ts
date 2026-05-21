@@ -94,6 +94,18 @@ export async function PATCH(req: NextRequest) {
     return json({ user });
   }
 
+  // Force password reset: flip mustResetPassword=true so the next login
+  // bounces this user through the reset screen. Doesn't change their
+  // current password — they keep using it once until they reset.
+  if (body.action === "force-reset") {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { mustResetPassword: true },
+      select: { id: true, username: true, mustResetPassword: true },
+    });
+    return json({ user });
+  }
+
   // Direct role assignment (existing behaviour).
   const { role } = body;
   if (!role) return json({ error: "Missing role" }, 400);

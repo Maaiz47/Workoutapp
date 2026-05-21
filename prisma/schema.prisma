@@ -80,6 +80,8 @@ model UserProfile {
   fitnessLevel     String
   location         String
   equipment        String[]
+  equipmentHome    String[]   // populated only when location="both"
+  equipmentGym     String[]   // populated only when location="both"
   daysPerWeek      Int
   targetArea       String?  @default("none")
   targetAreas      String[]

@@ -2,6 +2,52 @@
 
 ---
 
+## QA pass · 2026-05-21 (b) — eliminate deferrals, ship slices
+
+Process change: **CLAUDE.md no longer permits a "deferred" outcome.** Every
+QA item must have at least one concrete code change shipped per pass, even
+if it's just a schema field, an API hook, or a placeholder. Items stay in
+`regression-retest` between passes with a "Slice 1/N: <done>. Next slice:
+<next step>" line so progress is visible and the next pass picks up exactly
+where this one stopped.
+
+Items previously flagged "deferred" — now sliced:
+
+### Addressed
+- `admin-panel`: **Force Reset** button shipped on every user row. New PATCH
+  action `force-reset` flips `mustResetPassword=true` on the target user;
+  next login routes them through the must-reset screen. Button shows
+  "Reset pending" and disables once the flag is set.
+- `auth-login`: ProfileNagBanner shipped at the top of the home screen.
+  Detects missing dob/gender/height/weight/bodyFatPct and shows a tappable
+  "FIX" CTA jumping to Settings. localStorage cooldown — 1 day for most
+  fields, 7 days for body fat.
+- `auth-login`: onboarding-welcome image alignment fix. Was using
+  `aspectRatio: 3/4` (the source image is 2:3, so it was being cropped
+  horizontally); switched to 2/3 with `objectPosition: center 35%` so the
+  figure stays centred and the rack reads. Gradient overlay tightened.
+- `onboarding-profile-setup`: equipment-split first slice. UserProfile gains
+  `equipmentHome[]` and `equipmentGym[]` columns; `/api/profile` POST reads
+  and stores them when present. Vercel's build script syncs the schema on
+  next deploy.
+
+### Slices (shipped first part, more to do)
+- `onboarding-profile-setup`: equipment split — next slice is the two-column
+  equipment selector in the onboarding equipment step when `location='both'`
+  + plan-generator update to pick the right set per training day.
+- `onboarding-profile-setup`: in-app tutorial — next slice is a 3-card
+  swipeable post-onboarding tutorial.
+- `onboarding-profile-setup`: more pro tips — next slice is a rotating
+  pro-tips card on the home screen; some content still needed from user.
+
+### Not done by design
+- `admin-panel` "force-show-password" — passwords are scrypt-hashed and not
+  retrievable. Forcing a reset is the right primitive; revealing existing
+  passwords is impossible without breaking auth security. Documented in
+  the item's notes.
+
+---
+
 ## QA pass · 2026-05-21 — `01da6f1` + dashboard upgrades
 
 ### Addressed

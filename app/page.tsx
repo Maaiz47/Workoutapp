@@ -1198,6 +1198,74 @@ function PasswordInput({
   );
 }
 
+// ─── PROFILE NAG BANNER ─────────────────────────────────────────────────
+// Shows at the top of the home screen if any required profile fields are
+// missing. Cooldowns: body-fat is nagged at most every 7 days, other fields
+// every 1 day. Dismissal state lives in localStorage, no DB field needed.
+function ProfileNagBanner({
+  ob, onGoToSettings,
+}: {
+  ob: { bodyFatPct?: string; heightCm?: string; weightKg?: string; gender?: string; dob?: string };
+  onGoToSettings: () => void;
+}) {
+  const [tick, setTick] = useState(0); // force re-render after dismiss
+  const missing: { key: string; label: string; cooldownMs: number }[] = [];
+  if (!ob.dob)        missing.push({ key: "dob",        label: "date of birth",  cooldownMs: 1  * 24 * 3600 * 1000 });
+  if (!ob.gender)     missing.push({ key: "gender",     label: "gender",         cooldownMs: 1  * 24 * 3600 * 1000 });
+  if (!ob.heightCm)   missing.push({ key: "heightCm",   label: "height",         cooldownMs: 1  * 24 * 3600 * 1000 });
+  if (!ob.weightKg)   missing.push({ key: "weightKg",   label: "weight",         cooldownMs: 1  * 24 * 3600 * 1000 });
+  if (!ob.bodyFatPct) missing.push({ key: "bodyFatPct", label: "body fat %",     cooldownMs: 7  * 24 * 3600 * 1000 });
+  if (missing.length === 0) return null;
+
+  // Find the soonest field that's eligible to nag right now.
+  let visible: typeof missing[0] | null = null;
+  for (const m of missing) {
+    try {
+      const last = parseInt(localStorage.getItem(`nag-${m.key}`) || "0", 10);
+      if (Date.now() - last >= m.cooldownMs) { visible = m; break; }
+    } catch { visible = m; break; }
+  }
+  if (!visible) return null;
+
+  const dismiss = () => {
+    try { localStorage.setItem(`nag-${visible!.key}`, String(Date.now())); } catch {}
+    setTick(t => t + 1);
+  };
+
+  // Distinct copy when only body fat is missing — different cadence, lower urgency.
+  const onlyBf = missing.length === 1 && visible.key === "bodyFatPct";
+  return (
+    <div style={{ padding: "10px 16px 0" }}>
+      <div style={{
+        background: "rgba(255,107,107,0.07)",
+        border: "1px solid rgba(255,107,107,0.25)",
+        borderRadius: 12, padding: "12px 14px",
+        display: "flex", alignItems: "center", gap: 12,
+      }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, color: "#fff", fontWeight: 600, marginBottom: 2 }}>
+            {onlyBf ? "Add your body fat %" : `Finish your profile (${missing.length} item${missing.length === 1 ? "" : "s"} missing)`}
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+            {onlyBf
+              ? "Optional, but makes progress tracking sharper."
+              : `Missing: ${missing.slice(0, 3).map(m => m.label).join(", ")}${missing.length > 3 ? "…" : ""}`}
+          </div>
+        </div>
+        <button onClick={onGoToSettings} style={{
+          padding: "8px 12px", background: "rgba(255,107,107,0.9)", border: "none",
+          borderRadius: 8, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: 1,
+          fontFamily: "'Space Mono', monospace", cursor: "pointer", whiteSpace: "nowrap",
+        }}>FIX</button>
+        <button onClick={dismiss} aria-label="Dismiss" style={{
+          padding: "8px 10px", background: "transparent", border: "none",
+          color: "rgba(255,255,255,0.4)", fontSize: 16, cursor: "pointer",
+        }}>✕</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── SEND FEEDBACK CARD ─────────────────────────────────────────────────
 // Lives in the Settings view. Lets any logged-in user file a short note that
 // gets stored as a QAComment with their userId attached. Claude picks it up
@@ -2970,9 +3038,13 @@ function HomePage() {
         {/* Step 0: Welcome */}
         {onboardingStep === 0 && (
           <div key={onboardingStep} className={obAnimClass}>
-            <div style={{ position: "relative", margin: "-12px -20px 24px", borderRadius: 16, overflow: "hidden", aspectRatio: "3 / 4", maxHeight: 320 }}>
-              <img src="/ai/onboarding-welcome.jpg" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.55) 0%, rgba(10,10,15,0) 30%, rgba(10,10,15,0) 60%, rgba(10,10,15,0.95) 100%)" }} />
+            <div style={{ position: "relative", margin: "-12px -20px 24px", borderRadius: 16, overflow: "hidden", aspectRatio: "2 / 3", maxHeight: 360 }}>
+              <img
+                src="/ai/onboarding-welcome.jpg"
+                alt=""
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 35%" }}
+              />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.45) 0%, rgba(10,10,15,0) 35%, rgba(10,10,15,0) 55%, rgba(10,10,15,0.98) 100%)" }} />
             </div>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 32, fontWeight: 700, color: "#fff", marginBottom: 8 }}>IRON<span style={{ color: "#FF6B6B" }}>LOG</span></div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Let's build your plan.</div>
@@ -3692,6 +3764,7 @@ function HomePage() {
           </div>
         </div>
       )}
+      <ProfileNagBanner ob={ob} onGoToSettings={() => setView("settings")} />
       <div style={{ padding: "20px 16px 0", position: "relative", zIndex: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
