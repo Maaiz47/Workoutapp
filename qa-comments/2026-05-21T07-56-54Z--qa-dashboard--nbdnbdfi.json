@@ -1,0 +1,10 @@
+{
+  "id": "cmpf76c900000rbocnbdnbdfi",
+  "itemId": "qa-dashboard",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "Clearer status to show this function is being retested after a test, and show the number of times it’s been tested and retested next to the status with the most recent date",
+  "screenshotUrl": null,
+  "ts": "2026-05-21T07:56:54.274Z"
+}
