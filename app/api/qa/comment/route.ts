@@ -53,10 +53,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Fire-and-forget: mirror the comment into the repo so Claude can git pull
-    // and read it later. Doesn't block the response; silently no-ops if the
-    // GH_QA_TOKEN / GH_QA_REPO env vars aren't set.
-    mirrorCommentToRepo(row).catch(() => {});
+    // Mirror the comment into the repo so Claude can git pull and read it.
+    // Must AWAIT here — Vercel terminates the serverless function as soon as
+    // the response is sent, which kills any unawaited in-flight fetch and
+    // silently drops the mirror. The added latency is ~200-500ms but the
+    // loop becomes reliable. Mirror failures are swallowed so a GitHub
+    // outage never fails a user-facing submit.
+    try { await mirrorCommentToRepo(row); } catch (e) { console.error("mirror failed:", e); }
 
     return NextResponse.json({ ok: true, id: row.id, ts: row.ts });
   } catch (e: any) {
