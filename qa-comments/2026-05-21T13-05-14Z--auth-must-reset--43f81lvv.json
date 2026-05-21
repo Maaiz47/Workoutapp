@@ -1,0 +1,10 @@
+{
+  "id": "cmpfi6uvr0000soon43f81lvv",
+  "itemId": "auth-must-reset",
+  "tester": "Amanii",
+  "userId": null,
+  "status": "failing",
+  "note": "Admin panel says reset password required but can’t log in because no prompt to put new password, it just tries to ask for password like normal",
+  "screenshotUrl": null,
+  "ts": "2026-05-21T13:05:14.173Z"
+}
