@@ -62,6 +62,46 @@ their own athlete tier alongside their trainer tier.
 
 ---
 
+## Feature · 2026-05-21 — Group shared workout Slice 2/N: trainer + member UI (qa: group-shared-workout)
+
+### Added
+- **Trainer 🏋 SHARED WORKOUT panel** inside each active group's
+  management modal (Leaderboard tab). When no workout is set: tap
+  `+ SET GROUP WORKOUT` → name/description form → SET pushes the
+  trainer's current `customPlan` as the routine. When one is set:
+  shows `↺ SYNC TO MY PLAN` (re-push the trainer's current plan,
+  useful for updates) and `REMOVE` (DELETE — past tagged WorkoutLogs
+  keep null groupWorkoutId via FK SetNull, so user history stays
+  intact, they just stop counting in the filtered leaderboard).
+- **Pre-fetch on group panel open** — opening any group's manage
+  panel hits GET /api/leaderboard/groups/[id]/workout once and caches
+  the response so the SET vs EDIT state is correct without an extra
+  tap.
+- **Member 🏋 GROUP ROUTINE banner** on My Leaderboards card —
+  shown only for groups that have a workout. APPLY button (or
+  ✓ APPLIED · LEAVE if already activated) wired to POST/DELETE
+  /api/leaderboard/groups/[id]/workout/apply.
+- **ALL SESSIONS / 🏋 GROUP ONLY toggle** per group leaderboard
+  card. When 🏋 GROUP ONLY is on, only members with an activated
+  subscription appear, and the sessions/IP columns show
+  `groupSessions`/`groupIntensity` (sessions tagged with that
+  group's workout via /api/workout POST).
+
+### Files
+- `app/page.tsx` — added 7 new state slots
+  (openGroupWorkoutId, groupWorkoutCache, groupWorkoutLoading,
+  groupWorkoutSaving, groupWorkoutName, groupWorkoutDesc,
+  lbGroupOnly); trainer SET WORKOUT panel; member APPLY banner;
+  filter toggle + sessions cell swap.
+
+### Next slice (3/N)
+- Render the group workout's days alongside the personal plan on
+  Home with a ▣ GROUP badge.
+- Tag the WorkoutLog with `groupWorkoutId` at session save when
+  the active day belongs to an activated group workout.
+
+---
+
 ## QA-design review · 2026-05-21 — Micro-testing + commenting along the way + Settings reorg (qa: quick-feedback-fab, settings-send-feedback, settings-reorg)
 
 ### Audit findings

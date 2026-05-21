@@ -3126,6 +3126,18 @@ function HomePage() {
   const [myLeaderboardsLoading, setMyLeaderboardsLoading] = useState(false);
   const [showMyLeaderboards, setShowMyLeaderboards] = useState(false);
   const [pendingGroupInvites, setPendingGroupInvites] = useState<any[]>([]);
+  // Group-workout state: which group's workout panel is open + cached
+  // payload by groupId so the trainer can re-open without re-fetching.
+  const [openGroupWorkoutId, setOpenGroupWorkoutId] = useState<string | null>(null);
+  const [groupWorkoutCache, setGroupWorkoutCache] = useState<Record<string, any>>({});
+  const [groupWorkoutLoading, setGroupWorkoutLoading] = useState(false);
+  const [groupWorkoutSaving, setGroupWorkoutSaving] = useState(false);
+  const [groupWorkoutName, setGroupWorkoutName] = useState("");
+  const [groupWorkoutDesc, setGroupWorkoutDesc] = useState("");
+  // Per-group "filter to group workout" toggle on the My Leaderboards
+  // dashboard. When on, the leaderboard only counts sessions tagged
+  // with the group's workout and only shows members who've activated.
+  const [lbGroupOnly, setLbGroupOnly] = useState<Record<string, boolean>>({});
   // Intensity Points
   const [sessionIP, setSessionIP] = useState(0);
   const [ipToast, setIpToast] = useState<{ msg: string; icon: string } | null>(null);
@@ -6639,7 +6651,20 @@ function HomePage() {
               ) : (
                 lbGroups.map(grp => (
                   <div key={grp.id} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
-                    <div onClick={() => setActiveLbGroup(activeLbGroup?.id === grp.id ? null : grp)} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                    <div onClick={async () => {
+                      const opening = activeLbGroup?.id !== grp.id;
+                      setActiveLbGroup(opening ? grp : null);
+                      // Pre-fetch the group workout on open so trainer/member
+                      // see the right SET / APPLY state without an extra tap.
+                      if (opening && !groupWorkoutCache[grp.id]) {
+                        setGroupWorkoutLoading(true);
+                        try {
+                          const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`);
+                          const data = await res.json();
+                          setGroupWorkoutCache(p => ({ ...p, [grp.id]: data }));
+                        } catch {} finally { setGroupWorkoutLoading(false); }
+                      }
+                    }} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{grp.name}</div>
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{grp.members?.length ?? 0} members · {grp.privacy}</div>
@@ -6838,6 +6863,93 @@ function HomePage() {
                             </div>
                           );
                         })()}
+                        {/* Shared workout — trainer can push their current
+                            plan to every member as the group routine. */}
+                        <div style={{ marginBottom: 14, padding: 12, background: "rgba(240,192,64,0.05)", border: "1px solid rgba(240,192,64,0.18)", borderRadius: 10 }}>
+                          <div style={{ fontSize: 10, color: "#f0c040", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>🏋 SHARED WORKOUT</div>
+                          {(() => {
+                            const cached = groupWorkoutCache[grp.id];
+                            if (groupWorkoutLoading && openGroupWorkoutId === grp.id) {
+                              return <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center", padding: "8px 0" }}>Loading…</div>;
+                            }
+                            if (cached?.workout) {
+                              return (
+                                <>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{cached.workout.name}</div>
+                                  {cached.workout.description && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 6 }}>{cached.workout.description}</div>}
+                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", marginBottom: 10 }}>{(cached.workout.days ?? []).length} day{(cached.workout.days ?? []).length === 1 ? "" : "s"} · members get a ▣ GROUP badge on home</div>
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button onClick={async () => {
+                                      const planSource = customPlan ?? (WORKOUT_DATA as any[]).map((d: any) => ({
+                                        id: d.id, title: d.title, focus: d.focus, color: d.color, gradient: d.gradient,
+                                        exercises: (d.sections ?? []).flatMap((s: any) => s.exercises).filter((e: any) => e.trackable !== false).map((ex: any, j: number) => ({ order: j, exerciseId: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest ?? 60 })),
+                                      }));
+                                      setGroupWorkoutSaving(true);
+                                      try {
+                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: cached.workout.name, description: cached.workout.description, days: planSource }) });
+                                        if (res.ok) {
+                                          const data = await res.json();
+                                          setGroupWorkoutCache(p => ({ ...p, [grp.id]: { workout: { ...data.workout, mySubscription: cached.workout.mySubscription, isTrainer: true } } }));
+                                        }
+                                      } catch {} finally { setGroupWorkoutSaving(false); }
+                                    }} disabled={groupWorkoutSaving} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 7, color: "#4ECDC4", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>{groupWorkoutSaving ? "…" : "↺ SYNC TO MY PLAN"}</button>
+                                    <button onClick={async () => {
+                                      if (!confirm(`Remove the group workout "${cached.workout.name}"? Members' past tagged sessions stay logged but stop counting in the group's filtered ranking.`)) return;
+                                      setGroupWorkoutSaving(true);
+                                      try {
+                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`, { method: "DELETE" });
+                                        if (res.ok) setGroupWorkoutCache(p => ({ ...p, [grp.id]: { workout: null } }));
+                                      } catch {} finally { setGroupWorkoutSaving(false); }
+                                    }} disabled={groupWorkoutSaving} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 7, color: "#FF6B6B", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>REMOVE</button>
+                                  </div>
+                                </>
+                              );
+                            }
+                            // No workout set yet — show form.
+                            if (openGroupWorkoutId === grp.id) {
+                              return (
+                                <>
+                                  <input value={groupWorkoutName} onChange={e => setGroupWorkoutName(e.target.value)} placeholder="Workout name (e.g. PPL Hypertrophy)" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "#fff", fontSize: 12, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 6 }} />
+                                  <input value={groupWorkoutDesc} onChange={e => setGroupWorkoutDesc(e.target.value)} placeholder="Description (optional)" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "#fff", fontSize: 12, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
+                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginBottom: 8, lineHeight: 1.5 }}>Pushes your current plan as the shared routine. Every member is auto-subscribed; they tap APPLY in their app to start counting toward the filtered group ranking.</div>
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button onClick={() => { setOpenGroupWorkoutId(null); setGroupWorkoutName(""); setGroupWorkoutDesc(""); }} style={{ flex: 1, padding: "8px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.6)", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>CANCEL</button>
+                                    <button onClick={async () => {
+                                      if (!groupWorkoutName.trim()) return;
+                                      const planSource = customPlan ?? (WORKOUT_DATA as any[]).map((d: any) => ({
+                                        id: d.id, title: d.title, focus: d.focus, color: d.color, gradient: d.gradient,
+                                        exercises: (d.sections ?? []).flatMap((s: any) => s.exercises).filter((e: any) => e.trackable !== false).map((ex: any, j: number) => ({ order: j, exerciseId: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest ?? 60 })),
+                                      }));
+                                      setGroupWorkoutSaving(true);
+                                      try {
+                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: groupWorkoutName.trim(), description: groupWorkoutDesc.trim() || undefined, days: planSource }) });
+                                        if (res.ok) {
+                                          const data = await res.json();
+                                          setGroupWorkoutCache(p => ({ ...p, [grp.id]: { workout: { ...data.workout, isTrainer: true } } }));
+                                          setOpenGroupWorkoutId(null); setGroupWorkoutName(""); setGroupWorkoutDesc("");
+                                        }
+                                      } catch {} finally { setGroupWorkoutSaving(false); }
+                                    }} disabled={groupWorkoutSaving || !groupWorkoutName.trim()} style={{ flex: 1, padding: "8px", background: groupWorkoutName.trim() ? "rgba(240,192,64,0.18)" : "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.35)", borderRadius: 7, color: "#f0c040", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: groupWorkoutName.trim() ? "pointer" : "not-allowed", letterSpacing: 1, opacity: groupWorkoutName.trim() ? 1 : 0.5 }}>{groupWorkoutSaving ? "…" : "SET WORKOUT"}</button>
+                                  </div>
+                                </>
+                              );
+                            }
+                            return (
+                              <>
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>No shared workout yet — push one routine to the whole group.</div>
+                                <button onClick={async () => {
+                                  setOpenGroupWorkoutId(grp.id);
+                                  setGroupWorkoutLoading(true);
+                                  try {
+                                    const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`);
+                                    const data = await res.json();
+                                    setGroupWorkoutCache(p => ({ ...p, [grp.id]: data }));
+                                  } catch {} finally { setGroupWorkoutLoading(false); }
+                                }} style={{ width: "100%", padding: "8px", background: "rgba(240,192,64,0.14)", border: "1px solid rgba(240,192,64,0.3)", borderRadius: 7, color: "#f0c040", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>+ SET GROUP WORKOUT</button>
+                              </>
+                            );
+                          })()}
+                        </div>
                         {/* Client member selection */}
                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>CLIENTS IN GROUP</div>
                         <input value={lbGroupClientSearch} onChange={e => setLbGroupClientSearch(e.target.value)} placeholder="Filter clients…" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
@@ -9048,11 +9160,18 @@ function HomePage() {
                         </div>
                       )}
                       {myLeaderboards.map((grp: any) => {
-                        // Re-sort the leaderboard array per mode.
-                        const base = grp.leaderboard ?? [];
+                        const groupOnlyForSort = !!lbGroupOnly[grp.id];
+                        // When the "Group only" filter is on, restrict to
+                        // members who've activated the shared workout.
+                        const baseAll = grp.leaderboard ?? [];
+                        const base = groupOnlyForSort ? baseAll.filter((e: any) => e.groupActivated) : baseAll;
                         let sorted = base;
                         if (lbMode === "sessions") {
-                          sorted = [...base].sort((a: any, b: any) => (b.totalSessions ?? 0) - (a.totalSessions ?? 0));
+                          sorted = [...base].sort((a: any, b: any) => {
+                            const av = groupOnlyForSort ? (a.groupSessions ?? 0) : (a.totalSessions ?? 0);
+                            const bv = groupOnlyForSort ? (b.groupSessions ?? 0) : (b.totalSessions ?? 0);
+                            return bv - av;
+                          });
                         } else if (lbMode === "weight") {
                           sorted = [...base].sort((a: any, b: any) => {
                             const av = a.weightChangeKg, bv = b.weightChangeKg;
@@ -9075,12 +9194,45 @@ function HomePage() {
                             return av - bv;
                           });
                         }
+                        const gw = grp.workout;
+                        const groupOnly = groupOnlyForSort;
                         return (
                           <div key={grp.id} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
                             <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                               <div style={{ fontSize: 14, fontWeight: 700, color: "#FFE66D" }}>{grp.name}</div>
-                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{sorted.length} participants</div>
+                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{sorted.length} participants{gw ? ` · 🏋 ${gw.name}` : ""}</div>
                             </div>
+                            {gw && (
+                              <div style={{ padding: "10px 14px", background: "rgba(240,192,64,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 10 }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>🏋 GROUP ROUTINE</div>
+                                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{gw.name}</div>
+                                  {gw.description && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{gw.description}</div>}
+                                </div>
+                                {gw.myActivated ? (
+                                  <button onClick={async () => {
+                                    if (!confirm("Leave the group workout? Your group ranking pauses until you re-apply.")) return;
+                                    try {
+                                      const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout/apply`, { method: "DELETE" });
+                                      if (res.ok) setMyLeaderboards(prev => prev.map((g: any) => g.id !== grp.id ? g : { ...g, workout: { ...g.workout, myActivated: false } }));
+                                    } catch {}
+                                  }} style={{ padding: "6px 10px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 7, color: "#4ECDC4", fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1, whiteSpace: "nowrap" }}>✓ APPLIED · LEAVE</button>
+                                ) : (
+                                  <button onClick={async () => {
+                                    try {
+                                      const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout/apply`, { method: "POST" });
+                                      if (res.ok) setMyLeaderboards(prev => prev.map((g: any) => g.id !== grp.id ? g : { ...g, workout: { ...g.workout, myActivated: true } }));
+                                    } catch {}
+                                  }} style={{ padding: "6px 12px", background: "rgba(240,192,64,0.16)", border: "1px solid rgba(240,192,64,0.4)", borderRadius: 7, color: "#f0c040", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1, whiteSpace: "nowrap" }}>APPLY</button>
+                                )}
+                              </div>
+                            )}
+                            {gw && (
+                              <div style={{ padding: "8px 14px", background: "rgba(255,255,255,0.015)", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 4 }}>
+                                <button onClick={() => setLbGroupOnly(p => ({ ...p, [grp.id]: false }))} style={{ flex: 1, padding: "4px 0", background: !groupOnly ? "rgba(255,230,109,0.12)" : "rgba(255,255,255,0.02)", border: `1px solid ${!groupOnly ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.06)"}`, borderRadius: 6, color: !groupOnly ? "#FFE66D" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>ALL SESSIONS</button>
+                                <button onClick={() => setLbGroupOnly(p => ({ ...p, [grp.id]: true }))} style={{ flex: 1, padding: "4px 0", background: groupOnly ? "rgba(240,192,64,0.14)" : "rgba(255,255,255,0.02)", border: `1px solid ${groupOnly ? "rgba(240,192,64,0.35)" : "rgba(255,255,255,0.06)"}`, borderRadius: 6, color: groupOnly ? "#f0c040" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>🏋 GROUP ONLY</button>
+                              </div>
+                            )}
                             {sorted.map((entry: any, idx: number) => {
                               const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : null;
                               const isMe = entry.userId === user.id;
@@ -9098,8 +9250,8 @@ function HomePage() {
                                 return (
                                   <div key={entry.userId} style={{ ...rowBase, gridTemplateColumns: "28px 1fr 48px 48px" }}>
                                     {nameBlock}
-                                    <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{entry.totalSessions ?? 0}</div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>sess</div></div>
-                                    <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: (entry.totalIntensityPoints ?? 0) > 0 ? "#FFE66D" : "rgba(255,255,255,0.3)" }}>{entry.totalIntensityPoints ?? 0}</div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>⚡ IP</div></div>
+                                    <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: groupOnly ? "#f0c040" : "#fff" }}>{groupOnly ? (entry.groupSessions ?? 0) : (entry.totalSessions ?? 0)}</div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>{groupOnly ? "🏋" : "sess"}</div></div>
+                                    <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: ((groupOnly ? entry.groupIntensity : entry.totalIntensityPoints) ?? 0) > 0 ? "#FFE66D" : "rgba(255,255,255,0.3)" }}>{(groupOnly ? entry.groupIntensity : entry.totalIntensityPoints) ?? 0}</div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>⚡ IP</div></div>
                                   </div>
                                 );
                               }
