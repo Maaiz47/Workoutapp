@@ -2,6 +2,19 @@
 
 ---
 
+## Polish · 2026-05-21 — /qa items sorted by status priority within each area (qa: qa-dashboard)
+
+Items within each area group now order by what's most actionable:
+**UNTESTED → PATCHED · RETEST → FAILING → PASSING**. Secondary
+sort within a bucket is most-recently-tested-first so freshly-
+patched retests bubble to the top. Area headers stay so context
+isn't lost. Matches the tester's mental model — "show me what
+needs a first pass, then what to verify after my patches, then
+the bugs (which should be empty after a QA pass), then the
+confirmed-working stuff at the bottom".
+
+---
+
 ## Fix · 2026-05-21 — Catch-all submissions visible on /qa + processed comments stop reading "FAILING" (qa: qa-dashboard, quick-feedback-fab)
 
 ### Two gaps the user flagged

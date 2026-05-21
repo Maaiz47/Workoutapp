@@ -949,9 +949,40 @@ export default function QAPage() {
          (c.note.toLowerCase().includes(q) || c.tester.toLowerCase().includes(q))))
     : true;
 
-  // Group by area (after filter).
+  // Group by area, then within each area sort items by status
+  // priority so the most actionable surfaces first:
+  //   untested (never touched)
+  //   regression-retest (PATCHED · RETEST — fix shipped, verify)
+  //   failing (live bugs — rare after a QA pass)
+  //   passing (confirmed working, parked at the bottom)
+  // (qa: user request — "all untested issues in qa in order before
+  // retest, then fails then passes")
+  const STATUS_PRIORITY: Record<ItemStatus, number> = {
+    untested: 0,
+    "regression-retest": 1,
+    failing: 2,
+    passing: 3,
+  };
   const grouped = AREAS
-    .map(area => ({ area, items: filteredItems.filter(i => i.area === area) }))
+    .map(area => ({
+      area,
+      items: filteredItems
+        .filter(i => i.area === area)
+        .slice()
+        .sort((a, b) => {
+          const ea = effectiveStatus(a, comments);
+          const eb = effectiveStatus(b, comments);
+          const pa = STATUS_PRIORITY[ea];
+          const pb = STATUS_PRIORITY[eb];
+          if (pa !== pb) return pa - pb;
+          // Secondary sort: most-recently-tested first within a
+          // status bucket so the freshly-patched retest items
+          // bubble to the top of their group.
+          const ta = a.lastTested ? +new Date(a.lastTested) : 0;
+          const tb = b.lastTested ? +new Date(b.lastTested) : 0;
+          return tb - ta;
+        }),
+    }))
     .filter(g => g.items.length > 0);
 
   // Header summary uses the UNFILTERED list — these counts reflect the whole
