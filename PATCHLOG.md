@@ -2,6 +2,31 @@
 
 ---
 
+## Feature · 2026-05-21 (ar) — milestone info overlay + trainers see athlete tier (qa: milestone-info-overlay, tier-trainer-keeps-athlete)
+
+### Added
+- `milestone-info-overlay`: each milestone tile in the Settings
+  achievements wall is now tappable. Opens an info modal with:
+  - **Locked**: greyscale icon, `🔒 LOCKED · CATEGORY` header, full
+    label, and a **`HOW TO UNLOCK`** card containing plain-English
+    unlock criteria.
+  - **Earned**: full-colour icon, gold `✓ ACHIEVED · CATEGORY`
+    header, full label, and the achievement's flavour-text body.
+- Every Milestone definition in `lib/milestones.ts` gained a
+  `requirement` field with plain-English criteria. Anniversaries
+  say "Be on IRONLOG for N days", session/streak/PR ones spell out
+  the count, behaviour milestones cite the feature, tier-ups cite
+  the headline tier score breakpoint.
+
+### Fixed
+- `tier-trainer-keeps-athlete`: athlete tier card on Progress →
+  Dashboard was gated to `role === "user"` — invisible to
+  trainers and admins. Removed the gate so trainers see their
+  *own* training rank too (they train themselves). Still hidden in
+  Pure Mode (de-gamify).
+
+---
+
 ## Feature · 2026-05-21 (aq) — home layout polish + day-card expand animation (qa: home-layout-polish)
 
 ### Changed

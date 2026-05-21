@@ -836,6 +836,41 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "tier-trainer-keeps-athlete",
+      "title": "Trainers see their athlete tier on Progress dashboard too",
+      "area": "Progress",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass tier-trainer-athlete",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Log in as a TRAINER (or admin with the trainer extra-role)",
+        "Open Progress → Dashboard tab",
+        "Verify the athlete tier card now appears (previously hidden because the gate was role === 'user'). Shows the headline animal tier + 5 sub-rank bars + experience badge + 'path to next' callout",
+        "Verify the card reflects the trainer's OWN training history — their own sessions / PRs / volume / mastery / habits — not their clients'",
+        "Verify other role-specific cards (e.g. trainer-only client roster cards in the trainer section) still appear correctly elsewhere",
+        "Toggle Pure Mode ON — verify the athlete tier card hides for the trainer too (same de-gamify treatment)"
+      ],
+      "notes": "[2026-05-21] Removed the `role === 'user'` gate from the athlete tier card so trainers and admins get to see their personal training rank alongside whatever role-specific surfaces they have. Trainers also train; rewarding them for it makes the app feel less like 'two separate apps'. Card is still hidden in Pure Mode for users who opt out of gamification."
+    },
+    {
+      "id": "milestone-info-overlay",
+      "title": "Milestone info overlay — tap a badge to see unlock criteria or earned details",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass milestone-info",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → tap 🏆 ACHIEVEMENTS to expand the wall",
+        "Tap a LOCKED (greyed-out) milestone tile — verify an info overlay opens with: greyscale icon, '🔒 LOCKED · CATEGORY' header, milestone label, a 'HOW TO UNLOCK' card containing the plain-English requirement (e.g. 'Complete 10 lifetime sessions' or 'Train at least once a day for 7 consecutive days'), and a 'TAP ANYWHERE TO CLOSE' hint",
+        "Tap a previously-EARNED (gold) milestone tile — verify the same overlay opens but with: full-colour icon, '✓ ACHIEVED · CATEGORY' header (gold), milestone label, the full flavour-text body shown in the centre",
+        "Tap the backdrop or the ✕ button — verify the overlay closes",
+        "Verify every milestone in MILESTONES (lib/milestones.ts) now has a 'requirement' string — check at least 5 different categories (anniversary, consistency, strength, behaviour, tier) display the right unlock text"
+      ],
+      "notes": "[2026-05-21] Added a `requirement` field to every Milestone definition (plain-English unlock criteria — anniversaries say 'Be on IRONLOG for N days', sessions/streaks/PRs spell out the count, behaviour milestones tell you which feature to use, tier-ups cite the headline tier score breakpoint). Achievement wall tiles are now <button>s opening a modal via setMilestoneInfo state. Modal styled differently for earned vs locked (gold vs grey border, ✓ ACHIEVED vs 🔒 LOCKED header, body vs requirement card). Mounted inside the Settings view return so it can pop over the page without changing view."
+    },
+    {
       "id": "home-layout-polish",
       "title": "Home layout polish — bigger tagline, packed cards, soft fade, card-expand animation",
       "area": "Other",

@@ -2342,6 +2342,10 @@ function HomePage() {
   // inside the overlay actually opens the workout. De-gamify mode skips
   // the animation entirely (instant openDay).
   const [expandingDay, setExpandingDay] = useState<WorkoutDay | null>(null);
+  // Tap-into milestone info modal. Shows full body + earned status OR
+  // the unlock requirement for locked entries. Triggered from the
+  // achievements wall in Settings.
+  const [milestoneInfo, setMilestoneInfo] = useState<{ milestone: Milestone; earned: boolean } | null>(null);
   // Daily pro tip — picked deterministically by date so it stays stable
   // across home reloads, refreshes once per day.
   const [dismissedTodayTip, setDismissedTodayTip] = useState(false);
@@ -7196,6 +7200,44 @@ function HomePage() {
         {/* Tutorial overlay (also mounted on home; here so the Settings
             "Restart Tutorial" button can show it without changing view). */}
         <AnimatePresence>{showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}</AnimatePresence>
+        {/* Milestone info modal — tap a tile in the achievements wall.
+            Earned: full body + ✓ ACHIEVED badge. Locked: 🔒 unlock
+            requirement + greyed icon. Tap backdrop or ✕ to dismiss. */}
+        <AnimatePresence>
+          {milestoneInfo && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMilestoneInfo(null)}
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.86)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 12 }}
+                animate={{ scale: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 240, damping: 22 }}
+                onClick={e => e.stopPropagation()}
+                style={{ maxWidth: 360, width: "100%", background: "#0a0a0a", border: `1px solid ${milestoneInfo.earned ? "rgba(240,192,64,0.45)" : "rgba(255,255,255,0.15)"}`, borderRadius: 18, padding: 24, position: "relative" }}
+              >
+                <button onClick={() => setMilestoneInfo(null)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+                <div style={{ fontSize: 56, lineHeight: 1, marginBottom: 14, textAlign: "center", filter: milestoneInfo.earned ? "drop-shadow(0 4px 12px rgba(240,192,64,0.4))" : "grayscale(1) opacity(0.55)" }}>{milestoneInfo.milestone.icon}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 3, textAlign: "center", marginBottom: 8, fontFamily: "'Space Mono', monospace", color: milestoneInfo.earned ? "#f0c040" : "rgba(255,255,255,0.45)" }}>
+                  {milestoneInfo.earned ? "✓ ACHIEVED" : "🔒 LOCKED"} · {milestoneInfo.milestone.category.toUpperCase()}
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", textAlign: "center", marginBottom: 14, lineHeight: 1.2 }}>{milestoneInfo.milestone.label}</div>
+                {milestoneInfo.earned ? (
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", textAlign: "center", lineHeight: 1.55, marginBottom: 12 }}>{milestoneInfo.milestone.body}</div>
+                ) : (
+                  <div style={{ padding: "12px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, marginBottom: 12 }}>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontWeight: 700, letterSpacing: 2, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>HOW TO UNLOCK</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>{milestoneInfo.milestone.requirement}</div>
+                  </div>
+                )}
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", textAlign: "center", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginTop: 4 }}>TAP ANYWHERE TO CLOSE</div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>ACCOUNT</div>
@@ -7699,11 +7741,16 @@ function HomePage() {
                 {MILESTONES.map(m => {
                   const got = achieved.has(m.id);
                   return (
-                    <div key={m.id} style={{ padding: "10px 8px", background: got ? "rgba(240,192,64,0.1)" : "rgba(255,255,255,0.02)", border: `1px solid ${got ? "rgba(240,192,64,0.35)" : "rgba(255,255,255,0.06)"}`, borderRadius: 8, textAlign: "center", opacity: got ? 1 : 0.5 }}>
+                    <button
+                      key={m.id}
+                      onClick={() => setMilestoneInfo({ milestone: m, earned: got })}
+                      style={{ padding: "10px 8px", background: got ? "rgba(240,192,64,0.1)" : "rgba(255,255,255,0.02)", border: `1px solid ${got ? "rgba(240,192,64,0.35)" : "rgba(255,255,255,0.06)"}`, borderRadius: 8, textAlign: "center", opacity: got ? 1 : 0.55, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+                      title={got ? "Tap for details" : "Tap to see how to unlock"}
+                    >
                       <div style={{ fontSize: 24, filter: got ? "none" : "grayscale(1) opacity(0.4)" }}>{m.icon}</div>
                       <div style={{ fontSize: 9, fontWeight: 700, color: got ? "#f0c040" : "rgba(255,255,255,0.4)", marginTop: 4, lineHeight: 1.2 }}>{m.label}</div>
                       {got && <div style={{ fontSize: 8, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{m.body.slice(0, 60)}{m.body.length > 60 ? "…" : ""}</div>}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -7822,7 +7869,10 @@ function HomePage() {
                 · Volume · Mastery). Plus an experience badge that auto-
                 progresses from the user's training history once the
                 onboarding-recorded level expires (6 months). */}
-            {user.role === "user" && !deGamified && (() => {
+            {/* Athlete tier card — visible to ALL roles (user, trainer,
+                admin) because trainers also train themselves. Hidden
+                only in Pure Mode. Previously gated to role === "user". */}
+            {!deGamified && (() => {
               const distinctEx = new Set<string>();
               for (const dayId in history) for (const s of history[dayId]) {
                 const sets = (s.sets ?? {}) as Record<string, any>;
