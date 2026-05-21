@@ -836,6 +836,42 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "workout-plate-calculator",
+      "title": "Plate calculator hint on barbell exercises",
+      "area": "Workout",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-D",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout. Expand a BARBELL exercise (e.g. Barbell Bench Press).",
+        "Enter a weight like 60kg — verify a small teal '🏋 BAR + 20 per side' hint appears under the weight input",
+        "Try 100kg — verify '🏋 BAR + 20 + 20 per side' or similar valid combination",
+        "Try 22.5kg — verify '🏋 BAR + 1.25 per side' (or note shortfall if not representable)",
+        "Try a DUMBBELL exercise — verify NO plate hint appears (it's noise on non-barbell loads)",
+        "Try a MACHINE exercise — verify no plate hint",
+        "Try a bodyweight exercise — verify no plate hint",
+        "Try entering a weight < 20kg on a barbell exercise — verify no hint (you'd be empty-barring or less)"
+      ],
+      "notes": "[2026-05-21] lib/plates.ts: calcPlates() greedy-fits standard kg plates (25/20/15/10/5/2.5/1.25) per side assuming a 20kg Olympic bar. loadingKindFor(equipment) determines barbell vs dumbbell vs machine vs bodyweight. Hint rendered under the weight input only when equipment includes 'barbell' AND weight >= 20kg."
+    },
+    {
+      "id": "workout-music-launcher",
+      "title": "Music quick-launch chip in workout header",
+      "area": "Workout",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-D",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout — verify a small green '♪ MUSIC' chip sits in the header next to QUIT ×",
+        "Tap it on a device with Spotify installed — verify Spotify opens (deep link spotify:)",
+        "Tap it on a device WITHOUT Spotify installed — verify open.spotify.com opens as a fallback (400ms backup timer)",
+        "Verify the chip doesn't crowd the header on narrow phone widths"
+      ],
+      "notes": "[2026-05-21] Tiny chip that does a spotify: deep link with a 400ms fallback timer to window.open('https://open.spotify.com', '_blank'). Most modern browsers swallow scheme failures silently so the fallback always fires; on Spotify-installed devices the app intercepts the scheme first and the fallback opens an extra tab (mildly noisy, acceptable for now)."
+    },
+    {
       "id": "athlete-tier-redesign",
       "title": "Athlete tier — multi-dim ladder with experience badge",
       "area": "Progress",

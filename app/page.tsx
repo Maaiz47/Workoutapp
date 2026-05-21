@@ -16,6 +16,7 @@ import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTa
 import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown } from "../lib/tiers";
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone } from "../lib/milestones";
+import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -8378,6 +8379,19 @@ function HomePage() {
                   recommended pairings, in-session OR library partners,
                   SESSION vs ROUTINE save). The old button only redirected
                   to the customise screen, which is redundant. */}
+              {/* Music quick-launch — deep links into Spotify if installed,
+                  else opens Spotify web. Tiny chip, doesn't crowd the header. */}
+              <a
+                href="spotify:"
+                onClick={(e) => {
+                  // Fallback to web if scheme doesn't resolve. Most modern
+                  // browsers swallow scheme failures silently; we wait a
+                  // tick then nudge to the web player as a backup.
+                  setTimeout(() => { try { window.open("https://open.spotify.com", "_blank"); } catch {} }, 400);
+                }}
+                style={{ background: "rgba(30,215,96,0.08)", border: "1px solid rgba(30,215,96,0.3)", borderRadius: 6, padding: "5px 8px", color: "#1ed760", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer", textDecoration: "none" }}
+                title="Open your music app — Spotify deep link, falls back to web"
+              >♪ MUSIC</a>
               <button onClick={abandonWorkout} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.45)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>QUIT ×</button>
             </div>
           </div>
@@ -8741,6 +8755,21 @@ function HomePage() {
                                 <button onClick={() => setWInput(String((parseFloat(wInput) || 0) + 1.25))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                               </div>
                               {wDiff(parseFloat(wInput))}
+                              {(() => {
+                                // Plate calculator hint — only useful for
+                                // barbell lifts. Dumbbell/machine/bodyweight
+                                // skip the breakdown (would just be noise).
+                                const lib = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
+                                const kind = loadingKindFor(lib?.equipment ?? []);
+                                const w = parseFloat(wInput);
+                                if (kind !== "barbell" || !w || w < 20) return null;
+                                const load = calcPlates(w, 20);
+                                return (
+                                  <div style={{ fontSize: 9, color: "rgba(78,205,196,0.85)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, marginTop: 6, padding: "4px 8px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 5 }}>
+                                    🏋 BAR + {formatPlateLabel(load).toUpperCase()}{load.shortfall > 0 ? ` (${load.shortfall}KG SHORT)` : ""}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           )}
                           <div style={{ flex: 1, minWidth: 0 }}>

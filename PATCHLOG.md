@@ -2,6 +2,22 @@
 
 ---
 
+## Feature · 2026-05-21 (aj) — Slice D: plate calculator + music launcher (qa: workout-plate-calculator, workout-music-launcher)
+
+### Added
+- `workout-plate-calculator`: under the weight input on barbell
+  exercises, a teal `🏋 BAR + 20 + 10 + 2.5 PER SIDE` hint
+  shows the plate stack you need. `lib/plates.ts` greedy-fits the
+  standard kg plate set (25/20/15/10/5/2.5/1.25) per side, assuming
+  a 20kg bar. Hides on dumbbell / machine / bodyweight exercises
+  where the breakdown is noise.
+- `workout-music-launcher`: small green `♪ MUSIC` chip in the active
+  workout header (next to QUIT ×). Deep-links to Spotify
+  (`spotify:`) with a 400ms fallback to `open.spotify.com` so it
+  works whether the app is installed or not.
+
+---
+
 ## Feature · 2026-05-21 (ai) — multi-dim tier redesign + experience auto-progression + milestones + experience-tuned deload (qa: athlete-tier-redesign, milestones-celebrations)
 
 ### Added
