@@ -2,6 +2,24 @@
 
 ---
 
+## Fix · 2026-05-21 (v) — iOS PWA refresh-to-black after "REFRESH NOW" (qa: settings-version-check)
+
+### Fixed
+- `settings-version-check`: REFRESH NOW left the iOS PWA on a black
+  screen until the user swiped the viewport to wake it up. Known iOS
+  PWA quirk where `location.reload()` in standalone mode can suspend
+  the page until a touch event. Replaced with
+  `location.replace(currentUrl + "?_v=" + Date.now())` — iOS treats
+  this as a fresh navigation and renders cleanly, no manual swipe
+  needed.
+- While we're here: REFRESH NOW now also posts `{ type: "SKIP_WAITING" }`
+  to any waiting service worker. `public/sw.js` gained a message
+  handler that calls `self.skipWaiting()` on that signal so the new
+  bundle activates on the next page load instead of waiting through
+  the usual SW staleness window.
+
+---
+
 ## Polish · 2026-05-21 (u) — user-facing `v1.0.N` version label (qa: settings-version-check)
 
 ### Changed

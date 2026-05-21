@@ -1415,17 +1415,31 @@ function VersionCheckCard() {
   };
 
   const refreshNow = async () => {
-    // Kick the service worker so the next load fetches the new bundle, then
-    // reload. If there's no SW (e.g. dev), the reload alone is enough.
+    // Kick the service worker so the next load sees the new bundle. iOS
+    // PWAs sometimes hang on a black screen after location.reload() until
+    // a user gesture wakes the page up — using location.replace() with a
+    // cache-busting query forces a fresh navigation entry which iOS
+    // handles cleanly.
     try {
       if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
         const reg = await navigator.serviceWorker.getRegistration();
-        if (reg) await reg.update();
+        if (reg) {
+          await reg.update();
+          // If a new SW is waiting, tell it to activate immediately.
+          if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
       }
     } catch {}
     try {
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("_v", String(Date.now()));
+        window.location.replace(url.toString());
+      }
+    } catch {
+      // Fallback to a plain reload if URL manipulation fails.
       if (typeof window !== "undefined") window.location.reload();
-    } catch {}
+    }
   };
 
   return (

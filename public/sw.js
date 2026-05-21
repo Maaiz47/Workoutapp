@@ -29,6 +29,12 @@ self.addEventListener("push", (event) => {
 
 // Listen for messages from the app to show notifications
 self.addEventListener("message", (event) => {
+  // App requested an immediate SW activation (used by the "Check for
+  // updates" → Refresh Now flow so the next page load uses the new bundle).
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+    return;
+  }
   if (event.data && event.data.type === "REST_DONE") {
     self.registration.showNotification("IRONLOG", {
       body: "Rest over — time for your next set 💪",
