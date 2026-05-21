@@ -725,7 +725,7 @@ export default function QAPage() {
   // greets a known tester as a stranger with an empty record.
   // Bumping the version forces every active session to see Doppo again
   // with the corrected dialogue lookup.
-  const SS_MASCOT_KEY = "qa-doppo-seen-v2";
+  const SS_MASCOT_KEY = "qa-doppo-seen-v3";
   useEffect(() => {
     if (loading || !authChecked) return;
     try {

@@ -2,6 +2,32 @@
 
 ---
 
+## Fix · 2026-05-21 (m) — Doppo: comments load, mascot stops drifting (qa: qa-mascot-splash)
+
+### Fixed
+- `qa-mascot-splash`: the (l) "fix" was itself broken. Adding
+  `user: { select: ... }` to the `prisma.qAComment.findMany` failed
+  at runtime because `QAComment` has no schema-level `@relation` to
+  `User` — the call threw and the comments endpoint returned 500.
+  That's why the dashboard counts (visible behind the splash) were
+  all zeros and Doppo greeted every tester as a STRANGER with an
+  EMPTY record.
+  - Reverted the broken prisma join.
+  - Replaced with manual batched enrichment in the route handler:
+    fetch rows → collect distinct userIds → one
+    `prisma.user.findMany({ where: { id: { in: ... } } })` → merge
+    the user object onto each comment. No schema migration risk.
+- `qa-mascot-splash`: speech bubble was growing line-by-line during
+  the typewriter, shoving the mascot upward each time. Fixed by
+  reserving vertical space for every line in the chosen arc up-front
+  via `minHeight: calc(N * 1.55em + (N-1)*4px)` on the dialogue
+  container — the bubble height locks from frame 1 and the mascot
+  stays anchored.
+- Bumped sessionStorage key to `qa-doppo-seen-v3` so every active
+  session sees the corrected greeting + stable layout.
+
+---
+
 ## Fix · 2026-05-21 (l) — Doppo recognises returning testers (qa: qa-mascot-splash)
 
 ### Fixed

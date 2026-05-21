@@ -192,8 +192,11 @@ export default function MascotSplash(props: MascotProps) {
 
         <div style={{
           fontSize: 15, lineHeight: 1.55, fontWeight: 600,
-          minHeight: 84,
           fontFamily: "'DM Sans', sans-serif",
+          // Reserve vertical space for every line in the chosen arc up-front
+          // so the bubble height is locked from frame 1. Without this, each
+          // typed line grows the bubble and pushes the mascot upward.
+          minHeight: `calc(${lines.length} * 1.55em + ${Math.max(0, lines.length - 1) * 4}px)`,
         }}>
           {lines.slice(0, lineIdx).map((l, i) => (
             <div key={i} style={{ marginBottom: 4 }}>{l}</div>

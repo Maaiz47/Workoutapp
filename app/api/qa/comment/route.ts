@@ -79,16 +79,28 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, itemId: true, tester: true, userId: true, status: true,
       note: true, screenshotUrl: true, ts: true, processed: true,
-      // Include the user join so the dashboard can group comments by
-      // username (not just by the raw `tester` string). Without this the
-      // leaderboard treats every logged-in user as a GUEST and Doppo
-      // can't find them by their handle.
-      user: { select: { username: true, email: true, role: true } },
     },
   });
+
+  // Enrich with user data so the dashboard can group comments by username
+  // (not just by the raw `tester` string). Done as a manual batched fetch
+  // rather than a prisma `user` join because QAComment doesn't have a
+  // schema-level @relation to User — adding one mid-deploy risks an FK
+  // migration failure on any orphaned userIds.
+  const userIds = Array.from(new Set(rows.map((r: any) => r.userId).filter(Boolean)));
+  const users = userIds.length > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: userIds as string[] } },
+        select: { id: true, username: true, email: true, role: true },
+      })
+    : [];
+  const userMap = new Map(users.map((u: any) => [u.id, u]));
+
   const processedMap = await readProcessedManifest();
-  const comments = rows.map((c: any) => processedMap[c.id]
-    ? { ...c, processed: true }
-    : c);
+  const comments = rows.map((c: any) => ({
+    ...c,
+    user: c.userId ? (userMap.get(c.userId) || null) : null,
+    processed: processedMap[c.id] ? true : c.processed,
+  }));
   return NextResponse.json({ comments });
 }
