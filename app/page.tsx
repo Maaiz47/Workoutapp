@@ -2651,14 +2651,17 @@ const VIEW_TO_AREA: Record<string, string> = {
   bodyTracker: "Body",
 };
 
-type QuickStatus = "bug" | "idea" | "works";
+// The floating Quick Note pill is for reporting issues only — bug or
+// idea. To mark something as ✓ WORKING, testers use the full /qa
+// dashboard's per-item form. (qa: user feedback — "we don't need a
+// passing status on the floating button")
+type QuickStatus = "bug" | "idea";
 const QUICK_STATUSES: Array<{
   key: QuickStatus; label: string; icon: string;
-  color: string; bg: string; mapsTo: "failing" | "untested" | "passing";
+  color: string; bg: string; mapsTo: "failing" | "untested";
 }> = [
   { key: "bug",   label: "BUG",   icon: "🐞", color: "#FF6B6B", bg: "rgba(255,107,107,0.12)", mapsTo: "failing"  },
   { key: "idea",  label: "IDEA",  icon: "💡", color: "#FFD700", bg: "rgba(255,215,0,0.12)",   mapsTo: "untested" },
-  { key: "works", label: "WORKS", icon: "✓",  color: "#4caf50", bg: "rgba(76,175,80,0.12)",   mapsTo: "passing"  },
 ];
 
 // localStorage key for the per-user "show the floating Quick Note pill"
@@ -3094,9 +3097,59 @@ function TierInfoModal({
           borderRadius: 10,
           fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.55,
         }}>
-          Want the full breakdown — sub-rank bars, path-to-next, what feeds your
-          headline score? Open <strong>Progress → Dashboard</strong> for the athlete
-          ladder details. Trainer breakdown is coming next.
+          Want the per-stat detail (your current sub-rank bars and the
+          weakest dimension to focus next)? Open <strong>Progress →
+          Dashboard</strong> — same ladder, full breakdown.
+        </div>
+
+        {/* How to earn points — explicit recipe per sub-rank so the
+            tester can answer "how do I move up?" without leaving the
+            modal. Was previously vague — points appeared but the
+            user had no idea what fed them. (qa: user-feedback —
+            maaiz: "Progress and dashboard tier details still doesn't
+            explain how to get more points and how much") */}
+        <div style={{
+          marginTop: 10, padding: "12px 14px",
+          background: "rgba(240,192,64,0.04)",
+          border: "1px solid rgba(240,192,64,0.2)",
+          borderRadius: 12,
+          fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.5,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#f0c040", fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>
+            ⚡ HOW TO EARN ATHLETE POINTS
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 10, lineHeight: 1.45 }}>
+            Your 0–100 headline score is the average of 5 sub-ranks.
+            Each sub-rank tops out at 100 — push any one up to lift
+            the headline.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {[
+              { icon: "🔁", name: "Consistency", what: "Total sessions logged + current streak", hit80: "100 sessions OR a 14-day streak gets you ~80 here" },
+              { icon: "💪", name: "Strength",    what: "Personal bests on tracked lifts",        hit80: "~30 distinct PRs → ~80" },
+              { icon: "📈", name: "Volume",      what: "Lifetime kg × reps",                    hit80: "~100k kg-reps lifetime → ~80" },
+              { icon: "🏆", name: "Mastery",     what: "Distinct exercises you've trained",    hit80: "~25 different exercises → ~80" },
+              { icon: "💧", name: "Habits",      what: "Daily hydration goal-hits + sleep + energy log entries (last 14 days)", hit80: "Hit your daily water target ~10 days in a row → ~80" },
+            ].map(s => (
+              <div key={s.name} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 16, lineHeight: 1.2, flexShrink: 0 }}>{s.icon}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{s.name}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.4, marginTop: 1 }}>{s.what}</div>
+                  <div style={{ fontSize: 10, color: "rgba(240,192,64,0.85)", letterSpacing: 0.5, marginTop: 2, fontFamily: "'Space Mono', monospace" }}>{s.hit80}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{
+            marginTop: 10, paddingTop: 8, borderTop: "1px dashed rgba(255,255,255,0.1)",
+            fontSize: 10, color: "rgba(255,255,255,0.4)", lineHeight: 1.5,
+          }}>
+            Curve uses diminishing returns — early gains move you quickly, the
+            last few points are the hardest. The "+N PTS → next" number on the
+            progress bar is your raw shortfall on the headline (0–100), not the
+            sub-rank.
+          </div>
         </div>
       </div>
     </>
@@ -3632,6 +3685,10 @@ function HomePage() {
     dob: "", gender: "", heightCm: "", weightKg: "", bodyFatPct: "",
     goals: [] as string[], targetAreas: [] as string[], fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
     modalities: [] as string[],
+    // Target session duration (minutes). Default 45 = "Standard". Used
+    // by planGenerator (slice 2) to pick supersets / drop sets / HIIT
+    // when the window is tight.
+    targetSessionMinutes: 45 as number,
   });
   const [rebuildMode, setRebuildMode] = useState(false);
 
@@ -3900,6 +3957,7 @@ function HomePage() {
           equipment: p.equipment || [],
           daysPerWeek: p.daysPerWeek || 4,
           modalities: (p as any).modalities ?? [],
+          targetSessionMinutes: (p as any).targetSessionMinutes ?? 45,
         });
         if (p.targetWeightKg) setGoalWeight(p.targetWeightKg.toString());
         if (p.targetBodyFatPct) setGoalBf(p.targetBodyFatPct.toString());
@@ -5346,7 +5404,27 @@ function HomePage() {
           <div key={onboardingStep} className={obAnimClass}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>ABOUT YOU</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 28 }}>When were you born?</div>
-            <input type="date" value={ob.dob} onChange={e => setOb(o => ({ ...o, dob: e.target.value }))} style={{ ...obInput, marginBottom: 24, colorScheme: "dark" }} />
+            <input
+              type="date"
+              value={ob.dob}
+              onChange={e => setOb(o => ({ ...o, dob: e.target.value }))}
+              style={{
+                ...obInput,
+                marginBottom: 24,
+                colorScheme: "dark",
+                // iOS Safari's native date input has internal padding for
+                // the picker + clear icons that can push the control past
+                // its container. Strip the native appearance, force the
+                // box to shrink with the parent (`minWidth: 0`), and
+                // hard-cap with `maxWidth` so the date never overflows
+                // on narrow phones. (qa: auth-register)
+                WebkitAppearance: "none",
+                appearance: "none",
+                minWidth: 0,
+                maxWidth: "100%",
+                display: "block",
+              }}
+            />
             <div style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", marginBottom: 12 }}>Gender</div>
             {["Male", "Female", "Other"].map(g => (
               <div key={g} style={selCard(ob.gender === g.toLowerCase())} onClick={() => setOb(o => ({ ...o, gender: g.toLowerCase() }))}>
@@ -5557,15 +5635,52 @@ function HomePage() {
           <div key={onboardingStep} className={obAnimClass}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, marginBottom: 8 }}>SCHEDULE</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", marginBottom: 8 }}>How many days per week?</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 32 }}>We'll recommend the optimal split for your schedule and goal.</div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 24 }}>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>We'll recommend the optimal split for your schedule and goal.</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
               {[2,3,4,5,6].map(d => (
                 <div key={d} onClick={() => setOb(o => ({ ...o, daysPerWeek: d }))} style={{ flex: 1, minWidth: 52, padding: "18px 0", textAlign: "center", borderRadius: 12, border: `1px solid ${ob.daysPerWeek === d ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, background: ob.daysPerWeek === d ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)", cursor: "pointer", color: ob.daysPerWeek === d ? "#FF6B6B" : "#fff", fontWeight: 700, fontSize: 20 }}>
                   {d}
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", marginBottom: 8 }}>days per week</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", marginBottom: 28 }}>days per week</div>
+
+            {/* Target session duration — planGenerator (slice 2) will
+                use this to scale the workout: tighter windows favour
+                supersets / drop sets / HIIT finishers; longer
+                windows allow more isolation work. Persisted on the
+                same OnboardingState so the plan rebuild flow reads
+                it too. (qa: onboarding-profile-setup — maaiz: "Add
+                target time for workouts") */}
+            <div style={{ fontSize: 18, fontWeight: 600, color: "#fff", marginBottom: 6 }}>How long are your sessions?</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 16 }}>We'll fit your workout into this window — busy day? Plans use supersets + drop sets to stay effective.</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+              {[
+                { mins: 30, label: "30m", desc: "Quick" },
+                { mins: 45, label: "45m", desc: "Standard" },
+                { mins: 60, label: "60m", desc: "Full" },
+                { mins: 90, label: "90m+", desc: "Long" },
+              ].map(opt => {
+                const sel = ob.targetSessionMinutes === opt.mins;
+                return (
+                  <div
+                    key={opt.mins}
+                    onClick={() => setOb(o => ({ ...o, targetSessionMinutes: opt.mins }))}
+                    style={{
+                      flex: 1, minWidth: 64, padding: "12px 0", textAlign: "center", borderRadius: 12,
+                      border: `1px solid ${sel ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`,
+                      background: sel ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.03)",
+                      cursor: "pointer", color: sel ? "#FF6B6B" : "#fff",
+                    }}
+                  >
+                    <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2 }}>{opt.label}</div>
+                    <div style={{ fontSize: 10, color: sel ? "rgba(255,107,107,0.7)" : "rgba(255,255,255,0.35)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{opt.desc}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", marginBottom: 20 }}>target per session — change any time in Settings</div>
+
             <button onClick={submitOnboarding} style={obBtn}>BUILD MY PLAN</button>
             <button onClick={() => setOnboardingStep(7)} style={obSkip}>← Back</button>
           </div>
@@ -6268,7 +6383,24 @@ function HomePage() {
                 <div style={{ fontSize: 34, fontWeight: 800, color: "#fff", letterSpacing: -0.5, lineHeight: 1.15, textShadow: "0 4px 24px rgba(0,0,0,0.9)" }}>{d.title}</div>
                 <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", marginTop: 8, textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}>{d.focus}</div>
                 <button
-                  onClick={() => { openDay(d); setExpandingDay(null); }}
+                  onClick={() => {
+                    // Day-card START is the user's single intent to
+                    // begin a workout. Previously this dropped them on
+                    // the workout-prep screen which had ANOTHER START
+                    // button — felt like double-tapping for no reason.
+                    // Auto-call begin() after openDay() so the prep
+                    // screen never shows. (qa: workout-warmup —
+                    // maaiz: "There's two start workout prompts, we
+                    // only need [one]") The prep screen still renders
+                    // briefly if a different code path opens a day
+                    // without auto-starting (e.g. clientDetail).
+                    openDay(d);
+                    setExpandingDay(null);
+                    // Defer one frame so the activeDay state from
+                    // openDay has been applied before begin() reads
+                    // it — begin() touches timer + history.
+                    setTimeout(() => begin(), 0);
+                  }}
                   style={{ marginTop: 32, padding: "16px 48px", background: d.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 14, fontWeight: 800, letterSpacing: 3, fontFamily: "'Space Mono', monospace", cursor: "pointer", boxShadow: `0 8px 28px ${d.color}55`, minWidth: 240, pointerEvents: "auto" }}
                 >▶ START WORKOUT</button>
               </motion.div>
@@ -6445,36 +6577,83 @@ function HomePage() {
           <button onClick={() => setView("profile")} style={{ position: "relative", zIndex: 1, background: "rgba(10,10,18,0.5)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "8px 12px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)", display: "flex", alignItems: "center", gap: 10 }}>
             <img src="/ai/avatar-default.png" alt="" style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
             <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Top row: name + role micro-chips (admin / reviewing). */}
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", letterSpacing: -0.3, marginRight: 2 }}>{user.username}</div>
-                {/* Inline tier pills — emoji-first, compact (no "TIER N/M"). */}
-                {userHasRole(user, "trainer") && (() => {
-                  const t = getTrainerTier(clients.length);
-                  return (
-                    <button onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }} title="Trainer tier · tap to see how tiers work" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "1px 5px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
-                      <span style={{ fontSize: 10 }}>{t.emoji}</span><span>{t.label.toUpperCase()}</span>
-                    </button>
-                  );
-                })()}
-                {(() => {
-                  // Canonical athlete tier (0–100 score ladder) — matches
-                  // the Progress dashboard tier card and the new
-                  // TierInfoModal. Previously used the legacy session-only
-                  // ladder which disagreed with everything else.
-                  const h = myAthleteBreakdown?.headline;
-                  if (!h) return null;
-                  return (
-                    <button onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }} title={`Athlete tier · ${myAthleteBreakdown?.headlineScore ?? 0} pts · tap to see how tiers work`} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: h.color, background: h.bg, border: `1px solid ${h.border}`, borderRadius: 4, padding: "1px 5px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
-                      <span style={{ fontSize: 10 }}>{h.icon}</span><span>{h.label.toUpperCase()}</span>
-                    </button>
-                  );
-                })()}
                 {user.role === "user" && user.roleRequest && (
                   <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "1px 5px" }}>REVIEWING</span>
                 )}
                 {userHasRole(user, "admin") && (
                   <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "1px 5px" }}>ADMIN</span>
                 )}
+              </div>
+              {/* Tier row — Trainer + Athlete pills side-by-side, each
+                  with its own mini progress bar to the next rung +
+                  remaining points readout so the user can see how
+                  close they are at a glance. Falls back to stacked
+                  on very narrow phones via flexWrap. (qa: home ·
+                  user-feedback) */}
+              <div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
+                {userHasRole(user, "trainer") && (() => {
+                  const t = getTrainerTier(clients.length);
+                  const tIdx = TRAINER_TIERS.findIndex(x => x.label === t.label);
+                  const next = TRAINER_TIERS[tIdx + 1];
+                  const curMin = TRAINER_TIERS[tIdx].min;
+                  const progress = next
+                    ? Math.max(0, Math.min(1, (clients.length - curMin) / Math.max(1, next.min - curMin)))
+                    : 1;
+                  const remaining = next ? Math.max(0, next.min - clients.length) : 0;
+                  return (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }}
+                      title={`Trainer tier · ${clients.length} client${clients.length === 1 ? "" : "s"} · tap to see how tiers work`}
+                      style={{ flex: "1 1 130px", minWidth: 120, padding: "5px 8px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, cursor: "pointer", textAlign: "left", fontFamily: "'Space Mono', monospace" }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{t.emoji} {t.label.toUpperCase()}</span>
+                        <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                          {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
+                        </span>
+                      </div>
+                      {next && (
+                        <div style={{ marginTop: 3, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${progress * 100}%`, background: `linear-gradient(90deg, ${t.color}, ${next.color})`, borderRadius: 2, transition: "width 0.4s" }} />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })()}
+                {(() => {
+                  const h = myAthleteBreakdown?.headline;
+                  if (!h) return null;
+                  const score = myAthleteBreakdown!.headlineScore;
+                  const hIdx = ATHLETE_TIERS.findIndex(x => x.label === h.label);
+                  const next = ATHLETE_TIERS[hIdx + 1];
+                  const curMin = ATHLETE_TIERS[hIdx].min;
+                  const progress = next
+                    ? Math.max(0, Math.min(1, (score - curMin) / Math.max(1, next.min - curMin)))
+                    : 1;
+                  const remaining = next ? Math.max(0, next.min - score) : 0;
+                  return (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }}
+                      title={`Athlete tier · ${score} / 100 pts · tap to see how tiers work`}
+                      style={{ flex: "1 1 130px", minWidth: 120, padding: "5px 8px", background: h.bg, border: `1px solid ${h.border}`, borderRadius: 8, cursor: "pointer", textAlign: "left", fontFamily: "'Space Mono', monospace" }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h.icon} {h.label.toUpperCase()}</span>
+                        <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                          {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
+                        </span>
+                      </div>
+                      {next && (
+                        <div style={{ marginTop: 3, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${progress * 100}%`, background: `linear-gradient(90deg, ${h.color}, ${next.color})`, borderRadius: 2, transition: "width 0.4s" }} />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })()}
               </div>
             </div>
             <span style={{ fontSize: 14, color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>›</span>
@@ -8613,7 +8792,26 @@ function HomePage() {
               <img src="/ai/avatar-default.png" alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.3), 0 6px 18px rgba(255,107,107,0.18)" }} />
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Member since registration</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
+                  {(() => {
+                    // Compute a human-friendly join duration from
+                    // User.createdAt. Was hardcoded to "Member since
+                    // registration" which gave zero information.
+                    if (!user.createdAt) return "Member since registration";
+                    const ms = Date.now() - +new Date(user.createdAt);
+                    if (isNaN(ms) || ms < 0) return "Member since registration";
+                    const days = Math.floor(ms / 86400000);
+                    const months = Math.floor(days / 30);
+                    const years = Math.floor(days / 365);
+                    if (years >= 1) {
+                      const extraMonths = Math.max(0, Math.floor((days - years * 365) / 30));
+                      return `Member for ${years}y${extraMonths > 0 ? ` ${extraMonths}mo` : ""}`;
+                    }
+                    if (months >= 1) return `Member for ${months} month${months === 1 ? "" : "s"}`;
+                    if (days >= 1)   return `Member for ${days} day${days === 1 ? "" : "s"}`;
+                    return "Joined today";
+                  })()}
+                </div>
               </div>
             </div>
 
@@ -8731,7 +8929,23 @@ function HomePage() {
                       value={(ob as any)[f.key]}
                       placeholder={f.placeholder}
                       onChange={e => setOb(o => ({ ...o, [f.key]: e.target.value }))}
-                      style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 15, padding: "11px 14px", outline: "none", boxSizing: "border-box", fontFamily: f.type === "number" ? "'Space Mono', monospace" : "'DM Sans', sans-serif", colorScheme: "dark" }}
+                      style={{
+                        width: "100%", background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10,
+                        color: "#fff", fontSize: 15, padding: "11px 14px",
+                        outline: "none", boxSizing: "border-box",
+                        fontFamily: f.type === "number" ? "'Space Mono', monospace" : "'DM Sans', sans-serif",
+                        colorScheme: "dark",
+                        // Strip the native date-picker chrome on iOS so the
+                        // input renders flush left like the height field
+                        // and never overflows the card. (qa: settings → edit
+                        // profile DOB alignment)
+                        WebkitAppearance: "none", appearance: "none",
+                        minWidth: 0, maxWidth: "100%", display: "block",
+                        // text-align: left so the placeholder + value sit on
+                        // the same baseline as the height input above.
+                        textAlign: "left",
+                      }}
                     />
                   </div>
                 ))}

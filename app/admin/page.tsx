@@ -148,7 +148,7 @@ export default function AdminPage() {
   }
 
   async function forceReset(userId: string, username: string) {
-    if (!confirm(`Force @${username} to set a new password on their next login?`)) return;
+    if (!confirm(`Force @${username} to set a new password on their next login? A temporary password will be generated — share it with them so they can sign in once and pick their own.`)) return;
     setUpdatingId(userId);
     try {
       const res = await fetch("/api/admin", {
@@ -159,7 +159,15 @@ export default function AdminPage() {
       const data = await res.json();
       if (data.user) {
         setUsers(u => u.map(x => x.id === userId ? { ...x, mustResetPassword: true } : x));
-        alert(`@${username} will be forced to reset password on next login.`);
+        // Show the temp password so the admin can pass it on. Without
+        // a temp the user couldn't get past the password field if
+        // they'd forgotten their old one. (qa: auth-must-reset)
+        if (data.tempPassword) {
+          try { await navigator.clipboard?.writeText(data.tempPassword); } catch {}
+          alert(`@${username}'s temporary password:\n\n${data.tempPassword}\n\n(copied to clipboard — share via DM). They'll be prompted to choose a new password on first login.`);
+        } else {
+          alert(`@${username} will be forced to reset password on next login.`);
+        }
       } else {
         setError(data.error || "Force-reset failed.");
       }

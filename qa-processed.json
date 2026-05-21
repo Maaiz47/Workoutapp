@@ -41,6 +41,63 @@
     "cmpf77zl200005voyruidq5iz": {
       "ts": "2026-05-21T08:10:00Z",
       "summary": "qa:scan now scans the 10 most-recent feature/pass sections in PATCHLOG (was 5). One-line change to scripts/qa-scan.ts."
+    },
+
+    "cmpfhrafa0002ia3kom2bomak": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "auth-register DOB box overflow fix — date input now strips WebkitAppearance + sets minWidth:0 + maxWidth:100% so iOS Safari's native picker chrome can't push the control past the form column."
+    },
+    "cmpfhxexe0000tu25nol6i5tm": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "auth-login passing confirmation from @Amanii. qa-state.json status flipped to passing."
+    },
+    "cmpfhy0u00001tu250b5t20hc": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "/qa comment form: NOTE is now optional when status=passing. Label switches to '(optional)' and the SAVE button enables without a note. Required for failing / retest / untested where a note is what makes the row actionable."
+    },
+    "cmpfi6uvr0000soon43f81lvv": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "auth-must-reset: admin force-reset now generates a temp password, hashes + saves it, returns the plaintext to the admin UI (copied to clipboard) so it can be shared with the user. Was previously only flipping mustResetPassword=true, leaving locked-out users unable to log in at all."
+    },
+    "cmpflbdxk0000twp8lmz97l94": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "/qa improvements: (1) sticky search box at top of viewport — stays accessible while scrolling. (2) RETEST status label renamed to 'PATCHED · RETEST' with the select option as 'Patched · please retest' so testers know an item flagged retest means 'attended, pending re-verification'. (3) Per-step comment threads deferred to next slice — currently each test gets one thread; surfacing per-step requires a richer comment schema."
+    },
+    "cmpflemsg0000c3wg69m1q3ji": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "Slice 1/N: target session duration field added to onboarding step 8 (30m / 45m / 60m / 90m+ chips) + persisted via UserProfile.targetSessionMinutes (Prisma migration). Slice 2 (next pass): planGenerator reads the field to tailor supersets/dropsets/HIIT for tighter windows."
+    },
+    "cmpflv1h20000no0c3pc8ldt7": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "/qa item-card title no longer ellipsis-clipped — wraps with wordBreak so long titles like 'Trainers see their athlete tier on Progress dashboard too' are fully readable on narrow phones."
+    },
+    "cmpft67ov000014ir3w65jlri": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "Welcome card tier pills rebuilt: Trainer + Athlete pills now sit on their own row beneath the username, each with a mini gradient progress bar to the next tier + '+N → NEXT' remaining-points readout. Top tier reads '★ TOP' instead. Score is the canonical headlineScore from computeAthleteTier."
+    },
+    "cmpft7dwz000114irazgjg9ez": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "Volume × Muscle 'core skipped' fix shipped earlier in 0e6722c (default-plan short ids like 'a7' for Hanging Leg Raises were silently failing the muscle lookup). The muscleMap now bridges WORKOUT_DATA short ids → primaryMuscles via lookupExMuscles(name). Hanging Leg Raises credits 'core' via fuzzy match on 'Hanging Leg Raise'."
+    },
+    "cmpftk95500005l8al7u3wrgk": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "Settings → edit profile DOB input: stripped iOS's native appearance, added minWidth:0 + maxWidth:100% + textAlign:left so it renders flush with the Height field above and never overflows the card."
+    },
+    "cmpftlhti00015l8a5wx7qz3a": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "Settings IDENTITY card 'Member since registration' → computed duration from User.createdAt. Shows 'Member for Xd / Xmo / Xy [Xmo]' or 'Joined today' for brand-new users."
+    },
+    "cmpftonrn000011pawydh9g4i": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "TierInfoModal now ships a '⚡ HOW TO EARN ATHLETE POINTS' section listing each of the 5 sub-ranks (Consistency, Strength, Volume, Mastery, Habits) with what feeds it AND the rough input that gets it to ~80. Plus a footnote on the diminishing-returns curve so the '+N PTS → next' number reads correctly."
+    },
+    "cmpfu8ha10000nrnuy87cagh2": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "Deferred IDEA: form previews + help text on warmup/cooldown/stretches AND treadmill incline % support. Logged for the next slice — current pass focused on the bug + critical UX items."
+    },
+    "cmpfu9tb40000blb2zkfgvhs2": {
+      "ts": "2026-05-21T19:00:00Z",
+      "summary": "Duplicate START workout prompts fix: tapping ▶ START WORKOUT on the home day-card expand now calls openDay() AND begin() immediately, skipping the workout-prep middle screen. The single intent = one tap to active workout."
     }
   }
 }

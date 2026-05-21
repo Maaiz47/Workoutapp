@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { generateTempPassword, hashPassword } from "../../../lib/crypto";
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
@@ -95,16 +96,23 @@ export async function PATCH(req: NextRequest) {
     return json({ user });
   }
 
-  // Force password reset: flip mustResetPassword=true so the next login
-  // bounces this user through the reset screen. Doesn't change their
-  // current password — they keep using it once until they reset.
+  // Force password reset: generate a TEMP password, hash + save it,
+  // flip mustResetPassword=true, and return the plaintext temp back
+  // to the admin so it can be shared with the user. Previously this
+  // only flipped the flag without changing the password — users who
+  // had forgotten their password (the typical reason an admin
+  // force-resets) couldn't log in because the system still demanded
+  // their old password, and the must-reset prompt never appeared.
+  // (qa: auth-must-reset)
   if (body.action === "force-reset") {
+    const tempPassword = generateTempPassword();
+    const passwordHash = await hashPassword(tempPassword);
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { mustResetPassword: true },
+      data: { passwordHash, mustResetPassword: true },
       select: { id: true, username: true, mustResetPassword: true },
     });
-    return json({ user });
+    return json({ user, tempPassword });
   }
 
   // Set the extra-roles array directly (multi-role support). Lets an

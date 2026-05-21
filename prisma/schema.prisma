@@ -101,6 +101,11 @@ model UserProfile {
   targetBodyFatPct Float?
   hiitPreference   String?
   hiitIntensity    String?
+  // Target session duration in minutes. Used by planGenerator to
+  // pick supersets / drop sets / HIIT finishers for tighter
+  // windows, and allow more isolation work for longer windows.
+  // 45 = "Standard" baseline. (qa: onboarding-profile-setup)
+  targetSessionMinutes Int?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)

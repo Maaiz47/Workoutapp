@@ -2,6 +2,114 @@
 
 ---
 
+## QA pass · 2026-05-21 — Process 14 unactioned comments (qa: auth-register, auth-login, auth-must-reset, onboarding-profile-setup, workout-warmup, qa-dashboard, quick-feedback-fab, tier-pills-clarity, tier-info-modal, settings-identity-tiers, progress-volume-heatmap)
+
+@Amanii's 4 comments + @maaiz's 10 comments (including 2 submitted
+mid-pass) all addressed in a single batch.
+
+### Auth — @Amanii
+- **auth-register** DOB box overflow on iOS Safari. Stripped
+  WebkitAppearance, added `minWidth: 0` + `maxWidth: 100%` so the
+  native date picker chrome can't push the input past its form
+  column. Same treatment applied to the Settings → edit profile
+  DOB so it sits flush with the Height field above.
+- **auth-login** Passing — status flipped.
+- **auth-login** /qa: passing comments no longer require a note.
+  The textarea label switches to "(optional)" and SAVE enables
+  without a body when status=passing. Failing / retest / untested
+  still require a note (the note is what makes them actionable).
+- **auth-must-reset** Admin force-reset now generates a TEMP
+  password (via `lib/crypto.generateTempPassword`), hashes + saves
+  it, and returns the plaintext to the admin UI (auto-copied to
+  clipboard + shown in the alert). Previously it ONLY flipped
+  `mustResetPassword: true`, so users who'd forgotten their old
+  password were locked out entirely — the reset prompt never had a
+  chance to fire.
+
+### /qa dashboard — @maaiz
+- **Sticky search**: the search box now stays pinned to the top of
+  the viewport while the backlog scrolls. Backdrop-blur so items
+  behind it don't smear.
+- **Clearer retest status**: the badge label is "PATCHED · RETEST"
+  (was "RETEST"); the comment form option reads "Patched · please
+  retest". Spells out that the state means "attended, awaiting
+  re-verification" instead of vague "needs another look".
+- **Title wrapping**: long /qa item titles like "Trainers see
+  their athlete tier on Progress dashboard too" now wrap with
+  `word-break: break-word` instead of being ellipsis-clipped on
+  narrow phones.
+- **Per-step comments**: deferred to next slice — currently each
+  test gets one thread; per-step needs a richer comment schema +
+  thread grouping.
+
+### Onboarding — @maaiz · Slice 1/2
+- Added a **target session duration** chip row to step 8 (30m /
+  45m / 60m / 90m+, defaulting to 45m "Standard"). Persisted via
+  new `UserProfile.targetSessionMinutes` (Int, nullable, Prisma
+  schema gain). Rebuild-from-Settings flow preselects the saved
+  value. Slice 2 (next pass): planGenerator reads the field and
+  tailors the workout — tighter windows favour supersets / drop
+  sets / HIIT finishers; longer windows allow more isolation work.
+
+### Welcome card · Profile — @maaiz
+- **Tier pills with mini progress bars**: the Trainer + Athlete
+  pills are now on their own row beneath the username, each a
+  small card with a gradient progress bar and a "+N → NEXT"
+  remaining-points readout (or "★ TOP" at max). flexWrap so they
+  sit side-by-side on most phones and stack on very narrow ones.
+- **"Member since registration"** → computed duration from
+  `User.createdAt`: "Member for Xd / Xmo / Xy [Xmo]" or "Joined
+  today" for brand-new users.
+- **DOB alignment** in Settings → edit profile — same iOS Safari
+  fix as the onboarding DOB.
+
+### TierInfoModal — @maaiz
+- Added a **"⚡ HOW TO EARN ATHLETE POINTS"** section listing each
+  of the 5 sub-ranks (Consistency, Strength, Volume, Mastery,
+  Habits) with what feeds it AND the rough input that gets it to
+  ~80. Plus a footnote explaining the diminishing-returns curve
+  so the "+N PTS → next" number reads correctly.
+
+### Quick Note pill — @maaiz
+- **Removed the ✓ WORKS chip**: the floating pill is for issue
+  reports only (bug / idea). To mark something as ✓ working,
+  testers use the full /qa dashboard.
+- Tutorial step (`qa-feedback`) rewritten to match; tutorial
+  version bumped to v3 so existing users see the updated copy.
+
+### Workout — @maaiz
+- **Single START prompt**: tapping ▶ START WORKOUT on the
+  expanded day card now calls `openDay()` AND `begin()` so the
+  workout-prep middle screen never appears. One intent, one tap.
+- **Form previews on warmups/cooldowns + treadmill incline %**:
+  deferred IDEA. Logged for next pass.
+
+### Volume × Muscle — @maaiz
+- "Core skipped" despite hanging leg raises was already addressed
+  in commit `0e6722c` (default-plan short ids like `a7` for
+  Hanging Leg Raises now resolve via `lookupExMuscles(name)`,
+  fuzzy-matching to the library's `hanging-leg-raise` entry
+  whose primaryMuscles is `["core"]`). Volume on those sessions
+  now credits core correctly.
+
+### Status flips in qa-state.json
+- `auth-login` regression-retest → **passing**
+- `auth-register` notes appended (DOB fix)
+- `auth-must-reset` notes appended (temp password flow), still
+  regression-retest until tester verifies
+- `onboarding-profile-setup` notes appended (slice 1 target
+  duration), still regression-retest until tester verifies
+- `tier-pills-clarity` notes appended (slice 3 progress bars)
+
+### Deferred to next pass
+- Onboarding **slice 2**: planGenerator consumes
+  `targetSessionMinutes` to scale the workout.
+- /qa **per-step comments** + per-step thread schema.
+- Workout: **form previews** on warmup / cooldown / stretches +
+  treadmill incline % handling.
+
+---
+
 ## Polish · 2026-05-21 — Volume × Muscle no-credit bug + dead-tier cleanup (qa: progress-volume-heatmap)
 
 ### Volume × Muscle: every muscle was "skipped"

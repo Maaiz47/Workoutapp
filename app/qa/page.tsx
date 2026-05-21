@@ -47,7 +47,12 @@ const STATUS_META: Record<ItemStatus, { label: string; color: string; bg: string
   untested:           { label: "UNTESTED", color: "#aaa",    bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)" },
   passing:            { label: "PASSING",  color: "#4caf50", bg: "rgba(76,175,80,0.1)",    border: "rgba(76,175,80,0.3)" },
   failing:            { label: "FAILING",  color: "#FF6B6B", bg: "rgba(255,107,107,0.1)",  border: "rgba(255,107,107,0.3)" },
-  "regression-retest":{ label: "RETEST",   color: "#FFB74D", bg: "rgba(255,183,77,0.1)",   border: "rgba(255,183,77,0.3)" },
+  // "regression-retest" === "patched, awaiting tester re-verification".
+  // Label spells it out so testers don't confuse it with a vague
+  // "needs another look" state. (qa: __general__ — maaiz: "the button
+  // is vague - I need it to be clearer that it's been attended and
+  // pending patch")
+  "regression-retest":{ label: "PATCHED · RETEST", color: "#FFB74D", bg: "rgba(255,183,77,0.1)", border: "rgba(255,183,77,0.3)" },
 };
 
 const AREAS = [
@@ -398,7 +403,12 @@ function ItemCard({
   })();
   const patchHistory = parsePatchHistory(item.notes);
 
-  const canSave = !!tester.trim() && !!draft.note.trim() && !saving;
+  // Passing comments don't NEED a note — a green tick on a test
+  // is information by itself. Failing / retest / untested still
+  // require a note (otherwise the entry is unactionable).
+  // (qa: auth-login — Amanii: "Passing tests don't need a required note")
+  const noteRequired = draft.status !== "passing";
+  const canSave = !!tester.trim() && (!noteRequired || !!draft.note.trim()) && !saving;
 
   const submit = async () => {
     if (!canSave) return;
@@ -459,7 +469,13 @@ function ItemCard({
           <div style={{
             fontSize: 13, fontWeight: 600, color: "#fff",
             fontFamily: "'DM Sans', sans-serif",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            // Wrap long titles instead of ellipsis-clipping them —
+            // testers couldn't read items like "Trainers see their
+            // athlete tier on Progress dashboard too" on narrow
+            // phones. (qa: workout-warmup — maaiz: "I can't read this
+            // issue title btw")
+            wordBreak: "break-word",
+            lineHeight: 1.3,
           }}>{item.title}</div>
           <div style={{
             fontSize: 11, color: "rgba(255,255,255,0.35)",
@@ -608,7 +624,7 @@ function ItemCard({
                 <option value="untested">Untested</option>
                 <option value="passing">Passing</option>
                 <option value="failing">Failing</option>
-                <option value="regression-retest">Needs retest</option>
+                <option value="regression-retest">Patched · please retest</option>
               </select>
             </div>
 
@@ -617,7 +633,7 @@ function ItemCard({
                 fontSize: 9, fontWeight: 700, letterSpacing: 1,
                 color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace",
                 display: "block", marginBottom: 4,
-              }}>NOTE (required)</label>
+              }}>NOTE {noteRequired ? "(required)" : "(optional)"}</label>
               <textarea
                 value={draft.note}
                 onChange={e => setDraft({ ...draft, note: e.target.value })}
@@ -1086,8 +1102,23 @@ export default function QAPage() {
             />
           )}
 
-          {/* Search */}
-          <div style={{ marginTop: 14, position: "relative" }}>
+          {/* Search — sticky to the top of the viewport so it stays
+              accessible while scrolling the long backlog. (qa:
+              __general__ — maaiz: "Make search box floating that stays
+              always") */}
+          <div style={{
+            marginTop: 14, position: "sticky",
+            top: "calc(env(safe-area-inset-top, 0px) + 6px)",
+            zIndex: 50,
+            // Backdrop blur so items behind it don't smear through.
+            background: "rgba(10,10,10,0.85)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            margin: "14px -4px 0",
+            padding: "6px 4px 8px",
+            borderRadius: 10,
+          }}>
+            <div style={{ position: "relative" }}>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -1119,6 +1150,7 @@ export default function QAPage() {
                 fontFamily: "'Space Mono', monospace", marginTop: 6,
               }}>{filteredItems.length} item{filteredItems.length === 1 ? "" : "s"} match{filteredItems.length === 1 ? "es" : ""}</div>
             )}
+            </div>
           </div>
         </div>
 

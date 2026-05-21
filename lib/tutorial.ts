@@ -17,7 +17,7 @@ export type TutorialStep = {
   where?: string;
 };
 
-export const TUTORIAL_VERSION = "v2";
+export const TUTORIAL_VERSION = "v3";
 export const TUTORIAL_STORAGE_KEY = `ironlog-tutorial-seen-${TUTORIAL_VERSION}`;
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -30,8 +30,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "qa-feedback",
     icon: "🥋",
-    title: "Found a bug? Got feedback?",
-    body: "Tap the teal 💬 NOTE pill in the bottom-right of any screen — pick 🐞 BUG / 💡 IDEA / ✓ WORKS, type a sentence, send. The note auto-captures what you were doing. You can toggle the pill on/off any time from Settings → FEEDBACK & QA. There's also a fuller SEND FEEDBACK card and a link to the full /qa dashboard in the same Settings section.",
+    title: "Found a bug? Got an idea?",
+    body: "Tap the teal 💬 NOTE pill in the bottom-right of any screen — pick 🐞 BUG or 💡 IDEA, type a sentence, send. The note auto-captures which screen you were on. The pill is for reporting issues only; to mark something as ✓ WORKING, head to the full /qa dashboard. Toggle the pill on/off any time from Settings → FEEDBACK & QA.",
     where: "💬 NOTE pill (everywhere) · Settings → FEEDBACK & QA · /qa dashboard",
   },
   {
