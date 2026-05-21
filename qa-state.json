@@ -836,6 +836,28 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "home-layout-polish",
+      "title": "Home layout polish — bigger tagline, packed cards, soft fade, card-expand animation",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass home-polish",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open the home view",
+        "Verify 'LIFT · TRACK · PROGRESS' is BIGGER than before (18px, was 14px), centered vertically in the hero between the profile chip and where the dark cards section starts",
+        "Verify the motivational phrase below it is also bigger (16px italic)",
+        "Verify there's a soft fade between the bottom of the barbell image and the cards section (no hard seam)",
+        "Verify the hero is shorter (220px height, was 290px) so the cards start higher",
+        "Verify the day cards are slightly more compact (138px in 2-col, was 160px) and the gap between them is 8px (was 10px). On a phone with a 6-day split, more cards fit in the initial viewport.",
+        "Tap any day card — verify (when NOT in de-gamify mode) a smooth animation: the card's image expands to full-screen, the day chip stays visible top-right, a back arrow appears top-left, and after ~180ms the day title + focus line + a big ▶ START WORKOUT button fade in at the bottom",
+        "Tap ← Back — verify the card morphs back to its original grid position",
+        "Tap ▶ START WORKOUT — verify the workout view opens normally",
+        "Turn on Pure Mode (Settings → 🎮 GAMIFICATION · ON → toggle to 🧘 PURE MODE · ON) — verify tapping a day card now opens the workout INSTANTLY (no expand animation)"
+      ],
+      "notes": "[2026-05-21] Hero height 290→220. Tagline moved from absolute bottom 18px to top 58% (vertically centered). Tagline font 14→18 + letterSpacing 6→7. Phrase font 14→16. Cards twoCol height 160→138, gap 10→8. Dashboard padding-top 20→10. New fade overlay div between hero and cards. Day cards now use motion.div with layoutId=`daycard-<id>`; tap triggers expand overlay sharing the same layoutId, framer-motion morphs card → fullscreen smoothly. START WORKOUT button fades in 180ms later. Pure Mode (deGamified) bypasses the animation entirely."
+    },
+    {
       "id": "knowledge-principles",
       "title": "Training principles knowledge base (lib/principles.ts)",
       "area": "Other",

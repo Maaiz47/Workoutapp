@@ -2337,6 +2337,11 @@ function HomePage() {
   const [recapShown, setRecapShown] = useState<WeeklyRecap | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showTipsLibrary, setShowTipsLibrary] = useState(false);
+  // Card-expand transition. When set, an overlay morphs the day card's
+  // image + title to fullscreen via framer-motion's layoutId. Tap START
+  // inside the overlay actually opens the workout. De-gamify mode skips
+  // the animation entirely (instant openDay).
+  const [expandingDay, setExpandingDay] = useState<WorkoutDay | null>(null);
   // Daily pro tip — picked deterministically by date so it stays stable
   // across home reloads, refreshes once per day.
   const [dismissedTodayTip, setDismissedTodayTip] = useState(false);
@@ -5146,6 +5151,60 @@ function HomePage() {
   // ─── HOME ───────────────────────────────────────────────────────────
   if (view === "home") return (
     <div key="home" className={viewDir === "back" ? "view-back" : "view-forward"} style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "clip" }}>
+      {/* Day-card → fullscreen expansion. The card and this overlay share
+          a layoutId so framer-motion morphs one to the other. Inside the
+          overlay: full-bleed image, title, focus line, and a big START
+          button. Tap × to back out. Tap START to actually openDay(). */}
+      <AnimatePresence>
+        {expandingDay && (() => {
+          const d = expandingDay;
+          const img = workoutImageFor(d.title);
+          return (
+            <motion.div
+              key={`expand-${d.id}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              style={{ position: "fixed", inset: 0, zIndex: 5000, background: "#0a0a0a" }}
+            >
+              <motion.div
+                layoutId={`daycard-${d.id}`}
+                transition={{ type: "spring", stiffness: 280, damping: 30 }}
+                style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 0 }}
+              >
+                {img && <img src={img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.8 }} />}
+                {/* Heavy bottom vignette so the title + START read cleanly */}
+                <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 25%, rgba(0,0,0,0.2) 55%, rgba(0,0,0,0.95) 100%)` }} />
+                <div style={{ position: "absolute", top: 0, left: 0, width: 5, height: "100%", background: d.gradient, boxShadow: `0 0 20px ${d.color}` }} />
+                {/* Back arrow — collapses the overlay without opening the day */}
+                <button onClick={() => setExpandingDay(null)} style={{ position: "absolute", top: 20, left: 16, padding: "10px 14px", background: "rgba(0,0,0,0.45)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#fff", fontSize: 12, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", backdropFilter: "blur(10px)" }}>← Back</button>
+                {/* Day chip — sits below the back arrow */}
+                <div style={{ position: "absolute", top: 26, right: 16 }}>
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: d.color, fontWeight: 700, background: "rgba(0,0,0,0.55)", borderRadius: 8, padding: "5px 12px", backdropFilter: "blur(8px)", letterSpacing: 2 }}>{d.label}</span>
+                </div>
+              </motion.div>
+              {/* Title + focus + START button — animated in after the
+                  layout transition settles, so the text doesn't try to
+                  morph alongside the card image. */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.18, duration: 0.25 }}
+                style={{ position: "absolute", left: 0, right: 0, bottom: "calc(40px + env(safe-area-inset-bottom, 0px))", padding: "0 24px", textAlign: "center", zIndex: 2 }}
+              >
+                <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: -0.5, lineHeight: 1.15, textShadow: "0 4px 24px rgba(0,0,0,0.8)" }}>{d.title}</div>
+                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginTop: 8, textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>{d.focus}</div>
+                <button
+                  onClick={() => { openDay(d); setExpandingDay(null); }}
+                  style={{ marginTop: 28, padding: "16px 48px", background: d.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 14, fontWeight: 800, letterSpacing: 3, fontFamily: "'Space Mono', monospace", cursor: "pointer", boxShadow: `0 8px 28px ${d.color}55`, minWidth: 240 }}
+                >▶ START WORKOUT</button>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+
       {/* First-launch / restart tutorial overlay */}
       <AnimatePresence>{showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}</AnimatePresence>
       {/* Weekly recap modal — Sunday-anchored, once per ISO week. */}
@@ -5239,11 +5298,15 @@ function HomePage() {
           </div>
         </div>
       )}
-      {/* Full-bleed hero — profile button floats over image, no solid wrapper */}
-      <div style={{ position: "relative", height: 290, overflow: "hidden", zIndex: 5 }}>
-        <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", top: "-40px", left: 0, width: "100%", height: "calc(100% + 100px)", objectFit: "cover", opacity: 0.65 }} />
+      {/* Full-bleed hero — profile button floats over image, no solid wrapper.
+          Height trimmed from 290→220 so the session cards can sit higher.
+          The tagline (LIFT · TRACK · PROGRESS + phrase) is now visually
+          centered between the profile chip (top) and the cards section
+          (bottom) rather than glued to the hero's bottom edge. */}
+      <div style={{ position: "relative", height: 220, overflow: "hidden", zIndex: 5 }}>
+        <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", top: "-30px", left: 0, width: "100%", height: "calc(100% + 80px)", objectFit: "cover", opacity: 0.65 }} />
         {/* Gradient: dark at top for status bar readability, clear in middle, dark at bottom for text */}
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.88) 0%, rgba(10,10,15,0.35) 30%, rgba(10,10,15,0) 52%, rgba(10,10,15,0) 62%, rgba(10,10,15,0.94) 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.88) 0%, rgba(10,10,15,0.35) 28%, rgba(10,10,15,0) 50%, rgba(10,10,15,0) 60%, rgba(10,10,15,0.94) 100%)" }} />
         {/* Profile button — floats over the image */}
         <div ref={profileWrapperRef} style={{ position: "absolute", top: 14, left: 16, right: 16, zIndex: 10, transition: "transform 0.25s ease, opacity 0.25s ease", willChange: "transform" }}>
           <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(10,10,18,0.48)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, cursor: "pointer", textAlign: "left", padding: "12px 16px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 24px -6px rgba(0,0,0,0.7)", display: "flex", alignItems: "center", gap: 12 }}>
@@ -5261,11 +5324,21 @@ function HomePage() {
             </div>
           </button>
         </div>
-        {/* LIFT / TRACK / PROGRESS + phrase — anchored to bottom of hero */}
-        <div style={{ position: "absolute", bottom: 18, left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
-          <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", letterSpacing: 6, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>LIFT · TRACK · PROGRESS</div>
-          <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 14, color: "rgba(255,255,255,0.52)", fontStyle: "italic", marginTop: 7, fontFamily: "'DM Sans', sans-serif" }}>{phrase}</div>
+        {/* LIFT / TRACK / PROGRESS + phrase — now anchored ~58% down the
+            hero so it sits visually between the profile chip and the
+            cards section beneath. */}
+        <div style={{ position: "absolute", top: "58%", left: 0, right: 0, transform: "translateY(-50%)", textAlign: "center", pointerEvents: "none" }}>
+          <div style={{ fontSize: 18, color: "rgba(255,255,255,0.85)", letterSpacing: 7, fontFamily: "'Space Mono', monospace", fontWeight: 700, textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>LIFT · TRACK · PROGRESS</div>
+          <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 16, color: "rgba(255,255,255,0.62)", fontStyle: "italic", marginTop: 9, fontFamily: "'DM Sans', sans-serif", textShadow: "0 1px 10px rgba(0,0,0,0.7)" }}>{phrase}</div>
         </div>
+      </div>
+
+      {/* Fade overlay between the barbell image and the cards section.
+          Sits absolutely positioned at the top of the content area below
+          the hero — fades from transparent (where it overlaps the hero's
+          bottom) to opaque black at ~60px down, so there's no hard seam. */}
+      <div aria-hidden style={{ position: "relative", height: 0, zIndex: 6 }}>
+        <div style={{ position: "absolute", top: -40, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom, rgba(10,10,15,0) 0%, rgba(10,10,15,0.85) 60%, rgba(10,10,15,1) 100%)", pointerEvents: "none" }} />
       </div>
       {/* Notification banner — sits below the hero */}
       {showNotifBanner && notifStatus === "idle" && (
@@ -5286,7 +5359,7 @@ function HomePage() {
         </div>
       )}
       <ProfileNagBanner ob={ob} onGoToSettings={() => setView("settings")} />
-      <div style={{ padding: "20px 16px 0", position: "relative", zIndex: 20 }}>
+      <div style={{ padding: "10px 16px 0", position: "relative", zIndex: 20 }}>
         {/* Daily Quest — randomised tiny goal per day. Suppressed when
             the user has toggled de-gamify mode in Settings. */}
         {!deGamified && (() => {
@@ -5406,7 +5479,7 @@ function HomePage() {
           const plan = customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA;
           const twoCol = plan.length >= 4;
           return (
-            <div style={twoCol ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } : {}}>
+            <div style={twoCol ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } : {}}>
               {plan.map((d, i) => {
                 const isActive = started && activeDay?.id === d.id;
                 const isLocked = started && activeDay?.id !== d.id;
@@ -5425,19 +5498,25 @@ function HomePage() {
                     onClick={() => {
                       if (isLocked) return;
                       if (isActive) { setView("workout"); return; }
-                      openDay(d);
+                      // De-gamify users get the instant transition; the
+                      // animation is gamification-adjacent so we gate it.
+                      if (deGamified) { openDay(d); return; }
+                      setExpandingDay(d);
                     }}
                   >
-                    <div style={{
-                      borderRadius: 20,
-                      height: twoCol ? 160 : 188,
-                      position: "relative",
-                      overflow: "hidden",
-                      border: isActive ? `1px solid ${d.color}70` : `1px solid ${d.color}22`,
-                      boxShadow: isActive
-                        ? `0 0 28px ${d.color}35, 0 8px 32px rgba(0,0,0,0.55)`
-                        : `0 6px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
-                    }}>
+                    <motion.div
+                      layoutId={!deGamified ? `daycard-${d.id}` : undefined}
+                      transition={{ type: "spring", stiffness: 280, damping: 30 }}
+                      style={{
+                        borderRadius: 20,
+                        height: twoCol ? 138 : 178,
+                        position: "relative",
+                        overflow: "hidden",
+                        border: isActive ? `1px solid ${d.color}70` : `1px solid ${d.color}22`,
+                        boxShadow: isActive
+                          ? `0 0 28px ${d.color}35, 0 8px 32px rgba(0,0,0,0.55)`
+                          : `0 6px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
+                      }}>
                       {/* Background image */}
                       {img ? (
                         <img className="day-card-img" src={img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: isActive ? 0.8 : 0.62, transition: "opacity 0.3s" }} />
@@ -5472,7 +5551,7 @@ function HomePage() {
                           </div>
                         )}
                       </div>
-                    </div>
+                    </motion.div>
                   </div>
                 );
               })}

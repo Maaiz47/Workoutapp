@@ -2,6 +2,30 @@
 
 ---
 
+## Feature · 2026-05-21 (aq) — home layout polish + day-card expand animation (qa: home-layout-polish)
+
+### Changed
+- **Hero shorter** — height 290→220 so the cards section starts higher.
+- **Tagline bigger and centered** — `LIFT · TRACK · PROGRESS` 14→18,
+  phrase 14→16. Moved from absolute `bottom: 18` (glued to hero
+  bottom) to absolute `top: 58%` translateY centered. Soft text-
+  shadow added for readability over the image.
+- **Soft fade between hero and cards** — transparent-to-black
+  gradient overlay where hero meets the dark cards section. No
+  more hard seam.
+- **Cards tighter** — twoCol card height 160→138, gap 10→8,
+  dashboard padding-top 20→10. 6-day splits fit better.
+
+### Added
+- **Card-expand animation** — tapping a day card morphs its image
+  to fullscreen via framer-motion's `layoutId` shared-element. After
+  the morph (~180ms), title + focus + a big `▶ START WORKOUT`
+  button fade in. `← Back` collapses; START actually opens the day.
+- **Pure Mode fallback** — `🧘 PURE MODE` users skip the animation
+  and get the instant transition.
+
+---
+
 ## Feature · 2026-05-21 (ap) — knowledge base unification: principles + pro tips (qa: knowledge-principles, knowledge-pro-tips)
 
 ### Phase 1 — `lib/principles.ts` (the single source of truth)
