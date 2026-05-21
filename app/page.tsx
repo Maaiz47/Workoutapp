@@ -20,6 +20,7 @@ import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap } from "../lib/challenges";
 import { isDeGamified, setDeGamified, pickTodayQuest, QuestState, isFullStackDay, recordFullStackDay, fullStackDayCount, checkBalancedWeek, recordBalancedWeek, detectNewHidden, HiddenState, HiddenAchievement } from "../lib/gamification";
+import { postWithQueue, drainQueue, queueCount } from "../lib/offlineSync";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -2245,6 +2246,30 @@ function HomePage() {
   // Marked seen for the current ISO week so it only fires once.
   const [recapShown, setRecapShown] = useState<WeeklyRecap | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
+  // Offline-queue indicator — refreshes on online event + after each
+  // session save so a "N pending" pill can show in the home header.
+  const [pendingSyncs, setPendingSyncs] = useState(0);
+  useEffect(() => {
+    const refresh = () => setPendingSyncs(queueCount());
+    refresh();
+    const onOnline = async () => {
+      const drained = await drainQueue();
+      if (drained > 0) {
+        // Refresh history after replay so the user sees their queued
+        // sessions land in the dashboard.
+        try {
+          const res = await fetch("/api/workout");
+          const data = await res.json();
+          if (!data.error) setHistory(data);
+        } catch {}
+      }
+      refresh();
+    };
+    window.addEventListener("online", onOnline);
+    // Drain immediately on mount in case there's a queue from a previous load.
+    if (navigator.onLine) onOnline();
+    return () => window.removeEventListener("online", onOnline);
+  }, []);
   // De-gamify toggle — when ON, hides Daily Quest, tier card, challenges,
   // milestone celebrations, achievements wall. Tracking + graphs still
   // visible because those aren't game elements. Persisted via lib.
@@ -3608,11 +3633,10 @@ function HomePage() {
 
     if (activeDay) {
       try {
-        await fetch("/api/workout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dayId: activeDay.id, duration: adjustedDuration, sets: finalLog, intensityPoints: sessionIP }),
-        });
+        // postWithQueue: stashes the body in localStorage if offline /
+        // network errors, replays via drainQueue() on the next online
+        // event. The user never sees a lost session.
+        await postWithQueue("/api/workout", { dayId: activeDay.id, duration: adjustedDuration, sets: finalLog, intensityPoints: sessionIP });
         const res = await fetch("/api/workout");
         const data = await res.json();
         if (!data.error) {
@@ -5215,7 +5239,12 @@ function HomePage() {
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {pendingSyncs > 0 && (
+              <span title="Sessions queued — will sync when online" style={{ background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 6, color: "#fdcb6e", fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1, padding: "5px 8px" }}>
+                ☁ {pendingSyncs} PENDING
+              </span>
+            )}
             <button onClick={openCustomise} style={{ background: "linear-gradient(135deg, rgba(255,107,107,0.12), rgba(238,90,36,0.06))", border: "1px solid rgba(255,107,107,0.22)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, padding: "6px 11px" }}>✏ CUSTOMISE</button>
           </div>
         </div>

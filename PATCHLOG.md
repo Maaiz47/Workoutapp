@@ -2,6 +2,29 @@
 
 ---
 
+## Feature · 2026-05-21 (an) — Slice G ½: offline-tolerant workout save (qa: workout-offline-sync)
+
+### Added
+- `workout-offline-sync`: `lib/offlineSync.ts` ships `postWithQueue()`
+  and `drainQueue()`. The workout-save POST now goes through the
+  queueing wrapper — if the network errors or `navigator.onLine`
+  is false, the payload is stashed in localStorage and replayed
+  on the next `online` event (or immediately on next mount if
+  already online).
+- Yellow **`☁ N PENDING`** chip in the home view header next to the
+  YOUR SPLIT row when there are queued saves. Disappears
+  automatically once they drain to the server.
+- Items dropped after 5 failed replays to avoid permanent stuck
+  state.
+
+### Next (Slice G 2/2)
+- Progress photo log via Vercel Blob (needs the `@vercel/blob` npm
+  package + a `BLOB_READ_WRITE_TOKEN` env var added on Vercel —
+  surfaced in the next commit message so you can set it before
+  the deploy).
+
+---
+
 ## Feature · 2026-05-21 (am) — Gamification+ pass + Pure Mode toggle (qa: gamification-daily-quest, gamification-de-gamify)
 
 ### Added

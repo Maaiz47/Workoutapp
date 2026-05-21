@@ -836,6 +836,25 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "workout-offline-sync",
+      "title": "Offline-tolerant workout save with replay queue",
+      "area": "Workout",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-G",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Turn off Wi-Fi + mobile data on the device",
+        "Start a workout and finish it. Verify the session saves locally without throwing an error",
+        "Open home — verify a yellow '☁ 1 PENDING' chip appears next to the YOUR SPLIT row",
+        "Reconnect to network — verify within a couple of seconds the chip disappears and the session is now in the server history (reload to confirm)",
+        "Test queueing multiple offline saves: finish two sessions while offline, verify the chip reads '☁ 2 PENDING'",
+        "Stress test: kill the network mid-save (not before). Verify the session still queues",
+        "Verify a queued item is dropped after 5 failed replay attempts to avoid permanent stuck state"
+      ],
+      "notes": "[2026-05-21] lib/offlineSync.ts. postWithQueue() attempts the network POST, stashes in localStorage on failure (or skips network if navigator.onLine === false). drainQueue() replays on 'online' event; on mount if already online; after each session save. queueCount() drives a '☁ N PENDING' chip in the home view header. Items max 5 replay attempts before drop to prevent permanent stuck state. Currently wired into /api/workout POST only; other saves can opt in later."
+    },
+    {
       "id": "gamification-daily-quest",
       "title": "Daily Quest + Full-Stack Day combo + Balanced Week + Hidden achievements",
       "area": "Progress",
