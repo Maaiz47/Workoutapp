@@ -1,0 +1,10 @@
+{
+  "id": "cmpfhrafa0002ia3kom2bomak",
+  "itemId": "auth-register",
+  "tester": "Amanii",
+  "userId": null,
+  "status": "regression-retest",
+  "note": "The when were you born date box exceeds the UI space",
+  "screenshotUrl": null,
+  "ts": "2026-05-21T12:53:07.835Z"
+}
