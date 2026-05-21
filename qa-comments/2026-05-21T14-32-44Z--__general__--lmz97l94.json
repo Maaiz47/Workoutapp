@@ -1,0 +1,10 @@
+{
+  "id": "cmpflbdxk0000twp8lmz97l94",
+  "itemId": "__general__",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "untested",
+  "note": "Make search box floating that stays always\nAdd ability to comment on each step of a test to answer particularly but one save comment button for each test\nWhen marking from retest to retest the button is vague - I need it to be clearer that it’s been attended and pending patch",
+  "screenshotUrl": null,
+  "ts": "2026-05-21T14:32:44.358Z"
+}
