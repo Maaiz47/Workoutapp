@@ -1,0 +1,10 @@
+{
+  "id": "cmpetwrb200001449vjxdat6z",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[Workout] Sometimes the weight and reps aren’t pre-filled from the last data for an exercise\nAlso the first time a user does an exercise it should suggest a weight and number of reps for them, declare it is a suggestion and let them adjust from there instead of 0",
+  "screenshotUrl": null,
+  "ts": "2026-05-21T01:45:32.221Z"
+}
