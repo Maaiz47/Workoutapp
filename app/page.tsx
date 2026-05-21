@@ -9252,11 +9252,55 @@ function HomePage() {
                           <div key={eid} style={{ marginBottom: 8 }}>
                             <div style={{ fontSize: 12, color: "#fff", fontWeight: 500, marginBottom: 5 }}>{ex.name}</div>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                              {ex.sets.map(set => (
-                                <div key={set.sn} style={{ fontSize: 10, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 8px", fontFamily: "'Space Mono', monospace" }}>
-                                  {set.weight > 0 ? `${set.weight}kg × ${set.reps}` : `${set.reps} reps`}
-                                </div>
-                              ))}
+                              {ex.sets.map((set, idx) => {
+                                const prev = idx > 0 ? ex.sets[idx - 1] : null;
+                                // Pick the primary dimension to diff on: if
+                                // either side carries weight it's a loaded
+                                // lift and weight delta is the headline.
+                                // Bodyweight exercises diff on reps.
+                                const hasWeight = (set.weight ?? 0) > 0 || (prev?.weight ?? 0) > 0;
+                                const wDelta = prev ? (set.weight ?? 0) - (prev.weight ?? 0) : 0;
+                                const rDelta = prev ? (set.reps ?? 0) - (prev.reps ?? 0) : 0;
+                                const primary = hasWeight ? wDelta : rDelta;
+                                const primaryUnit = hasWeight ? "kg" : "r";
+                                // Secondary delta surfaces only when both
+                                // dimensions move on a weighted lift —
+                                // e.g. dropped 5kg and lost 2 reps.
+                                const showSecondary = hasWeight && rDelta !== 0;
+                                const same = prev && primary === 0 && !showSecondary;
+                                const up = primary > 0;
+                                const down = primary < 0;
+                                const deltaColor = up ? "#4caf50" : down ? "#FF6B6B" : "rgba(255,255,255,0.4)";
+                                return (
+                                  <div key={set.sn} style={{
+                                    fontSize: 10, color: "#fff",
+                                    background: "rgba(255,255,255,0.08)",
+                                    border: "1px solid rgba(255,255,255,0.1)",
+                                    borderRadius: 6, padding: "3px 8px",
+                                    fontFamily: "'Space Mono', monospace",
+                                    display: "inline-flex", alignItems: "center", gap: 6,
+                                  }}>
+                                    <span>{set.weight > 0 ? `${set.weight}kg × ${set.reps}` : `${set.reps} reps`}</span>
+                                    {prev && (
+                                      <span style={{
+                                        fontSize: 9, color: deltaColor, letterSpacing: 0.5,
+                                        background: same ? "transparent" : `${deltaColor}1a`,
+                                        border: same ? "none" : `1px solid ${deltaColor}33`,
+                                        borderRadius: 4, padding: same ? "0 2px" : "1px 5px",
+                                      }}>
+                                        {same
+                                          ? "="
+                                          : `${up ? "↑+" : "↓"}${Math.abs(primary)}${primaryUnit}`}
+                                        {showSecondary && (
+                                          <span style={{ marginLeft: 4, opacity: 0.85 }}>
+                                            {rDelta > 0 ? "+" : ""}{rDelta}r
+                                          </span>
+                                        )}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         ))}
