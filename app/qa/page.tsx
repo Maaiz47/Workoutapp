@@ -713,24 +713,28 @@ export default function QAPage() {
   const [loading, setLoading] = useState(true);
   const [tester, setTester] = useState("");
   const [authedUsername, setAuthedUsername] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [search, setSearch] = useState("");
   const [showMascot, setShowMascot] = useState(false);
   const draftWriteTimer = useRef<any>(null);
 
   // Doppo splash: show once per session, or whenever the user re-summons.
-  // Wait for the comments + auth to land first so the dialogue can react
-  // to the visitor's actual leaderboard standing.
-  const SS_MASCOT_KEY = "qa-doppo-seen-v1";
+  // Wait for BOTH comments AND auth to land before opening — otherwise
+  // Doppo can't look up the visitor's leaderboard row and falsely
+  // greets a known tester as a stranger with an empty record.
+  // Bumping the version forces every active session to see Doppo again
+  // with the corrected dialogue lookup.
+  const SS_MASCOT_KEY = "qa-doppo-seen-v2";
   useEffect(() => {
-    if (loading) return;
+    if (loading || !authChecked) return;
     try {
       if (!sessionStorage.getItem(SS_MASCOT_KEY)) {
         setShowMascot(true);
         sessionStorage.setItem(SS_MASCOT_KEY, "1");
       }
     } catch {}
-  }, [loading]);
+  }, [loading, authChecked]);
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -754,7 +758,8 @@ export default function QAPage() {
           setTester(u);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setAuthChecked(true));
 
     Promise.all([
       fetch("/api/qa", { cache: "no-store" }).then(r => r.json()),
@@ -849,14 +854,24 @@ export default function QAPage() {
   const unprocessedCount = comments.filter(c => !c.processed).length;
 
   // Find the visitor's leaderboard standing so Doppo's dialogue can react.
+  // Prefer the username-keyed row when logged in; fall back to a tester-name
+  // match (case-insensitive on either the username OR the typed tester) so
+  // a legacy row keyed on the raw `tester` string is still resolvable.
   const allRows = buildLeaderboard(comments);
-  const visitorKey = authedUsername
-    ? "u:" + authedUsername.toLowerCase()
-    : tester.trim() ? "t:" + tester.trim().toLowerCase() : null;
-  const visitorIdx = visitorKey
-    ? allRows.findIndex(r =>
-        (r.isRegistered ? "u:" + r.name : "t:" + r.name).toLowerCase() === visitorKey)
-    : -1;
+  const findVisitor = (): number => {
+    const handles = [authedUsername, tester.trim()].filter(Boolean) as string[];
+    for (const h of handles) {
+      const needleU = ("u:" + h).toLowerCase();
+      const needleT = ("t:" + h).toLowerCase();
+      const idx = allRows.findIndex(r => {
+        const key = (r.isRegistered ? "u:" + r.name : "t:" + r.name).toLowerCase();
+        return key === needleU || key === needleT;
+      });
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+  const visitorIdx = findVisitor();
   const visitorRow = visitorIdx >= 0 ? allRows[visitorIdx] : null;
 
   return (

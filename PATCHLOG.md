@@ -2,6 +2,31 @@
 
 ---
 
+## Fix · 2026-05-21 (l) — Doppo recognises returning testers (qa: qa-mascot-splash)
+
+### Fixed
+- `qa-mascot-splash`: Doppo was greeting logged-in users (with real
+  comment history + points on the leaderboard) as STRANGERs and
+  claiming their record was EMPTY. Two compounding bugs:
+  1. `GET /api/qa/comment` selected `userId` (the FK) but not the
+     `user` join. Every comment came back without `c.user.username`,
+     so `buildLeaderboard` grouped everyone by the raw typed `tester`
+     string. Doppo's lookup by `u:<authedUsername>` matched nothing.
+     Fix: added `user: { select: { username, email, role } }` to the
+     prisma query.
+  2. Race: the auth fetch (`/api/auth`) was independent of the comment
+     fetch. The mascot effect opened the moment `loading` went false,
+     which sometimes ran before auth resolved — so the lookup
+     happened with `authedUsername === null`. Fix: added an
+     `authChecked` state, gated the splash open on
+     `!loading && authChecked`.
+- Also: visitor-row lookup now falls back to matching by tester name
+  if the username key misses (belt-and-braces for any stragglers).
+- Bumped sessionStorage key to `qa-doppo-seen-v2` so every active
+  session sees the corrected greeting once.
+
+---
+
 ## Feature · 2026-05-21 (k) — Doppo, the Baki-style QA sensei splash (qa: qa-mascot-splash)
 
 ### Added

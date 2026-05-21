@@ -79,6 +79,11 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, itemId: true, tester: true, userId: true, status: true,
       note: true, screenshotUrl: true, ts: true, processed: true,
+      // Include the user join so the dashboard can group comments by
+      // username (not just by the raw `tester` string). Without this the
+      // leaderboard treats every logged-in user as a GUEST and Doppo
+      // can't find them by their handle.
+      user: { select: { username: true, email: true, role: true } },
     },
   });
   const processedMap = await readProcessedManifest();
