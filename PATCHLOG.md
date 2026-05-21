@@ -2,6 +2,39 @@
 
 ---
 
+## Feature · 2026-05-21 (al) — Slice F + tier Habits sub-rank (qa: engagement-challenges, engagement-achievements, engagement-weekly-recap, tier-habits-subrank)
+
+### Added — engagement
+- `engagement-challenges`: `🎯 MONTHLY CHALLENGES` card at the top of
+  Progress → Dashboard. v1 ships 3 hardcoded challenges (Push-Up
+  Monster 1000 reps · Showing Up 20 sessions · Heavy Hauler 50k kg).
+  JOIN/✓ JOINED opt-in (localStorage). Progress bar from real
+  history. Global leaderboard rank is a follow-up slice.
+- `engagement-achievements`: `🏆 ACHIEVEMENTS (N/total)` button in
+  Settings opens a 2-col badge wall. Every milestone defined in
+  `lib/milestones.ts` is shown — achieved ones gold + flavour text
+  visible, locked ones greyed.
+- `engagement-weekly-recap`: Sunday-anchored modal that pops up on
+  the first home open each ISO week. Shows last week's sessions,
+  total volume, top exercise. Tap to dismiss. Skipped on weeks with
+  zero training. Real server-side push notifications deferred to a
+  later slice.
+
+### Added — tier extension
+- `tier-habits-subrank`: the athlete tier system now has **5** sub-
+  ranks instead of 4. New **💧 Habits** sub-rank fed by wellness
+  logging:
+  - 60% weight on **hydration goal-hits** (days in last 14 where
+    glasses ≥ 8)
+  - 20% weight on **sleep logged days** (last 14)
+  - 20% weight on **energy logged days** (last 14)
+  Tracked via `wellnessLast14Days()` helper that walks the localStorage
+  daily maps. So consistent hydration + sleep tracking actually
+  contribute to your headline animal tier score now, as the user
+  requested.
+
+---
+
 ## Feature · 2026-05-21 (ak) — Slice E: wellness card (hydration, sleep, soreness, injury) (qa: progress-wellness-card)
 
 ### Added

@@ -124,3 +124,25 @@ export function injuriesFor(exerciseMuscles: string[], injuries: Injury[]): Inju
   const set = new Set(exerciseMuscles.map(m => m.toLowerCase()));
   return injuries.filter(i => set.has(i.muscle.toLowerCase()));
 }
+
+// Aggregate last-N-days wellness counts for the tier system's Habits
+// sub-rank. Walks each tracker's daily map and counts qualifying days.
+export function wellnessLast14Days(): {
+  hydrationGoalDays: number;
+  sleepLoggedDays: number;
+  energyLoggedDays: number;
+} {
+  let hydrationGoalDays = 0, sleepLoggedDays = 0, energyLoggedDays = 0;
+  try {
+    const hydra = JSON.parse(localStorage.getItem(HYDRATION_KEY) ?? "{}") as Record<string, number>;
+    const sleep = JSON.parse(localStorage.getItem(SLEEP_KEY) ?? "{}") as Record<string, SleepEntry>;
+    for (let i = 0; i < 14; i++) {
+      const iso = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      if ((hydra[iso] ?? 0) >= HYDRATION_TARGET) hydrationGoalDays++;
+      const se = sleep[iso] ?? {};
+      if (se.sleepHours != null) sleepLoggedDays++;
+      if (se.energy != null) energyLoggedDays++;
+    }
+  } catch {}
+  return { hydrationGoalDays, sleepLoggedDays, energyLoggedDays };
+}

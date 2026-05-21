@@ -66,10 +66,15 @@ export type AthleteStatsForTier = {
   prCount: number;
   distinctExercises: number; // exercises the user has logged at least once
   monthsOnApp: number;
+  // Habits sub-rank inputs — all derived from the wellness trackers.
+  // Optional so legacy callers still work; default to 0 if absent.
+  hydrationGoalDays?: number;       // days in last 14 where glasses ≥ target
+  sleepLoggedDays?: number;         // days in last 14 with a sleep entry
+  energyLoggedDays?: number;        // days in last 14 with an energy entry
 };
 
 export function computeAthleteTier(s: AthleteStatsForTier): TierBreakdown {
-  // 4 sub-ranks. Numbers tuned to be motivating in the early game.
+  // 5 sub-ranks. Numbers tuned to be motivating in the early game.
   const consistency = Math.round(
     0.6 * scoreFromCount(s.totalSessions, 100) +
     0.4 * scoreFromCount(s.streak, 14)
@@ -77,12 +82,25 @@ export function computeAthleteTier(s: AthleteStatsForTier): TierBreakdown {
   const strength = scoreFromCount(s.prCount, 30);
   const volume = scoreFromCount(s.totalVolumeKg, 100_000); // 100k kg-reps = ~80
   const mastery = scoreFromCount(s.distinctExercises, 25);
+  // Habits — weighted blend of hydration goal-hits + sleep/energy logging.
+  // Hydration is the heaviest weight (60%) since hitting the daily target
+  // is a concrete behaviour. Sleep + energy logging both rewarded for the
+  // habit of tracking (you'd be amazed how rare consistent logging is).
+  const hg = s.hydrationGoalDays ?? 0;
+  const sl = s.sleepLoggedDays ?? 0;
+  const en = s.energyLoggedDays ?? 0;
+  const habits = Math.round(
+    0.6 * scoreFromCount(hg, 10) +   // 10 hydration-goal days in 14 = ~80
+    0.2 * scoreFromCount(sl, 10) +
+    0.2 * scoreFromCount(en, 10)
+  );
 
   const subRanks: SubRank[] = [
     { id: "consistency", label: "Consistency", icon: "🔁", score: consistency, detail: `${s.totalSessions} sessions · ${s.streak}d streak` },
     { id: "strength",    label: "Strength",    icon: "💪", score: strength,    detail: `${s.prCount} personal bests` },
     { id: "volume",      label: "Volume",      icon: "📈", score: volume,      detail: `${Math.round(s.totalVolumeKg / 1000)}k kg-reps lifetime` },
     { id: "mastery",     label: "Mastery",     icon: "🏆", score: mastery,     detail: `${s.distinctExercises} distinct exercises` },
+    { id: "habits",      label: "Habits",      icon: "💧", score: habits,      detail: `${hg}d hydration · ${sl}d sleep · ${en}d energy (last 14)` },
   ];
 
   const headlineScore = Math.round(subRanks.reduce((sum, r) => sum + r.score, 0) / subRanks.length);

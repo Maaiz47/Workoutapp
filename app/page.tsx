@@ -17,7 +17,8 @@ import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
-import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
+import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
+import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap } from "../lib/challenges";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -796,6 +797,56 @@ function WellnessCard() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Monthly challenges card — surfaces the current month's catalogue with
+// opt-in toggle + live progress bar against personal history. Global
+// leaderboard rank lands in a follow-up slice (needs server-side opt-in
+// table and aggregation).
+function ChallengesCard({ history }: { history: Record<string, any[]> }) {
+  const currentMonth = currentMonthIso();
+  const active = CHALLENGES.filter(c => c.monthIso === currentMonth);
+  const [, force] = useState(0);
+  if (active.length === 0) return null;
+  return (
+    <div style={{ background: "rgba(253,203,110,0.04)", border: "1px solid rgba(253,203,110,0.18)", borderRadius: 14, padding: 14, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#fdcb6e", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>🎯 MONTHLY CHALLENGES</span>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{currentMonth.toUpperCase()}</span>
+      </div>
+      {active.map(c => {
+        const progress = computeChallengeProgress(c, history);
+        const pct = Math.min(100, Math.round((progress / c.target) * 100));
+        const opted = isOptedIn(c.id);
+        const done = progress >= c.target;
+        return (
+          <div key={c.id} style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: `1px solid ${done ? "rgba(46,204,113,0.4)" : opted ? "rgba(253,203,110,0.3)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, marginBottom: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 22 }}>{c.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: done ? "#2ecc71" : opted ? "#fdcb6e" : "#fff" }}>{c.title} {done && "✓"}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{c.body}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => { toggleOptIn(c.id); force(n => n + 1); }}
+                style={{ padding: "5px 10px", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", background: opted ? "rgba(253,203,110,0.15)" : "rgba(255,255,255,0.05)", border: `1px solid ${opted ? "#fdcb6e" : "rgba(255,255,255,0.15)"}`, borderRadius: 5, color: opted ? "#fdcb6e" : "rgba(255,255,255,0.5)", cursor: "pointer", whiteSpace: "nowrap" }}
+              >{opted ? "✓ JOINED" : "JOIN"}</button>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{Math.round(progress).toLocaleString()} / {c.target.toLocaleString()}</span>
+              <span style={{ fontSize: 10, color: done ? "#2ecc71" : "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>{pct}%</span>
+            </div>
+            <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pct}%`, background: done ? "#2ecc71" : opted ? "#fdcb6e" : "rgba(255,255,255,0.25)", borderRadius: 2, transition: "width 0.5s" }} />
+            </div>
+          </div>
+        );
+      })}
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 6, textAlign: "center" }}>Progress counts your sets this month. Global leaderboard rank lands next slice.</div>
     </div>
   );
 }
@@ -2188,6 +2239,11 @@ function HomePage() {
   // session save. Stacks newly-achieved entries in a queue so multiple
   // hitting in one session each get their moment.
   const [milestoneQueue, setMilestoneQueue] = useState<Milestone[]>([]);
+  // Weekly recap — shown on the first home open on/after Sunday. Modal
+  // displays sessions / total volume / top exercise / approximate PRs.
+  // Marked seen for the current ISO week so it only fires once.
+  const [recapShown, setRecapShown] = useState<WeeklyRecap | null>(null);
+  const [showAchievements, setShowAchievements] = useState(false);
   // True when the current wInput/rInput values came from suggestedStartingSet()
   // rather than from a real prior session — used to show a "SUGGESTED" tag.
   const [isSuggested, setIsSuggested] = useState(false);
@@ -2501,6 +2557,19 @@ function HomePage() {
       }
     } catch {}
   }, [user?.id]);
+
+  // Weekly recap — fires once per ISO week on Sunday onwards. Only when
+  // the user actually has training history to summarise.
+  useEffect(() => {
+    if (!user || Object.keys(history).length === 0) return;
+    if (shouldShowWeeklyRecap()) {
+      const recap = buildWeeklyRecap(history);
+      if (recap.sessions > 0) {
+        setRecapShown(recap);
+        markRecapShown();
+      }
+    }
+  }, [user?.id, Object.keys(history).length]);
 
   const refreshUser = useCallback(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
@@ -4955,6 +5024,50 @@ function HomePage() {
     <div key="home" className={viewDir === "back" ? "view-back" : "view-forward"} style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "clip" }}>
       {/* First-launch / restart tutorial overlay */}
       <AnimatePresence>{showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}</AnimatePresence>
+      {/* Weekly recap modal — Sunday-anchored, once per ISO week. */}
+      <AnimatePresence>
+        {recapShown && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setRecapShown(null)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 8500, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(10px)", cursor: "pointer" }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 12 }}
+              animate={{ scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 240, damping: 22 }}
+              onClick={e => e.stopPropagation()}
+              style={{ maxWidth: 360, width: "100%", background: "#0a0a0a", border: "1px solid rgba(78,205,196,0.4)", borderRadius: 18, padding: 24, position: "relative" }}
+            >
+              <button onClick={() => setRecapShown(null)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+              <div style={{ fontSize: 11, color: "#4ECDC4", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>📊 LAST WEEK</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 16 }}>Your training in numbers</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+                <div style={{ padding: "10px 12px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8 }}>
+                  <div style={{ fontSize: 9, color: "rgba(78,205,196,0.7)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>SESSIONS</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: "#4ECDC4", marginTop: 2 }}>{recapShown.sessions}</div>
+                </div>
+                <div style={{ padding: "10px 12px", background: "rgba(46,204,113,0.06)", border: "1px solid rgba(46,204,113,0.2)", borderRadius: 8 }}>
+                  <div style={{ fontSize: 9, color: "rgba(46,204,113,0.7)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>VOLUME</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: "#2ecc71", marginTop: 2 }}>{Math.round(recapShown.totalVolumeKg / 1000)}<span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 2 }}>k kg</span></div>
+                </div>
+              </div>
+              {recapShown.topExercise && (
+                <div style={{ padding: "10px 12px", background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 8, marginBottom: 14 }}>
+                  <div style={{ fontSize: 9, color: "rgba(240,192,64,0.7)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>TOP EXERCISE</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f0c040", marginTop: 2 }}>{recapShown.topExercise.name}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{Math.round(recapShown.topExercise.volume).toLocaleString()} kg×reps</div>
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, textAlign: "center" }}>
+                Roll into next week with the same energy. Tap anywhere to dismiss.
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Milestone celebration — one per achieved card, queue drained on tap. */}
       <AnimatePresence>
         {milestoneQueue.length > 0 && (() => {
@@ -7240,6 +7353,40 @@ function HomePage() {
             }}
           >⬇ EXPORT WORKOUT HISTORY (CSV)</button>
 
+          {/* Achievements wall — expandable list of every milestone (achieved
+              + locked). Achieved badges are highlighted; locked are greyed
+              with their flavour text hidden. */}
+          {(() => {
+            let achieved = new Set<string>();
+            try { achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]")); } catch {}
+            const total = MILESTONES.length;
+            const got = MILESTONES.filter(m => achieved.has(m.id)).length;
+            return (
+              <button
+                onClick={() => setShowAchievements(s => !s)}
+                style={{ width: "100%", marginTop: 8, padding: "14px", background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.25)", borderRadius: 12, color: "#f0c040", fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              ><span>🏆 ACHIEVEMENTS ({got}/{total})</span><span style={{ fontSize: 10, color: "rgba(240,192,64,0.6)" }}>{showAchievements ? "▲" : "▼"}</span></button>
+            );
+          })()}
+          {showAchievements && (() => {
+            let achieved = new Set<string>();
+            try { achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]")); } catch {}
+            return (
+              <div className="fade-in" style={{ marginTop: 8, marginBottom: 8, background: "rgba(240,192,64,0.03)", border: "1px solid rgba(240,192,64,0.12)", borderRadius: 12, padding: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {MILESTONES.map(m => {
+                  const got = achieved.has(m.id);
+                  return (
+                    <div key={m.id} style={{ padding: "10px 8px", background: got ? "rgba(240,192,64,0.1)" : "rgba(255,255,255,0.02)", border: `1px solid ${got ? "rgba(240,192,64,0.35)" : "rgba(255,255,255,0.06)"}`, borderRadius: 8, textAlign: "center", opacity: got ? 1 : 0.5 }}>
+                      <div style={{ fontSize: 24, filter: got ? "none" : "grayscale(1) opacity(0.4)" }}>{m.icon}</div>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: got ? "#f0c040" : "rgba(255,255,255,0.4)", marginTop: 4, lineHeight: 1.2 }}>{m.label}</div>
+                      {got && <div style={{ fontSize: 8, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{m.body.slice(0, 60)}{m.body.length > 60 ? "…" : ""}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           {/* Restart tutorial */}
           <button
             onClick={() => { try { localStorage.removeItem(TUTORIAL_STORAGE_KEY); } catch {}; setShowTutorial(true); }}
@@ -7315,6 +7462,7 @@ function HomePage() {
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {progressTab === "dashboard" && (
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
+            <ChallengesCard history={history} />
             <WellnessCard />
             <VolumeHeatmap history={history} />
             {/* Tier Card — multi-dim ladder. Headline animal tier comes
@@ -7338,6 +7486,7 @@ function HomePage() {
                 const sets = (s.sets ?? {}) as Record<string, any>;
                 for (const k in sets) { const v = sets[k]; if (v && !v.skipped) totalVolume += (v.weight ?? 0) * (v.reps ?? 0); }
               }
+              const wl = wellnessLast14Days();
               const stats: AthleteStatsForTier = {
                 totalSessions: overall.totalSessions,
                 streak: overall.streak,
@@ -7345,6 +7494,9 @@ function HomePage() {
                 prCount: Object.keys(overall.exercisePRs).length,
                 distinctExercises: distinctEx.size,
                 monthsOnApp,
+                hydrationGoalDays: wl.hydrationGoalDays,
+                sleepLoggedDays: wl.sleepLoggedDays,
+                energyLoggedDays: wl.energyLoggedDays,
               };
               const breakdown = computeAthleteTier(stats);
               const exp = effectiveExperience({

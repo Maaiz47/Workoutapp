@@ -836,6 +836,76 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "engagement-challenges",
+      "title": "Monthly challenges with personal progress",
+      "area": "Progress",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-F",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard. Verify a '🎯 MONTHLY CHALLENGES' card sits at the top with the current YYYY-MM label",
+        "Verify 3 challenges are listed by default: Push-Up Monster (1000 reps), Showing Up (20 sessions), Heavy Hauler (50k kg volume)",
+        "Each row shows: icon, title, body, current progress / target, progress bar %, JOIN/✓ JOINED toggle",
+        "Tap JOIN on a challenge — verify the row border turns gold (#fdcb6e) and the button reads ✓ JOINED. Reload — verify it persists.",
+        "Log a session that contributes to a challenge metric — verify the progress bar updates on next Progress visit",
+        "When a challenge progress ≥ target — verify the row border turns green and a ✓ appears next to the title"
+      ],
+      "notes": "[2026-05-21] lib/challenges.ts. 3 hardcoded monthly challenges for the current month (push-ups, sessions, volume). Progress computed from history (sets matching the month + optional exercise substring filter). Opt-in localStorage flag — global leaderboard rank is a follow-up slice (needs DB + opt-in table)."
+    },
+    {
+      "id": "engagement-achievements",
+      "title": "Achievements badges wall in Settings",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-F",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings. Verify a '🏆 ACHIEVEMENTS (N/total)' button appears between SEND FEEDBACK and 🎓 RESTART TUTORIAL",
+        "Tap it — verify a 2-column grid of every milestone defined in lib/milestones.ts expands",
+        "Verify achieved milestones (in localStorage.ironlog-milestones-v1) are highlighted gold with full flavour text",
+        "Verify locked milestones are greyed out (50% opacity, no flavour text shown)",
+        "The counter reflects how many you've earned vs total available"
+      ],
+      "notes": "[2026-05-21] Formalises the milestone-celebrations system shipped earlier into a viewable badge wall. Achievements page in Settings shows all 25+ milestones in a 2-col grid — earned ones gold + text visible, locked ones greyed."
+    },
+    {
+      "id": "engagement-weekly-recap",
+      "title": "Weekly recap modal (Sundays)",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-F",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open the home view on a Sunday. Verify a teal '📊 LAST WEEK' modal pops up showing Sessions / Volume / Top Exercise / approximate PRs",
+        "Tap to dismiss — verify the modal closes",
+        "Reload on the same day — verify the modal does NOT re-appear (localStorage.ironlog-recap-week-v1 marks the week as shown)",
+        "On a non-Sunday day — verify the modal does NOT appear at all",
+        "Users with zero training history this week — verify the modal does NOT appear (no content to show)"
+      ],
+      "notes": "[2026-05-21] buildWeeklyRecap() walks the last 7 days of history. shouldShowWeeklyRecap() gates on Sunday + not-yet-shown-this-ISO-week. Triggered from the home view useEffect. Real push notifications need a server cron — deferred to a future slice."
+    },
+    {
+      "id": "tier-habits-subrank",
+      "title": "Habits sub-rank — hydration + sleep + energy feed the tier",
+      "area": "Progress",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass tier-habits",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard tier card",
+        "Verify the sub-rank grid now has 5 cards (not 4): 🔁 Consistency · 💪 Strength · 📈 Volume · 🏆 Mastery · 💧 Habits",
+        "Verify the Habits row's detail string reads 'Xd hydration · Yd sleep · Zd energy (last 14)'",
+        "Log hydration to the 8/day target for several days — verify the Habits sub-rank score increases",
+        "Verify the headline animal-tier score is now the average of FIVE sub-ranks (not four)",
+        "Verify the 'Path to Next' callout can pick Habits as the weakest dim if it scores lower than the others"
+      ],
+      "notes": "[2026-05-21] 5th sub-rank added to lib/tiers.ts. computeAthleteTier() now accepts hydrationGoalDays / sleepLoggedDays / energyLoggedDays (last 14d). Habits score = 0.6 × hydration goal days + 0.2 × sleep logged days + 0.2 × energy logged days, log-scaled. wellnessLast14Days() helper in lib/wellness.ts walks localStorage to derive the counts. Tier card now displays 5 cards in a 2-col grid (3rd row has the 5th alone)."
+    },
+    {
       "id": "progress-wellness-card",
       "title": "Wellness card — hydration / sleep / energy / soreness / injuries",
       "area": "Progress",
