@@ -17,7 +17,7 @@ export type TutorialStep = {
   where?: string;
 };
 
-export const TUTORIAL_VERSION = "v1";
+export const TUTORIAL_VERSION = "v2";
 export const TUTORIAL_STORAGE_KEY = `ironlog-tutorial-seen-${TUTORIAL_VERSION}`;
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -31,8 +31,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "qa-feedback",
     icon: "🥋",
     title: "Found a bug? Got feedback?",
-    body: "Tap SEND FEEDBACK in Settings any time — your note lands in the QA dashboard and gets actioned in the next pass. Doppo will personally greet you at /qa with your stats.",
-    where: "Settings → SEND FEEDBACK · /qa for the dashboard",
+    body: "Tap the teal 💬 NOTE pill in the bottom-right of any screen — pick 🐞 BUG / 💡 IDEA / ✓ WORKS, type a sentence, send. The note auto-captures what you were doing. You can toggle the pill on/off any time from Settings → FEEDBACK & QA. There's also a fuller SEND FEEDBACK card and a link to the full /qa dashboard in the same Settings section.",
+    where: "💬 NOTE pill (everywhere) · Settings → FEEDBACK & QA · /qa dashboard",
   },
   {
     id: "start-workout",

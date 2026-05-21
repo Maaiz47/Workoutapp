@@ -2183,6 +2183,10 @@ function VersionCheckCard() {
 function SendFeedbackCard({ username }: { username: string }) {
   const [text, setText] = useState("");
   const [area, setArea] = useState<string>("Other");
+  // Chip-based kind picker. Defaults to "idea" so users don't accidentally
+  // flag every note as a failing bug — the old hardcoded `status: "failing"`
+  // polluted statuses + the leaderboard.
+  const [kind, setKind] = useState<QuickStatus>("idea");
   const [busy, setBusy] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -2193,14 +2197,15 @@ function SendFeedbackCard({ username }: { username: string }) {
     setBusy(true);
     setError(null);
     try {
+      const picked = QUICK_STATUSES.find(s => s.key === kind)!;
       const res = await fetch("/api/qa/comment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           itemId: "user-feedback",
           tester: username || "user",
-          status: "failing",
-          note: `[${area}] ${text.trim()}`,
+          status: picked.mapsTo,
+          note: `[${picked.icon} ${picked.label} · ${area}] ${text.trim()}`,
         }),
       });
       if (!res.ok) {
@@ -2232,6 +2237,33 @@ function SendFeedbackCard({ username }: { username: string }) {
 
       {expanded && (
         <div style={{ marginTop: 14 }}>
+          <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>KIND</label>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            {QUICK_STATUSES.map(s => {
+              const active = kind === s.key;
+              return (
+                <button
+                  key={s.key}
+                  onClick={() => setKind(s.key)}
+                  style={{
+                    flex: 1, padding: "8px 6px",
+                    background: active ? s.bg : "rgba(255,255,255,0.03)",
+                    border: `1px solid ${active ? s.color : "rgba(255,255,255,0.08)"}`,
+                    borderRadius: 10,
+                    color: active ? s.color : "rgba(255,255,255,0.6)",
+                    fontSize: 11, fontWeight: 700, letterSpacing: 1,
+                    fontFamily: "'Space Mono', monospace",
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                    minHeight: 38,
+                  }}
+                >
+                  <span style={{ fontSize: 14 }}>{s.icon}</span>
+                  <span>{s.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
           <label style={{ display: "block", fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>AREA</label>
           <select
             value={area}
@@ -2291,6 +2323,385 @@ function SendFeedbackCard({ username }: { username: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+// ─── SETTINGS SECTION HEADER ────────────────────────────────────────────
+// Thin, consistent label row used in the Settings view to group related
+// cards under a scannable banner. The old flat list of mixed cards made
+// it hard to tell where "profile" ended and "preferences" began.
+function SettingsSectionHeader({
+  label, color = "rgba(255,255,255,0.35)", icon,
+}: { label: string; color?: string; icon?: string }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10,
+      padding: "20px 4px 8px",
+    }}>
+      {icon && <span style={{ fontSize: 14 }}>{icon}</span>}
+      <span style={{
+        fontSize: 10, fontWeight: 700, letterSpacing: 3,
+        fontFamily: "'Space Mono', monospace",
+        color,
+      }}>{label}</span>
+      <span style={{
+        flex: 1, height: 1,
+        background: "linear-gradient(90deg, rgba(255,255,255,0.08), transparent)",
+      }} />
+    </div>
+  );
+}
+
+// ─── QUICK NOTE TOGGLE ──────────────────────────────────────────────────
+// Lives in Settings → FEEDBACK & QA. Lets users opt the floating 💬 NOTE
+// pill in or out without affecting any other feedback path. Fires a
+// `ironlog-fab-toggle` custom event so the live FAB picks up the change
+// without a page reload.
+function QuickNoteToggle() {
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => { setEnabled(isFabEnabled()); }, []);
+
+  const flip = () => {
+    const next = !enabled;
+    setEnabled(next);
+    try { localStorage.setItem(LS_FAB_ENABLED, next ? "1" : "0"); } catch {}
+    try {
+      sessionStorage.removeItem("ironlog-fab-hidden");
+      window.dispatchEvent(new Event("ironlog-fab-toggle"));
+    } catch {}
+  };
+
+  return (
+    <button
+      onClick={flip}
+      style={{
+        width: "100%", padding: "14px 16px",
+        background: enabled ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.03)",
+        border: `1px solid ${enabled ? "rgba(78,205,196,0.3)" : "rgba(255,255,255,0.08)"}`,
+        borderRadius: 12,
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+        cursor: "pointer",
+        fontFamily: "'DM Sans', sans-serif",
+        textAlign: "left",
+        marginBottom: 12,
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{
+          fontSize: 11, fontWeight: 700, letterSpacing: 1.5,
+          color: enabled ? "#4ECDC4" : "rgba(255,255,255,0.5)",
+          fontFamily: "'Space Mono', monospace",
+        }}>💬 FLOATING NOTE PILL · {enabled ? "ON" : "OFF"}</div>
+        <div style={{
+          fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4, lineHeight: 1.5,
+        }}>
+          Shows a bottom-right pill on every screen so you can drop quick notes mid-test without leaving the flow.
+        </div>
+      </div>
+      <div style={{
+        flexShrink: 0,
+        width: 38, height: 22, borderRadius: 999,
+        background: enabled ? "rgba(78,205,196,0.85)" : "rgba(255,255,255,0.08)",
+        position: "relative", transition: "background 0.18s",
+      }}>
+        <div style={{
+          position: "absolute", top: 2,
+          left: enabled ? 18 : 2,
+          width: 18, height: 18, borderRadius: "50%",
+          background: "#fff",
+          transition: "left 0.18s",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+        }} />
+      </div>
+    </button>
+  );
+}
+
+// ─── QUICK FEEDBACK FAB ─────────────────────────────────────────────────
+// Floating pill that sits in the bottom-right of every authed screen so
+// testers can drop a note WITHOUT leaving the flow they're testing.
+// Captures the current `view` as context (auto-tagged into the note) so
+// Claude can tell exactly where the tester was when filing. Same backend
+// as the Settings card — posts to /api/qa/comment with itemId="user-feedback".
+//
+// Three explicit status chips force the tester to pick the kind of note
+// (bug / idea / works), which fixes the "everything-defaults-to-failing"
+// pollution the older Settings card had.
+
+const VIEW_TO_AREA: Record<string, string> = {
+  home: "UI",
+  workout: "Workout",
+  progress: "Progress",
+  messages: "Messaging",
+  conversation: "Messaging",
+  settings: "Other",
+  customise: "Workout",
+  clientDetail: "Trainer",
+  exerciseHistory: "Progress",
+  bodyTracker: "Body",
+};
+
+type QuickStatus = "bug" | "idea" | "works";
+const QUICK_STATUSES: Array<{
+  key: QuickStatus; label: string; icon: string;
+  color: string; bg: string; mapsTo: "failing" | "untested" | "passing";
+}> = [
+  { key: "bug",   label: "BUG",   icon: "🐞", color: "#FF6B6B", bg: "rgba(255,107,107,0.12)", mapsTo: "failing"  },
+  { key: "idea",  label: "IDEA",  icon: "💡", color: "#FFD700", bg: "rgba(255,215,0,0.12)",   mapsTo: "untested" },
+  { key: "works", label: "WORKS", icon: "✓",  color: "#4caf50", bg: "rgba(76,175,80,0.12)",   mapsTo: "passing"  },
+];
+
+// localStorage key for the per-user "show the floating Quick Note pill"
+// setting. Default is ON. Users who don't want the pill can flip it off
+// from Settings → Feedback & QA.
+const LS_FAB_ENABLED = "ironlog-fab-enabled";
+
+function isFabEnabled(): boolean {
+  try {
+    const v = localStorage.getItem(LS_FAB_ENABLED);
+    return v === null ? true : v === "1";
+  } catch { return true; }
+}
+
+function QuickFeedbackFab({ username, view }: { username: string; view: string }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [status, setStatus] = useState<QuickStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; kind: "ok" | "err" } | null>(null);
+  const [hiddenForSession, setHiddenForSession] = useState(false);
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => {
+    try { if (sessionStorage.getItem("ironlog-fab-hidden") === "1") setHiddenForSession(true); } catch {}
+    setEnabled(isFabEnabled());
+    // Listen for the Settings toggle so the pill appears/disappears live
+    // without a refresh. Custom event keeps it same-tab; storage event
+    // covers cross-tab.
+    const onChange = () => setEnabled(isFabEnabled());
+    window.addEventListener("ironlog-fab-toggle", onChange);
+    window.addEventListener("storage", onChange);
+    return () => {
+      window.removeEventListener("ironlog-fab-toggle", onChange);
+      window.removeEventListener("storage", onChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2400);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const submit = async () => {
+    if (!text.trim() || !status || busy) return;
+    setBusy(true);
+    const picked = QUICK_STATUSES.find(s => s.key === status)!;
+    const area = VIEW_TO_AREA[view] || "Other";
+    try {
+      const res = await fetch("/api/qa/comment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: "user-feedback",
+          tester: username,
+          status: picked.mapsTo,
+          note: `[${picked.icon} ${picked.label} · ${area} · view=${view}] ${text.trim()}`,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setToast({ msg: d?.error || "Couldn't send", kind: "err" });
+        setBusy(false);
+        return;
+      }
+      setToast({ msg: `Sent · ${picked.icon} ${picked.label.toLowerCase()}`, kind: "ok" });
+      setText("");
+      setStatus(null);
+      setOpen(false);
+    } catch {
+      setToast({ msg: "Network error", kind: "err" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const hideForSession = () => {
+    try { sessionStorage.setItem("ironlog-fab-hidden", "1"); } catch {}
+    setHiddenForSession(true);
+    setOpen(false);
+  };
+
+  if (!username || !enabled || hiddenForSession) return null;
+
+  return (
+    <>
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          title="Drop a quick note about this screen — bug, idea, or 'works for me'"
+          aria-label="Send quick feedback"
+          style={{
+            position: "fixed",
+            right: "calc(env(safe-area-inset-right, 0px) + 14px)",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 14px)",
+            zIndex: 9500,
+            padding: "9px 14px",
+            background: "rgba(78,205,196,0.92)",
+            color: "#0a0a0a",
+            border: "1px solid rgba(78,205,196,0.7)",
+            borderRadius: 999,
+            fontSize: 11, fontWeight: 700, letterSpacing: 1.5,
+            fontFamily: "'Space Mono', monospace",
+            cursor: "pointer",
+            boxShadow: "0 6px 18px -4px rgba(0,0,0,0.55)",
+            display: "flex", alignItems: "center", gap: 6,
+            minHeight: 36,
+          }}
+        >
+          <span style={{ fontSize: 14 }}>💬</span>
+          <span>NOTE</span>
+        </button>
+      )}
+
+      {open && (
+        <>
+          <div
+            onClick={() => setOpen(false)}
+            style={{
+              position: "fixed", inset: 0,
+              background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
+              zIndex: 9500,
+            }}
+          />
+          <div style={{
+            position: "fixed",
+            left: 12, right: 12,
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+            zIndex: 9501,
+            background: "#111",
+            border: "1px solid rgba(78,205,196,0.35)",
+            borderRadius: 16,
+            padding: "16px 16px 14px",
+            boxShadow: "0 16px 40px -8px rgba(0,0,0,0.7)",
+            maxWidth: 520, margin: "0 auto",
+            fontFamily: "'DM Sans', sans-serif",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>💬 QUICK NOTE</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>
+                  @{username} · {VIEW_TO_AREA[view] || "Other"} · view={view}
+                </div>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close quick note"
+                style={{
+                  background: "rgba(255,255,255,0.06)", border: "none", borderRadius: "50%",
+                  width: 30, height: 30, color: "rgba(255,255,255,0.6)", fontSize: 16, cursor: "pointer",
+                }}
+              >×</button>
+            </div>
+
+            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+              {QUICK_STATUSES.map(s => {
+                const active = status === s.key;
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => setStatus(s.key)}
+                    style={{
+                      flex: 1, padding: "8px 6px",
+                      background: active ? s.bg : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${active ? s.color : "rgba(255,255,255,0.08)"}`,
+                      borderRadius: 10,
+                      color: active ? s.color : "rgba(255,255,255,0.6)",
+                      fontSize: 11, fontWeight: 700, letterSpacing: 1,
+                      fontFamily: "'Space Mono', monospace",
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                      minHeight: 38,
+                    }}
+                  >
+                    <span style={{ fontSize: 14 }}>{s.icon}</span>
+                    <span>{s.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <textarea
+              autoFocus
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder="One or two sentences — what happened, what you'd like, or 'this works'."
+              rows={3}
+              style={{
+                width: "100%", boxSizing: "border-box",
+                background: "#0a0a0a", color: "#fff",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 10, padding: "10px 12px",
+                fontSize: 16, fontFamily: "'DM Sans', sans-serif",
+                resize: "vertical", marginBottom: 10,
+              }}
+            />
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={hideForSession}
+                title="Hide the floating button for the rest of this session"
+                style={{
+                  padding: "10px 12px",
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 10,
+                  color: "rgba(255,255,255,0.4)",
+                  fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+                  fontFamily: "'Space Mono', monospace",
+                  cursor: "pointer",
+                }}
+              >HIDE</button>
+              <button
+                onClick={submit}
+                disabled={!text.trim() || !status || busy}
+                style={{
+                  flex: 1, padding: "12px",
+                  background: !text.trim() || !status || busy ? "rgba(78,205,196,0.2)" : "rgba(78,205,196,0.9)",
+                  color: !text.trim() || !status || busy ? "rgba(255,255,255,0.5)" : "#0a0a0a",
+                  border: "none", borderRadius: 10,
+                  fontSize: 13, fontWeight: 700, letterSpacing: 1.5,
+                  fontFamily: "'Space Mono', monospace",
+                  cursor: !text.trim() || !status || busy ? "not-allowed" : "pointer",
+                  minHeight: 44,
+                }}
+              >{busy ? "SENDING…" : !status ? "PICK A CHIP" : "SEND NOTE"}</button>
+            </div>
+
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 8, lineHeight: 1.5, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>
+              LANDS IN /qa AS @{username.toUpperCase()} · ACTIONED ON THE NEXT QA PASS
+            </div>
+          </div>
+        </>
+      )}
+
+      {toast && (
+        <div style={{
+          position: "fixed", left: 12, right: 12,
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 60px)",
+          zIndex: 9600,
+          padding: "10px 14px",
+          background: toast.kind === "ok" ? "rgba(76,175,80,0.95)" : "rgba(255,107,107,0.95)",
+          color: "#0a0a0a",
+          borderRadius: 10,
+          fontSize: 12, fontWeight: 700, letterSpacing: 1,
+          fontFamily: "'Space Mono', monospace",
+          textAlign: "center",
+          maxWidth: 360, margin: "0 auto",
+          boxShadow: "0 8px 20px -4px rgba(0,0,0,0.6)",
+        }}>{toast.msg}</div>
+      )}
+    </>
   );
 }
 
@@ -7300,12 +7711,18 @@ function HomePage() {
             </motion.div>
           )}
         </AnimatePresence>
-        <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
+        <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>ACCOUNT</div>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>SETTINGS</div>
         </div>
 
         <div style={{ padding: "0 20px" }}>
+
+          {/* ── SECTION: APP PREFERENCES — theme + accent come first as
+              they're the "how does this app look to me" knobs. The PROFILE
+              section below is the "who am I" data, kept visually
+              independent. ── */}
+          <SettingsSectionHeader label="APP PREFERENCES" icon="⚙" color="rgba(255,255,255,0.5)" />
 
           {/* ── THEME ── */}
           <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
@@ -7348,9 +7765,14 @@ function HomePage() {
             </div>
           </div>
 
+          {/* ── SECTION: YOUR PROFILE — who you are + your training data.
+              Visually separated from the APP PREFERENCES block above so
+              "me" and "the app" stay distinct. ── */}
+          <SettingsSectionHeader label="YOUR PROFILE" icon="👤" color="rgba(255,107,107,0.7)" />
+
           {/* Profile card */}
           <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 12 }}>PROFILE</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 12 }}>IDENTITY</div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
                 <img src="/ai/avatar-default.png" alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.3), 0 6px 18px rgba(255,107,107,0.18)" }} />
@@ -7610,6 +8032,10 @@ function HomePage() {
             )}
           </div>
 
+          {/* ── SECTION: TRAINING — modality knobs (HIIT) + trainer
+              role upgrade live here. ── */}
+          <SettingsSectionHeader label="TRAINING" icon="🏋️" color="rgba(255,140,66,0.75)" />
+
           {/* HIIT Training Preferences */}
           <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT TRAINING</div>
@@ -7703,9 +8129,12 @@ function HomePage() {
             </div>
           )}
 
+          {/* ── SECTION: ALERTS — push notifications. ── */}
+          <SettingsSectionHeader label="ALERTS" icon="🔔" color="rgba(78,205,196,0.75)" />
+
           {/* Notifications */}
           <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>NOTIFICATIONS</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PUSH</div>
             {notifStatus === "granted" ? (
               <div>
                 <div style={{ fontSize: 13, color: "#4ECDC4", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginBottom: 12 }}>✓ ENABLED</div>
@@ -7740,11 +8169,45 @@ function HomePage() {
             )}
           </div>
 
-          {/* App version + manual update check */}
-          <VersionCheckCard />
+          {/* ── SECTION: FEEDBACK & QA — all the ways to tell the team
+              what's working, what isn't, or what you'd like. Surfaces:
+              (1) the floating 💬 NOTE pill on every screen — toggle
+              below; (2) this Send Feedback card for longer-form notes;
+              (3) the full /qa dashboard for structured per-feature
+              testing with threads. ── */}
+          <SettingsSectionHeader label="FEEDBACK & QA" icon="💬" color="rgba(78,205,196,0.85)" />
+
+          <QuickNoteToggle />
 
           {/* Send feedback */}
           <SendFeedbackCard username={user?.username || ""} />
+
+          {/* Full QA dashboard link */}
+          <a
+            href="/qa"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+              marginBottom: 12, padding: "14px 16px",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 12, textDecoration: "none",
+              cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: "#fff", fontFamily: "'Space Mono', monospace" }}>🥋 OPEN QA DASHBOARD →</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 4, lineHeight: 1.5 }}>
+                Per-feature checklists, comment threads, search, status tracking. Doppo greets you there.
+              </div>
+            </div>
+          </a>
+
+          {/* ── SECTION: LIBRARY & SYSTEM — learning content, app version,
+              data export, gamification toggle, log out. ── */}
+          <SettingsSectionHeader label="LIBRARY & SYSTEM" icon="📚" color="rgba(255,255,255,0.5)" />
+
+          {/* App version + manual update check */}
+          <VersionCheckCard />
 
           {/* Export workout history as CSV */}
           <button
@@ -10281,18 +10744,21 @@ function HomePage() {
 
   const _isForward = viewDir !== "back";
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={_viewKey}
-        initial={{ opacity: 0, x: _isForward ? 22 : -22 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: _isForward ? -22 : 22 }}
-        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        style={{ minHeight: "100dvh" }}
-      >
-        {_content}
-      </motion.div>
-    </AnimatePresence>
+    <>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={_viewKey}
+          initial={{ opacity: 0, x: _isForward ? 22 : -22 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: _isForward ? -22 : 22 }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          style={{ minHeight: "100dvh" }}
+        >
+          {_content}
+        </motion.div>
+      </AnimatePresence>
+      <QuickFeedbackFab username={user?.username || ""} view={view} />
+    </>
   );
 }
 

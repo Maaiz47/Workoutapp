@@ -2,6 +2,85 @@
 
 ---
 
+## QA-design review · 2026-05-21 — Micro-testing + commenting along the way + Settings reorg (qa: quick-feedback-fab, settings-send-feedback, settings-reorg)
+
+### Audit findings
+The /qa dashboard is solid for structured per-feature testing (threads,
+statuses, search, leaderboard, patch history, repo mirror, processed
+gating). But three gaps blocked true "micro testing along the way":
+1. **No global quick-comment widget.** To file a note mid-flow the
+   tester had to leave the screen they were testing, navigate to
+   Settings, expand SendFeedbackCard, then navigate back — a flow
+   killer that discourages drive-by notes.
+2. **`SendFeedbackCard` hardcoded `status: "failing"`** on every
+   submit. Praise notes and ideas all got flagged as bugs,
+   polluting the leaderboard and statuses.
+3. **No view-context auto-capture** — every note had to manually
+   describe where the tester was when filing.
+4. **Settings was a jumbled flat list** of cards — profile/training
+   data was interleaved with theme, gamification, feedback, and
+   system housekeeping with no scannable hierarchy.
+
+### Added
+- **`QuickFeedbackFab`** — small teal "💬 NOTE" pill fixed in the
+  bottom-right of every authed screen (any logged-in user, not just
+  admin). Tap → bottom-sheet form with three explicit kind chips
+  (🐞 BUG → failing, 💡 IDEA → untested, ✓ WORKS → passing).
+  Auto-captures the current `view` state into the note prefix so
+  Claude knows exactly where the tester was. Posts to the same
+  `POST /api/qa/comment` endpoint as the Settings card
+  (itemId="user-feedback"). zIndex 9500 — sits below all fullscreen
+  modals (workout overlays, install banner, side menu) so it never
+  fights critical UI. Hide-for-session toggle persisted in
+  `sessionStorage` under `ironlog-fab-hidden`.
+- **`QuickNoteToggle`** — per-user opt-in/out toggle in Settings →
+  FEEDBACK & QA. Backed by `localStorage["ironlog-fab-enabled"]`,
+  default ON. Fires a `ironlog-fab-toggle` custom event so the live
+  FAB picks up the change without a page reload.
+- **`SettingsSectionHeader`** — a thin, consistent label row used
+  to group related cards in Settings.
+
+### Fixed
+- **`SendFeedbackCard` status bug** — replaced the hardcoded
+  `"failing"` with the same three-chip picker. Default is 💡 IDEA
+  so feedback no longer false-positives as bug reports. Note is
+  prefixed with the picked chip's icon + label so the
+  user-feedback thread stays self-describing.
+
+### Settings UI cleanup
+- Reorganised the Settings view from a flat list of mixed cards
+  into five scannable sections, each with a section banner:
+  **APP PREFERENCES** (theme + accent), **YOUR PROFILE** (identity
+  + body & stats), **TRAINING** (HIIT + trainer upgrade),
+  **ALERTS** (push notifications), **FEEDBACK & QA** (Quick Note
+  toggle + Send Feedback card + /qa dashboard link), and
+  **LIBRARY & SYSTEM** (version, export, gamification,
+  achievements, pro tips, restart tutorial, log out).
+- The page title now reads `SETTINGS` (was `ACCOUNT`) — "account"
+  was misleading because the page held theme + gamification +
+  achievements alongside real account-y bits.
+- Renamed the PROFILE card subtitle to `IDENTITY` so it reads
+  unambiguously under the YOUR PROFILE section header.
+
+### Tutorial
+- Bumped `TUTORIAL_VERSION` to `v2` and rewrote the `qa-feedback`
+  step to surface the new 💬 NOTE pill as the primary "drop a
+  thought while testing" surface, with the Settings card and /qa
+  dashboard as secondary structured paths.
+
+### QA tracking
+- Added `quick-feedback-fab` item to qa-state.json with a 10-step
+  test plan covering visibility per view, the Settings toggle,
+  chip selection, view-context capture, hide-for-session, and
+  z-index ordering under overlays.
+- Added `settings-reorg` item covering the new section banners and
+  the renamed page title.
+- Flipped `settings-send-feedback` from untested → regression-retest
+  with an updated 8-step test plan that exercises the new KIND chips
+  and verifies the status mapping per chip.
+
+---
+
 ## Feature · 2026-05-21 (at) — Group shared workout: schema + API (Slice 1/N) (qa: group-shared-workout)
 
 ### Added — Prisma schema

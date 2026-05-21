@@ -1478,18 +1478,61 @@
       "area": "Other",
       "introduced": "2026-05-21",
       "introducedBy": "QA pass 01da6f1",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
         "Open Settings while logged in (any user role)",
         "Scroll until you see the teal '💬 SEND FEEDBACK' card",
         "Tap to expand it",
+        "Pick one of the three KIND chips — 🐞 BUG / 💡 IDEA / ✓ WORKS — and confirm only one stays highlighted at a time",
         "Select an area, write a short note, tap SEND FEEDBACK",
         "Verify a green 'Sent ✓ at HH:MM' confirmation appears and the textarea clears",
-        "Send a second note — confirm it stacks (multiple sends should all succeed)",
-        "As admin, open /qa and confirm both comments appear in the 'user-feedback' thread, tagged with your @username"
+        "Send a second note with a different kind chip — confirm the note that lands in /qa is prefixed with the chip's icon + label (e.g. '[💡 IDEA · Workout] …') and has the correct status (idea→untested, bug→failing, works→passing)",
+        "As admin, open /qa and confirm both comments appear in the 'user-feedback' thread, tagged with your @username and with the right statuses"
       ],
-      "notes": "Backed by POST /api/qa/comment. itemId is hardcoded to 'user-feedback'. The submitting user is identified via the ironlog-uid cookie automatically."
+      "notes": "[2026-05-21] Fixed: KIND chip picker (BUG/IDEA/WORKS) replaces the hardcoded `status: 'failing'` that used to pollute every feedback submission. Status is now picked explicitly per submission and the note is prefixed with the chip icon + label so threads stay legible. Backed by POST /api/qa/comment. itemId is hardcoded to 'user-feedback'. The submitting user is identified via the ironlog-uid cookie automatically."
+    },
+    {
+      "id": "quick-feedback-fab",
+      "title": "Quick Note floating button — micro-testing along the way",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass micro-testing-review",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Log in as any user — the teal '💬 NOTE' pill should appear in the bottom-right of every screen (home, workout, progress, settings, messages, customise, exercise-history, body-tracker)",
+        "Open Settings → FEEDBACK & QA → '💬 FLOATING NOTE PILL · ON' — tap it; the toggle should flip to OFF and the pill should disappear from the screen WITHOUT a page reload",
+        "Tap the toggle again — pill reappears live. Confirm the localStorage key 'ironlog-fab-enabled' tracks 0/1 across reloads",
+        "With the pill ON, tap it on the home view — the bottom-sheet quick-note form should slide in with @username + view context shown at the top",
+        "Confirm the three KIND chips (🐞 BUG / 💡 IDEA / ✓ WORKS) all start UNSELECTED — the SEND NOTE button should read 'PICK A CHIP' and be disabled until you select one",
+        "Pick 🐞 BUG, type a 1-sentence note, tap SEND NOTE — confirm a green toast appears bottom-centre and the form closes",
+        "Open /qa, find the 'user-feedback' thread under General/Other, and confirm the new comment is there with status=failing, prefixed '[🐞 BUG · UI · view=home] …'",
+        "Repeat from the WORKOUT view (start a workout, tap the NOTE pill) — confirm view=workout is captured and status=passing if you pick ✓ WORKS",
+        "Tap HIDE inside the form — the floating pill should disappear for the rest of the session (sessionStorage flag); a hard refresh should bring it back. The Settings toggle should clear this hide flag when re-toggled",
+        "Confirm the pill stays HIDDEN under fullscreen overlays (PB celebrations, install banner, side menu) — its zIndex is 9500 so anything above 9500 should cover it",
+        "Unauthenticated landing page: confirm the pill does NOT render"
+      ],
+      "notes": "[2026-05-21] Slice 1/N: shipped the floating QuickFeedbackFab and wired it into HomePage. Available to ALL logged-in users with a per-user Settings toggle (Settings → FEEDBACK & QA → '💬 FLOATING NOTE PILL'). Toggle is persisted in localStorage('ironlog-fab-enabled'), defaults ON, and the FAB listens for a custom 'ironlog-fab-toggle' event so it appears/disappears live without reloads. Posts to POST /api/qa/comment as itemId='user-feedback'. Three explicit chips force the tester to pick the kind so we don't pollute statuses. Auto-captures view= state into the note so Claude can see exactly where the tester was. Hidden-for-session state persists in sessionStorage under 'ironlog-fab-hidden'. Next slice: optional screenshot capture from the browser's getDisplayMedia / canvas snapshot."
+    },
+    {
+      "id": "settings-reorg",
+      "title": "Settings view — section banners + Profile separated from app prefs",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass micro-testing-review",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Log in and open Settings — the page title at the top should now read 'SETTINGS' (was 'ACCOUNT')",
+        "Scroll top-to-bottom and confirm six section banner rows appear in order: 'APP PREFERENCES ⚙', 'YOUR PROFILE 👤', 'TRAINING 🏋️', 'ALERTS 🔔', 'FEEDBACK & QA 💬', 'LIBRARY & SYSTEM 📚'",
+        "Confirm the PROFILE card sub-label inside the YOUR PROFILE section reads 'IDENTITY' (was 'PROFILE') so the section banner is no longer redundant",
+        "Confirm the FEEDBACK & QA section contains three things in order: the 💬 FLOATING NOTE PILL toggle, the Send Feedback card, and the 🥋 OPEN QA DASHBOARD link",
+        "Tap the 🥋 OPEN QA DASHBOARD link — it should navigate to /qa",
+        "Visually scan: profile/training data is clearly separated from app preferences (theme/accent) by the section banners; no two unrelated cards are visually adjacent without a banner between them",
+        "Mobile-only: on iPhone, section banners should not be cut off at any screen width — the divider line should reach the right edge"
+      ],
+      "notes": "[2026-05-21] Slice 1/N: introduced SettingsSectionHeader and inserted six banners to split the previously flat-list Settings view into PREFERENCES / PROFILE / TRAINING / ALERTS / FEEDBACK / SYSTEM. Page title renamed SETTINGS. Did NOT physically reorder cards to keep the JSX diff safe; the banners alone are enough to give the page a scannable hierarchy. Next slice: physically reorder cards so PROFILE appears above PREFERENCES if the user wants 'me' above 'app'."
     },
     {
       "id": "qa-dashboard",
