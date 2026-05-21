@@ -1158,6 +1158,8 @@ const PHRASES = [
 // must-reset screens.
 function PasswordInput({
   value, onChange, placeholder, onKeyDown, autoFocus, style,
+  autoComplete = "current-password",
+  name = "password",
 }: {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -1165,6 +1167,9 @@ function PasswordInput({
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   autoFocus?: boolean;
   style?: React.CSSProperties;
+  /** "current-password" for login, "new-password" for register/setup/must-reset */
+  autoComplete?: "current-password" | "new-password";
+  name?: string;
 }) {
   const [show, setShow] = useState(false);
   return (
@@ -1176,7 +1181,8 @@ function PasswordInput({
         placeholder={placeholder}
         type={show ? "text" : "password"}
         autoFocus={autoFocus}
-        autoComplete="current-password"
+        name={name}
+        autoComplete={autoComplete}
         style={{ ...style, width: "100%", maxWidth: "100%", margin: 0, paddingRight: 46, marginBottom: 0 }}
       />
       <button
@@ -2869,7 +2875,7 @@ function HomePage() {
           {/* CTA — username input */}
           <div style={{ padding: "0 24px 60px", maxWidth: 420, margin: "0 auto", textAlign: "center", zIndex: 1, position: "relative" }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", marginBottom: 16, letterSpacing: 0.5, fontFamily: "'DM Sans', sans-serif" }}>No subscription. No ads. Just your lifts.</div>
-            <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus style={{ ...inputStyleCenter, maxWidth: "100%" }} />
+            <input value={nameInput} onChange={e => { setNameInput(e.target.value); setShowEmailSignupPrompt(false); }} onKeyDown={e => e.key === "Enter" && doCheckUsername()} placeholder="Username or email" autoFocus name="username" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="email" style={{ ...inputStyleCenter, maxWidth: "100%" }} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             {showEmailSignupPrompt && (
               <div style={{ marginTop: 16, padding: "16px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12 }}>
@@ -2902,16 +2908,16 @@ function HomePage() {
           {/* ── Step: register (new user) ── */}
           {authStep === "register" && (<>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Create your account</div>
-            <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Choose a username" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
+            <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Choose a username" autoFocus name="username" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} style={{ ...inputStyle, marginBottom: 8 }} />
             {emailInput ? (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 16px", marginBottom: 8, textAlign: "left" }}>
                 Email: <span style={{ color: "rgba(255,255,255,0.7)" }}>{emailInput}</span>
               </div>
             ) : (
-              <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Email" type="email" style={{ ...inputStyle, marginBottom: 8 }} />
+              <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Email" type="email" name="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="email" style={{ ...inputStyle, marginBottom: 8 }} />
             )}
-            <PasswordInput value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" style={{ ...inputStyle, marginBottom: 8 }} />
-            <PasswordInput value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doRegister()} placeholder="Confirm password" style={inputStyle} />
+            <PasswordInput value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" autoComplete="new-password" name="new-password" style={{ ...inputStyle, marginBottom: 8 }} />
+            <PasswordInput value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doRegister()} placeholder="Confirm password" autoComplete="new-password" name="confirm-password" style={inputStyle} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             <button onClick={doRegister} style={btnPrimary}>CREATE ACCOUNT</button>
             <button onClick={() => { setAuthStep("username"); setAuthError(""); setEmailInput(""); }} style={btnBack}>← Back</button>
@@ -2921,9 +2927,9 @@ function HomePage() {
           {authStep === "setup" && (<>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Welcome back, <strong style={{ color: "#fff" }}>{nameInput}</strong></div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 20 }}>Set up a password to secure your account</div>
-            <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Your email" type="email" style={{ ...inputStyle, marginBottom: 8 }} />
-            <PasswordInput value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="New password" style={{ ...inputStyle, marginBottom: 8 }} />
-            <PasswordInput value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doSetup()} placeholder="Confirm password" style={inputStyle} />
+            <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Your email" type="email" name="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="email" style={{ ...inputStyle, marginBottom: 8 }} />
+            <PasswordInput value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="New password" autoComplete="new-password" name="new-password" style={{ ...inputStyle, marginBottom: 8 }} />
+            <PasswordInput value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doSetup()} placeholder="Confirm password" autoComplete="new-password" name="confirm-password" style={inputStyle} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             <button onClick={doSetup} style={btnPrimary}>SET PASSWORD</button>
             <button onClick={() => { setAuthStep("username"); setAuthError(""); }} style={btnBack}>← Back</button>
@@ -2943,7 +2949,7 @@ function HomePage() {
           {authStep === "forgot" && (<>
             {!forgotSent ? (<>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>Enter your email to receive a temporary password</div>
-              <input value={emailInput} onChange={e => setEmailInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doForgot()} placeholder="Your email" type="email" autoFocus style={inputStyle} />
+              <input value={emailInput} onChange={e => setEmailInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doForgot()} placeholder="Your email" type="email" autoFocus name="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="email" style={inputStyle} />
               {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
               <button onClick={doForgot} style={btnPrimary}>SEND RESET EMAIL</button>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 10, lineHeight: 1.5, textAlign: "center" }}>
@@ -2981,8 +2987,8 @@ function HomePage() {
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 6, fontWeight: 300, marginBottom: 48 }}>LIFT · TRACK · PROGRESS</div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Welcome, <strong style={{ color: "#fff" }}>{user.username}</strong></div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 24 }}>Set a new password to continue</div>
-          <PasswordInput value={newPasswordInput} onChange={e => setNewPasswordInput(e.target.value)} placeholder="New password" autoFocus style={{ ...inputStyle, marginBottom: 8 }} />
-          <PasswordInput value={newConfirmInput} onChange={e => setNewConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doResetPassword()} placeholder="Confirm password" style={inputStyle} />
+          <PasswordInput value={newPasswordInput} onChange={e => setNewPasswordInput(e.target.value)} placeholder="New password" autoFocus autoComplete="new-password" name="new-password" style={{ ...inputStyle, marginBottom: 8 }} />
+          <PasswordInput value={newConfirmInput} onChange={e => setNewConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doResetPassword()} placeholder="Confirm password" autoComplete="new-password" name="confirm-password" style={inputStyle} />
           {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
           <button onClick={doResetPassword} style={btnPrimary}>SET PASSWORD</button>
           <button onClick={doLogout} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginTop: 16 }}>Log out</button>
