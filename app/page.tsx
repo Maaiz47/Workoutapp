@@ -7611,6 +7611,14 @@ function HomePage() {
           const handlePair = (libOrInEx: any, permanent: boolean) => {
             if (!addingSupersetForId) return;
             if (permanent) {
+              // Refuse the permanent save if the anchor itself is only in the
+              // session (not in the saved routine) — there's nothing to
+              // attach the pairing to. Surface the constraint inline.
+              const anchorInPlan = activeDay && customPlan?.find((d: any) => d.id === activeDay.id)?.exercises?.some((x: any) => x.exerciseId === addingSupersetForId);
+              if (!anchorInPlan) {
+                window.alert("Can't save this pair permanently — the anchor exercise isn't in your saved routine yet. Add it permanently first, then pair it.");
+                return;
+              }
               const ok = window.confirm("This will permanently modify your saved routine so these two exercises are always paired as a superset. Continue?");
               if (!ok) return;
             }
@@ -7647,26 +7655,57 @@ function HomePage() {
                 })
               };
             });
-            if (permanent) {
-              // Fire-and-forget save to the user's stored routine. Picks the
-              // first routine — the active session is always derived from
-              // the live activeDay edit so the user sees the change instantly.
-              try {
-                fetch("/api/plan", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(plan => {
-                  if (!plan?.days) return;
-                  // No-op stub: the activeDay already reflects the change; a
-                  // future slice can persist this to the underlying routine
-                  // via /api/routines. For now the change sticks for the
-                  // session and the user has been warned.
-                });
-              } catch {}
+            if (permanent && activeDay) {
+              // Persist the pairing to the user's saved routine. Replays the
+              // same insertion logic on the customPlan slice for this day,
+              // PUTs to /api/plan, and patches local customPlan state so the
+              // routine view also reflects the new pairing immediately.
+              const planDay = customPlan?.find((d: any) => d.id === activeDay.id);
+              if (planDay) {
+                const exs: any[] = planDay.exercises ?? [];
+                const anchorIdx = exs.findIndex((x: any) => x.exerciseId === addingSupersetForId);
+                if (anchorIdx >= 0) {
+                  const existingGid = exs[anchorIdx].groupId ?? `sup-${Date.now()}`;
+                  let newExs: any[];
+                  const partnerIdx = exs.findIndex((x: any) => x.exerciseId === libOrInEx.id);
+                  if (partnerIdx >= 0) {
+                    const filtered = exs.filter((_: any, i: number) => i !== partnerIdx);
+                    const newAnchorIdx = filtered.findIndex((x: any) => x.exerciseId === addingSupersetForId);
+                    filtered[newAnchorIdx] = { ...filtered[newAnchorIdx], groupId: existingGid, groupType: "superset" };
+                    const partner = { ...exs[partnerIdx], groupId: existingGid, groupType: "superset", rest: 0 };
+                    filtered.splice(newAnchorIdx + 1, 0, partner);
+                    newExs = filtered;
+                  } else {
+                    const newEx = {
+                      exerciseId: libOrInEx.id, name: libOrInEx.name,
+                      sets: 3, reps: "10-12", rest: 0,
+                      notes: null, groupId: existingGid, groupType: "superset",
+                      dropSets: 0, dropSet: false,
+                    };
+                    const updated = exs.map((x: any) => x.exerciseId === addingSupersetForId ? { ...x, groupId: existingGid, groupType: "superset" } : x);
+                    updated.splice(anchorIdx + 1, 0, newEx);
+                    newExs = updated;
+                  }
+                  fetch("/api/plan", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ dayId: activeDay.id, exercises: newExs }),
+                  }).catch(() => {});
+                  setCustomPlan((prev: any) => prev ? prev.map((d: any) => d.id === activeDay.id ? { ...d, exercises: newExs } : d) : prev);
+                }
+              }
             }
             setShowSessionExBrowser(false);
             setAddingSupersetForId(null);
             setSessionExSearch("");
           };
-          // Legacy add-only path used when NOT in superset mode.
-          const handleAdd = (libEx: any) => {
+          // Add an exercise to the active session. permanent=true also writes
+          // it to the saved routine (warning confirm required).
+          const handleAdd = (libEx: any, permanent: boolean) => {
+            if (permanent) {
+              const ok = window.confirm("This will permanently add this exercise to your saved routine for this day. It will show up in every future session. Continue?");
+              if (!ok) return;
+            }
             const newEx: any = {
               id: libEx.id, name: libEx.name, sets: 3, reps: "10-12", rest: 60,
               type: libEx.type ?? "isolation",
@@ -7683,6 +7722,24 @@ function HomePage() {
               }
               return { ...d, sections };
             });
+            if (permanent && activeDay) {
+              const planDay = customPlan?.find((d: any) => d.id === activeDay.id);
+              if (planDay) {
+                const exs: any[] = planDay.exercises ?? [];
+                const newPayload = [...exs, {
+                  exerciseId: libEx.id, name: libEx.name,
+                  sets: 3, reps: "10-12", rest: 60,
+                  notes: null, groupId: null, groupType: null,
+                  dropSets: 0, dropSet: false,
+                }];
+                fetch("/api/plan", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ dayId: activeDay.id, exercises: newPayload }),
+                }).catch(() => {});
+                setCustomPlan((prev: any) => prev ? prev.map((d: any) => d.id === activeDay.id ? { ...d, exercises: newPayload } : d) : prev);
+              }
+            }
             setShowSessionExBrowser(false);
             setAddingSupersetForId(null);
             setSessionExSearch("");
@@ -7743,19 +7800,27 @@ function HomePage() {
                   </>
                 )}
                 {/* Add-mode suggestions (unchanged behaviour for the non-superset path). */}
+                {!isSuperMode && (
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, marginBottom: 12, padding: "10px 12px", background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 8, fontFamily: "'DM Sans', sans-serif" }}>
+                    Tap <strong>+ SESSION</strong> to add this exercise to today&apos;s workout only, or <strong>+ PERMANENT</strong> to also save it to your routine for every future session.
+                  </div>
+                )}
                 {!isSuperMode && !searchLower && sessionExSuggestions.length > 0 && (
                   <>
                     <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>✨ SUGGESTED FOR THIS WORKOUT</div>
                     {sessionExSuggestions.map((libEx: any) => {
                       const muscles = ((libEx.muscles ?? []) as string[]).slice(0, 2).join(" · ");
                       return (
-                        <button key={libEx.id} onClick={() => handleAdd(libEx)} style={{ width: "100%", textAlign: "left", padding: "12px 14px", background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 10, marginBottom: 6, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                        <div key={libEx.id} style={{ padding: "12px 14px", background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 10, marginBottom: 6 }}>
+                          <div style={{ marginBottom: 8 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{libEx.name}</div>
                             {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
                           </div>
-                          <span style={{ color: "#4ECDC4", fontSize: 14 }}>+</span>
-                        </button>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={() => handleAdd(libEx, false)} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ SESSION</button>
+                            <button onClick={() => handleAdd(libEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ PERMANENT</button>
+                          </div>
+                        </div>
                       );
                     })}
                     <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: 2, margin: "16px 0 8px", fontFamily: "'Space Mono', monospace" }}>ALL EXERCISES</div>
@@ -7781,13 +7846,16 @@ function HomePage() {
                           </div>
                         </>
                       ) : (
-                        <button onClick={() => handleAdd(libEx)} style={{ width: "100%", textAlign: "left", padding: "11px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ padding: "11px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
+                          <div style={{ marginBottom: 8 }}>
                             <div style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{libEx.name}</div>
                             {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
                           </div>
-                          <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 14 }}>+</span>
-                        </button>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={() => handleAdd(libEx, false)} style={{ flex: 1, padding: "6px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, color: "#4ECDC4", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ SESSION</button>
+                            <button onClick={() => handleAdd(libEx, true)} style={{ flex: 1, padding: "6px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ PERMANENT</button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   );

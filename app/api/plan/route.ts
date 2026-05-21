@@ -174,6 +174,7 @@ export async function PUT(req: NextRequest) {
         groupId: ex.groupId ?? null,
         groupType: ex.groupType ?? null,
         dropSets: ex.dropSets ?? 0,
+        dropSet: ex.dropSet === true,
       })),
     });
 

@@ -208,7 +208,7 @@
         "Verify after rest ends, the next incomplete exercise auto-expands (auto-advance behaviour)",
         "Finish the workout and confirm the superset data is saved in the WorkoutLog sets JSON"
       ],
-      "notes": "[2026-05-21] Slice 2/N (in-session picker rework): the '+ SUPERSET' button per-exercise now opens an upgraded picker. Includes in-session exercises (with ✓ IN SESSION badges) so the user can pair already-planned exercises — not just add new library ones. Surfaces RECOMMENDED PAIRINGS at the top driven by a static antagonist/compound-isolation table (recommendedPartnersFor() in app/page.tsx). Confirmation row offers SESSION (session-scoped pair) and PERMANENT (with a confirm dialog warning about routine modification). The anchor exercise is excluded from the list and so are exercises already in a different superset (prevents orphan groups). The legacy ⟳ PAIR header button → customise redirect is no longer the only path.\n[2026-05-21] Slice 1/N — in-session pairing: added a ⟳ PAIR button in the active-workout header that drops the user into the customise screen with multi-select pre-armed for the current day."
+      "notes": "[2026-05-21] Slice 3/N: '+ PERMANENT' is no longer a stub — it now persists the pairing to the saved routine via PUT /api/plan. The handler replays the same insertion logic on customPlan's exercises (using exerciseId keys) and patches local customPlan state so the routine view also reflects the change immediately. Refuses with an inline alert if the anchor itself is session-only (not in the saved routine).\n[2026-05-21] Slice 2/N (in-session picker rework): the '+ SUPERSET' button per-exercise now opens an upgraded picker. Includes in-session exercises (with ✓ IN SESSION badges). Surfaces RECOMMENDED PAIRINGS at the top driven by a static antagonist/compound-isolation table (recommendedPartnersFor() in app/page.tsx). Confirmation row offers SESSION (session-scoped pair) and PERMANENT (with a confirm dialog warning about routine modification). The anchor exercise is excluded from the list and so are exercises already in a different superset (prevents orphan groups).\n[2026-05-21] Slice 1/N — in-session pairing: added a ⟳ PAIR button in the active-workout header that drops the user into the customise screen with multi-select pre-armed for the current day."
     },
     {
       "id": "workout-dropsets",
@@ -266,19 +266,23 @@
     },
     {
       "id": "workout-in-session-exercise-add",
-      "title": "Adding an exercise mid-session",
+      "title": "Adding an exercise mid-session — session-only or permanent",
       "area": "Workout",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
         "Start an active workout session",
         "Tap '+ Add Exercise' (in-session browser button)",
-        "Search for and select an exercise",
-        "Verify the exercise appears in the current session below existing exercises",
-        "Log sets for the newly added exercise",
-        "Finish the workout — the extra exercise should appear in the saved log"
+        "Verify the helper line at the top explains SESSION vs PERMANENT",
+        "Verify each exercise row now shows two buttons: '+ SESSION' (teal) and '+ PERMANENT' (red)",
+        "Tap '+ SESSION' on an exercise — verify it appears in the current session in the Bonus group, no confirm dialog",
+        "Tap '+ PERMANENT' on another exercise — verify a confirm dialog warns about modifying the saved routine before proceeding",
+        "Cancel the confirm — verify nothing happens",
+        "Accept the confirm — verify the exercise is added to BOTH the active session AND the saved routine",
+        "End the workout, start a fresh session of the same day — verify the PERMANENT exercise is still there, the SESSION-only one is NOT",
+        "Log sets for both added exercises — verify they save in the WorkoutLog"
       ],
       "notes": ""
     },

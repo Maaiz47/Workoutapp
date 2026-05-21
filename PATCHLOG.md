@@ -2,6 +2,30 @@
 
 ---
 
+## Feature · 2026-05-21 (q) — persist superset + add-exercise to the saved routine (qa: workout-supersets, workout-in-session-exercise-add)
+
+### Wired up the PERMANENT save
+- `workout-supersets`: the `+ PERMANENT` confirm in the in-session
+  picker is no longer a stub — it actually writes the pairing back to
+  the user's saved routine. After the active-day update, the handler
+  finds the matching `customPlan` day, replays the same insertion
+  logic on its exercises array (keyed by `exerciseId` instead of `id`),
+  PUTs the new payload to `/api/plan`, and patches local
+  `customPlan` state so the routine view stays in sync. If the
+  anchor exercise itself is session-only (not in the saved routine),
+  an inline alert refuses the permanent pair and tells the user to
+  add the anchor permanently first.
+- `workout-in-session-exercise-add`: `+ Add Exercise` now mirrors the
+  superset picker's two-mode UI. Every row shows `+ SESSION` (teal,
+  this-workout-only) and `+ PERMANENT` (red, with a confirm dialog
+  warning before persisting to the routine via PUT /api/plan).
+  Helper text at the top of the sheet explains the two modes.
+- `/api/plan` PUT handler now also persists the new
+  `PlanExercise.dropSet` boolean alongside the legacy `dropSets`
+  integer (shipped in p).
+
+---
+
 ## Feature · 2026-05-21 (p) — workout flows: drop sets + superset picker rebuilt (qa: workout-dropsets, workout-supersets)
 
 ### Refactored — drop sets are now an open-ended chain
