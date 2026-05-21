@@ -109,25 +109,46 @@ function effectiveStatus(item: QAItem, comments: Comment[]): ItemStatus {
 // Transparent rubric, surfaced in the leaderboard UI so testers know how
 // to earn points. Tweak the numbers below if the balance feels off — the
 // breakdown rendered next to each user will follow.
+//
+// Verification gate: status + screenshot bonuses only unlock once Claude
+// has processed the comment. Until then the comment earns only the base
+// point and the note-detail bonus. This prevents inflated "failing"
+// flags from gaming the board.
 
 const SCORE_RUBRIC = {
   base: 1,
-  failing: 5,            // bug report — most valuable
-  regressionRetest: 3,   // mid-value — flags something to recheck
-  passing: 1,            // confirms a fix actually works
-  screenshot: 2,         // attached evidence
+  failing: 5,            // bug report — most valuable (gated on processed)
+  regressionRetest: 3,   // mid-value — flags something to recheck (gated)
+  passing: 1,            // confirms a fix actually works (gated)
+  screenshot: 2,         // attached evidence (gated + URL-validated)
   processed: 3,          // Claude actioned it — confirmed actionable
-  perCharNote: 0.05,     // detail bonus, capped
-  noteBonusCap: 5,
+  perCharNote: 0.05,     // detail bonus, instant — rewards effort
+  noteBonusCap: 15,
 } as const;
+
+// A screenshot only earns points if it's actually a fetchable URL.
+function isValidScreenshotUrl(url: string | null | undefined): boolean {
+  if (!url || typeof url !== "string") return false;
+  const u = url.trim();
+  if (u.length < 12 || u.length > 2000) return false;
+  if (!/^https?:\/\//i.test(u)) return false;
+  try { new URL(u); } catch { return false; }
+  return true;
+}
 
 function scoreComment(c: Comment): number {
   let s = SCORE_RUBRIC.base;
-  if (c.status === "failing") s += SCORE_RUBRIC.failing;
-  else if (c.status === "regression-retest") s += SCORE_RUBRIC.regressionRetest;
-  else if (c.status === "passing") s += SCORE_RUBRIC.passing;
-  if (c.screenshotUrl) s += SCORE_RUBRIC.screenshot;
-  if (c.processed) s += SCORE_RUBRIC.processed;
+  // Status + screenshot bonuses only count once Claude has verified the
+  // comment by processing it. Until then they sit pending.
+  if (c.processed) {
+    if (c.status === "failing") s += SCORE_RUBRIC.failing;
+    else if (c.status === "regression-retest") s += SCORE_RUBRIC.regressionRetest;
+    else if (c.status === "passing") s += SCORE_RUBRIC.passing;
+    if (isValidScreenshotUrl(c.screenshotUrl)) s += SCORE_RUBRIC.screenshot;
+    s += SCORE_RUBRIC.processed;
+  }
+  // Detail bonus is always instant — rewards a thorough note regardless
+  // of outcome. Cap raised so long-form feedback is meaningfully rewarded.
   const noteBonus = Math.min(SCORE_RUBRIC.noteBonusCap, (c.note?.length || 0) * SCORE_RUBRIC.perCharNote);
   s += noteBonus;
   return Math.round(s * 10) / 10;
@@ -138,11 +159,12 @@ interface LeaderRow {
   isRegistered: boolean; // true if backed by a logged-in user.username
   total: number;         // sum of scoreComment()
   count: number;         // total comments
-  bugs: number;          // failing
-  retests: number;       // regression-retest
-  passes: number;        // passing
-  screenshots: number;
-  processed: number;
+  bugs: number;          // verified failing (processed)
+  retests: number;       // verified regression-retest (processed)
+  passes: number;        // verified passing (processed)
+  screenshots: number;   // valid URL AND processed
+  processed: number;     // total comments that have been actioned
+  pending: number;       // comments still awaiting verification
   lastTs: string;        // most recent comment ts
 }
 
@@ -156,17 +178,21 @@ function buildLeaderboard(comments: Comment[]): LeaderRow[] {
     const key = (isRegistered ? "u:" + username : "t:" + tester).toLowerCase();
     if (!byKey[key]) byKey[key] = {
       name, isRegistered, total: 0, count: 0,
-      bugs: 0, retests: 0, passes: 0, screenshots: 0, processed: 0,
+      bugs: 0, retests: 0, passes: 0, screenshots: 0, processed: 0, pending: 0,
       lastTs: c.ts,
     };
     const row = byKey[key];
     row.total += scoreComment(c);
     row.count += 1;
-    if (c.status === "failing") row.bugs += 1;
-    else if (c.status === "regression-retest") row.retests += 1;
-    else if (c.status === "passing") row.passes += 1;
-    if (c.screenshotUrl) row.screenshots += 1;
-    if (c.processed) row.processed += 1;
+    if (c.processed) {
+      row.processed += 1;
+      if (c.status === "failing") row.bugs += 1;
+      else if (c.status === "regression-retest") row.retests += 1;
+      else if (c.status === "passing") row.passes += 1;
+      if (isValidScreenshotUrl(c.screenshotUrl)) row.screenshots += 1;
+    } else {
+      row.pending += 1;
+    }
     if (+new Date(c.ts) > +new Date(row.lastTs)) row.lastTs = c.ts;
   }
   return Object.values(byKey)
@@ -248,11 +274,12 @@ function Leaderboard({ comments }: { comments: Comment[] }) {
                     fontFamily: "'Space Mono', monospace",
                   }}>
                     <span>{r.count} comments</span>
-                    {r.bugs > 0 && <span style={{ color: "#FF6B6B" }}>✗ {r.bugs} bugs</span>}
+                    {r.bugs > 0 && <span style={{ color: "#FF6B6B" }}>✗ {r.bugs} verified bugs</span>}
                     {r.retests > 0 && <span style={{ color: "#FFB74D" }}>↻ {r.retests} retests</span>}
                     {r.passes > 0 && <span style={{ color: "#4caf50" }}>✓ {r.passes} confirms</span>}
-                    {r.screenshots > 0 && <span style={{ color: "#4ECDC4" }}>📷 {r.screenshots}</span>}
+                    {r.screenshots > 0 && <span style={{ color: "#4ECDC4" }}>📷 {r.screenshots} useful</span>}
                     {r.processed > 0 && <span style={{ color: "rgba(255,215,0,0.8)" }}>★ {r.processed} shipped</span>}
+                    {r.pending > 0 && <span style={{ color: "rgba(255,255,255,0.35)" }}>⧗ {r.pending} pending</span>}
                   </div>
                 </div>
                 <div style={{
@@ -288,16 +315,23 @@ function Leaderboard({ comments }: { comments: Comment[] }) {
               color: "rgba(255,255,255,0.65)",
               fontFamily: "'DM Sans', sans-serif",
             }}>
-              Every comment earns points the moment it&apos;s saved:
-              <ul style={{ margin: "8px 0 0 0", paddingLeft: 18 }}>
+              <strong style={{ color: "#fff" }}>Instant on submit:</strong>
+              <ul style={{ margin: "6px 0 10px 0", paddingLeft: 18 }}>
                 <li><strong>+{SCORE_RUBRIC.base}</strong> for submitting a comment</li>
-                <li><strong>+{SCORE_RUBRIC.failing}</strong> if you flag it <span style={{ color: "#FF6B6B" }}>FAILING</span> (bug report)</li>
-                <li><strong>+{SCORE_RUBRIC.regressionRetest}</strong> if <span style={{ color: "#FFB74D" }}>RETEST</span> (something to recheck)</li>
-                <li><strong>+{SCORE_RUBRIC.passing}</strong> if <span style={{ color: "#4caf50" }}>PASSING</span> (confirms it works)</li>
-                <li><strong>+{SCORE_RUBRIC.screenshot}</strong> if a screenshot is attached</li>
-                <li><strong>+{SCORE_RUBRIC.processed}</strong> when Claude ships a fix for the comment (★)</li>
                 <li><strong>+0.05 / char</strong> of detail in the note, capped at +{SCORE_RUBRIC.noteBonusCap}</li>
               </ul>
+              <strong style={{ color: "#fff" }}>Unlocked after Claude verifies the comment (★ processed):</strong>
+              <ul style={{ margin: "6px 0 0 0", paddingLeft: 18 }}>
+                <li><strong>+{SCORE_RUBRIC.processed}</strong> just for being actioned</li>
+                <li><strong>+{SCORE_RUBRIC.failing}</strong> if the status was correctly <span style={{ color: "#FF6B6B" }}>FAILING</span> (real bug)</li>
+                <li><strong>+{SCORE_RUBRIC.regressionRetest}</strong> if correctly flagged <span style={{ color: "#FFB74D" }}>RETEST</span></li>
+                <li><strong>+{SCORE_RUBRIC.passing}</strong> if correctly confirmed <span style={{ color: "#4caf50" }}>PASSING</span></li>
+                <li><strong>+{SCORE_RUBRIC.screenshot}</strong> if the screenshot URL is valid AND the shot was actually useful</li>
+              </ul>
+              <div style={{ marginTop: 10, fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
+                Bogus status flags and broken screenshot links earn no bonus — verification gates them.
+                Anything still pending shows as <span style={{ color: "rgba(255,255,255,0.5)" }}>⧗ pending</span> in your row.
+              </div>
             </div>
           )}
         </div>

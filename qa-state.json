@@ -976,7 +976,7 @@
         "When Claude marks a comment processed (★ shipped), the submitter should get an extra +3 on next /qa load",
         "Search anything in the search box — leaderboard should hide (it's a focus-mode behaviour)"
       ],
-      "notes": "[2026-05-21] Slice 1/N: shipped the client-side leaderboard component in app/qa/page.tsx. Aggregates from already-loaded QAComment rows (no new endpoint). Rubric: +1 base, +5 failing / +3 retest / +1 passing, +2 screenshot, +3 processed, +0.05 per note-char capped at +5. Rendered with rank medals, breakdown chips, and an expandable rubric. Slice 2 (if requested): per-user trend over time, all-time vs this-week toggle, server-side aggregation if the comment volume gets large."
+      "notes": "[2026-05-21] Slice 2/N: rubric tightened per user feedback — status, screenshot and 'processed' bonuses are now gated behind verification (the comment must be marked processed by Claude). isValidScreenshotUrl() rejects empty/non-http/malformed URLs so a screenshot field still has to be a real URL even when processed. Note-detail cap raised from +5 to +15 (rate stays 0.05/char). Leaderboard row now shows a ⧗ pending chip so testers can see what's awaiting verification.\n[2026-05-21] Slice 1/N: shipped the client-side leaderboard component in app/qa/page.tsx. Aggregates from already-loaded QAComment rows (no new endpoint). Rendered with rank medals, breakdown chips, and an expandable rubric. Future slices (if requested): per-user trend over time, all-time vs this-week toggle, server-side aggregation if comment volume gets large."
     },
     {
       "id": "trainer-role-request",

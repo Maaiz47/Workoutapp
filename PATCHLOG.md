@@ -2,6 +2,29 @@
 
 ---
 
+## Feature · 2026-05-21 (i) — QA leaderboard: verification-gated scoring (qa: qa-leaderboard)
+
+### Refined
+- `qa-leaderboard`: tightened the rubric so points reflect *verified*
+  signal, not just what the tester typed.
+  - **Status bonuses** (failing / regression-retest / passing) only
+    unlock once Claude has marked the comment processed. A falsely
+    flagged "failing" comment no longer earns the +5.
+  - **Screenshot bonus** now requires the URL to pass
+    `isValidScreenshotUrl()` (well-formed `http(s)://`, valid
+    `new URL()`, sensible length) AND the comment to be processed.
+    Broken / bogus screenshot fields no longer earn points.
+  - **Note-detail cap raised** from +5 to +15 (rate still 0.05/char,
+    so a ~300-char note now hits the cap — rewards long-form
+    feedback meaningfully more).
+- Leaderboard rows show a new `⧗ pending` chip with the count of
+  comments still awaiting verification, so testers can see what's
+  queued vs already credited.
+- Rubric expander rewritten to split "instant on submit" from
+  "unlocked after Claude verifies" so the gating is obvious.
+
+---
+
 ## Feature · 2026-05-21 (h) — QA leaderboard (qa: qa-leaderboard)
 
 ### Added
