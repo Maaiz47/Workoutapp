@@ -105,6 +105,207 @@ function effectiveStatus(item: QAItem, comments: Comment[]): ItemStatus {
   return sorted[0].status;
 }
 
+// ─── Feedback scoring ────────────────────────────────────────────────────────
+// Transparent rubric, surfaced in the leaderboard UI so testers know how
+// to earn points. Tweak the numbers below if the balance feels off — the
+// breakdown rendered next to each user will follow.
+
+const SCORE_RUBRIC = {
+  base: 1,
+  failing: 5,            // bug report — most valuable
+  regressionRetest: 3,   // mid-value — flags something to recheck
+  passing: 1,            // confirms a fix actually works
+  screenshot: 2,         // attached evidence
+  processed: 3,          // Claude actioned it — confirmed actionable
+  perCharNote: 0.05,     // detail bonus, capped
+  noteBonusCap: 5,
+} as const;
+
+function scoreComment(c: Comment): number {
+  let s = SCORE_RUBRIC.base;
+  if (c.status === "failing") s += SCORE_RUBRIC.failing;
+  else if (c.status === "regression-retest") s += SCORE_RUBRIC.regressionRetest;
+  else if (c.status === "passing") s += SCORE_RUBRIC.passing;
+  if (c.screenshotUrl) s += SCORE_RUBRIC.screenshot;
+  if (c.processed) s += SCORE_RUBRIC.processed;
+  const noteBonus = Math.min(SCORE_RUBRIC.noteBonusCap, (c.note?.length || 0) * SCORE_RUBRIC.perCharNote);
+  s += noteBonus;
+  return Math.round(s * 10) / 10;
+}
+
+interface LeaderRow {
+  name: string;          // display name (username if known, else tester-as-typed)
+  isRegistered: boolean; // true if backed by a logged-in user.username
+  total: number;         // sum of scoreComment()
+  count: number;         // total comments
+  bugs: number;          // failing
+  retests: number;       // regression-retest
+  passes: number;        // passing
+  screenshots: number;
+  processed: number;
+  lastTs: string;        // most recent comment ts
+}
+
+function buildLeaderboard(comments: Comment[]): LeaderRow[] {
+  const byKey: Record<string, LeaderRow> = {};
+  for (const c of comments) {
+    const username = c.user?.username?.trim();
+    const tester = c.tester?.trim() || "anon";
+    const isRegistered = !!username;
+    const name = isRegistered ? username! : tester;
+    const key = (isRegistered ? "u:" + username : "t:" + tester).toLowerCase();
+    if (!byKey[key]) byKey[key] = {
+      name, isRegistered, total: 0, count: 0,
+      bugs: 0, retests: 0, passes: 0, screenshots: 0, processed: 0,
+      lastTs: c.ts,
+    };
+    const row = byKey[key];
+    row.total += scoreComment(c);
+    row.count += 1;
+    if (c.status === "failing") row.bugs += 1;
+    else if (c.status === "regression-retest") row.retests += 1;
+    else if (c.status === "passing") row.passes += 1;
+    if (c.screenshotUrl) row.screenshots += 1;
+    if (c.processed) row.processed += 1;
+    if (+new Date(c.ts) > +new Date(row.lastTs)) row.lastTs = c.ts;
+  }
+  return Object.values(byKey)
+    .map(r => ({ ...r, total: Math.round(r.total * 10) / 10 }))
+    .sort((a, b) => b.total - a.total || b.count - a.count);
+}
+
+function rankBadge(idx: number): { emoji: string; color: string } {
+  if (idx === 0) return { emoji: "🥇", color: "#FFD700" };
+  if (idx === 1) return { emoji: "🥈", color: "#C0C0C0" };
+  if (idx === 2) return { emoji: "🥉", color: "#CD7F32" };
+  return { emoji: `#${idx + 1}`, color: "rgba(255,255,255,0.45)" };
+}
+
+function Leaderboard({ comments }: { comments: Comment[] }) {
+  const [open, setOpen] = useState(true);
+  const [showRubric, setShowRubric] = useState(false);
+  const rows = buildLeaderboard(comments);
+
+  if (rows.length === 0) return null;
+
+  const totalComments = comments.length;
+  const totalPoints = rows.reduce((s, r) => s + r.total, 0);
+
+  return (
+    <div style={{
+      marginBottom: 18,
+      background: "linear-gradient(180deg, rgba(255,215,0,0.06) 0%, rgba(255,255,255,0.02) 100%)",
+      border: "1px solid rgba(255,215,0,0.2)",
+      borderRadius: 12,
+      overflow: "hidden",
+    }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: "100%", padding: "14px 16px", background: "transparent",
+          border: "none", color: "#fff", display: "flex", alignItems: "center",
+          justifyContent: "space-between", cursor: "pointer",
+          fontFamily: "'Space Mono', monospace",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>🏆</span>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, color: "#FFD700" }}>FEEDBACK LEADERBOARD</span>
+        </span>
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>
+          {rows.length} {rows.length === 1 ? "TESTER" : "TESTERS"} · {totalComments} COMMENTS · {Math.round(totalPoints)} PTS {open ? "▲" : "▼"}
+        </span>
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 12px 14px" }}>
+          {rows.map((r, idx) => {
+            const badge = rankBadge(idx);
+            return (
+              <div key={r.name + idx} style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 8px",
+                borderTop: "1px solid rgba(255,255,255,0.05)",
+              }}>
+                <div style={{
+                  flexShrink: 0, width: 36, textAlign: "center",
+                  fontSize: idx < 3 ? 18 : 12,
+                  fontWeight: 700, fontFamily: "'Space Mono', monospace",
+                  color: badge.color,
+                }}>{badge.emoji}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
+                      {r.isRegistered ? "@" + r.name : r.name}
+                    </span>
+                    {!r.isRegistered && (
+                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>GUEST</span>
+                    )}
+                  </div>
+                  <div style={{
+                    display: "flex", flexWrap: "wrap", gap: 8, marginTop: 3,
+                    fontSize: 10, color: "rgba(255,255,255,0.5)",
+                    fontFamily: "'Space Mono', monospace",
+                  }}>
+                    <span>{r.count} comments</span>
+                    {r.bugs > 0 && <span style={{ color: "#FF6B6B" }}>✗ {r.bugs} bugs</span>}
+                    {r.retests > 0 && <span style={{ color: "#FFB74D" }}>↻ {r.retests} retests</span>}
+                    {r.passes > 0 && <span style={{ color: "#4caf50" }}>✓ {r.passes} confirms</span>}
+                    {r.screenshots > 0 && <span style={{ color: "#4ECDC4" }}>📷 {r.screenshots}</span>}
+                    {r.processed > 0 && <span style={{ color: "rgba(255,215,0,0.8)" }}>★ {r.processed} shipped</span>}
+                  </div>
+                </div>
+                <div style={{
+                  flexShrink: 0, textAlign: "right", paddingLeft: 6,
+                }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#FFD700", fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>
+                    {r.total.toFixed(1)}
+                  </div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginTop: 2 }}>POINTS</div>
+                </div>
+              </div>
+            );
+          })}
+
+          <button
+            onClick={() => setShowRubric(s => !s)}
+            style={{
+              marginTop: 10, width: "100%",
+              padding: "8px", background: "transparent",
+              border: "1px dashed rgba(255,255,255,0.12)",
+              borderRadius: 6,
+              color: "rgba(255,255,255,0.45)",
+              fontSize: 10, letterSpacing: 1.5,
+              fontFamily: "'Space Mono', monospace", cursor: "pointer",
+            }}
+          >{showRubric ? "HIDE SCORING RUBRIC ▲" : "HOW POINTS ARE AWARDED ▼"}</button>
+
+          {showRubric && (
+            <div style={{
+              marginTop: 8, padding: 12,
+              background: "rgba(0,0,0,0.25)", borderRadius: 6,
+              fontSize: 11, lineHeight: 1.7,
+              color: "rgba(255,255,255,0.65)",
+              fontFamily: "'DM Sans', sans-serif",
+            }}>
+              Every comment earns points the moment it&apos;s saved:
+              <ul style={{ margin: "8px 0 0 0", paddingLeft: 18 }}>
+                <li><strong>+{SCORE_RUBRIC.base}</strong> for submitting a comment</li>
+                <li><strong>+{SCORE_RUBRIC.failing}</strong> if you flag it <span style={{ color: "#FF6B6B" }}>FAILING</span> (bug report)</li>
+                <li><strong>+{SCORE_RUBRIC.regressionRetest}</strong> if <span style={{ color: "#FFB74D" }}>RETEST</span> (something to recheck)</li>
+                <li><strong>+{SCORE_RUBRIC.passing}</strong> if <span style={{ color: "#4caf50" }}>PASSING</span> (confirms it works)</li>
+                <li><strong>+{SCORE_RUBRIC.screenshot}</strong> if a screenshot is attached</li>
+                <li><strong>+{SCORE_RUBRIC.processed}</strong> when Claude ships a fix for the comment (★)</li>
+                <li><strong>+0.05 / char</strong> of detail in the note, capped at +{SCORE_RUBRIC.noteBonusCap}</li>
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Item card with thread + draft ────────────────────────────────────────────
 
 function ItemCard({
@@ -745,6 +946,9 @@ export default function QAPage() {
             )}
           </div>
         </div>
+
+        {/* Leaderboard — points + counts per tester. Hidden during searches. */}
+        {!q && <Leaderboard comments={comments} />}
 
         {/* General Notes — always at the top, only hidden when search excludes it */}
         {generalMatches && (

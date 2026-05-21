@@ -960,6 +960,25 @@
       "notes": "Replaces the original whole-form-submit QA dashboard. State lives in QAComment table; drafts persist in localStorage."
     },
     {
+      "id": "qa-leaderboard",
+      "title": "QA leaderboard — per-user feedback points + counts",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass auto-scored feedback",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Navigate to /qa",
+        "Verify the 🏆 FEEDBACK LEADERBOARD card sits at the top above General Notes",
+        "Verify each tester has: rank medal (🥇🥈🥉 / #N), name (@username if registered, else GUEST chip), comment count, breakdown chips (bugs/retests/confirms/screenshots/shipped), and total points",
+        "Tap 'HOW POINTS ARE AWARDED' — verify the rubric expands and lists every scoring rule",
+        "Submit a new failing comment with a long note + a screenshot → after Vercel rebuilds, your row should jump up by ~12+ points",
+        "When Claude marks a comment processed (★ shipped), the submitter should get an extra +3 on next /qa load",
+        "Search anything in the search box — leaderboard should hide (it's a focus-mode behaviour)"
+      ],
+      "notes": "[2026-05-21] Slice 1/N: shipped the client-side leaderboard component in app/qa/page.tsx. Aggregates from already-loaded QAComment rows (no new endpoint). Rubric: +1 base, +5 failing / +3 retest / +1 passing, +2 screenshot, +3 processed, +0.05 per note-char capped at +5. Rendered with rank medals, breakdown chips, and an expandable rubric. Slice 2 (if requested): per-user trend over time, all-time vs this-week toggle, server-side aggregation if the comment volume gets large."
+    },
+    {
       "id": "trainer-role-request",
       "title": "Trainer upgrade request flow",
       "area": "Trainer",

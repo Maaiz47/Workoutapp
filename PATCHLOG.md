@@ -2,6 +2,24 @@
 
 ---
 
+## Feature · 2026-05-21 (h) — QA leaderboard (qa: qa-leaderboard)
+
+### Added
+- `qa-leaderboard`: per-user feedback dashboard at the top of `/qa`.
+  Aggregates from the already-loaded `QAComment` rows (no new endpoint
+  needed) and shows rank medals, comment count, status breakdown
+  (bugs / retests / confirms / screenshots / shipped), and a total
+  points figure per tester. Sorted by points desc.
+- Transparent scoring rubric exposed via a "HOW POINTS ARE AWARDED"
+  expander on the card — currently:
+    +1 base, +5 failing, +3 regression-retest, +1 passing,
+    +2 screenshot, +3 processed, +0.05/char of note (cap +5).
+- Registered users show as `@username`; anonymous testers show their
+  typed name + a GUEST chip. Hidden during search to keep that flow
+  focused.
+
+---
+
 ## QA pass · 2026-05-21 (g) — drop the auto-advance toggle (qa: workout-rest-timer)
 
 ### Addressed
