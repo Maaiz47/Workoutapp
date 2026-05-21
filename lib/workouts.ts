@@ -1,11 +1,13 @@
 export type Exercise = {
   id: string; name: string; sets: number; reps: string;
-  type: "compound" | "isolation" | "cardio";
+  type: "compound" | "isolation" | "cardio" | "stretch" | "mobility";
   rest?: number; note?: string; trackable?: boolean;
-  groupId?: string; groupType?: string; dropSets?: number;
+  groupId?: string; groupType?: string; dropSets?: number; dropSet?: boolean;
+  kind?: "warmup" | "main" | "cooldown";
+  cues?: string[]; icon?: string; auto?: boolean;
 };
 
-export type Section = { name: string; type?: "main" | "warmup" | "cardio"; exercises: Exercise[] };
+export type Section = { name: string; type?: "main" | "warmup" | "cardio" | "cooldown"; exercises: Exercise[] };
 
 export type WorkoutDay = {
   id: string; day?: number; label: string; title: string; subtitle?: string;

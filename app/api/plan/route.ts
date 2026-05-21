@@ -175,6 +175,7 @@ export async function PUT(req: NextRequest) {
         groupType: ex.groupType ?? null,
         dropSets: ex.dropSets ?? 0,
         dropSet: ex.dropSet === true,
+        kind: ex.kind === "warmup" || ex.kind === "cooldown" ? ex.kind : "main",
       })),
     });
 

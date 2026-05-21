@@ -2,6 +2,46 @@
 
 ---
 
+## Feature · 2026-05-21 (x) — three-section workout: warm-up + main + cool-down (qa: workout-warmup)
+
+### Added (slice 2/N — foundation + customise integration)
+- `workout-warmup`: shipped the full warm-up + cool-down system
+  foundation. Every saved workout day now resolves to three sections
+  (Warm-Up · Main · Cool-Down) in both the active session and the
+  customise screen.
+- New `lib/stretching.ts` with two libraries:
+    - **8 dynamic warm-ups** (arm circles, band pull-aparts, leg
+      swings, world's greatest stretch, cat-cow, scap push-ups,
+      bodyweight squat, inchworm) plus 3 cardio primers
+      (treadmill / rower / bike). Picker `pickWarmups(ctx)` returns
+      1 cardio + 2-3 dynamic moves matched to the day's focus
+      (push / pull / legs / upper / lower / full / cardio) with
+      refinements for `goals`, `equipment`, and `rehab` profile.
+    - **12 static cool-down stretches** (doorway chest, child's
+      pose, pigeon, hamstring, quad, calf, lat, tricep, bicep,
+      figure-four, cat-cow, cross-body shoulder). Picker
+      `pickCooldowns(ctx)` returns 3-5 stretches matched to the
+      muscles trained.
+- Each stretch ships with 2-3 form cues + an emoji icon ready for
+  the modal in slice 3.
+- Schema: `PlanExercise.kind String @default("main")` (Vercel
+  auto-migrates). `/api/plan` PUT now persists it.
+- `planToWorkoutDay()` builds three sections — groups saved
+  exercises by `kind`, and fills in auto-picks from the library
+  for any empty section so every active session has a complete
+  warm-up + cool-down even before users add their own.
+- Customise screen mirrors the three-section split:
+    - Yellow `🔥 WARM-UP` block at the top (auto preview)
+    - The existing `💪 MAIN` editable list
+    - Teal `🧘 COOL-DOWN` block at the bottom (auto preview)
+
+### Next slice (3/N)
+- Custom editing per section: stretch-library picker, drag-reorder,
+  per-exercise form-cue modal, planGenerator wiring so newly
+  generated plans persist with warm-up + cool-down exercises.
+
+---
+
 ## Fix · 2026-05-21 (w) — restore the missing warm-up section (qa: workout-warmup)
 
 ### Fixed

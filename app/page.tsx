@@ -10,6 +10,7 @@ import { getExerciseImageUrls } from "../lib/exerciseImages";
 import { MUSCLE_DETAIL, lookupMuscleDetail } from "../lib/muscleDetail";
 import { getFormCues } from "../lib/formCues";
 import { pickWarmupForDay } from "../lib/warmups";
+import { pickWarmups, pickCooldowns, StretchExercise } from "../lib/stretching";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -2384,22 +2385,40 @@ function HomePage() {
     color: ["#FF6B6B","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD"][day.dayIndex % 6] || "#FF6B6B",
     gradient: ["linear-gradient(135deg,#FF6B6B,#ee5a24)","linear-gradient(135deg,#4ECDC4,#44a08d)","linear-gradient(135deg,#45B7D1,#2980b9)","linear-gradient(135deg,#96CEB4,#6aab8e)","linear-gradient(135deg,#f7d794,#e17055)","linear-gradient(135deg,#DDA0DD,#9b59b6)"][day.dayIndex % 6] || "linear-gradient(135deg,#FF6B6B,#ee5a24)",
     focus: day.focus,
-    // Inject a focus-appropriate warm-up section at the top of every saved
-    // day. These items are render-time only — not in the saved plan, just
-    // surfaced so the user always sees the recommended 5-min cardio /
-    // mobility primer before the working sets (restores the warm-ups that
-    // used to be in the original demo templates but were lost when plans
-    // started being generated dynamically without warm-up persistence).
-    sections: [
-      (() => {
-        const wu = pickWarmupForDay({ title: day.title, focus: day.focus });
-        return { name: "Warm-Up", type: "warmup" as const, exercises: [wu as any] };
-      })(),
-      { name: "Main", type: "main" as const, exercises: day.exercises.map((ex: any) => {
+    // Build three sections: WARM-UP (yellow), MAIN (default), COOL-DOWN
+    // (teal). Saved exercises are grouped by their `kind` field; any
+    // missing section gets an auto-picked suggestion from lib/stretching
+    // so the user always sees a full warm-up + cool-down even if they
+    // haven't customised them.
+    sections: (() => {
+      const all = day.exercises ?? [];
+      const warmups = all.filter((ex: any) => ex.kind === "warmup");
+      const cooldowns = all.filter((ex: any) => ex.kind === "cooldown");
+      const mains = all.filter((ex: any) => !ex.kind || ex.kind === "main");
+
+      const toSessionEx = (ex: any) => {
         const meta = (EXERCISES as any[]).find((e: any) => e.id === ex.exerciseId);
-        return { id: ex.exerciseId, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest, note: ex.notes ?? undefined, type: meta?.type ?? "compound", groupId: ex.groupId ?? undefined, groupType: ex.groupType ?? undefined, dropSets: ex.dropSets ?? 0, dropSet: ex.dropSet === true };
-      }) },
-    ],
+        return { id: ex.exerciseId, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest, note: ex.notes ?? undefined, type: meta?.type ?? "compound", groupId: ex.groupId ?? undefined, groupType: ex.groupType ?? undefined, dropSets: ex.dropSets ?? 0, dropSet: ex.dropSet === true, kind: ex.kind ?? "main", trackable: ex.kind === "warmup" || ex.kind === "cooldown" ? false : undefined };
+      };
+
+      const stretchToSessionEx = (s: StretchExercise) => ({
+        id: s.id, name: s.name, sets: 1, reps: s.reps,
+        rest: 0, type: s.type, kind: s.kind, trackable: false,
+        note: s.cues[0] ?? undefined, cues: s.cues, icon: s.icon, auto: true,
+      });
+
+      const warmupSection = warmups.length > 0
+        ? { name: "Warm-Up", type: "warmup" as const, exercises: warmups.map(toSessionEx) }
+        : { name: "Warm-Up", type: "warmup" as const, exercises: pickWarmups({ title: day.title, focus: day.focus }).map(stretchToSessionEx) };
+
+      const mainSection = { name: "Main", type: "main" as const, exercises: mains.map(toSessionEx) };
+
+      const cooldownSection = cooldowns.length > 0
+        ? { name: "Cool-Down", type: "cooldown" as const, exercises: cooldowns.map(toSessionEx) }
+        : { name: "Cool-Down", type: "cooldown" as const, exercises: pickCooldowns({ title: day.title, focus: day.focus }).map(stretchToSessionEx) };
+
+      return [warmupSection, mainSection, cooldownSection];
+    })(),
   });
 
   const doTrainerSearch = async (q?: string) => {
@@ -3631,24 +3650,37 @@ function HomePage() {
             <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{editingDay.title}</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>{editingDay.focus}</div>
 
-            {/* Recommended warm-up suggestion (read-only this slice — custom
-                editing comes with the broader stretching/cool-down system). */}
+            {/* Warm-up section — auto-picked sequence shown above the
+                editable main list. User can replace these via the
+                "+ ADD WARM-UP" library in the next slice; for now they're
+                a read-only auto preview tied to the day's focus. */}
             {(() => {
-              const wu = pickWarmupForDay({ title: editingDay.title, focus: editingDay.focus });
+              const wus = pickWarmups({ title: editingDay.title, focus: editingDay.focus });
               return (
-                <div style={{ background: "rgba(255,230,109,0.05)", border: "1px dashed rgba(255,230,109,0.25)", borderRadius: 12, padding: "12px 14px", marginBottom: 14 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#FFE66D", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>🔥 WARM-UP</span>
-                    <span style={{ fontSize: 9, color: "rgba(255,230,109,0.6)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>AUTO · BASED ON FOCUS</span>
+                    <span style={{ fontSize: 9, color: "rgba(255,230,109,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>AUTO · {wus.length} ITEMS</span>
                   </div>
-                  <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{wu.name}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{wu.reps.toUpperCase()} · NO REST</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 8, lineHeight: 1.5 }}>
-                    Shown at the top of the active session. Editing &amp; custom warm-up / cool-down / stretching is coming next pass.
+                  <div style={{ background: "rgba(255,230,109,0.04)", border: "1px dashed rgba(255,230,109,0.22)", borderRadius: 12, padding: "8px 6px" }}>
+                    {wus.map((wu, i) => (
+                      <div key={wu.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderTop: i === 0 ? "none" : "1px dashed rgba(255,255,255,0.05)" }}>
+                        <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{wu.icon ?? "🔥"}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{wu.name}</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{wu.reps.toUpperCase()}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
             })()}
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>💪 MAIN</span>
+              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{exs.length} EXERCISES</span>
+            </div>
 
             {exs.map((ex: any, i: number) => {
               const exKey = ex.exerciseId ?? ex.id ?? String(i);
@@ -3759,6 +3791,34 @@ function HomePage() {
                 )}
               </div>
             )}
+
+            {/* Cool-down section — auto-picked static stretches matched to
+                the focus. Read-only this slice; custom editing next slice. */}
+            {(() => {
+              const cds = pickCooldowns({ title: editingDay.title, focus: editingDay.focus });
+              return (
+                <div style={{ marginTop: 18 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>🧘 COOL-DOWN</span>
+                    <span style={{ fontSize: 9, color: "rgba(78,205,196,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>AUTO · {cds.length} STRETCHES</span>
+                  </div>
+                  <div style={{ background: "rgba(78,205,196,0.04)", border: "1px dashed rgba(78,205,196,0.22)", borderRadius: 12, padding: "8px 6px" }}>
+                    {cds.map((cd, i) => (
+                      <div key={cd.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderTop: i === 0 ? "none" : "1px dashed rgba(255,255,255,0.05)" }}>
+                        <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{cd.icon ?? "🧘"}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{cd.name}</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{cd.reps.toUpperCase()}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 8, lineHeight: 1.5 }}>
+                    Custom warm-up / cool-down editing &amp; form guides land in the next slice. Today they auto-pick from the day&apos;s focus.
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Add exercise / browser */}
             {!showExBrowser ? (
