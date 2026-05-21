@@ -836,6 +836,28 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "leaderboard-body-modes",
+      "title": "Leaderboard groups — WEIGHT Δ / BF LOSS / BF NOW views",
+      "area": "Trainer",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass leaderboard-body",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard tab → expand 'My Leaderboards'. Trainer: open the Trainer view and expand a group.",
+        "Verify a row of mode chips above each group's rankings: SESSIONS · WEIGHT Δ · BF LOSS · BF NOW",
+        "Tap SESSIONS — verify the existing sessions/streak/PR layout (no regression)",
+        "Tap WEIGHT Δ — verify a sub-toggle appears: ⬇ LOSS LEADERS / ⬆ GAIN LEADERS. Verify rows show NOW (current weight) and CHANGE (signed Δ kg). Cyan for loss, purple for gain.",
+        "Flip ⬆ GAIN LEADERS — verify the order reverses (biggest positive Δ first)",
+        "Tap BF LOSS — verify rows show NOW (current BF%) and Δ BF% (signed). Cyan for loss, red for gain. Sorted most loss (most negative) first.",
+        "Tap BF NOW — verify a single big BF% NOW column per member, lowest first (leanest at top)",
+        "Verify members with no body data show '—' in the relevant columns and sink to the bottom of the ranking (never crash)",
+        "Verify this is per-group only — no global leaderboard surfaces these stats",
+        "Verify the body data uses BodyMetric entries (the user logs weight/BF in Progress → Body or Settings → Profile)"
+      ],
+      "notes": "[2026-05-21] Shipped 4-mode group leaderboard. lib/leaderboardStats.ts gained weightStart / weightCurrent / weightChangeKg / bfStart / bfCurrent / bfChangePct (computed via computeBodyStats() walking BodyMetric rows in date order). Batch fetch + merge in computeStatsForUsers(). UI: shared lbMode state across the trainer view (/api/leaderboard/groups) and the client view (/api/leaderboard/mine — refactored to use the shared helper). WEIGHT mode has a LOSS / GAIN sort-direction toggle. All modes sort null-body-data members to the bottom. Data scope: group-local only — no global aggregation."
+    },
+    {
       "id": "theme-iron-mono-vivid",
       "title": "Theme system — Iron / Mono / Vivid + accent colour",
       "area": "UI",

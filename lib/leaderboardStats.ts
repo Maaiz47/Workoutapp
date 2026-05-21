@@ -12,6 +12,17 @@ export interface LeaderboardMemberStats {
   totalVolume: number;
   totalIntensityPoints: number;
   lastSession: string | null;
+  // Body metrics for the group leaderboard's WEIGHT / BF views. Each value
+  // is the first vs latest entry from BodyMetric, plus the signed delta.
+  // null = no recorded data.
+  weightStart: number | null;
+  weightCurrent: number | null;
+  weightChangeKg: number | null;
+  weightStartDate: string | null;
+  bfStart: number | null;
+  bfCurrent: number | null;
+  bfChangePct: number | null;
+  bfStartDate: string | null;
 }
 
 type LogLike = {
@@ -68,6 +79,47 @@ export function computeStatsFromLogs(logs: LogLike[]): LeaderboardMemberStats {
     totalVolume: Math.round(totalVolume),
     totalIntensityPoints,
     lastSession: logs[0]?.date.toISOString().slice(0, 10) ?? null,
+    // Body metrics filled in by computeStatsForUsers — placeholder values
+    // here so single-log callers don't see undefined.
+    weightStart: null,
+    weightCurrent: null,
+    weightChangeKg: null,
+    weightStartDate: null,
+    bfStart: null,
+    bfCurrent: null,
+    bfChangePct: null,
+    bfStartDate: null,
+  };
+}
+
+// Walk a chronological list of BodyMetric rows for one user and return
+// the first/latest non-null entries plus the signed delta. Used to
+// power the WEIGHT / BF leaderboard views without forcing every caller
+// to repeat the same null-handling.
+type MetricLike = { date: Date; weightKg: number | null; bodyFatPct: number | null };
+function computeBodyStats(metrics: MetricLike[]) {
+  const sorted = [...metrics].sort((a, b) => +a.date - +b.date);
+  let weightStart: number | null = null, weightStartDate: string | null = null;
+  let weightCurrent: number | null = null;
+  let bfStart: number | null = null, bfStartDate: string | null = null;
+  let bfCurrent: number | null = null;
+  for (const m of sorted) {
+    if (m.weightKg != null) {
+      if (weightStart == null) { weightStart = m.weightKg; weightStartDate = m.date.toISOString().slice(0, 10); }
+      weightCurrent = m.weightKg;
+    }
+    if (m.bodyFatPct != null) {
+      if (bfStart == null) { bfStart = m.bodyFatPct; bfStartDate = m.date.toISOString().slice(0, 10); }
+      bfCurrent = m.bodyFatPct;
+    }
+  }
+  return {
+    weightStart, weightCurrent,
+    weightChangeKg: weightStart != null && weightCurrent != null ? Math.round((weightCurrent - weightStart) * 10) / 10 : null,
+    weightStartDate,
+    bfStart, bfCurrent,
+    bfChangePct: bfStart != null && bfCurrent != null ? Math.round((bfCurrent - bfStart) * 10) / 10 : null,
+    bfStartDate,
   };
 }
 
@@ -77,20 +129,35 @@ export function computeStatsFromLogs(logs: LogLike[]): LeaderboardMemberStats {
  */
 export async function computeStatsForUsers(userIds: string[]): Promise<Map<string, LeaderboardMemberStats>> {
   if (userIds.length === 0) return new Map();
-  const allLogs = await prisma.workoutLog.findMany({
-    where: { userId: { in: userIds } },
-    select: { userId: true, date: true, sets: true, intensityPoints: true },
-    orderBy: { date: "desc" },
-  });
+  const [allLogs, allMetrics] = await Promise.all([
+    prisma.workoutLog.findMany({
+      where: { userId: { in: userIds } },
+      select: { userId: true, date: true, sets: true, intensityPoints: true },
+      orderBy: { date: "desc" },
+    }),
+    prisma.bodyMetric.findMany({
+      where: { userId: { in: userIds } },
+      select: { userId: true, date: true, weightKg: true, bodyFatPct: true },
+      orderBy: { date: "asc" },
+    }),
+  ]);
   const byUser = new Map<string, LogLike[]>();
   for (const log of allLogs) {
     const arr = byUser.get(log.userId) ?? [];
     arr.push({ date: log.date, sets: log.sets, intensityPoints: log.intensityPoints });
     byUser.set(log.userId, arr);
   }
+  const metricsByUser = new Map<string, MetricLike[]>();
+  for (const m of allMetrics) {
+    const arr = metricsByUser.get(m.userId) ?? [];
+    arr.push({ date: m.date, weightKg: m.weightKg, bodyFatPct: m.bodyFatPct });
+    metricsByUser.set(m.userId, arr);
+  }
   const result = new Map<string, LeaderboardMemberStats>();
   for (const userId of userIds) {
-    result.set(userId, computeStatsFromLogs(byUser.get(userId) ?? []));
+    const base = computeStatsFromLogs(byUser.get(userId) ?? []);
+    const body = computeBodyStats(metricsByUser.get(userId) ?? []);
+    result.set(userId, { ...base, ...body });
   }
   return result;
 }

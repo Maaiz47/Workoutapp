@@ -2085,6 +2085,12 @@ function HomePage() {
   const [showFindClients, setShowFindClients] = useState(false);
   const [lbGroups, setLbGroups] = useState<any[]>([]);
   const [lbGroupsLoading, setLbGroupsLoading] = useState(false);
+  // Per-group leaderboard view mode. Shared across groups for simplicity —
+  // the user picks one mode and it applies to every group's rankings table.
+  const [lbMode, setLbMode] = useState<"sessions" | "weight" | "bf-change" | "bf-now">("sessions");
+  // For WEIGHT mode: gainers leaderboard or losers leaderboard. Flips the
+  // sort direction without changing the data shown.
+  const [lbWeightDir, setLbWeightDir] = useState<"loss" | "gain">("loss");
   const [showLbGroups, setShowLbGroups] = useState(false);
   const [showLbGroupCreate, setShowLbGroupCreate] = useState(false);
   const [lbGroupName, setLbGroupName] = useState("");
@@ -5108,56 +5114,165 @@ function HomePage() {
                             </div>
                           ) : null;
                         })()}
-                        {/* Group leaderboard */}
+                        {/* Group leaderboard — 4 view modes, all ranked
+                            within the group only (never global). */}
                         {(() => {
-                          const ranked = (grp.members ?? [])
+                          const base = (grp.members ?? [])
                             .filter((m: any) => m.includeInRank)
                             .map((m: any) => ({
                               userId: m.userId,
                               username: m.user?.username ?? "unknown",
                               role: m.role,
                               totalSessions: m.stats?.totalSessions ?? 0,
-                              totalIntensityPoints: m.stats?.totalIntensityPoints ?? 0,
-                              totalVolume: m.stats?.totalVolume ?? 0,
                               streak: m.stats?.streak ?? 0,
                               prCount: m.stats?.prCount ?? 0,
-                            }))
-                            .sort((a: any, b: any) => b.totalSessions - a.totalSessions || b.totalVolume - a.totalVolume);
+                              totalVolume: m.stats?.totalVolume ?? 0,
+                              weightStart: m.stats?.weightStart ?? null,
+                              weightCurrent: m.stats?.weightCurrent ?? null,
+                              weightChangeKg: m.stats?.weightChangeKg ?? null,
+                              weightStartDate: m.stats?.weightStartDate ?? null,
+                              bfStart: m.stats?.bfStart ?? null,
+                              bfCurrent: m.stats?.bfCurrent ?? null,
+                              bfChangePct: m.stats?.bfChangePct ?? null,
+                              bfStartDate: m.stats?.bfStartDate ?? null,
+                            }));
+
+                          // Sort + visible filter per mode. Members with
+                          // no relevant body data still appear, sunk to
+                          // the bottom with "—" cells.
+                          let ranked: any[] = base;
+                          if (lbMode === "sessions") {
+                            ranked = [...base].sort((a, b) => b.totalSessions - a.totalSessions || b.totalVolume - a.totalVolume);
+                          } else if (lbMode === "weight") {
+                            ranked = [...base].sort((a, b) => {
+                              const av = a.weightChangeKg, bv = b.weightChangeKg;
+                              if (av == null && bv == null) return 0;
+                              if (av == null) return 1; if (bv == null) return -1;
+                              // loss: most negative first. gain: most positive first.
+                              return lbWeightDir === "loss" ? av - bv : bv - av;
+                            });
+                          } else if (lbMode === "bf-change") {
+                            ranked = [...base].sort((a, b) => {
+                              const av = a.bfChangePct, bv = b.bfChangePct;
+                              if (av == null && bv == null) return 0;
+                              if (av == null) return 1; if (bv == null) return -1;
+                              return av - bv; // most negative (largest BF drop) first
+                            });
+                          } else { // bf-now
+                            ranked = [...base].sort((a, b) => {
+                              const av = a.bfCurrent, bv = b.bfCurrent;
+                              if (av == null && bv == null) return 0;
+                              if (av == null) return 1; if (bv == null) return -1;
+                              return av - bv; // lowest BF% first (leanest)
+                            });
+                          }
+
+                          const modeChip = (id: typeof lbMode, label: string) => (
+                            <button key={id} onClick={() => setLbMode(id)} style={{ flex: 1, padding: "5px 0", background: lbMode === id ? "rgba(255,107,107,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbMode === id ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbMode === id ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{label}</button>
+                          );
 
                           return (
                             <div style={{ marginBottom: 14 }}>
                               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>🏆 RANKINGS · {ranked.length}</div>
+                              <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                                {modeChip("sessions", "SESSIONS")}
+                                {modeChip("weight", "WEIGHT Δ")}
+                                {modeChip("bf-change", "BF LOSS")}
+                                {modeChip("bf-now", "BF NOW")}
+                              </div>
+                              {lbMode === "weight" && (
+                                <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                                  <button onClick={() => setLbWeightDir("loss")} style={{ flex: 1, padding: "4px 0", background: lbWeightDir === "loss" ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>⬇ LOSS LEADERS</button>
+                                  <button onClick={() => setLbWeightDir("gain")} style={{ flex: 1, padding: "4px 0", background: lbWeightDir === "gain" ? "rgba(162,155,254,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWeightDir === "gain" ? "#a29bfe" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWeightDir === "gain" ? "#a29bfe" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>⬆ GAIN LEADERS</button>
+                                </div>
+                              )}
                               {ranked.length === 0 ? (
                                 <div style={{ padding: "14px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, fontSize: 11.5, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>
                                   No members ranked yet — toggle &ldquo;Include me in ranking&rdquo; or add clients below.
                                 </div>
                               ) : (
                                 <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
-                                  <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 38px 38px 38px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                                    {["#","NAME","SESS","STRK","PRs"].map((h, hi) => (
-                                      <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "center" : "left" }}>{h}</div>
-                                    ))}
-                                  </div>
+                                  {/* Header row — columns depend on mode */}
+                                  {lbMode === "sessions" && (
+                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 38px 38px 38px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                                      {["#","NAME","SESS","STRK","PRs"].map((h, hi) => (
+                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "center" : "left" }}>{h}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {lbMode === "weight" && (
+                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 56px 60px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                                      {["#","NAME","NOW","CHANGE"].map((h, hi) => (
+                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "right" : "left" }}>{h}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {lbMode === "bf-change" && (
+                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 56px 60px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                                      {["#","NAME","NOW","Δ BF%"].map((h, hi) => (
+                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "right" : "left" }}>{h}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {lbMode === "bf-now" && (
+                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 80px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                                      {["#","NAME","BF % NOW"].map((h, hi) => (
+                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "right" : "left" }}>{h}</div>
+                                      ))}
+                                    </div>
+                                  )}
+
                                   {ranked.map((m: any, i: number) => {
                                     const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
                                     const tier = CLIENT_TIERS.slice().reverse().find(t => m.totalSessions >= t.min) ?? CLIENT_TIERS[0];
                                     const isMe = m.userId === user.id;
-                                    return (
-                                      <div key={m.userId} style={{ display: "grid", gridTemplateColumns: "26px 1fr 38px 38px 38px", gap: 6, padding: "9px 10px", borderBottom: i < ranked.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.04)" : isMe ? "rgba(78,205,196,0.04)" : "transparent" }}>
+                                    const rowStyle: React.CSSProperties = { display: "grid", gap: 6, padding: "9px 10px", borderBottom: i < ranked.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.04)" : isMe ? "rgba(78,205,196,0.04)" : "transparent" };
+                                    const nameCell = (
+                                      <>
                                         <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
                                         <div style={{ minWidth: 0 }}>
                                           <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : `@${m.username}`}</div>
                                           <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.emoji} {tier.label}{m.role === "trainer" ? " · COACH" : ""}</div>
                                         </div>
-                                        <div style={{ textAlign: "center" }}>
-                                          <div style={{ fontSize: 13, fontWeight: 700, color: "#a29bfe" }}>{m.totalSessions}</div>
+                                      </>
+                                    );
+                                    if (lbMode === "sessions") {
+                                      return (
+                                        <div key={m.userId} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 38px 38px 38px" }}>
+                                          {nameCell}
+                                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: "#a29bfe" }}>{m.totalSessions}</div></div>
+                                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: m.streak >= 3 ? "#FF6B6B" : "#fff" }}>{m.streak}</div></div>
+                                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: m.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{m.prCount}</div></div>
                                         </div>
-                                        <div style={{ textAlign: "center" }}>
-                                          <div style={{ fontSize: 13, fontWeight: 700, color: m.streak >= 3 ? "#FF6B6B" : "#fff" }}>{m.streak}</div>
+                                      );
+                                    }
+                                    if (lbMode === "weight") {
+                                      const wc = m.weightChangeKg;
+                                      const wcColor = wc == null ? "rgba(255,255,255,0.3)" : wc < 0 ? "#4ECDC4" : wc > 0 ? "#a29bfe" : "rgba(255,255,255,0.5)";
+                                      return (
+                                        <div key={m.userId} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 56px 60px" }}>
+                                          {nameCell}
+                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{m.weightCurrent != null ? `${m.weightCurrent}kg` : "—"}</div></div>
+                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: wcColor, fontFamily: "'Space Mono', monospace" }}>{wc == null ? "—" : `${wc > 0 ? "+" : ""}${wc}kg`}</div></div>
                                         </div>
-                                        <div style={{ textAlign: "center" }}>
-                                          <div style={{ fontSize: 13, fontWeight: 700, color: m.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{m.prCount}</div>
+                                      );
+                                    }
+                                    if (lbMode === "bf-change") {
+                                      const dc = m.bfChangePct;
+                                      const dcColor = dc == null ? "rgba(255,255,255,0.3)" : dc < 0 ? "#4ECDC4" : dc > 0 ? "#FF6B6B" : "rgba(255,255,255,0.5)";
+                                      return (
+                                        <div key={m.userId} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 56px 60px" }}>
+                                          {nameCell}
+                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{m.bfCurrent != null ? `${m.bfCurrent}%` : "—"}</div></div>
+                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: dcColor, fontFamily: "'Space Mono', monospace" }}>{dc == null ? "—" : `${dc > 0 ? "+" : ""}${dc}%`}</div></div>
                                         </div>
+                                      );
+                                    }
+                                    // bf-now
+                                    return (
+                                      <div key={m.userId} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 80px" }}>
+                                        {nameCell}
+                                        <div style={{ textAlign: "right" }}><div style={{ fontSize: 14, fontWeight: 700, color: m.bfCurrent != null ? "#f0c040" : "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{m.bfCurrent != null ? `${m.bfCurrent}%` : "—"}</div></div>
                                       </div>
                                     );
                                   })}
@@ -6978,36 +7093,115 @@ function HomePage() {
                   ) : myLeaderboards.length === 0 ? (
                     <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "20px 0" }}>You haven't been added to any leaderboard yet</div>
                   ) : (
-                    myLeaderboards.map((grp: any) => (
-                      <div key={grp.id} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
-                        <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#FFE66D" }}>{grp.name}</div>
-                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{grp.members?.length ?? 0} participants</div>
-                        </div>
-                        {/* Leaderboard rows */}
-                        {grp.leaderboard?.map((entry: any, idx: number) => {
-                          const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : null;
-                          const isMe = entry.userId === user.id;
-                          return (
-                            <div key={entry.userId} style={{ display: "grid", gridTemplateColumns: "28px 1fr 48px 48px", gap: 8, padding: "10px 12px", borderBottom: idx < grp.leaderboard.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: isMe ? "rgba(255,230,109,0.04)" : "transparent" }}>
-                              <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{idx + 1}</span>}</div>
-                              <div>
-                                <div style={{ fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? "#FFE66D" : "#fff" }}>@{entry.username}{isMe ? " (you)" : ""}</div>
-                                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier?.emoji} {entry.tier?.label}</div>
-                              </div>
-                              <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{entry.totalSessions}</div>
-                                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>sess</div>
-                              </div>
-                              <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                                <div style={{ fontSize: 14, fontWeight: 700, color: (entry.totalIntensityPoints ?? 0) > 0 ? "#FFE66D" : "rgba(255,255,255,0.3)" }}>{entry.totalIntensityPoints ?? 0}</div>
-                                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>⚡ IP</div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                    <>
+                      {/* Shared mode picker — applies to every group below.
+                          Reuses the same lbMode state used by the trainer
+                          view so switching is consistent across surfaces. */}
+                      <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+                        {[
+                          { id: "sessions" as const, label: "SESSIONS" },
+                          { id: "weight" as const, label: "WEIGHT Δ" },
+                          { id: "bf-change" as const, label: "BF LOSS" },
+                          { id: "bf-now" as const, label: "BF NOW" },
+                        ].map(o => (
+                          <button key={o.id} onClick={() => setLbMode(o.id)} style={{ flex: 1, padding: "5px 0", background: lbMode === o.id ? "rgba(255,230,109,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbMode === o.id ? "#FFE66D" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbMode === o.id ? "#FFE66D" : "rgba(255,255,255,0.5)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{o.label}</button>
+                        ))}
                       </div>
-                    ))
+                      {lbMode === "weight" && (
+                        <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+                          <button onClick={() => setLbWeightDir("loss")} style={{ flex: 1, padding: "4px 0", background: lbWeightDir === "loss" ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>⬇ LOSS LEADERS</button>
+                          <button onClick={() => setLbWeightDir("gain")} style={{ flex: 1, padding: "4px 0", background: lbWeightDir === "gain" ? "rgba(162,155,254,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWeightDir === "gain" ? "#a29bfe" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWeightDir === "gain" ? "#a29bfe" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>⬆ GAIN LEADERS</button>
+                        </div>
+                      )}
+                      {myLeaderboards.map((grp: any) => {
+                        // Re-sort the leaderboard array per mode.
+                        const base = grp.leaderboard ?? [];
+                        let sorted = base;
+                        if (lbMode === "sessions") {
+                          sorted = [...base].sort((a: any, b: any) => (b.totalSessions ?? 0) - (a.totalSessions ?? 0));
+                        } else if (lbMode === "weight") {
+                          sorted = [...base].sort((a: any, b: any) => {
+                            const av = a.weightChangeKg, bv = b.weightChangeKg;
+                            if (av == null && bv == null) return 0;
+                            if (av == null) return 1; if (bv == null) return -1;
+                            return lbWeightDir === "loss" ? av - bv : bv - av;
+                          });
+                        } else if (lbMode === "bf-change") {
+                          sorted = [...base].sort((a: any, b: any) => {
+                            const av = a.bfChangePct, bv = b.bfChangePct;
+                            if (av == null && bv == null) return 0;
+                            if (av == null) return 1; if (bv == null) return -1;
+                            return av - bv;
+                          });
+                        } else {
+                          sorted = [...base].sort((a: any, b: any) => {
+                            const av = a.bfCurrent, bv = b.bfCurrent;
+                            if (av == null && bv == null) return 0;
+                            if (av == null) return 1; if (bv == null) return -1;
+                            return av - bv;
+                          });
+                        }
+                        return (
+                          <div key={grp.id} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
+                            <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: "#FFE66D" }}>{grp.name}</div>
+                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{sorted.length} participants</div>
+                            </div>
+                            {sorted.map((entry: any, idx: number) => {
+                              const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : null;
+                              const isMe = entry.userId === user.id;
+                              const nameBlock = (
+                                <>
+                                  <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{idx + 1}</span>}</div>
+                                  <div>
+                                    <div style={{ fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? "#FFE66D" : "#fff" }}>@{entry.username}{isMe ? " (you)" : ""}</div>
+                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier}</div>
+                                  </div>
+                                </>
+                              );
+                              const rowBase: React.CSSProperties = { display: "grid", gap: 8, padding: "10px 12px", borderBottom: idx < sorted.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: isMe ? "rgba(255,230,109,0.04)" : "transparent" };
+                              if (lbMode === "sessions") {
+                                return (
+                                  <div key={entry.userId} style={{ ...rowBase, gridTemplateColumns: "28px 1fr 48px 48px" }}>
+                                    {nameBlock}
+                                    <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{entry.totalSessions ?? 0}</div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>sess</div></div>
+                                    <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: (entry.totalIntensityPoints ?? 0) > 0 ? "#FFE66D" : "rgba(255,255,255,0.3)" }}>{entry.totalIntensityPoints ?? 0}</div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>⚡ IP</div></div>
+                                  </div>
+                                );
+                              }
+                              if (lbMode === "weight") {
+                                const wc = entry.weightChangeKg;
+                                const wcColor = wc == null ? "rgba(255,255,255,0.3)" : wc < 0 ? "#4ECDC4" : wc > 0 ? "#a29bfe" : "rgba(255,255,255,0.5)";
+                                return (
+                                  <div key={entry.userId} style={{ ...rowBase, gridTemplateColumns: "28px 1fr 56px 64px" }}>
+                                    {nameBlock}
+                                    <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{entry.weightCurrent != null ? `${entry.weightCurrent}kg` : "—"}</div></div>
+                                    <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: wcColor, fontFamily: "'Space Mono', monospace" }}>{wc == null ? "—" : `${wc > 0 ? "+" : ""}${wc}kg`}</div></div>
+                                  </div>
+                                );
+                              }
+                              if (lbMode === "bf-change") {
+                                const dc = entry.bfChangePct;
+                                const dcColor = dc == null ? "rgba(255,255,255,0.3)" : dc < 0 ? "#4ECDC4" : dc > 0 ? "#FF6B6B" : "rgba(255,255,255,0.5)";
+                                return (
+                                  <div key={entry.userId} style={{ ...rowBase, gridTemplateColumns: "28px 1fr 56px 64px" }}>
+                                    {nameBlock}
+                                    <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{entry.bfCurrent != null ? `${entry.bfCurrent}%` : "—"}</div></div>
+                                    <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: dcColor, fontFamily: "'Space Mono', monospace" }}>{dc == null ? "—" : `${dc > 0 ? "+" : ""}${dc}%`}</div></div>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div key={entry.userId} style={{ ...rowBase, gridTemplateColumns: "28px 1fr 80px" }}>
+                                  {nameBlock}
+                                  <div style={{ textAlign: "right" }}><div style={{ fontSize: 14, fontWeight: 700, color: entry.bfCurrent != null ? "#f0c040" : "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{entry.bfCurrent != null ? `${entry.bfCurrent}%` : "—"}</div></div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </>
                   )}
                 </div>
               )}

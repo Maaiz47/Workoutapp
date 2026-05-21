@@ -2,6 +2,35 @@
 
 ---
 
+## Feature · 2026-05-21 (ad) — leaderboard groups: weight / BF loss / BF now modes (qa: leaderboard-body-modes)
+
+### Added
+- `leaderboard-body-modes`: leaderboard groups can now be ranked by
+  four metrics, switched via chips at the top of each group's
+  rankings table:
+    - **SESSIONS** (existing — sessions / streak / PRs)
+    - **WEIGHT Δ** — current weight + signed change from first
+      recorded entry. Sub-toggle: `⬇ LOSS LEADERS` (most negative
+      Δ first, cyan) / `⬆ GAIN LEADERS` (most positive Δ first,
+      purple). For cutters and bulkers respectively.
+    - **BF LOSS** — current BF% + signed Δ BF%. Sorted most loss
+      first. Cyan for loss, red for gain.
+    - **BF NOW** — current BF% only. Sorted lowest (leanest) first.
+- `lib/leaderboardStats.ts` gained body-metric fields
+  (`weightStart`, `weightCurrent`, `weightChangeKg`, `bfStart`,
+  `bfCurrent`, `bfChangePct`, plus the corresponding start dates).
+  `computeBodyStats()` walks BodyMetric rows in date order to
+  derive them.
+- `/api/leaderboard/mine` refactored to use the shared
+  `computeStatsForUsers()` so the client-side leaderboard view
+  (Progress → Dashboard → My Leaderboards) gets body metrics too.
+- All modes gracefully handle members with no body data — they
+  show `—` in the relevant columns and sink to the bottom.
+- Strictly group-local — never global. Body data is only visible
+  to the group's own members, just like the existing rankings.
+
+---
+
 ## Feature · 2026-05-21 (ac) — per-exercise metric graphs · month calendar · CSV export (qa: progress-exercises, progress-history, settings-csv-export)
 
 ### Added (Slice A · Commit 2 — viewing layer)
