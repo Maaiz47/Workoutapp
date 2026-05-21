@@ -13,6 +13,9 @@ import { pickWarmupForDay } from "../lib/warmups";
 import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutorial";
 import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTargetReps, detectPlateau, shouldSuggestDeload } from "../lib/performance";
+import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown } from "../lib/tiers";
+import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
+import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone } from "../lib/milestones";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -2001,7 +2004,7 @@ function SendFeedbackCard({ username }: { username: string }) {
 
 // ─── MAIN ───────────────────────────────────────────────────────────────
 function HomePage() {
-  const [user, setUser] = useState<{ id: string; username: string; role: string; extraRoles?: string[]; roleRequest?: string | null } | null>(null);
+  const [user, setUser] = useState<{ id: string; username: string; role: string; extraRoles?: string[]; roleRequest?: string | null; createdAt?: string } | null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [appTheme, setAppTheme] = useState<"iron"|"mono"|"vivid">("iron");
@@ -2032,6 +2035,10 @@ function HomePage() {
   // Long-press → set-note modal. The key is the WorkoutLog sets key
   // (e.g. "bench-press-1" or "bench-press-1-d2") so we can patch it.
   const [noteModal, setNoteModal] = useState<{ key: string; current: string } | null>(null);
+  // Celebration overlay state — fires when a new milestone crosses on
+  // session save. Stacks newly-achieved entries in a queue so multiple
+  // hitting in one session each get their moment.
+  const [milestoneQueue, setMilestoneQueue] = useState<Milestone[]>([]);
   // True when the current wInput/rInput values came from suggestedStartingSet()
   // rather than from a real prior session — used to show a "SUGGESTED" tag.
   const [isSuggested, setIsSuggested] = useState(false);
@@ -2349,7 +2356,7 @@ function HomePage() {
   const refreshUser = useCallback(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
       if (data.user) {
-        setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user", extraRoles: data.user.extraRoles ?? [], roleRequest: data.user.roleRequest ?? null });
+        setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user", extraRoles: data.user.extraRoles ?? [], roleRequest: data.user.roleRequest ?? null, createdAt: data.user.createdAt });
         if (data.user.mustReset) setMustResetPassword(true);
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           subscribeToPush().then(s => setNotifStatus(s));
@@ -3288,7 +3295,34 @@ function HomePage() {
         const d = new Date(s.date);
         return isNaN(+d) ? null : d.toISOString().slice(0, 10);
       }).filter(Boolean) as string[];
-      if (shouldSuggestDeload({ sessionDates, pastDeloads, snoozeUntilIso: snooze })) {
+      // Experience-aware tuning: advanced lifters get tighter windows;
+      // newcomers looser. Recent avg RPE from the last ~10 sets pushes
+      // the trigger earlier when the user has been grinding RPE 9-10.
+      const monthsOnApp = user?.createdAt ? (Date.now() - +new Date(user.createdAt)) / (30 * 86400000) : 0;
+      const totalPRs = Object.keys(overall.exercisePRs ?? {}).length;
+      const exp = effectiveExperience({
+        recorded: (ob.fitnessLevel as ExperienceLevel) || null,
+        monthsOnApp,
+        totalSessions: overall.totalSessions,
+        prCount: totalPRs,
+      });
+      const expProfile = experienceProfile(exp.level);
+      // Recent average RPE — last ~10 RPE-tagged sets across history.
+      let rpeSum = 0, rpeCount = 0;
+      const allSorted = Object.values(history).flat().sort((a: any, b: any) => (b.date + "").localeCompare(a.date + ""));
+      outer: for (const s of allSorted as any[]) {
+        const sets = (s.sets ?? {}) as Record<string, any>;
+        for (const k in sets) {
+          if (typeof sets[k]?.rpe === "number") { rpeSum += sets[k].rpe; rpeCount++; if (rpeCount >= 10) break outer; }
+        }
+      }
+      const recentAvgRpe = rpeCount > 0 ? rpeSum / rpeCount : null;
+      if (shouldSuggestDeload({
+        sessionDates, pastDeloads, snoozeUntilIso: snooze,
+        weeksWindow: expProfile.deloadWindowWeeks,
+        sessionThreshold: expProfile.deloadSessionThreshold,
+        recentAvgRpe,
+      })) {
         setShowDeloadBanner(true);
       }
     } catch {}
@@ -3357,7 +3391,57 @@ function HomePage() {
         });
         const res = await fetch("/api/workout");
         const data = await res.json();
-        if (!data.error) setHistory(data);
+        if (!data.error) {
+          setHistory(data);
+          // Milestone detection — walk the catalogue, fire celebration for
+          // any that newly crossed since last session save. Read/write the
+          // achieved-list from localStorage so the user only sees each
+          // milestone once ever.
+          try {
+            let totalSessions = 0, longestStreak = overall.streak;
+            let hasSuper = false, hasDrop = false;
+            for (const dayId in data) for (const s of data[dayId]) {
+              totalSessions++;
+              const sets = (s.sets ?? {}) as Record<string, any>;
+              for (const k in sets) {
+                if (/-d\d+$/.test(k)) hasDrop = true;
+              }
+            }
+            if (deloadActive) {
+              // Catches "hasAcceptedDeload" without needing a re-read
+              // — they just accepted one.
+            }
+            const totalPRs = Object.keys(overall.exercisePRs ?? {}).length;
+            const joinedDaysAgo = user?.createdAt ? Math.floor((Date.now() - +new Date(user.createdAt)) / 86400000) : 0;
+            // Superset detection: any exercise with groupId in active day
+            hasSuper = !!activeDay?.sections.some(sec => sec.exercises.some((x: any) => !!x.groupId));
+            const newBreakdown = computeAthleteTier({
+              totalSessions,
+              streak: overall.streak,
+              totalVolumeKg: 0, // not needed for milestone tier-up checks
+              prCount: totalPRs,
+              distinctExercises: 0,
+              monthsOnApp: joinedDaysAgo / 30,
+            });
+            const mState: MilestoneState = {
+              joinedDaysAgo,
+              totalSessions,
+              longestStreakDays: longestStreak,
+              prCount: totalPRs,
+              hasUsedSuperset: hasSuper,
+              hasUsedDropSet: hasDrop,
+              hasAcceptedDeload: (() => { try { return JSON.parse(localStorage.getItem("ironlog-deloads") ?? "[]").length > 0; } catch { return false; } })(),
+              athleteTierLabel: newBreakdown.headline.label,
+            };
+            const achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
+            const newOnes = detectNewMilestones(mState, achieved);
+            if (newOnes.length > 0) {
+              for (const m of newOnes) achieved.add(m.id);
+              localStorage.setItem(MILESTONE_STORAGE_KEY, JSON.stringify(Array.from(achieved)));
+              setMilestoneQueue(q => [...q, ...newOnes]);
+            }
+          } catch {}
+        }
       } catch {}
     }
     try { localStorage.removeItem("ironlog-session"); } catch {}
@@ -4722,6 +4806,34 @@ function HomePage() {
     <div key="home" className={viewDir === "back" ? "view-back" : "view-forward"} style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "clip" }}>
       {/* First-launch / restart tutorial overlay */}
       <AnimatePresence>{showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}</AnimatePresence>
+      {/* Milestone celebration — one per achieved card, queue drained on tap. */}
+      <AnimatePresence>
+        {milestoneQueue.length > 0 && (() => {
+          const m = milestoneQueue[0];
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMilestoneQueue(q => q.slice(1))}
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(10px)", cursor: "pointer" }}
+            >
+              <motion.div
+                initial={{ scale: 0.85, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 240, damping: 22 }}
+                style={{ maxWidth: 360, width: "100%", background: "linear-gradient(135deg, rgba(240,192,64,0.18), rgba(255,107,107,0.08))", border: "1px solid rgba(240,192,64,0.45)", borderRadius: 20, padding: 28, textAlign: "center", boxShadow: "0 24px 60px rgba(240,192,64,0.2)" }}
+              >
+                <div style={{ fontSize: 72, lineHeight: 1, marginBottom: 14, filter: "drop-shadow(0 4px 12px rgba(240,192,64,0.4))" }}>{m.icon}</div>
+                <div style={{ fontSize: 10, color: "#f0c040", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>MILESTONE UNLOCKED</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 10, lineHeight: 1.2 }}>{m.label}</div>
+                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.5, marginBottom: 18 }}>{m.body}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>TAP TO CONTINUE{milestoneQueue.length > 1 ? ` · ${milestoneQueue.length - 1} MORE` : ""}</div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
       {/* PB celebration overlay */}
       {newPBs.length > 0 && (
         <div className="pb-overlay" onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer" }}>
@@ -7055,29 +7167,92 @@ function HomePage() {
         {progressTab === "dashboard" && (
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
             <VolumeHeatmap history={history} />
-            {/* Tier Card */}
+            {/* Tier Card — multi-dim ladder. Headline animal tier comes
+                from the average of 4 sub-rank bars (Consistency · Strength
+                · Volume · Mastery). Plus an experience badge that auto-
+                progresses from the user's training history once the
+                onboarding-recorded level expires (6 months). */}
             {user.role === "user" && (() => {
-              const tier = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length);
-              const tierIdx = CLIENT_TIERS.findIndex(t => t.label === tier.label);
-              const next = CLIENT_TIERS[tierIdx + 1];
-              const curMin = CLIENT_TIERS[tierIdx].min;
-              const progress = next ? Math.min(1, Math.max(0, (overall.totalSessions - curMin) / (next.min - curMin))) : 1;
+              const distinctEx = new Set<string>();
+              for (const dayId in history) for (const s of history[dayId]) {
+                const sets = (s.sets ?? {}) as Record<string, any>;
+                for (const k in sets) {
+                  const exKey = k.replace(/-\d+(-d\d+)?$/, "");
+                  if (exKey) distinctEx.add(exKey);
+                }
+              }
+              const monthsOnApp = user.createdAt ? (Date.now() - +new Date(user.createdAt)) / (30 * 86400000) : 0;
+              // Sum total volume from history (kg × reps across every logged set).
+              let totalVolume = 0;
+              for (const dayId in history) for (const s of history[dayId]) {
+                const sets = (s.sets ?? {}) as Record<string, any>;
+                for (const k in sets) { const v = sets[k]; if (v && !v.skipped) totalVolume += (v.weight ?? 0) * (v.reps ?? 0); }
+              }
+              const stats: AthleteStatsForTier = {
+                totalSessions: overall.totalSessions,
+                streak: overall.streak,
+                totalVolumeKg: totalVolume,
+                prCount: Object.keys(overall.exercisePRs).length,
+                distinctExercises: distinctEx.size,
+                monthsOnApp,
+              };
+              const breakdown = computeAthleteTier(stats);
+              const exp = effectiveExperience({
+                recorded: (ob.fitnessLevel as ExperienceLevel) || null,
+                monthsOnApp,
+                totalSessions: stats.totalSessions,
+                prCount: stats.prCount,
+              });
+              const expM = experienceMeta(exp.level);
+              const tier = breakdown.headline;
+              const tierIdx = ATHLETE_TIERS.findIndex(t => t.label === tier.label);
+              const next = ATHLETE_TIERS[tierIdx + 1];
+              const curMin = ATHLETE_TIERS[tierIdx].min;
+              const progress = next ? Math.min(1, Math.max(0, (breakdown.headlineScore - curMin) / (next.min - curMin))) : 1;
               return (
-                <div style={{ position: "relative", background: "linear-gradient(135deg, rgba(240,192,64,0.10), rgba(225,112,85,0.04) 60%, rgba(240,192,64,0.02))", border: "1px solid rgba(240,192,64,0.22)", borderRadius: 16, padding: "18px 20px", marginBottom: 14, display: "flex", alignItems: "center", gap: 18, overflow: "hidden", boxShadow: "0 4px 24px -8px rgba(240,192,64,0.18), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
-                  <div aria-hidden className="tier-shine" />
+                <div style={{ position: "relative", background: "linear-gradient(135deg, rgba(240,192,64,0.10), rgba(225,112,85,0.04) 60%, rgba(240,192,64,0.02))", border: "1px solid rgba(240,192,64,0.22)", borderRadius: 16, padding: "18px 20px", marginBottom: 14, overflow: "hidden", boxShadow: "0 4px 24px -8px rgba(240,192,64,0.18), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
                   <div aria-hidden style={{ position: "absolute", top: -40, right: -40, width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle, rgba(240,192,64,0.18), transparent 70%)", pointerEvents: "none" }} />
-                  <div style={{ fontSize: 44, lineHeight: 1, filter: "drop-shadow(0 2px 8px rgba(240,192,64,0.35))" }}>{tier.emoji}</div>
-                  <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                      <div style={{ fontSize: 17, fontWeight: 800, color: "#f0c040", letterSpacing: 0.3 }}>{tier.label}</div>
-                      {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{Math.max(0, overall.totalSessions - curMin)}/{next.min - curMin}</div>}
+                  {/* Header row */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14, position: "relative" }}>
+                    <div style={{ fontSize: 44, lineHeight: 1, filter: "drop-shadow(0 2px 8px rgba(240,192,64,0.35))" }}>{tier.icon}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#f0c040", letterSpacing: 0.3 }}>{tier.label}</div>
+                        <div style={{ fontSize: 10, color: expM.color, background: `${expM.color}1A`, border: `1px solid ${expM.color}55`, padding: "2px 6px", borderRadius: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, fontWeight: 700 }}>{expM.icon} {expM.label}</div>
+                      </div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 4 }}>SCORE {breakdown.headlineScore} {next ? `· NEXT ${next.icon} ${next.label.toUpperCase()} AT ${next.min}` : "· MAX RANK"}</div>
+                      <div style={{ marginTop: 6, height: 4, background: "rgba(240,192,64,0.10)", borderRadius: 2, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)" }}>
+                        <div style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #f0c040, #e17055)", borderRadius: 2, transition: "width 0.5s" }} />
+                      </div>
                     </div>
-                    <div style={{ height: 5, background: "rgba(240,192,64,0.10)", borderRadius: 3, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)" }}>
-                      <div className="bar-grow" style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #f0c040, #e17055)", borderRadius: 3, boxShadow: "0 0 12px rgba(240,192,64,0.55)" }} />
-                    </div>
-                    {next && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>NEXT: {next.emoji} {next.label.toUpperCase()}</div>}
-                    {!next && <div style={{ fontSize: 9, color: "#f0c040", marginTop: 6, fontFamily: "'Space Mono', monospace", letterSpacing: 2, fontWeight: 700 }}>MAX RANK — ABSOLUTE UNIT</div>}
                   </div>
+                  {/* Sub-rank bars */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    {breakdown.subRanks.map(sr => (
+                      <div key={sr.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "8px 10px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "#fff" }}>{sr.icon} {sr.label}</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{sr.score}</div>
+                        </div>
+                        <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden", marginBottom: 4 }}>
+                          <div style={{ height: "100%", width: `${sr.score}%`, background: sr.score >= 70 ? "#FF6B6B" : sr.score >= 40 ? "#f0c040" : "#a78bfa", borderRadius: 2 }} />
+                        </div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>{sr.detail}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Path-to-next callout */}
+                  {next && breakdown.focusNext && (
+                    <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 8 }}>
+                      <div style={{ fontSize: 9, color: "rgba(78,205,196,0.7)", letterSpacing: 1, fontFamily: "'Space Mono', monospace", marginBottom: 2 }}>↑ PATH TO {next.label.toUpperCase()}</div>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>Focus on {breakdown.focusNext.icon} <strong>{breakdown.focusNext.label}</strong> — it's your weakest dimension. {breakdown.focusNext.detail}.</div>
+                    </div>
+                  )}
+                  {exp.source === "blended" && (
+                    <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 0.5 }}>
+                      Experience level inherited from onboarding — locks to actual training in {monthsUntilExpRecordedExpires(monthsOnApp).toFixed(1)} months.
+                    </div>
+                  )}
                 </div>
               );
             })()}

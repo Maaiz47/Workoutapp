@@ -144,6 +144,7 @@ export async function GET(req: NextRequest) {
       extraRoles: (user as any).extraRoles ?? [],
       mustReset: user.mustResetPassword,
       roleRequest: user.roleRequest,
+      createdAt: user.createdAt,
     },
   });
 }

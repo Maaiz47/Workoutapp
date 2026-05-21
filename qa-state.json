@@ -836,6 +836,43 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "athlete-tier-redesign",
+      "title": "Athlete tier — multi-dim ladder with experience badge",
+      "area": "Progress",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass tier-clarity",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard tab → the tier card at the top",
+        "Verify the headline animal icon + label + experience badge (🌱 NEWCOMER / 🌿 BEGINNER / 🌳 INTERMEDIATE / 🔥 ADVANCED) appear in the header row",
+        "Verify a SCORE number + 'NEXT [animal] AT [score]' label + thin progress bar sit below",
+        "Verify a 2×2 grid of 4 sub-rank cards: 🔁 Consistency, 💪 Strength, 📈 Volume, 🏆 Mastery. Each has its own score (0-100), a coloured progress bar, and a short detail string ('5 sessions · 0d streak', '0 personal bests', etc.)",
+        "Verify a 'PATH TO [next animal]' callout below the grid that highlights the WEAKEST sub-rank as the one to focus on",
+        "For users in their first 6 months: verify a tiny line at the bottom says 'Experience level inherited from onboarding — locks to actual training in X.Y months'",
+        "Log 30+ sessions to test the experience auto-upgrade from newcomer → beginner",
+        "After 6 months of joining: verify the experience level is fully auto-derived from training history (the recorded onboarding value no longer overrides upward)"
+      ],
+      "notes": "[2026-05-21] Shipped lib/tiers.ts (computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS) as the single source of truth for tier ladders. Multi-dim score: headline = average of 4 sub-ranks for athletes (Consistency / Strength / Volume / Mastery) and trainers (Roster / Progression / Retention / Reach). Sub-rank scores are 0-100, derived via diminishing-returns log curves keyed on real activity (sessions, PRs, kg×reps, distinct exercises). Also shipped lib/experience.ts with effectiveExperience() — recorded experience valid for 6 months, then fully auto-derived from monthsOnApp + sessions + PRs. New tier card on Progress → Dashboard with sub-rank bars and a 'path to next' callout pointing at the weakest dimension."
+    },
+    {
+      "id": "milestones-celebrations",
+      "title": "Milestone celebrations on session save",
+      "area": "Progress",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass tier-clarity",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Log your first ever session — verify a 🎉 'Welcome to IRONLOG' celebration card appears, plus '✅ First session logged' fires in the same queue",
+        "Tap to dismiss — verify the next milestone in the queue appears (the queue counter shows '· N MORE')",
+        "Hit other thresholds in subsequent sessions (10 sessions, first PR, first superset, first drop set, first deload accepted, 7-day streak, 30 days on app, etc.) — verify each fires exactly once",
+        "Reload the app after dismissing — verify previously-shown milestones DO NOT re-fire (persisted in localStorage.ironlog-milestones-v1 as an array of milestone ids)",
+        "Verify a tier-up milestone fires when crossing into a new animal tier (e.g. 'Reached Fox' when the headline score crosses 30)"
+      ],
+      "notes": "[2026-05-21] Shipped lib/milestones.ts with 25+ milestone definitions across 5 categories (anniversary, consistency, strength, behaviour, tier). Each has an id, label, body, icon, and a check() function against MilestoneState. detectNewMilestones(state, achievedSet) returns just the newly-crossed ones — caller persists. Achieved IDs stored in localStorage.ironlog-milestones-v1. Celebration overlay is a queue-based modal: tap to drain, full-screen splash with icon + label + body + tap-to-continue counter. Triggered after every session save."
+    },
+    {
       "id": "profile-modality-mix",
       "title": "Modality Mix — multi-select chip-row in profile",
       "area": "Onboarding",

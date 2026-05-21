@@ -106,21 +106,35 @@ export function shouldSuggestDeload(opts: {
   sessionDates: string[];   // ISO dates of all logged sessions, any order
   pastDeloads: string[];    // ISO dates of accepted deloads
   snoozeUntilIso?: string | null;  // dismiss snooze
+  // New: experience-aware tuning. Advanced lifters get tighter windows
+  // (deload more often); newcomers get looser (less stacking).
+  weeksWindow?: number;     // default 4
+  sessionThreshold?: number;// default 10
+  // Optional recent-RPE average — pushes the suggestion sooner if the
+  // user has been grinding RPE 9-10. < 6 = chill, > 8 = grinding.
+  recentAvgRpe?: number | null;
 }): boolean {
   const today = new Date().toISOString().slice(0, 10);
   if (opts.snoozeUntilIso && opts.snoozeUntilIso > today) return false;
+  let weeksWindow = opts.weeksWindow ?? 4;
+  let sessionThreshold = opts.sessionThreshold ?? 10;
+  // High recent RPE → shave a week off the window and 2 off the threshold.
+  if (typeof opts.recentAvgRpe === "number" && opts.recentAvgRpe >= 8.5) {
+    weeksWindow = Math.max(2, weeksWindow - 1);
+    sessionThreshold = Math.max(6, sessionThreshold - 2);
+  }
   const lastDeload = opts.pastDeloads.sort().slice(-1)[0] ?? null;
-  const fourWeeksAgo = new Date(Date.now() - 28 * 86400000).toISOString().slice(0, 10);
+  const cutoffIso = new Date(Date.now() - weeksWindow * 7 * 86400000).toISOString().slice(0, 10);
   // If no deload ever, look at first session date as the anchor.
   if (!lastDeload) {
     const firstSession = [...opts.sessionDates].sort()[0];
-    if (!firstSession || firstSession > fourWeeksAgo) return false;
-  } else if (lastDeload > fourWeeksAgo) {
+    if (!firstSession || firstSession > cutoffIso) return false;
+  } else if (lastDeload > cutoffIso) {
     return false;
   }
   const anchor = lastDeload ?? [...opts.sessionDates].sort()[0] ?? today;
   const sessionsSince = opts.sessionDates.filter(d => d > anchor).length;
-  return sessionsSince >= 10;
+  return sessionsSince >= sessionThreshold;
 }
 
 // Aggregate volume by muscle group across the user's history. Returns a

@@ -2,6 +2,46 @@
 
 ---
 
+## Feature · 2026-05-21 (ai) — multi-dim tier redesign + experience auto-progression + milestones + experience-tuned deload (qa: athlete-tier-redesign, milestones-celebrations)
+
+### Added
+- `athlete-tier-redesign`: new `lib/tiers.ts` is the single source of
+  truth for the tier ladder. Headline animal tier (🐱 Kitten → 🦍
+  Gorilla) now comes from the **average of 4 sub-ranks** — each 0-100,
+  each visible:
+  - 🔁 **Consistency** (sessions + streak)
+  - 💪 **Strength** (PR count)
+  - 📈 **Volume** (total kg×reps lifetime)
+  - 🏆 **Mastery** (distinct exercises trained)
+  Same shape for trainers but with role-appropriate dimensions
+  (Roster · Progression · Retention · Reach). The "Path to Next"
+  callout points at the user's weakest dimension so the next tier
+  feels reachable.
+- **Experience badge**: `lib/experience.ts` exposes
+  `effectiveExperience()` — the onboarding-recorded fitness level is
+  trusted for the first 6 months, then fully auto-derived from
+  months-on-app + total sessions + PR count. Surfaced as a small
+  chip (🌱 NEWCOMER / 🌿 BEGINNER / 🌳 INTERMEDIATE / 🔥 ADVANCED)
+  next to the headline tier.
+- `milestones-celebrations`: `lib/milestones.ts` ships 25+ milestones
+  across 5 categories (anniversary, consistency, strength,
+  behaviour, tier). Anniversary milestones fire on day 1 / 7 / 30 /
+  90 / 180 / 365. Session counts fire at 1/10/50/100/250/500/1000.
+  Streak milestones at 7/30/100 days. First PR / first superset /
+  first drop set / first deload accepted. Tier-up milestones for
+  every animal level. Celebration overlay is a queue-based splash —
+  full-screen card with icon + label + flavour text + tap-to-continue
+  counter. Achieved IDs persisted in localStorage so users only
+  see each milestone once.
+- **Experience-tuned deload detector**: `shouldSuggestDeload()` now
+  accepts `weeksWindow`, `sessionThreshold`, and `recentAvgRpe`.
+  Advanced lifters get a 3-week window / 8-session threshold;
+  newcomers get 6 weeks / 15 sessions. A recent avg RPE ≥ 8.5
+  shaves a week off the window and 2 off the threshold (grinders
+  get a deload sooner).
+
+---
+
 ## Feature · 2026-05-21 (ah) — Modality Mix: calisthenics + recovery + onboarding chip-row (qa: profile-modality-mix)
 
 ### Added
