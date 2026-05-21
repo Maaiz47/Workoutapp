@@ -2,6 +2,29 @@
 
 ---
 
+## Feature · 2026-05-21 (t) — manual "Check for updates" in Settings (qa: settings-version-check)
+
+### Added
+- `settings-version-check`: new `🔄 APP VERSION` card in Settings,
+  sitting above SEND FEEDBACK. Shows the SHA the client is currently
+  running and has a `CHECK FOR UPDATES` button.
+- New `GET /api/version` endpoint returns Vercel's
+  `VERCEL_GIT_COMMIT_SHA` (plus ref + commit title) as
+  `{ sha, shortSha, ref, title }`. Cached as `force-dynamic` so the
+  hit always returns the current deploy.
+- Client snapshots the SHA on Settings mount as the "running" version.
+  Tapping CHECK FOR UPDATES refetches and compares:
+    - Match → green `✓ YOU'RE ON THE LATEST · v <sha>` toast.
+    - Mismatch → red panel showing both SHAs + a `🔄 REFRESH NOW`
+      button. The refresh handler calls
+      `navigator.serviceWorker.getRegistration()?.update()` before
+      `location.reload()` so the PWA picks up the new bundle on the
+      reload rather than serving the cached one.
+- No background polling — purely manual per the user's preference
+  (keeps traffic to zero unless someone explicitly checks).
+
+---
+
 ## QA pass · 2026-05-21 (s) — action 3 mirrored comments from @maaiz (qa: admin-multi-role, qa-dashboard, qa-coverage-sweep)
 
 ### Addressed

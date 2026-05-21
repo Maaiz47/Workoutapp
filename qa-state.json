@@ -1053,6 +1053,23 @@
       "notes": "[2026-05-21] Schema: User.extraRoles String[] @default([]) — Vercel auto-runs prisma db push on deploy. Auth GET returns the field. New userHasRole(user, name) helper checks both primary role and the extras array; all trainer-feature gates in app/page.tsx updated to use it. Admin GET/PATCH endpoints expose the new field and a set-extra-roles action. The /admin UI shows per-user toggle chips for granting/revoking extras."
     },
     {
+      "id": "settings-version-check",
+      "title": "App version + manual 'Check for updates' in Settings",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass version-check",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings — verify a '🔄 APP VERSION' card sits above SEND FEEDBACK",
+        "Verify the card shows 'You're running v <short-sha>' (or 'checking…' briefly on first paint)",
+        "Tap 'CHECK FOR UPDATES' — verify it shows '✓ YOU'RE ON THE LATEST · v <sha>' when no new deploy happened",
+        "Push a no-op commit + wait ~1 min for Vercel to deploy → return to the open Settings tab without reloading, tap CHECK FOR UPDATES again — verify the red 'New version available' panel appears with both SHAs and a 🔄 REFRESH NOW button",
+        "Tap REFRESH NOW — verify the page reloads and the running SHA matches the latest. In the installed PWA, verify the service worker kicks an update before the reload"
+      ],
+      "notes": "[2026-05-21] Shipped /api/version (returns shortSha + ref + title from Vercel's VERCEL_GIT_COMMIT_* env vars). Client snapshots the SHA on Settings mount as the 'running' version, refetches on button tap, compares. If mismatch, offers a refresh that also calls navigator.serviceWorker.getRegistration()?.update() before reloading so the PWA picks up the new bundle. No background polling — purely manual per user preference."
+    },
+    {
       "id": "trainer-role-request",
       "title": "Trainer upgrade request flow",
       "area": "Trainer",

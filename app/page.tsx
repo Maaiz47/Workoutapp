@@ -1367,6 +1367,111 @@ function ProfileNagBanner({
   );
 }
 
+// ─── VERSION / UPDATE CHECK CARD ────────────────────────────────────────
+// Lives in Settings. Stores the SHA of the build the client originally
+// loaded against, then on tap refetches /api/version and compares. If the
+// server SHA has changed (i.e. a deploy happened while this tab was open)
+// the user is offered a one-tap refresh that also kicks the service
+// worker to update itself.
+function VersionCheckCard() {
+  const [running, setRunning] = useState<string | null>(null);
+  const [latest, setLatest] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [status, setStatus] = useState<"idle" | "uptodate" | "stale">("idle");
+
+  // Snapshot the SHA we're running against on mount. This is essentially the
+  // SHA that was live when the JS bundle was fetched — even if the server
+  // redeploys to a newer one, this stays put so the comparison still works.
+  useEffect(() => {
+    fetch("/api/version", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: any) => { if (d?.shortSha) setRunning(d.shortSha); })
+      .catch(() => {});
+  }, []);
+
+  const check = async () => {
+    setChecking(true);
+    setStatus("idle");
+    try {
+      const r = await fetch("/api/version", { cache: "no-store" });
+      const d = await r.json();
+      if (d?.shortSha) {
+        setLatest(d.shortSha);
+        setStatus(running && d.shortSha !== running ? "stale" : "uptodate");
+      }
+    } catch {
+      setStatus("idle");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const refreshNow = async () => {
+    // Kick the service worker so the next load fetches the new bundle, then
+    // reload. If there's no SW (e.g. dev), the reload alone is enough.
+    try {
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) await reg.update();
+      }
+    } catch {}
+    try {
+      if (typeof window !== "undefined") window.location.reload();
+    } catch {}
+  };
+
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>🔄 APP VERSION</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontFamily: "'DM Sans', sans-serif" }}>You&apos;re running</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 2 }}>
+            {running ? `v ${running}` : "checking…"}
+          </div>
+        </div>
+        <button
+          onClick={check}
+          disabled={checking}
+          style={{
+            padding: "10px 14px",
+            background: "rgba(78,205,196,0.1)",
+            border: "1px solid rgba(78,205,196,0.3)",
+            borderRadius: 10,
+            color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1.5,
+            fontFamily: "'Space Mono', monospace",
+            cursor: checking ? "wait" : "pointer", whiteSpace: "nowrap",
+            opacity: checking ? 0.6 : 1,
+          }}
+        >{checking ? "CHECKING…" : "CHECK FOR UPDATES"}</button>
+      </div>
+
+      {status === "uptodate" && (
+        <div style={{ fontSize: 11, color: "#2ecc71", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+          ✓ YOU&apos;RE ON THE LATEST · v {latest}
+        </div>
+      )}
+      {status === "stale" && (
+        <div style={{ padding: 12, background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.3)", borderRadius: 10 }}>
+          <div style={{ fontSize: 12, color: "#FF6B6B", fontFamily: "'DM Sans', sans-serif", marginBottom: 8, lineHeight: 1.5 }}>
+            New version available — <strong>v {latest}</strong>. You&apos;re still on <strong>v {running}</strong>.
+          </div>
+          <button
+            onClick={refreshNow}
+            style={{
+              width: "100%", padding: "10px",
+              background: "linear-gradient(135deg,#FF6B6B,#ee5a24)",
+              border: "none", borderRadius: 8,
+              color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: 2,
+              fontFamily: "'Space Mono', monospace", cursor: "pointer",
+            }}
+          >🔄 REFRESH NOW</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── SEND FEEDBACK CARD ─────────────────────────────────────────────────
 // Lives in the Settings view. Lets any logged-in user file a short note that
 // gets stored as a QAComment with their userId attached. Claude picks it up
@@ -5929,6 +6034,9 @@ function HomePage() {
               </button>
             )}
           </div>
+
+          {/* App version + manual update check */}
+          <VersionCheckCard />
 
           {/* Send feedback */}
           <SendFeedbackCard username={user?.username || ""} />
