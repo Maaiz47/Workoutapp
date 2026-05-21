@@ -7616,10 +7616,10 @@ function HomePage() {
               // attach the pairing to. Surface the constraint inline.
               const anchorInPlan = activeDay && customPlan?.find((d: any) => d.id === activeDay.id)?.exercises?.some((x: any) => x.exerciseId === addingSupersetForId);
               if (!anchorInPlan) {
-                window.alert("Can't save this pair permanently — the anchor exercise isn't in your saved routine yet. Add it permanently first, then pair it.");
+                window.alert("Can't save this pair to your routine — the anchor exercise isn't in your saved routine yet. Add it to your routine first, then pair it.");
                 return;
               }
-              const ok = window.confirm("This will permanently modify your saved routine so these two exercises are always paired as a superset. Continue?");
+              const ok = window.confirm("Save this pair to your routine? These two exercises will be paired as a superset in every future session of this day.");
               if (!ok) return;
             }
             setActiveDay(d => {
@@ -7703,7 +7703,7 @@ function HomePage() {
           // it to the saved routine (warning confirm required).
           const handleAdd = (libEx: any, permanent: boolean) => {
             if (permanent) {
-              const ok = window.confirm("This will permanently add this exercise to your saved routine for this day. It will show up in every future session. Continue?");
+              const ok = window.confirm("Add this exercise to your routine? It will appear in every future session of this day.");
               if (!ok) return;
             }
             const newEx: any = {
@@ -7770,7 +7770,7 @@ function HomePage() {
                     a session-only pairing or a permanent routine edit. */}
                 {isSuperMode && (
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, marginBottom: 12, padding: "10px 12px", background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 8, fontFamily: "'DM Sans', sans-serif" }}>
-                    Tap <strong>SESSION</strong> on an exercise to pair it for this workout only, or <strong>PERMANENT</strong> to also save it to your routine. Exercises already in today&apos;s session show a <span style={{ color: "#4ECDC4" }}>✓ IN SESSION</span> badge but can still be paired.
+                    Tap <strong>+ SESSION</strong> to pair them for this workout only, or <strong>+ ROUTINE</strong> to save the pair to your routine so it appears in every future session of this day. Exercises already in today&apos;s session show a <span style={{ color: "#4ECDC4" }}>✓ IN SESSION</span> badge but can still be paired.
                   </div>
                 )}
                 {/* Superset mode: recommended partners at the top. */}
@@ -7791,7 +7791,7 @@ function HomePage() {
                           </div>
                           <div style={{ display: "flex", gap: 6 }}>
                             <button onClick={() => handlePair(libEx, false)} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ SESSION</button>
-                            <button onClick={() => handlePair(libEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ PERMANENT</button>
+                            <button onClick={() => handlePair(libEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ROUTINE</button>
                           </div>
                         </div>
                       );
@@ -7802,7 +7802,7 @@ function HomePage() {
                 {/* Add-mode suggestions (unchanged behaviour for the non-superset path). */}
                 {!isSuperMode && (
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, marginBottom: 12, padding: "10px 12px", background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 8, fontFamily: "'DM Sans', sans-serif" }}>
-                    Tap <strong>+ SESSION</strong> to add this exercise to today&apos;s workout only, or <strong>+ PERMANENT</strong> to also save it to your routine for every future session.
+                    Tap <strong>+ SESSION</strong> to add for this workout only, or <strong>+ ROUTINE</strong> to save it to your routine so it appears in every future session of this day.
                   </div>
                 )}
                 {!isSuperMode && !searchLower && sessionExSuggestions.length > 0 && (
@@ -7818,7 +7818,7 @@ function HomePage() {
                           </div>
                           <div style={{ display: "flex", gap: 6 }}>
                             <button onClick={() => handleAdd(libEx, false)} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ SESSION</button>
-                            <button onClick={() => handleAdd(libEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ PERMANENT</button>
+                            <button onClick={() => handleAdd(libEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ROUTINE</button>
                           </div>
                         </div>
                       );
@@ -7842,7 +7842,7 @@ function HomePage() {
                           </div>
                           <div style={{ display: "flex", gap: 6 }}>
                             <button onClick={() => handlePair(libEx, false)} style={{ flex: 1, padding: "6px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, color: "#4ECDC4", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ SESSION</button>
-                            <button onClick={() => handlePair(libEx, true)} style={{ flex: 1, padding: "6px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ PERMANENT</button>
+                            <button onClick={() => handlePair(libEx, true)} style={{ flex: 1, padding: "6px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ROUTINE</button>
                           </div>
                         </>
                       ) : (
@@ -7853,7 +7853,7 @@ function HomePage() {
                           </div>
                           <div style={{ display: "flex", gap: 6 }}>
                             <button onClick={() => handleAdd(libEx, false)} style={{ flex: 1, padding: "6px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, color: "#4ECDC4", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ SESSION</button>
-                            <button onClick={() => handleAdd(libEx, true)} style={{ flex: 1, padding: "6px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ PERMANENT</button>
+                            <button onClick={() => handleAdd(libEx, true)} style={{ flex: 1, padding: "6px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ROUTINE</button>
                           </div>
                         </div>
                       )}

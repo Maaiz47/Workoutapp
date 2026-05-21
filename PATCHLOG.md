@@ -2,6 +2,30 @@
 
 ---
 
+## Polish · 2026-05-21 (r) — rename "+ PERMANENT" → "+ ROUTINE" + rewrite confirms (qa: workout-supersets, workout-in-session-exercise-add)
+
+### Changed
+- `workout-supersets`, `workout-in-session-exercise-add`: relabelled
+  the `+ PERMANENT` button to `+ ROUTINE` — symmetric with the
+  `+ SESSION` partner, fits comfortably on mobile, and reads as
+  "save to your routine" rather than as clinical jargon.
+- Helper text under both pickers rewritten so the destination is
+  obvious from the line alone:
+  - "Tap **+ SESSION** to add for this workout only, or
+    **+ ROUTINE** to save it to your routine so it appears in every
+    future session of this day."
+- Confirm dialogs rephrased to the same plain language:
+  - Superset: "Save this pair to your routine? These two exercises
+    will be paired as a superset in every future session of this
+    day."
+  - Add: "Add this exercise to your routine? It will appear in
+    every future session of this day."
+  - Anchor-not-in-routine refusal: "Can't save this pair to your
+    routine — the anchor exercise isn't in your saved routine yet.
+    Add it to your routine first, then pair it."
+
+---
+
 ## Feature · 2026-05-21 (q) — persist superset + add-exercise to the saved routine (qa: workout-supersets, workout-in-session-exercise-add)
 
 ### Wired up the PERMANENT save
