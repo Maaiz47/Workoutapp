@@ -267,17 +267,8 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
   return result;
 }
 
-export const CLIENT_TIERS = [
-  { label: "Kitten",  emoji: "🐱", min: 0   },
-  { label: "Monkey",  emoji: "🐒", min: 5   },
-  { label: "Fox",     emoji: "🦊", min: 15  },
-  { label: "Tiger",   emoji: "🐯", min: 30  },
-  { label: "Lion",    emoji: "🦁", min: 60  },
-  { label: "Gorilla", emoji: "🦍", min: 100 },
-];
-
-export function getTier(totalSessions: number) {
-  let t = CLIENT_TIERS[0];
-  for (const tier of CLIENT_TIERS) if (totalSessions >= tier.min) t = tier;
-  return t;
-}
+// Legacy session-count tier ladder removed — see lib/tiers.ts
+// (ATHLETE_TIERS + computeAthleteTier) for the canonical score-
+// based ladder that every leaderboard surface now reads. The
+// canonical tier is shipped on every row via
+// computeStatsForUsers → stats.tier above.

@@ -449,25 +449,11 @@ function parseSetKey(key: string): { eid: string; setNum: string; dropNum: numbe
 }
 
 // ── Tier systems ─────────────────────────────────────────────────────────────
-
-const CLIENT_TIERS = [
-  { label: "Kitten",  emoji: "🐱", min: 0,   color: "#94a3b8", bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.25)" },
-  { label: "Monkey",  emoji: "🐒", min: 5,   color: "#a78bfa", bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.3)"  },
-  { label: "Fox",     emoji: "🦊", min: 15,  color: "#fb923c", bg: "rgba(251,146,60,0.08)",  border: "rgba(251,146,60,0.3)"   },
-  { label: "Tiger",   emoji: "🐯", min: 30,  color: "#facc15", bg: "rgba(250,204,21,0.08)",  border: "rgba(250,204,21,0.3)"   },
-  { label: "Lion",    emoji: "🦁", min: 60,  color: "#f97316", bg: "rgba(249,115,22,0.10)",  border: "rgba(249,115,22,0.35)"  },
-  { label: "Gorilla", emoji: "🦍", min: 100, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)"  },
-];
-
-function getClientTier(totalSessions: number, streak: number, prCount: number) {
-  let idx = 0;
-  for (let i = CLIENT_TIERS.length - 1; i >= 0; i--) {
-    if (totalSessions >= CLIENT_TIERS[i].min) { idx = i; break; }
-  }
-  // Bonus: strong streak + PRs can push up one tier
-  if (streak >= 4 && prCount >= 8 && idx < CLIENT_TIERS.length - 1) idx++;
-  return CLIENT_TIERS[idx];
-}
+// Athlete tier is now imported from lib/tiers.ts (ATHLETE_TIERS,
+// computeAthleteTier — the canonical 0–100 score ladder used
+// everywhere). Trainer tier remains the local TRAINER_TIERS below
+// (client-count based) until the server can ship full multi-dim
+// trainer stats.
 
 const TRAINER_TIERS = [
   { label: "Rookie", emoji: "🏅", min: 0,  color: "#A29BFE", bg: "rgba(162,155,254,0.10)", border: "rgba(162,155,254,0.3)" },
@@ -1030,16 +1016,51 @@ function ExerciseMetricChart({ stats, color }: { stats: Array<{ date: string; av
 // against the user's own max group in the window so the picture is
 // always relative to the user's training.
 import { volumeByMuscle } from "../lib/performance";
-function VolumeHeatmap({ history }: { history: Record<string, any[]> }) {
-  // Build the exerciseId → primaryMuscles map from the library so the
-  // aggregation can credit volume to the right groups.
+function VolumeHeatmap({ history, customPlan }: { history: Record<string, any[]>; customPlan: any[] | null }) {
+  // Build the exerciseId → primaryMuscles map so the aggregation can
+  // credit volume to the right groups. CRITICAL: WORKOUT_DATA uses
+  // short IDs ("b1", "b3", "a7"…) that aren't in the EXERCISES
+  // library. The customPlan generator uses real library IDs, but
+  // anyone on the default plan would see every muscle as "skipped"
+  // because the lookup failed. Fix: layer three sources:
+  //   1. Direct ID match (library + custom plan).
+  //   2. WORKOUT_DATA exercises by short ID → resolved via
+  //      lookupExMuscles(name) — fuzzy name match into the library.
+  //   3. customPlan exercises by exerciseId → same resolver as a
+  //      safety net for plans whose ids drifted from the library.
   const muscleMap = useMemo(() => {
     const m: Record<string, string[]> = {};
+    // 1. Library IDs (real ids like "barbell-bench-press").
     for (const ex of (EXERCISES as any[])) {
       if (ex.id && Array.isArray(ex.primaryMuscles)) m[ex.id] = ex.primaryMuscles;
     }
+    // 2. Default-plan short IDs.
+    for (const day of WORKOUT_DATA) {
+      for (const section of day.sections) {
+        for (const ex of section.exercises as any[]) {
+          if (!ex.id || m[ex.id]) continue;
+          const muscles = lookupExMuscles(ex.name).muscles;
+          if (muscles.length > 0) m[ex.id] = muscles;
+        }
+      }
+    }
+    // 3. Custom plan exercises (use exerciseId + fall back to name).
+    if (customPlan) {
+      for (const day of customPlan as any[]) {
+        for (const ex of (day.exercises ?? []) as any[]) {
+          const id = ex.exerciseId ?? ex.id;
+          if (!id || m[id]) continue;
+          if (Array.isArray(ex.primaryMuscles) && ex.primaryMuscles.length > 0) {
+            m[id] = ex.primaryMuscles;
+          } else {
+            const muscles = lookupExMuscles(ex.name ?? "").muscles;
+            if (muscles.length > 0) m[id] = muscles;
+          }
+        }
+      }
+    }
     return m;
-  }, []);
+  }, [customPlan]);
   const [windowDays, setWindowDays] = useState<7 | 14 | 30>(14);
   const totals = useMemo(() => volumeByMuscle(history, muscleMap, windowDays), [history, muscleMap, windowDays]);
   const muscles = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "calves", "core"];
@@ -9233,8 +9254,6 @@ function HomePage() {
       .sort((a, b) => b[1].weight - a[1].weight)
       .slice(0, 8);
 
-    // Day labels for 28-day calendar
-    const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
 
     return (
       <div key="progress" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
@@ -9263,7 +9282,7 @@ function HomePage() {
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
             {!deGamified && <ChallengesCard history={history} />}
             <WellnessCard />
-            <VolumeHeatmap history={history} />
+            <VolumeHeatmap history={history} customPlan={customPlan} />
             {/* Tier Card — multi-dim ladder. Hidden when de-gamify is on.
                 Headline animal tier comes
                 from the average of 4 sub-rank bars (Consistency · Strength

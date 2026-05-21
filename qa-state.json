@@ -1349,9 +1349,11 @@
         "Verify each of 10 muscle groups (chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, calves, core) has a tile showing the total kg×reps absorbed in the window",
         "Verify tiles get greener as volume rises (relative to the user's own max in the window) and turn red ('skipped') when zero",
         "Switch to 30D — verify totals scale up (longer window catches more sessions)",
-        "Verify volume credits to BOTH primary muscles of a compound (e.g. bench press credits chest AND shoulders AND triceps via primaryMuscles + secondaryMuscles)"
+        "Verify volume credits to BOTH primary muscles of a compound (e.g. bench press credits chest AND shoulders AND triceps via primaryMuscles + secondaryMuscles)",
+        "CRITICAL: log a session of the default plan's Pull Day — Width (Barbell Bent-Over Row, Lat Pulldown, Seated Cable Row, Barbell Curl, etc.) and verify Back + Biceps tiles light up green within the 7D window. Was previously 'skipped' because WORKOUT_DATA's short exercise ids ('b1', 'b2', …) weren't in the EXERCISES library; the lookup is now name-bridged through lookupExMuscles so default-plan sessions also credit the right groups",
+        "Repeat with a custom plan (Settings → REBUILD MY WEEKLY PLAN) and verify each muscle still credits correctly via the planGenerator's library ids"
       ],
-      "notes": "[2026-05-21] volumeByMuscle() in lib/performance.ts walks every logged set in the window, looks up the exerciseId's primaryMuscles, credits weight×reps to each. VolumeHeatmap renders a 2-column grid coloured per-tile relative to the user's max group volume in the window. 7/14/30 day windows."
+      "notes": "[2026-05-21] FIX: VolumeHeatmap was returning 0 for every muscle on the default plan because WORKOUT_DATA's short ids ('b1', 'b3', etc) aren't in the EXERCISES library — the lookup just failed silently. The muscleMap is now layered: library ids → WORKOUT_DATA short ids resolved via lookupExMuscles(name) → customPlan ids with primaryMuscles or name fallback. volumeByMuscle() in lib/performance.ts walks every logged set in the window, looks up the exerciseId's primaryMuscles, credits weight×reps to each. VolumeHeatmap renders a 2-column grid coloured per-tile relative to the user's max group volume in the window. 7/14/30 day windows."
     },
     {
       "id": "workout-auto-substitute",

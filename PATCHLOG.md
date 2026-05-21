@@ -2,6 +2,42 @@
 
 ---
 
+## Polish · 2026-05-21 — Volume × Muscle no-credit bug + dead-tier cleanup (qa: progress-volume-heatmap)
+
+### Volume × Muscle: every muscle was "skipped"
+On the default plan the heatmap on Progress → Dashboard rendered
+every muscle as `skipped` even after multiple sessions. Root
+cause: `lib/workouts.ts` (`WORKOUT_DATA`) uses short two-char
+exercise ids like `b1`, `b3`, `a7` — but the heatmap's
+`muscleMap` was built only from the `EXERCISES` library (which
+uses real ids like `barbell-bench-press`). The id lookup just
+silently returned `[]` for every default-plan set so no muscle
+got credited.
+
+Fix: the `muscleMap` now layers three sources, in order, and
+short-circuits as soon as it finds primaryMuscles for an id:
+  1. EXERCISES library entries by id.
+  2. WORKOUT_DATA short ids → resolved via `lookupExMuscles(name)`
+     (normalised name match into the library).
+  3. customPlan exercises by exerciseId → prefer their own
+     `primaryMuscles` field, fall back to name lookup.
+
+### Dead-code cleanup
+Removed the legacy `CLIENT_TIERS` + `getClientTier` exports
+that nothing imports anymore (every surface now reads from
+`lib/tiers.ts::computeAthleteTier`). Also removed the
+`lib/leaderboardStats.ts::CLIENT_TIERS` + `getTier` exports for
+the same reason — the canonical tier is now baked into every
+row's `stats.tier` field server-side.
+
+### Misc
+- Removed a stale `dayLabels` declaration left over after the
+  Dashboard 28-day calendar was consolidated into the History
+  tab.
+- Verified `next build` runs clean.
+
+---
+
 ## Fix · 2026-05-21 — Server-side canonical tier on every leaderboard row (qa: tier-pills-clarity)
 
 ### Background
