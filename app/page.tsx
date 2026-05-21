@@ -2940,34 +2940,57 @@ function TierLadder({
                     color: t.color, background: t.bg,
                     border: `1px solid ${t.border}`, borderRadius: 4,
                     padding: "3px 7px", fontFamily: "'Space Mono', monospace",
-                  }}>YOU · {currentRaw}</div>
+                  }}>YOU · {currentRaw} PTS</div>
                 )}
               </div>
               {/* Progress bar — only on the user's current tier row,
                   showing how close they are to the next tier. Hidden
-                  at max tier (no "next" to progress toward). */}
+                  at max tier (no "next" to progress toward). Each
+                  "point" maps 1:1 to the underlying unit (1 PT = 1
+                  session for athletes, 1 client for trainers) — kept
+                  as a single noun so the UI reads consistently
+                  across both ladders. */}
               {me && nextTier && (
                 <div style={{ marginTop: 8 }}>
+                  {/* Headline call-out — points-to-next-tier, big and
+                      explicit so the user can read it without having
+                      to do mental math against the bar. */}
                   <div style={{
                     display: "flex", justifyContent: "space-between", alignItems: "baseline",
-                    fontSize: 9, color: "rgba(255,255,255,0.55)",
-                    fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginBottom: 4,
+                    marginBottom: 5,
                   }}>
-                    <span>{currentRaw} / {nextTier.min} {unitWord}</span>
-                    <span style={{ color: nextTier.color }}>{remaining} TO {nextTier.label.toUpperCase()} {nextTier.emoji}</span>
+                    <span style={{
+                      fontSize: 9, color: "rgba(255,255,255,0.45)",
+                      fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, fontWeight: 700,
+                    }}>POINTS TO NEXT TIER</span>
+                    <span style={{
+                      fontSize: 13, fontWeight: 800, color: nextTier.color,
+                      fontFamily: "'Space Mono', monospace", letterSpacing: 0.5,
+                    }}>+{remaining} PTS → {nextTier.label.toUpperCase()} {nextTier.emoji}</span>
                   </div>
                   <div style={{
-                    height: 6, borderRadius: 3,
+                    height: 8, borderRadius: 4,
                     background: "rgba(255,255,255,0.06)",
                     overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)",
+                    position: "relative",
                   }}>
                     <div style={{
                       height: "100%", width: `${progress * 100}%`,
                       background: `linear-gradient(90deg, ${t.color}, ${nextTier.color})`,
-                      borderRadius: 3,
-                      boxShadow: `0 0 6px ${t.color}55`,
+                      borderRadius: 4,
+                      boxShadow: `0 0 8px ${t.color}66`,
                       transition: "width 0.4s ease",
                     }} />
+                  </div>
+                  {/* Foot row: current/needed in points + the unit label
+                      so "PTS" never feels abstract. */}
+                  <div style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "baseline",
+                    fontSize: 9, color: "rgba(255,255,255,0.5)",
+                    fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 5,
+                  }}>
+                    <span>{currentRaw} / {nextTier.min} PTS</span>
+                    <span>1 PT = 1 {unitWord.toUpperCase().replace(/S$/, "")}</span>
                   </div>
                 </div>
               )}
@@ -2975,7 +2998,7 @@ function TierLadder({
                 <div style={{
                   marginTop: 6, fontSize: 10, color: t.color,
                   fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, fontWeight: 700,
-                }}>★ TOP OF THE LADDER · {currentRaw} {unitWord}</div>
+                }}>★ TOP OF THE LADDER · {currentRaw} PTS</div>
               )}
             </div>
           );
