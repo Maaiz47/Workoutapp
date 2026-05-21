@@ -11,6 +11,91 @@ export function estimate1RM(weight: number, reps: number): number {
   return Math.round(weight * (1 + reps / 30) * 10) / 10;
 }
 
+// Suggest the next weight for an exercise based on the previous session's
+// top set. Combines RPE (if logged) and rep performance to bias up, hold,
+// or back off. Returns null when there's no prior data or the input is
+// nonsense — caller falls back to the existing pre-fill behaviour.
+//
+// Heuristic:
+//   - RPE present:
+//       ≤ 5  → +5kg     (way too light)
+//       6-7  → +2.5kg   (could've done more)
+//       8    → hold     (right at target)
+//       9    → -1.25kg or hold (too heavy)
+//       10   → -2.5kg   (failed)
+//   - No RPE, fall back to rep count vs target range:
+//       reps ≥ topRange → +2.5kg
+//       reps < bottomRange → -2.5kg
+//       else hold
+export type ProgressionSuggestion = {
+  suggestedWeight: number;
+  delta: number;               // +/- vs last
+  reason: string;              // short label for the UI chip
+  basis: "rpe" | "reps";
+};
+export function suggestProgression(
+  prev: { weight: number; reps: number; rpe?: number | null } | null,
+  targetReps: { low: number; high: number } | null,
+): ProgressionSuggestion | null {
+  if (!prev || !prev.weight || prev.weight <= 0) return null;
+  let delta = 0;
+  let reason = "";
+  let basis: "rpe" | "reps" = "rpe";
+  const rpe = typeof prev.rpe === "number" ? prev.rpe : null;
+  if (rpe != null) {
+    if (rpe <= 5) { delta = 5; reason = `last set was RPE ${rpe} (too easy)`; }
+    else if (rpe <= 7) { delta = 2.5; reason = `last set was RPE ${rpe} — could push more`; }
+    else if (rpe === 8) { delta = 0; reason = `last set was RPE 8 — right at target`; }
+    else if (rpe === 9) { delta = 0; reason = `last set was RPE 9 — hold here`; }
+    else { delta = -2.5; reason = `last set was RPE ${rpe} — back off slightly`; }
+  } else {
+    basis = "reps";
+    const r = prev.reps;
+    const lo = targetReps?.low ?? 8;
+    const hi = targetReps?.high ?? 12;
+    if (r >= hi) { delta = 2.5; reason = `hit ${r} reps last session — push up`; }
+    else if (r < lo) { delta = -2.5; reason = `only ${r} reps last session — back off`; }
+    else { delta = 0; reason = `held ${r} reps — repeat`; }
+  }
+  const suggestedWeight = Math.max(0, Math.round((prev.weight + delta) * 4) / 4);
+  return { suggestedWeight, delta, reason, basis };
+}
+
+// Parse a target-reps string like "8-12" or "10–12" or "10" into a range.
+export function parseTargetReps(reps: string | null | undefined): { low: number; high: number } | null {
+  if (!reps) return null;
+  const m = String(reps).match(/(\d+)\s*[-–—]\s*(\d+)/);
+  if (m) return { low: parseInt(m[1], 10), high: parseInt(m[2], 10) };
+  const single = String(reps).match(/^\s*(\d+)\s*$/);
+  if (single) { const v = parseInt(single[1], 10); return { low: v, high: v }; }
+  return null;
+}
+
+// Detect a plateau for a single exercise. Walks the last N sessions
+// chronologically (oldest → newest) and checks whether the user's max
+// est-1RM has improved over that window. Threshold is 3 stale sessions
+// by default — picked to be sensitive enough to catch real stalls
+// without flagging single off days.
+export type Plateau = { sessions: number; lastBestEst1RM: number; suggestedReason: string };
+export function detectPlateau(
+  history: Array<{ weight: number; reps: number }>,
+  staleThreshold = 3,
+): Plateau | null {
+  if (history.length < staleThreshold + 1) return null;
+  const recent = history.slice(-staleThreshold - 1);
+  let bestSeen = 0;
+  const ests = recent.map(h => estimate1RM(h.weight, h.reps));
+  for (let i = 0; i < ests.length - staleThreshold; i++) bestSeen = Math.max(bestSeen, ests[i]);
+  // If none of the last `staleThreshold` sessions exceeded bestSeen → plateau
+  const stale = ests.slice(-staleThreshold).every(e => e <= bestSeen);
+  if (!stale) return null;
+  return {
+    sessions: staleThreshold,
+    lastBestEst1RM: bestSeen,
+    suggestedReason: `Est 1RM hasn't moved in ${staleThreshold} sessions`,
+  };
+}
+
 // Build a CSV string from a workout history map. One row per logged set
 // across every session, columns: date, dayId, exercise, setKey, weight,
 // reps, RPE, note, est1RM. Used by the Settings "Export CSV" button.

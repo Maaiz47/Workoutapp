@@ -2,6 +2,38 @@
 
 ---
 
+## Feature · 2026-05-21 (ae) — Slice B: auto progressive overload + plateau detector (qa: workout-progression-suggest, workout-plateau-detector)
+
+### Added
+- `workout-progression-suggest`: when expanding an exercise with prior
+  history, the system computes a suggested next weight based on the
+  last session's RPE (if logged) or reps-vs-target. Shown as a
+  star-prefixed chip between the inputs and the EFFORT row:
+  `SYSTEM SUGGESTS +X.XKG → YYKG` with a one-line reason inline
+  (e.g. *"last set was RPE 7 — could push more"*). Green when going
+  up, red when backing off. **`ACCEPT`** button slots the value
+  into the weight input; **`×`** dismisses. RPE rubric (Epley-paired):
+    - ≤ 5 → +5kg (way too light)
+    - 6–7 → +2.5kg (could push more)
+    - 8 → hold (right at target)
+    - 9 → hold (too heavy already)
+    - 10 → −2.5kg (failed)
+  Falls back to a rep-vs-target heuristic when no RPE was logged
+  for the last session.
+- `workout-plateau-detector`: in the customise screen, each exercise
+  with a stale est-1RM (no improvement across the last 3 sessions
+  given enough history) gets a gold **`⚠ PLATEAU`** chip. Tapping
+  opens a modal showing the stale 1RM and up to 5 same-muscle
+  variations from the exercise library to swap into.
+
+### Slice plan progress
+- Slice A (foundation + viewing): done
+- **Slice B (smart suggestions): done with this push**
+- Next: Slice C (deload + auto-substitute + volume heatmap) plus
+  the new Modality Mix + tier-progress asks
+
+---
+
 ## Feature · 2026-05-21 (ad) — leaderboard groups: weight / BF loss / BF now modes (qa: leaderboard-body-modes)
 
 ### Added

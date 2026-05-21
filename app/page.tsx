@@ -12,7 +12,7 @@ import { getFormCues } from "../lib/formCues";
 import { pickWarmupForDay } from "../lib/warmups";
 import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutorial";
-import { estimate1RM, EFFORT_SCALE, buildHistoryCSV } from "../lib/performance";
+import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTargetReps, detectPlateau } from "../lib/performance";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -1984,6 +1984,13 @@ function HomePage() {
   // True when the current wInput/rInput values came from suggestedStartingSet()
   // rather than from a real prior session — used to show a "SUGGESTED" tag.
   const [isSuggested, setIsSuggested] = useState(false);
+  // Auto progressive-overload suggestion for the in-progress set. null
+  // when there's no prior data to base it on. Set when the user expands
+  // an exercise, cleared on LOG / accept / dismiss.
+  const [progression, setProgression] = useState<{ exId: string; weight: number; delta: number; reason: string } | null>(null);
+  // Plateau modal — opened by tapping the ⚠ PLATEAU chip on a customise
+  // row. Shows the stale 1RM + a list of variations the user can swap to.
+  const [plateauModal, setPlateauModal] = useState<{ exerciseId: string; name: string; plateau: { sessions: number; lastBestEst1RM: number; suggestedReason: string } } | null>(null);
   const [bwAddWeight, setBwAddWeight] = useState(false);
   const [manualBW, setManualBW] = useState(false);
   const [logFlashId, setLogFlashId] = useState<string | null>(null);
@@ -3390,19 +3397,18 @@ function HomePage() {
   const nextSetNum = (eid: string, total: number) => {
     for (let i = 1; i <= total; i++) if (!log[`${eid}-${i}`]) return i; return null;
   };
-  const lastSessionBest = (eid: string) => {
+  const lastSessionBest = (eid: string): { weight: number; reps: number; rpe?: number | null } => {
     if (!activeDay) return { weight: 0, reps: 0 };
-    // Find the most recent session that actually contains this exercise.
-    // Look across all logged days, not just activeDay.id, so duplicate
-    // exercises in multiple plan days carry their history.
     const allSessions = Object.values(history).flat().sort((a: any, b: any) => (b.date + b.time).localeCompare(a.date + a.time));
     for (const s of allSessions) {
-      const sets = (s as any).sets as Record<string, { weight: number; reps: number }>;
-      let best: { weight: number; reps: number } | null = null;
+      const sets = (s as any).sets as Record<string, { weight: number; reps: number; rpe?: number }>;
+      let best: { weight: number; reps: number; rpe?: number | null } | null = null;
       for (const sk in sets) {
         if (parseSetKey(sk).eid !== eid) continue;
         const v = sets[sk];
-        if (!best || v.weight > best.weight || (v.weight === best.weight && v.reps > best.reps)) best = v;
+        if (!best || v.weight > best.weight || (v.weight === best.weight && v.reps > best.reps)) {
+          best = { weight: v.weight, reps: v.reps, rpe: typeof v.rpe === "number" ? v.rpe : null };
+        }
       }
       if (best) return best;
     }
@@ -4110,6 +4116,34 @@ function HomePage() {
                       <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
                       {inGroup && <span style={{ fontSize: 8, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>SUPER</span>}
                       {isDropSet && <span style={{ fontSize: 8, color: "#FF6B6B", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>DROP</span>}
+                      {(() => {
+                        // Plateau chip: walks this exercise's top set per
+                        // session across all logged days and flags when
+                        // est-1RM has been flat for 3+ sessions. Tappable
+                        // to open the variation suggestions modal.
+                        const exId = ex.exerciseId ?? ex.id;
+                        const tops: Array<{ weight: number; reps: number }> = [];
+                        const allSessions = Object.values(history).flat().sort((a: any, b: any) => (a.date + (a.time ?? "")).localeCompare(b.date + (b.time ?? "")));
+                        for (const s of allSessions) {
+                          const sets = (s as any).sets as Record<string, { weight: number; reps: number }>;
+                          let best: { weight: number; reps: number } | null = null;
+                          for (const sk in sets) {
+                            if (parseSetKey(sk).eid !== exId) continue;
+                            const v = sets[sk];
+                            if (!best || estimate1RM(v.weight, v.reps) > estimate1RM(best.weight, best.reps)) best = v;
+                          }
+                          if (best) tops.push(best);
+                        }
+                        const p = detectPlateau(tops, 3);
+                        if (!p) return null;
+                        return (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setPlateauModal({ exerciseId: exId, name: ex.name, plateau: p }); }}
+                            title={p.suggestedReason}
+                            style={{ fontSize: 8, color: "#fdcb6e", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "1px 5px", flexShrink: 0, cursor: "pointer" }}
+                          >⚠ PLATEAU</button>
+                        );
+                      })()}
                     </div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", marginTop: 3 }}>{ex.sets} × {ex.reps}</div>
                   </div>
@@ -4424,6 +4458,45 @@ function HomePage() {
 
         {/* Form-cue modal — tapped from any warm-up / cool-down row. Shows
             the icon, name, duration, and 2-3 short technique cues. */}
+        {/* Plateau variation modal — opened from the ⚠ PLATEAU chip on a
+            customise exercise row. Suggests up to 5 same-muscle-group
+            variations the user can swap into to break a stale lift. */}
+        {plateauModal && (() => {
+          const target = (EXERCISES as any[]).find((e: any) => e.id === plateauModal.exerciseId);
+          const targetMuscles: string[] = target?.primaryMuscles ?? [];
+          const variations: any[] = (EXERCISES as any[])
+            .filter((e: any) => e.id !== plateauModal.exerciseId)
+            .filter((e: any) => Array.isArray(e.primaryMuscles) && e.primaryMuscles.some((m: string) => targetMuscles.includes(m)))
+            .slice(0, 5);
+          return (
+            <div onClick={() => setPlateauModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}>
+              <div onClick={e => e.stopPropagation()} style={{ maxWidth: 380, width: "100%", background: "#0a0a0a", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 16, padding: 20, position: "relative" }}>
+                <button onClick={() => setPlateauModal(null)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#fdcb6e", letterSpacing: 2, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>⚠ PLATEAU DETECTED</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 6 }}>{plateauModal.name}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 4, lineHeight: 1.5 }}>{plateauModal.plateau.suggestedReason}.</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>Last best est-1RM: <strong>{plateauModal.plateau.lastBestEst1RM.toFixed(1)} kg</strong></div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>TRY A VARIATION</div>
+                {variations.length === 0 ? (
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", padding: "8px 0" }}>No variations found in the library. Consider taking a deload week or changing rep range.</div>
+                ) : (
+                  variations.map((v: any) => (
+                    <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: "1px dashed rgba(255,255,255,0.06)" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{v.name}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{(v.primaryMuscles ?? []).slice(0, 2).join(" · ").toUpperCase()}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 14, lineHeight: 1.5 }}>
+                  Tip: a deload week (weights × 0.7) often resets stale lifts faster than swapping the movement.
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {cuePreview && (
           <div onClick={() => setCuePreview(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}>
             <div onClick={e => e.stopPropagation()} style={{ maxWidth: 360, width: "100%", background: "#0a0a0a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 20, position: "relative" }}>
@@ -7982,15 +8055,15 @@ function HomePage() {
                     logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
                     const nextEx = superCtx.group[superCtx.idx + 1];
                     const { weight: nw, reps: nr } = lastSessionBest(nextEx.id);
-                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false); setManualBW(false); setEffortInput(null);
+                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false); setManualBW(false); setEffortInput(null); setProgression(null);
                   } else if (dropCount > 0) {
                     logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
                     const w = parseFloat(effectiveWeight) || 0;
                     setPendingDrop({ exId: ex.id, setNum: ns, dropNum: 1 });
-                    setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput(""); setEffortInput(null);
+                    setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput(""); setEffortInput(null); setProgression(null);
                   } else {
                     logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
-                    setEffortInput(null);
+                    setEffortInput(null); setProgression(null);
                     if (ns + 1 > ex.sets) {
                       setExpanded(null);
                       if (isLastInSuper && ex.groupId && !completedSupersetGroups.current.has(ex.groupId)) {
@@ -8040,6 +8113,18 @@ function HomePage() {
                         setWInput(lw ? String(lw) : "");
                         setRInput(lr ? String(lr) : "");
                         setIsSuggested(false);
+                        // Compute auto progressive-overload suggestion. Uses
+                        // the last set's RPE if logged; falls back to reps
+                        // vs the day's target rep range. Renders as a
+                        // tappable chip above the EFFORT row.
+                        const prevBest = lastSessionBest(ex.id);
+                        const tr = parseTargetReps(ex.reps);
+                        const sug = suggestProgression({ weight: prevBest.weight, reps: prevBest.reps, rpe: prevBest.rpe }, tr);
+                        if (sug && sug.delta !== 0) {
+                          setProgression({ exId: ex.id, weight: sug.suggestedWeight, delta: sug.delta, reason: sug.reason });
+                        } else {
+                          setProgression(null);
+                        }
                       } else {
                         const bw = parseFloat(ob.weightKg || "0");
                         const sug = suggestedStartingSet(ex.id, ex.name, (ex as any).type, bw);
@@ -8269,6 +8354,33 @@ function HomePage() {
                             {rDiff(parseInt(rInput))}
                           </div>
                         </div>
+
+                        {/* Auto progressive-overload suggestion — appears
+                            when the system thinks the next set should be
+                            heavier/lighter than the pre-fill (based on
+                            last session's RPE or reps-vs-target). Tap to
+                            accept; tap × to dismiss. Clear UX signal
+                            that it's a system suggestion, not the user's
+                            number, with the reason inline. */}
+                        {progression && progression.exId === ex.id && (
+                          <div style={{
+                            display: "flex", alignItems: "center", gap: 8,
+                            padding: "10px 12px", marginBottom: 12,
+                            background: progression.delta > 0 ? "rgba(46,204,113,0.08)" : "rgba(255,107,107,0.06)",
+                            border: `1px solid ${progression.delta > 0 ? "rgba(46,204,113,0.3)" : "rgba(255,107,107,0.25)"}`,
+                            borderRadius: 10,
+                          }}>
+                            <span style={{ fontSize: 18 }}>★</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: progression.delta > 0 ? "#2ecc71" : "#FF6B6B", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>
+                                SYSTEM SUGGESTS {progression.delta > 0 ? "+" : ""}{progression.delta}KG → {progression.weight}KG
+                              </div>
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{progression.reason}</div>
+                            </div>
+                            <button onClick={() => { setWInput(String(progression.weight)); setProgression(null); }} style={{ padding: "6px 10px", background: progression.delta > 0 ? "rgba(46,204,113,0.18)" : "rgba(255,107,107,0.15)", border: `1px solid ${progression.delta > 0 ? "rgba(46,204,113,0.4)" : "rgba(255,107,107,0.3)"}`, borderRadius: 6, color: progression.delta > 0 ? "#2ecc71" : "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>ACCEPT</button>
+                            <button onClick={() => setProgression(null)} style={{ width: 22, height: 22, padding: 0, background: "transparent", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 4, color: "rgba(255,255,255,0.5)", fontSize: 11, cursor: "pointer" }}>×</button>
+                          </div>
+                        )}
 
                         {/* EFFORT chip row — 1-10 scale, optional. Skipped
                             values stay null and don't get persisted. The

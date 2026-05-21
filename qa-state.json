@@ -836,6 +836,42 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "workout-progression-suggest",
+      "title": "Auto progressive overload — system-suggested next weight",
+      "area": "Workout",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-B",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout and expand an exercise you've already logged at least once (with RPE if possible)",
+        "Verify a star-prefixed chip appears between the weight/reps row and the EFFORT row: 'SYSTEM SUGGESTS +X.XKG → YYKG' (green when up, red when back-off) with a one-line reason underneath (e.g. 'last set was RPE 7 — could push more')",
+        "Tap ACCEPT — verify the weight input updates to the suggested value and the chip disappears",
+        "Tap × — verify the chip disappears without changing the weight",
+        "Log a set with RPE 5 — next time you expand that exercise, verify the suggestion is +5kg",
+        "Log a set with RPE 10 — next time, verify suggestion is −2.5kg",
+        "Verify no chip appears when there's no prior data (brand-new exercise)"
+      ],
+      "notes": "[2026-05-21] suggestProgression() in lib/performance.ts. Reads previous session's top set (weight, reps, rpe via the enhanced lastSessionBest), applies an RPE-based heuristic (≤5 → +5kg, 6-7 → +2.5kg, 8 → hold, 9 → hold, 10 → −2.5kg). Falls back to rep-vs-target heuristic when no RPE was logged. Chip rendered above the EFFORT row in the set-input panel, accept/dismiss buttons. Cleared on LOG / collapse."
+    },
+    {
+      "id": "workout-plateau-detector",
+      "title": "Plateau detector — flag stale lifts with variation suggestions",
+      "area": "Workout",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-B",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Customise for a day where you've logged the same exercise at least 4 times with no est-1RM improvement in the last 3 sessions",
+        "Verify the exercise row shows a ⚠ PLATEAU chip (gold)",
+        "Tap the chip — verify a modal opens showing the exercise name, the suggested reason ('Est 1RM hasn't moved in 3 sessions'), the last best est-1RM, and a list of up to 5 variation suggestions matching primary muscles",
+        "Verify the modal closes when tapping the backdrop or ✕",
+        "Verify exercises with fewer than 4 logged sessions OR an improving 1RM trend do NOT show the chip"
+      ],
+      "notes": "[2026-05-21] detectPlateau() in lib/performance.ts. Walks the chronological top-set history; flags when est-1RM has been flat or worse over the last `staleThreshold` (default 3) sessions. Chip in the customise row opens a modal listing same-muscle variations from the EXERCISES library."
+    },
+    {
       "id": "leaderboard-body-modes",
       "title": "Leaderboard groups — WEIGHT Δ / BF LOSS / BF NOW views",
       "area": "Trainer",
