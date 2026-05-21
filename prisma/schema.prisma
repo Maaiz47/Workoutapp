@@ -129,6 +129,7 @@ model PlanExercise {
   groupId    String?
   groupType  String?
   dropSets   Int     @default(0)
+  dropSet    Boolean @default(false)
   day        PlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
 
   @@index([dayId])

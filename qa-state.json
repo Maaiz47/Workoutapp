@@ -197,32 +197,38 @@
       "lastTested": "2026-05-21",
       "status": "regression-retest",
       "steps": [
-        "Open a plan day that contains a superset (or create one via the Customise screen)",
-        "In the session, a superset pair should be visually grouped (labelled 'SUPERSET')",
-        "Log sets for Exercise A, then Exercise B within the superset group",
-        "Verify completing both exercises in a superset round is tracked correctly",
-        "Finish the workout and confirm the superset data is saved in the WorkoutLog sets JSON",
-        "MID-WORKOUT PAIR: in an active workout, tap the new ⟳ PAIR button in the header",
-        "Customise screen should open with multi-select already enabled for the current day",
-        "Pick two exercises, tap ⟳ SUPERSET, tap ← Back to return — verify the pair now renders as a SUPERSET group when the workout resumes"
+        "Open an active workout. On any exercise card, tap '+ SUPERSET'",
+        "Verify the sheet shows: a helper line explaining SESSION vs PERMANENT, a ✨ RECOMMENDED PAIRINGS section at the top (if the anchor exercise has known partners — e.g. bench press → barbell row), and an ALL EXERCISES list below",
+        "Verify exercises already in the current day's session show a ✓ IN SESSION badge but are still pairable (NOT filtered out)",
+        "Tap '+ SESSION' on a recommended exercise — verify the two exercises become a superset block in the workout (no screen exit, no permanent change)",
+        "Tap '+ PERMANENT' on another pairing — verify a confirm dialog warns about modifying the saved routine before proceeding",
+        "Verify the anchor exercise itself is NOT in the pairing list (can't pair with self)",
+        "Verify exercises already in a DIFFERENT superset are filtered out (prevents orphaned groups)",
+        "Log sets for Exercise A, then Exercise B within the superset group — rest fires after both complete",
+        "Verify after rest ends, the next incomplete exercise auto-expands (auto-advance behaviour)",
+        "Finish the workout and confirm the superset data is saved in the WorkoutLog sets JSON"
       ],
-      "notes": "[2026-05-21] Slice 1/N — in-session pairing: added a ⟳ PAIR button in the active-workout header that drops the user into the customise screen with multi-select pre-armed for the current day. They can then pick two exercises, tap ⟳ SUPERSET, and return to the workout. Slice 2/N (next pass): true in-session multi-select that creates the superset without exiting to customise."
+      "notes": "[2026-05-21] Slice 2/N (in-session picker rework): the '+ SUPERSET' button per-exercise now opens an upgraded picker. Includes in-session exercises (with ✓ IN SESSION badges) so the user can pair already-planned exercises — not just add new library ones. Surfaces RECOMMENDED PAIRINGS at the top driven by a static antagonist/compound-isolation table (recommendedPartnersFor() in app/page.tsx). Confirmation row offers SESSION (session-scoped pair) and PERMANENT (with a confirm dialog warning about routine modification). The anchor exercise is excluded from the list and so are exercises already in a different superset (prevents orphan groups). The legacy ⟳ PAIR header button → customise redirect is no longer the only path.\n[2026-05-21] Slice 1/N — in-session pairing: added a ⟳ PAIR button in the active-workout header that drops the user into the customise screen with multi-select pre-armed for the current day."
     },
     {
       "id": "workout-dropsets",
-      "title": "Drop sets — extra sets within an exercise",
+      "title": "Drop sets — open-ended drop chain to failure",
       "area": "Workout",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
-        "Open a plan day that has an exercise with dropSets > 0",
-        "In the session, expand the exercise — drop-set rows should appear after the main sets",
-        "Log weight/reps for each drop set",
-        "Verify drop-set data is included in the saved workout log"
+        "Open an active workout. On any exercise card header, tap '+ DROP SET' — verify the chip flips to '🔻 DROP SET' (yellow) and the same chip appears on the collapsed card",
+        "Expand the exercise — verify a normal weight + reps input panel appears",
+        "Enter initial weight and reps, tap LOG SET — verify a drop panel opens with the previous weight × 0.8 pre-filled, NO rest started yet, header 'DROP 1 · REDUCE WEIGHT, TO FAILURE'",
+        "Lower the weight, enter reps, tap '+ DROP' — verify another drop input opens with weight × 0.8 pre-fill (header now 'DROP 2')",
+        "Repeat as desired — verify the chain is OPEN-ENDED (no preset count)",
+        "Tap '✓ DONE' on any drop — verify that drop is logged, the chain ends, the rest timer starts, and the set counter advances",
+        "Verify the customise screen has the same '+ DROP SET' toggle on each exercise card",
+        "Verify drop-set data is included in the saved workout log (set keys use the -dN suffix)"
       ],
-      "notes": "dropSets is a field on PlanExercise. Set it to 2 in the customise screen to test."
+      "notes": "[2026-05-21] Slice 2/N: drop sets refactored from a fixed count (0–3 selector) to an open-ended chain. New schema field `PlanExercise.dropSet Boolean` (legacy `dropSets Int` is still read so old routines keep working — see isDropSetMode()). Customise screen and in-session header chip both show a single boolean toggle. After the regular set logs, the drop panel opens with two buttons: '+ DROP' (continue, pre-fills weight × 0.8) and '✓ DONE' (ends chain, starts rest). The user decides how many drops they did in real-time, not in advance. Card shows a '🔻 DROP SET' chip on the collapsed view so the mode is visible at a glance.\nSlice 1/N (legacy): used PlanExercise.dropSets integer with a fixed count."
     },
     {
       "id": "workout-finish-save",

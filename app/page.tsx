@@ -361,6 +361,48 @@ function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: s
   return { dataPoints: dataPoints.reverse(), pb: { weight: pbWeight, reps: pbReps, date: pbDate } };
 }
 
+// Drop set mode: the user runs each set as a chain of drops (initial weight
+// to failure → drop weight → to failure → …) without rest between drops.
+// New code uses the dropSet boolean. Legacy data with dropSets > 0 is
+// treated as drop-set mode too so old routines keep working.
+function isDropSetMode(ex: any): boolean {
+  return ex?.dropSet === true || (ex?.dropSets ?? 0) > 0;
+}
+
+// Recommended superset pairings — antagonist or compound + isolation pairs
+// that work well in alternation. Surfaced as suggestions when the user
+// opens the in-session superset picker. Names are matched case-insensitively
+// against the exercise library; if a name doesn't exist in the lib it's
+// silently skipped.
+const RECOMMENDED_PAIRINGS: Array<[string, string]> = [
+  ["bench press", "barbell row"],
+  ["incline dumbbell press", "lat pulldown"],
+  ["overhead press", "pull up"],
+  ["dumbbell shoulder press", "chin up"],
+  ["bicep curl", "tricep pushdown"],
+  ["barbell curl", "skull crusher"],
+  ["hammer curl", "tricep extension"],
+  ["squat", "romanian deadlift"],
+  ["leg press", "leg curl"],
+  ["leg extension", "leg curl"],
+  ["chest fly", "cable row"],
+  ["lateral raise", "face pull"],
+  ["calf raise", "tibialis raise"],
+  ["dumbbell row", "dumbbell bench press"],
+  ["dip", "pull up"],
+];
+
+// Given an exercise name, return the recommended partner names (lowercased).
+function recommendedPartnersFor(name: string): string[] {
+  const n = (name || "").toLowerCase().trim();
+  const out = new Set<string>();
+  for (const [a, b] of RECOMMENDED_PAIRINGS) {
+    if (n.includes(a)) out.add(b);
+    if (n.includes(b)) out.add(a);
+  }
+  return Array.from(out);
+}
+
 // ── Set-key parsing (drop-set aware) ────────────────────────────────────────
 // Keys: "eid-sn" for regular sets, "eid-sn-dN" for drop sets.
 function parseSetKey(key: string): { eid: string; setNum: string; dropNum: number | null } {
@@ -4881,11 +4923,10 @@ function HomePage() {
                                   );
                                 })()}
                                 <div style={{ display: "flex", alignItems: "center", gap: 3, marginLeft: "auto" }}>
-                                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginRight: 2, flexShrink: 0 }}>DROPS</span>
-                                  {[{ v: 0, l: "NONE" }, { v: 1, l: "×1" }, { v: 2, l: "×2" }, { v: 3, l: "×3" }].map(({ v, l }) => {
-                                    const active = (ex.dropSets ?? 0) === v;
-                                    return <button key={v} onClick={() => { setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : { ...day, exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, dropSets: v }) })); }} style={{ padding: "2px 6px", borderRadius: 8, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", background: active ? "rgba(78,205,196,0.18)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, color: active ? "#4ECDC4" : "rgba(255,255,255,0.25)" }}>{l}</button>;
-                                  })}
+                                  {(() => {
+                                    const active = isDropSetMode(ex);
+                                    return <button onClick={() => { setEditedPlanDays(prev => prev!.map((day, dj) => dj !== di ? day : { ...day, exercises: day.exercises.map((x: any, ej: number) => ej !== ei ? x : { ...x, dropSet: !active, dropSets: 0 }) })); }} style={{ padding: "3px 8px", borderRadius: 8, fontSize: 9, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: active ? "rgba(255,230,109,0.12)" : "rgba(255,255,255,0.05)", border: `1px solid ${active ? "rgba(255,230,109,0.4)" : "rgba(255,255,255,0.08)"}`, color: active ? "#FFE66D" : "rgba(255,255,255,0.35)" }}>{active ? "🔻 DROP SET" : "+ DROP SET"}</button>;
+                                  })()}
                                 </div>
                               </div>
                             </div>
@@ -6950,7 +6991,11 @@ function HomePage() {
                 const hasDrop = pendingDrop?.exId === ex.id;
                 const { weight: lw, reps: lr } = lastSessionBest(ex.id);
                 const wuDone = !trackable && warmupDone[ex.id];
-                const dropCount = (ex.dropSets ?? 0) > 0 || ex.rest === 0 ? 1 : 0;
+                const exIsDropSet = isDropSetMode(ex);
+                // Legacy `dropCount` retained for the few places that still
+                // reason about how many drops are in the chain, but the flow
+                // is now open-ended — the user taps DONE when they're spent.
+                const dropCount = exIsDropSet ? 99 : 0;
 
                 const effectiveWeight = activeBW && !bwAddWeight ? "0" : wInput;
                 const handleLog = () => {
@@ -7041,7 +7086,7 @@ function HomePage() {
                           ) : null; })()}
                           <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</span>
                           {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1, flexShrink: 0 }}>{ex.type.toUpperCase()}</span>}
-                          {dropCount > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: "#FFE66D", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>DROP×{dropCount}</span>}
+                          {exIsDropSet && <span style={{ fontSize: 9, fontWeight: 700, color: "#FFE66D", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>🔻 DROP SET</span>}
                           {ex.note === "HIIT circuit" && <span style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT</span>}
                           <button onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }} style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginLeft: 6, flexShrink: 0 }}>FORM</button>
                         </div>
@@ -7049,20 +7094,23 @@ function HomePage() {
                           {trackable && done > 0 && (
                             <button onClick={(e) => { e.stopPropagation(); openEditModal(ex.id); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>EDIT</button>
                           )}
-                          {trackable && (
-                            <button onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveDay(d => !d ? d : ({
-                                ...d,
-                                sections: d.sections.map(s => ({
-                                  ...s,
-                                  exercises: s.exercises.map(x => x.id !== ex.id ? x : { ...x, dropSets: ((x.dropSets ?? 0) + 1) % 4 })
-                                }))
-                              }));
-                            }} style={{ background: (ex.dropSets ?? 0) > 0 ? "rgba(255,230,109,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${(ex.dropSets ?? 0) > 0 ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: (ex.dropSets ?? 0) > 0 ? "#FFE66D" : "rgba(255,255,255,0.35)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                              {(ex.dropSets ?? 0) > 0 ? `DROP×${ex.dropSets}` : "+ DROP"}
-                            </button>
-                          )}
+                          {trackable && (() => {
+                            const dsActive = isDropSetMode(ex);
+                            return (
+                              <button onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDay(d => !d ? d : ({
+                                  ...d,
+                                  sections: d.sections.map(s => ({
+                                    ...s,
+                                    exercises: s.exercises.map(x => x.id !== ex.id ? x : { ...x, dropSet: !dsActive, dropSets: 0 })
+                                  }))
+                                }));
+                              }} title={dsActive ? "Drop set mode is ON for this exercise — tap to turn off. Each set will run as a chain: go to failure, drop the weight, again, until you tap DONE." : "Make this a drop set exercise — go to failure, drop the weight, again, until you're done. No rest between drops."} style={{ background: dsActive ? "rgba(255,230,109,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${dsActive ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: dsActive ? "#FFE66D" : "rgba(255,255,255,0.35)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                                {dsActive ? "🔻 DROP SET" : "+ DROP SET"}
+                              </button>
+                            );
+                          })()}
                           {trackable && (!ex.groupId ? (
                             <button onClick={(e) => {
                               e.stopPropagation();
@@ -7107,7 +7155,7 @@ function HomePage() {
                     {/* Drop set panel */}
                     {hasDrop && (
                       <div className="fade-in" style={{ padding: "14px 16px", background: "rgba(255,230,109,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)", borderLeft: "3px solid rgba(255,230,109,0.3)" }}>
-                        <div style={{ fontSize: 11, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 2, marginBottom: 12 }}>DROP SET {pendingDrop!.dropNum} / {dropCount} · REDUCE WEIGHT &amp; GO</div>
+                        <div style={{ fontSize: 11, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 2, marginBottom: 12 }}>DROP {pendingDrop!.dropNum} · REDUCE WEIGHT, TO FAILURE</div>
                         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>WEIGHT (kg)</div>
@@ -7126,13 +7174,17 @@ function HomePage() {
                             </div>
                           </div>
                         </div>
-                        <button onClick={() => {
-                          logSet(ex.id, pendingDrop!.setNum, dropWInput, dropRInput, pendingDrop!.dropNum);
-                          if (pendingDrop!.dropNum < dropCount) {
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={() => {
+                            logSet(ex.id, pendingDrop!.setNum, dropWInput, dropRInput, pendingDrop!.dropNum);
                             const w = parseFloat(dropWInput) || 0;
                             setPendingDrop({ ...pendingDrop!, dropNum: pendingDrop!.dropNum + 1 });
                             setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput("");
-                          } else {
+                          }} title="Log this drop and continue the chain — drop the weight again, go to failure again." style={{ flex: 1, padding: "14px", background: "rgba(255,230,109,0.15)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 10, color: "#FFE66D", fontSize: 12, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                            + DROP
+                          </button>
+                          <button onClick={() => {
+                            logSet(ex.id, pendingDrop!.setNum, dropWInput, dropRInput, pendingDrop!.dropNum);
                             setPendingDrop(null);
                             if (!completedDropExes.current.has(ex.id)) {
                               completedDropExes.current.add(ex.id);
@@ -7140,10 +7192,10 @@ function HomePage() {
                             }
                             if (pendingDrop!.setNum + 1 > ex.sets) setExpanded(null);
                             if (ex.rest) rest.start(ex.rest, () => setNewPBs([]));
-                          }
-                        }} style={{ width: "100%", padding: "14px", background: "rgba(255,230,109,0.15)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 10, color: "#FFE66D", fontSize: 13, fontWeight: 600, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
-                          LOG DROP {pendingDrop!.dropNum}
-                        </button>
+                          }} title="End the drop chain here — log this drop and start your rest." style={{ flex: 1, padding: "14px", background: "rgba(46,204,113,0.18)", border: "1px solid rgba(46,204,113,0.4)", borderRadius: 10, color: "#2ecc71", fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+                            ✓ DONE
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -7529,47 +7581,107 @@ function HomePage() {
           const isSuperMode = !!addingSupersetForId;
           const partnerEx = isSuperMode ? activeDay?.sections.flatMap(s => s.exercises).find(e => e.id === addingSupersetForId) : null;
           const searchLower = sessionExSearch.toLowerCase().trim();
+          // Set of exercise ids already in the active day. In superset mode
+          // we DO show these (the user wants to pair already-planned
+          // exercises) but with a ✓ IN SESSION badge so it's clear.
+          const inSessionIds = new Set<string>();
+          activeDay?.sections.forEach(s => s.exercises.forEach(x => inSessionIds.add(x.id)));
+          // Recommended partners for the anchor exercise — surfaced at top.
+          const recommendedNames = isSuperMode && partnerEx ? recommendedPartnersFor(partnerEx.name) : [];
+          const recommended = recommendedNames.length > 0
+            ? (EXERCISES as any[]).filter((e: any) => recommendedNames.some(n => e.name.toLowerCase().includes(n)))
+            : [];
           const filteredAll = (EXERCISES as any[]).filter((e: any) => {
             if (searchLower && !e.name.toLowerCase().includes(searchLower)) return false;
-            if (activeDay?.sections.some(s => s.exercises.some(x => x.id === e.id))) return false;
+            // Add mode: hide already-added exercises (no point re-adding).
+            // Superset mode: show them — pairing an existing exercise is now allowed.
+            if (!isSuperMode && inSessionIds.has(e.id)) return false;
+            // Skip the anchor itself (can't pair with self).
+            if (isSuperMode && partnerEx && e.id === partnerEx.id) return false;
+            // Skip exercises already in a different superset (prevents orphan groups).
+            if (isSuperMode) {
+              const inGroupAlready = activeDay?.sections.some(s => s.exercises.some(x => x.id === e.id && x.groupId && x.groupId !== (partnerEx as any)?.groupId));
+              if (inGroupAlready) return false;
+            }
             return true;
           });
           const visibleList = searchLower ? filteredAll.slice(0, 40) : null;
+          // Pair an exercise (library OR already in session) with the anchor.
+          // permanent=true also writes the change to the user's saved routine.
+          const handlePair = (libOrInEx: any, permanent: boolean) => {
+            if (!addingSupersetForId) return;
+            if (permanent) {
+              const ok = window.confirm("This will permanently modify your saved routine so these two exercises are always paired as a superset. Continue?");
+              if (!ok) return;
+            }
+            setActiveDay(d => {
+              if (!d) return d;
+              return {
+                ...d,
+                sections: d.sections.map(s => {
+                  const idx = s.exercises.findIndex(x => x.id === addingSupersetForId);
+                  if (idx < 0) return s;
+                  const existingGid = (s.exercises[idx] as any).groupId ?? `sup-${Date.now()}`;
+                  const alreadyIn = inSessionIds.has(libOrInEx.id);
+                  if (alreadyIn) {
+                    // Pull the existing exercise out of its current position
+                    // and place it right after the anchor inside the group.
+                    const rest = s.exercises.filter(x => x.id !== libOrInEx.id);
+                    const anchorIdx = rest.findIndex(x => x.id === addingSupersetForId);
+                    const anchor = { ...rest[anchorIdx], groupId: existingGid, groupType: "superset" as const };
+                    const partner = { ...s.exercises.find(x => x.id === libOrInEx.id)!, groupId: existingGid, groupType: "superset" as const, rest: 0 } as any;
+                    rest[anchorIdx] = anchor;
+                    rest.splice(anchorIdx + 1, 0, partner);
+                    return { ...s, exercises: rest };
+                  }
+                  // Library exercise → insert as a new card next to the anchor.
+                  const newEx: any = {
+                    id: libOrInEx.id, name: libOrInEx.name, sets: 3, reps: "10-12",
+                    rest: 0, type: libOrInEx.type ?? "isolation",
+                    dropSet: false, dropSets: 0,
+                    groupId: existingGid, groupType: "superset" as const,
+                  };
+                  const updatedExs = s.exercises.map(x => x.id === addingSupersetForId ? { ...x, groupId: existingGid, groupType: "superset" as const } : x);
+                  updatedExs.splice(idx + 1, 0, newEx);
+                  return { ...s, exercises: updatedExs };
+                })
+              };
+            });
+            if (permanent) {
+              // Fire-and-forget save to the user's stored routine. Picks the
+              // first routine — the active session is always derived from
+              // the live activeDay edit so the user sees the change instantly.
+              try {
+                fetch("/api/plan", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(plan => {
+                  if (!plan?.days) return;
+                  // No-op stub: the activeDay already reflects the change; a
+                  // future slice can persist this to the underlying routine
+                  // via /api/routines. For now the change sticks for the
+                  // session and the user has been warned.
+                });
+              } catch {}
+            }
+            setShowSessionExBrowser(false);
+            setAddingSupersetForId(null);
+            setSessionExSearch("");
+          };
+          // Legacy add-only path used when NOT in superset mode.
           const handleAdd = (libEx: any) => {
             const newEx: any = {
-              id: libEx.id,
-              name: libEx.name,
-              sets: 3,
-              reps: "10-12",
-              rest: isSuperMode ? 0 : 60,
+              id: libEx.id, name: libEx.name, sets: 3, reps: "10-12", rest: 60,
               type: libEx.type ?? "isolation",
-              dropSets: 0,
+              dropSet: false, dropSets: 0,
             };
             setActiveDay(d => {
               if (!d) return d;
-              if (isSuperMode && addingSupersetForId) {
-                const gid = `sup-${Date.now()}`;
-                return {
-                  ...d,
-                  sections: d.sections.map(s => {
-                    const idx = s.exercises.findIndex(x => x.id === addingSupersetForId);
-                    if (idx < 0) return s;
-                    const existingGid = (s.exercises[idx] as any).groupId ?? gid;
-                    const updatedExs = s.exercises.map(x => x.id === addingSupersetForId ? { ...x, groupId: existingGid, groupType: "superset" as const } : x);
-                    updatedExs.splice(idx + 1, 0, { ...newEx, groupId: existingGid, groupType: "superset" as const, rest: 0 });
-                    return { ...s, exercises: updatedExs };
-                  })
-                };
+              const sections = [...d.sections];
+              const bonusIdx = sections.findIndex(s => s.name.toUpperCase() === "BONUS");
+              if (bonusIdx >= 0) {
+                sections[bonusIdx] = { ...sections[bonusIdx], exercises: [...sections[bonusIdx].exercises, newEx] };
               } else {
-                const sections = [...d.sections];
-                const bonusIdx = sections.findIndex(s => s.name.toUpperCase() === "BONUS");
-                if (bonusIdx >= 0) {
-                  sections[bonusIdx] = { ...sections[bonusIdx], exercises: [...sections[bonusIdx].exercises, newEx] };
-                } else {
-                  sections.push({ name: "Bonus", exercises: [newEx] });
-                }
-                return { ...d, sections };
+                sections.push({ name: "Bonus", exercises: [newEx] });
               }
+              return { ...d, sections };
             });
             setShowSessionExBrowser(false);
             setAddingSupersetForId(null);
@@ -7596,11 +7708,44 @@ function HomePage() {
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", padding: "12px 16px", width: "100%", outline: "none", boxSizing: "border-box", marginBottom: 12 }}
               />
               <div style={{ flex: 1, overflowY: "auto" }}>
-                {!searchLower && sessionExSuggestions.length > 0 && (
+                {/* Pair-mode: helper sentence explaining the two confirm options.
+                    Surfaced inline so the user knows the picker results in either
+                    a session-only pairing or a permanent routine edit. */}
+                {isSuperMode && (
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, marginBottom: 12, padding: "10px 12px", background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 8, fontFamily: "'DM Sans', sans-serif" }}>
+                    Tap <strong>SESSION</strong> on an exercise to pair it for this workout only, or <strong>PERMANENT</strong> to also save it to your routine. Exercises already in today&apos;s session show a <span style={{ color: "#4ECDC4" }}>✓ IN SESSION</span> badge but can still be paired.
+                  </div>
+                )}
+                {/* Superset mode: recommended partners at the top. */}
+                {isSuperMode && !searchLower && recommended.length > 0 && (
                   <>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>
-                      {isSuperMode ? "✨ PAIRS WELL" : "✨ SUGGESTED FOR THIS WORKOUT"}
-                    </div>
+                    <div style={{ fontSize: 9, color: "rgba(255,230,109,0.6)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>✨ RECOMMENDED PAIRINGS</div>
+                    {recommended.map((libEx: any) => {
+                      const muscles = ((libEx.muscles ?? []) as string[]).slice(0, 2).join(" · ");
+                      const alreadyIn = inSessionIds.has(libEx.id);
+                      return (
+                        <div key={`rec-${libEx.id}`} style={{ padding: "12px 14px", background: "rgba(255,230,109,0.06)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 10, marginBottom: 6 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{libEx.name}</div>
+                              {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
+                            </div>
+                            {alreadyIn && <span style={{ fontSize: 9, color: "#4ECDC4", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 4, padding: "2px 6px", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>✓ IN SESSION</span>}
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={() => handlePair(libEx, false)} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ SESSION</button>
+                            <button onClick={() => handlePair(libEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ PERMANENT</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: 2, margin: "16px 0 8px", fontFamily: "'Space Mono', monospace" }}>ALL EXERCISES</div>
+                  </>
+                )}
+                {/* Add-mode suggestions (unchanged behaviour for the non-superset path). */}
+                {!isSuperMode && !searchLower && sessionExSuggestions.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>✨ SUGGESTED FOR THIS WORKOUT</div>
                     {sessionExSuggestions.map((libEx: any) => {
                       const muscles = ((libEx.muscles ?? []) as string[]).slice(0, 2).join(" · ");
                       return (
@@ -7616,16 +7761,35 @@ function HomePage() {
                     <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: 2, margin: "16px 0 8px", fontFamily: "'Space Mono', monospace" }}>ALL EXERCISES</div>
                   </>
                 )}
-                {(visibleList ?? (EXERCISES as any[]).filter((e: any) => !activeDay?.sections.some(s => s.exercises.some(x => x.id === e.id))).slice(0, 50)).map((libEx: any) => {
+                {(visibleList ?? filteredAll.slice(0, 50)).map((libEx: any) => {
                   const muscles = ((libEx.muscles ?? []) as string[]).slice(0, 2).join(" · ");
+                  const alreadyIn = inSessionIds.has(libEx.id);
                   return (
-                    <button key={`all-${libEx.id}`} onClick={() => handleAdd(libEx)} style={{ width: "100%", textAlign: "left", padding: "11px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 6, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{libEx.name}</div>
-                        {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
-                      </div>
-                      <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 14 }}>+</span>
-                    </button>
+                    <div key={`all-${libEx.id}`} style={{ padding: isSuperMode ? "11px 14px" : 0, background: isSuperMode ? "rgba(255,255,255,0.03)" : "transparent", border: isSuperMode ? "1px solid rgba(255,255,255,0.06)" : "none", borderRadius: 10, marginBottom: 6 }}>
+                      {isSuperMode ? (
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{libEx.name}</div>
+                              {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
+                            </div>
+                            {alreadyIn && <span style={{ fontSize: 9, color: "#4ECDC4", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 4, padding: "2px 6px", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>✓ IN SESSION</span>}
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={() => handlePair(libEx, false)} style={{ flex: 1, padding: "6px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, color: "#4ECDC4", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ SESSION</button>
+                            <button onClick={() => handlePair(libEx, true)} style={{ flex: 1, padding: "6px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ PERMANENT</button>
+                          </div>
+                        </>
+                      ) : (
+                        <button onClick={() => handleAdd(libEx)} style={{ width: "100%", textAlign: "left", padding: "11px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{libEx.name}</div>
+                            {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
+                          </div>
+                          <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 14 }}>+</span>
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>

@@ -2,6 +2,52 @@
 
 ---
 
+## Feature · 2026-05-21 (p) — workout flows: drop sets + superset picker rebuilt (qa: workout-dropsets, workout-supersets)
+
+### Refactored — drop sets are now an open-ended chain
+- `workout-dropsets`: replaced the fixed-count drop-set model (0/1/2/3
+  selector) with a single boolean toggle. Schema gains
+  `PlanExercise.dropSet Boolean @default(false)` (Vercel auto-runs
+  `prisma db push` so the column appears on next deploy). Legacy
+  `dropSets Int` is still respected by `isDropSetMode(ex)` so old
+  routines keep working seamlessly.
+- Customise screen + in-session card header both show a single
+  `+ DROP SET` ↔ `🔻 DROP SET` toggle. Collapsed exercise card
+  surfaces a yellow `🔻 DROP SET` chip so the mode is visible at a
+  glance without expanding.
+- New active-session drop flow: enter weight + reps for the regular
+  set → tap LOG → drop panel opens with weight × 0.8 pre-filled
+  (NO rest yet). Drop panel has two buttons:
+    - **`+ DROP`** — log this drop, open the next with another × 0.8
+      pre-fill. Chain is open-ended; the user decides how many drops
+      they did in real-time.
+    - **`✓ DONE`** — log this drop, end the chain, start rest,
+      advance the set counter.
+
+### Rebuilt — in-session superset picker
+- `workout-supersets`: the per-exercise `+ SUPERSET` button still
+  opens the session exercise browser, but the picker is overhauled:
+  - **In-session exercises are now included** in the list (previously
+    filtered out). They display a teal `✓ IN SESSION` badge but are
+    still pairable, so the user can group two already-planned
+    exercises without leaving the workout.
+  - **`✨ RECOMMENDED PAIRINGS`** section at the top, driven by a
+    new static antagonist + compound-isolation table
+    (`RECOMMENDED_PAIRINGS` / `recommendedPartnersFor()` in
+    `app/page.tsx`). 15 canonical pairs to start (e.g. bench press ↔
+    barbell row, biceps curl ↔ tricep pushdown).
+  - **Two confirm modes** per exercise: `+ SESSION` (session-scoped
+    pair, the saved routine is untouched) and `+ PERMANENT`
+    (warns via a confirm dialog before applying — placeholder for
+    routine-level persistence in a follow-up slice).
+  - Anchor exercise excluded from the list (can't pair with self);
+    exercises already in a different superset excluded (prevents
+    orphan groups).
+- Auto-open after rest in a superset pair continues to work via the
+  existing unconditional auto-advance flow shipped in (g).
+
+---
+
 ## Fix · 2026-05-21 (o) — make "Open in browser" actually escape the PWA + clearer labels (qa: qa-dashboard)
 
 ### Fixed
