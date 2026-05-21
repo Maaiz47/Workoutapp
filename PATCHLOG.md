@@ -2,6 +2,24 @@
 
 ---
 
+## QA pass · 2026-05-21 (g) — drop the auto-advance toggle (qa: workout-rest-timer)
+
+### Addressed
+- `workout-rest-timer`: removed the opt-in "Auto-advance to next exercise
+  after rest" toggle per user feedback (comment
+  `cmpewcs3o0000vh3mw3at8fqw`). The behaviour is now unconditional:
+  the workout view stays on the current exercise while it still has
+  incomplete sets, and auto-expands the next incomplete exercise the
+  moment all sets are done (or the user manually skips / picks
+  another). Deleted the `autoAdvanceAfterRest` state + the two
+  `ironlog-auto-advance` localStorage useEffects from `app/page.tsx`,
+  dropped the `if (!autoAdvanceAfterRest) return;` guard from the
+  rest-timer falling-edge effect, and removed the ⚙ WORKOUT BEHAVIOUR
+  Settings card. `qa-state.json` steps updated to reflect the new
+  unconditional flow.
+
+---
+
 ## QA pass · 2026-05-21 (f) — action 4 mirrored comments from @maaiz
 
 ### Addressed

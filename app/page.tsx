@@ -1463,15 +1463,6 @@ function HomePage() {
   // True when the current wInput/rInput values came from suggestedStartingSet()
   // rather than from a real prior session — used to show a "SUGGESTED" tag.
   const [isSuggested, setIsSuggested] = useState(false);
-  // When ON, the active workout auto-expands the next incomplete exercise once
-  // the rest timer ends. Persisted in localStorage so the preference sticks.
-  const [autoAdvanceAfterRest, setAutoAdvanceAfterRest] = useState(false);
-  useEffect(() => {
-    try { setAutoAdvanceAfterRest(localStorage.getItem("ironlog-auto-advance") === "1"); } catch {}
-  }, []);
-  useEffect(() => {
-    try { localStorage.setItem("ironlog-auto-advance", autoAdvanceAfterRest ? "1" : "0"); } catch {}
-  }, [autoAdvanceAfterRest]);
   const [bwAddWeight, setBwAddWeight] = useState(false);
   const [manualBW, setManualBW] = useState(false);
   const [logFlashId, setLogFlashId] = useState<string | null>(null);
@@ -1990,36 +1981,29 @@ function HomePage() {
   // Keep currentViewRef in sync so SW message handler always sees latest view
   useEffect(() => { currentViewRef.current = view; }, [view]);
 
-  // Auto-advance: when the rest timer ends and the setting is on, expand the
-  // next exercise in the active section that still has incomplete sets. If
-  // the currently-expanded exercise still has sets left, stay there.
+  // Auto-advance after rest: stay on the current exercise while it still has
+  // incomplete sets; otherwise expand the next incomplete exercise.
   const prevRestRunning = useRef(false);
   useEffect(() => {
     const wasRunning = prevRestRunning.current;
     prevRestRunning.current = rest.running;
     if (!wasRunning || rest.running) return;            // only on falling edge
-    if (!autoAdvanceAfterRest) return;
     if (view !== "workout" || !activeDay || !started) return;
     const exs = activeDay.sections[0]?.exercises ?? [];
-    // If the currently-expanded exercise still has sets remaining, keep it open.
     if (expanded) {
       const cur = exs.find(e => e.id === expanded);
       if (cur && cur.trackable !== false && doneCount(cur.id, cur.sets) < cur.sets) return;
     }
-    // Otherwise advance to the next incomplete exercise after the current one.
     const startIdx = expanded ? exs.findIndex(e => e.id === expanded) + 1 : 0;
     for (let i = startIdx; i < exs.length; i++) {
       const e = exs[i];
       if (e.trackable !== false && doneCount(e.id, e.sets) < e.sets) {
         setExpanded(e.id);
-        // Reset inputs — the expand handler will refill from history / suggestion
-        // on the next manual tap if needed. Just clear here so stale values
-        // from the previous exercise don't bleed in.
         setWInput(""); setRInput(""); setIsSuggested(false);
         return;
       }
     }
-  }, [rest.running, autoAdvanceAfterRest, view, activeDay, started, expanded, log]);
+  }, [rest.running, view, activeDay, started, expanded, log]);
 
   // 3D scroll tilt + hero parallax on home screen
   useEffect(() => {
@@ -5894,23 +5878,6 @@ function HomePage() {
                 {notifStatus === "requesting" ? "ENABLING…" : "ENABLE PUSH NOTIFICATIONS"}
               </button>
             )}
-          </div>
-
-          {/* Workout behaviour */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>⚙ WORKOUT BEHAVIOUR</div>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", padding: "8px 0" }}>
-              <input
-                type="checkbox"
-                checked={autoAdvanceAfterRest}
-                onChange={e => setAutoAdvanceAfterRest(e.target.checked)}
-                style={{ flexShrink: 0, marginTop: 3, width: 18, height: 18, accentColor: "#FF6B6B", cursor: "pointer" }}
-              />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>Auto-advance to next exercise after rest</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 3, lineHeight: 1.45 }}>When the rest timer ends, jump straight to the next incomplete exercise instead of staying on the current one. Defaults off — most lifters prefer to stay until all sets of an exercise are done.</div>
-              </div>
-            </label>
           </div>
 
           {/* Send feedback */}

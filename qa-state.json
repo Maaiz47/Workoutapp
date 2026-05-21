@@ -163,12 +163,12 @@
         "Lock the phone / switch to another app for 20 s, then return — timer should still show correct remaining time",
         "When the timer reaches 0: verify audible beep (double tone), vibration on mobile, and a push notification titled 'IRONLOG' saying rest is over",
         "CRUCIAL: when the timer ends, the workout UI should STAY at the exercise you were on (NOT scroll to the top)",
-        "Open Settings → Workout Behaviour → toggle 'Auto-advance to next exercise after rest' ON",
-        "Complete all sets of an exercise, let the rest timer end — the next incomplete exercise should auto-expand",
-        "Toggle the setting OFF again — verify after rest the page stays on the current exercise",
+        "While the current exercise still has incomplete sets, finishing rest should keep you on it — no jumping away mid-exercise",
+        "Complete all sets of an exercise — once rest ends, the next incomplete exercise should auto-expand automatically (no toggle, this is unconditional)",
+        "Manually tap a different exercise — from then on auto-advance continues through its sets, then jumps to whatever is systematically next",
         "Tap 'Skip' — timer should clear immediately"
       ],
-      "notes": "[2026-05-21] Fixed: scroll-jump-to-top bug after rest ends. Root cause: the body-scroll-lock useEffect's cleanup function cleared document.body.style.top before the new effect body could read it to restore scrollY. Now stashed in a useRef.\n[2026-05-21] Added: 'Auto-advance to next exercise after rest' opt-in setting in Settings → Workout Behaviour. Default off (stay on current exercise — the requested default behaviour). When on, the next incomplete exercise auto-expands once the rest timer ends.\nNotification requires notification permission to be granted. Test with service worker active."
+      "notes": "[2026-05-21] Fixed per user feedback: removed the opt-in 'Auto-advance after rest' Settings toggle. Behaviour is now unconditional — stay on current exercise while incomplete sets remain, then auto-advance to the next incomplete exercise once all sets are done (or the user manually skips/picks another). The ⚙ WORKOUT BEHAVIOUR card in Settings was deleted along with the localStorage key.\n[2026-05-21] Fixed: scroll-jump-to-top bug after rest ends. Root cause: the body-scroll-lock useEffect's cleanup function cleared document.body.style.top before the new effect body could read it to restore scrollY. Now stashed in a useRef.\nNotification requires notification permission to be granted. Test with service worker active."
     },
     {
       "id": "workout-pb-detection",

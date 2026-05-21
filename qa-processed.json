@@ -25,6 +25,10 @@
     "cmpeuo2ch0002ezwr2zs0zd0x": {
       "ts": "2026-05-21T02:30:00Z",
       "summary": "Rest-timer scroll-jump bug fixed (scroll-y stashed in useRef so the unlock branch can restore the position after React fires the cleanup). Plus: new opt-in 'Auto-advance to next exercise after rest' setting in Settings → Workout Behaviour — default off, when on the next incomplete exercise auto-expands once rest ends. Otherwise stay-in-place is now the correct default behaviour."
+    },
+    "cmpewcs3o0000vh3mw3at8fqw": {
+      "ts": "2026-05-21T03:00:00Z",
+      "summary": "Removed the auto-advance Settings toggle per user feedback. Behaviour is now unconditional: stay on current exercise while incomplete sets remain, then auto-advance to next incomplete exercise once sets are done (or user skips/manually picks another). Deleted the ⚙ WORKOUT BEHAVIOUR card and the ironlog-auto-advance localStorage key."
     }
   }
 }
