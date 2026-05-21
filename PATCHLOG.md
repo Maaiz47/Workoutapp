@@ -2,6 +2,35 @@
 
 ---
 
+## Feature · 2026-05-21 (af) — Slice C ⅓: auto-substitute on missing equipment (qa: workout-auto-substitute)
+
+### Added
+- `workout-auto-substitute`: when starting a session, any exercise the
+  user doesn't have the required equipment for now shows an orange
+  `⇄ NEED <equipment>` chip on the card header. Bodyweight is always
+  considered available — only real gear blocks.
+- Tap the chip → modal listing up to 4 same-muscle alternatives the
+  user CAN do with their current profile equipment, sorted by type +
+  difficulty match. Tap to swap the exercise in the active session
+  (saved routine untouched).
+- New helpers in `lib/exercises.ts`:
+  - `missingEquipmentFor(exercise, available)` — returns the list of
+    missing items (respects `requireAll` vs requireAny).
+  - `suggestSubstitutions(exerciseId, available, limit)` — scored
+    alternative picker.
+- Editable equipment list already lives in Settings → Edit Profile
+  (no new UI needed — re-toggle items and re-open the session to
+  see chips update).
+
+### Slice plan
+- Slice C ⅓: ✓ auto-substitute
+- Slice C ⅔: deload week detection (next)
+- Slice C 3⁄3: volume / frequency heatmap by muscle group (next)
+- Then: Modality Mix (calisthenics flag + recovery day + onboarding chips)
+- Then: athlete/trainer tier clarity + progress path design
+
+---
+
 ## Feature · 2026-05-21 (ae) — Slice B: auto progressive overload + plateau detector (qa: workout-progression-suggest, workout-plateau-detector)
 
 ### Added

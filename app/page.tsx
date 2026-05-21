@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
 import { createPortal } from "react-dom";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
-import { EXERCISES } from "../lib/exercises";
+import { EXERCISES, missingEquipmentFor, suggestSubstitutions } from "../lib/exercises";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
 import { MUSCLE_DETAIL, lookupMuscleDetail } from "../lib/muscleDetail";
 import { getFormCues } from "../lib/formCues";
@@ -1991,6 +1991,10 @@ function HomePage() {
   // Plateau modal — opened by tapping the ⚠ PLATEAU chip on a customise
   // row. Shows the stale 1RM + a list of variations the user can swap to.
   const [plateauModal, setPlateauModal] = useState<{ exerciseId: string; name: string; plateau: { sessions: number; lastBestEst1RM: number; suggestedReason: string } } | null>(null);
+  // Auto-substitute modal — opened when the user taps the ⇄ NEED chip on
+  // an exercise they don't have the equipment for. Shows up to 4
+  // alternatives matched on primary muscle + available equipment.
+  const [subModal, setSubModal] = useState<{ exerciseId: string; name: string; missing: string[] } | null>(null);
   const [bwAddWeight, setBwAddWeight] = useState(false);
   const [manualBW, setManualBW] = useState(false);
   const [logFlashId, setLogFlashId] = useState<string | null>(null);
@@ -7686,6 +7690,52 @@ function HomePage() {
     return (
       <div key="workout-session" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
         {/* Set-note modal — long-press a logged set badge to open this. */}
+        {/* Auto-substitute modal — pick a same-muscle alternative the
+            user CAN actually do with their current equipment. Tapping a
+            suggestion swaps the exercise in the active session. */}
+        {subModal && (() => {
+          const subs = suggestSubstitutions(subModal.exerciseId, (ob.equipment ?? []) as any, 4);
+          const accept = (newEx: any) => {
+            setActiveDay(d => {
+              if (!d) return d;
+              return {
+                ...d,
+                sections: d.sections.map(s => ({
+                  ...s,
+                  exercises: s.exercises.map(x => x.id === subModal.exerciseId ? { ...x, id: newEx.id, name: newEx.name, type: newEx.type } : x),
+                })),
+              };
+            });
+            setSubModal(null);
+          };
+          return (
+            <div onClick={() => setSubModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 330, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}>
+              <div onClick={e => e.stopPropagation()} style={{ maxWidth: 380, width: "100%", background: "#0a0a0a", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 16, padding: 20, position: "relative" }}>
+                <button onClick={() => setSubModal(null)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#FF8C42", letterSpacing: 2, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>⇄ SWAP EXERCISE</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 6 }}>{subModal.name}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>Needs <strong>{subModal.missing.join(", ")}</strong> — pick something you can actually do today:</div>
+                {subs.length === 0 ? (
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>No close alternatives in the library with your current equipment. Add the missing equipment in Settings → 🛠 MY EQUIPMENT or skip this exercise today.</div>
+                ) : (
+                  subs.map((s: any) => (
+                    <button key={s.id} onClick={() => accept(s)} style={{ display: "flex", width: "100%", textAlign: "left", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 6, background: "rgba(255,140,66,0.06)", border: "1px solid rgba(255,140,66,0.2)", borderRadius: 8, color: "#fff", cursor: "pointer" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{(s.primaryMuscles ?? []).slice(0, 2).join(" · ").toUpperCase()} · {(s.equipment ?? []).join(" + ").toUpperCase()}</div>
+                      </div>
+                      <span style={{ color: "#FF8C42", fontSize: 16 }}>+</span>
+                    </button>
+                  ))
+                )}
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 14, lineHeight: 1.5 }}>
+                  Swap is session-only — the saved routine isn&apos;t modified.
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {noteModal && (
           <div onClick={() => setNoteModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 350, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}>
             <div onClick={e => e.stopPropagation()} style={{ maxWidth: 360, width: "100%", background: "#0a0a0a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 20, position: "relative" }}>
@@ -8150,6 +8200,21 @@ function HomePage() {
                           <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</span>
                           {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1, flexShrink: 0 }}>{ex.type.toUpperCase()}</span>}
                           {exIsDropSet && <span style={{ fontSize: 9, fontWeight: 700, color: "#FFE66D", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>🔻 DROP SET</span>}
+                          {(() => {
+                            // Missing-equipment chip. Computed against the
+                            // user's profile equipment list — bodyweight
+                            // is always available. Tap → substitute modal.
+                            const lib = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
+                            if (!lib) return null;
+                            const missing = missingEquipmentFor(lib as any, (ob.equipment ?? []) as any);
+                            if (missing.length === 0) return null;
+                            return (
+                              <button
+                                onClick={(e: any) => { e.stopPropagation(); setSubModal({ exerciseId: ex.id, name: ex.name, missing }); }}
+                                style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.1)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                              >⇄ NEED {missing[0].toUpperCase().replace("_", " ")}</button>
+                            );
+                          })()}
                           {ex.note === "HIIT circuit" && <span style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT</span>}
                           <button onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }} style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "2px 6px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginLeft: 6, flexShrink: 0 }}>FORM</button>
                         </div>

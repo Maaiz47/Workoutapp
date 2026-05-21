@@ -200,6 +200,53 @@ export function getExerciseById(id: string): Exercise | undefined {
   return EXERCISES.find(e => e.id === id);
 }
 
+// Does the user have everything this exercise needs? Bodyweight items
+// never block — anyone with a body can do them. Returns the list of
+// missing equipment so the UI can tell the user what to grab.
+export function missingEquipmentFor(exercise: Exercise, available: Equipment[]): Equipment[] {
+  const have = new Set<string>(available);
+  // Bodyweight is always considered available — you brought your body.
+  have.add("bodyweight");
+  const nonBW = exercise.equipment.filter(eq => eq !== "bodyweight");
+  if (nonBW.length === 0) return [];
+  if (exercise.requireAll) {
+    return nonBW.filter(eq => !have.has(eq));
+  }
+  // requireAny: only "missing" if none are present
+  if (nonBW.some(eq => have.has(eq))) return [];
+  return nonBW;
+}
+
+// Pick up to N substitution candidates for an exercise the user can't do
+// with their current equipment. Same primary muscle group, equipment the
+// user owns, similar difficulty. Sorted: same type → same difficulty →
+// bodyweight first if available.
+export function suggestSubstitutions(
+  exerciseId: string,
+  available: Equipment[],
+  limit = 4,
+): Exercise[] {
+  const target = getExerciseById(exerciseId);
+  if (!target) return [];
+  const targetMuscles = target.primaryMuscles;
+  const score = (e: Exercise): number => {
+    let s = 0;
+    if (e.type === target.type) s += 4;
+    if (e.difficulty === target.difficulty) s += 2;
+    if (e.location === target.location || e.location === "both") s += 1;
+    // Prefer same secondary muscles overlap too
+    const sec = (e.secondaryMuscles ?? []).filter(m => target.secondaryMuscles?.includes(m)).length;
+    s += sec;
+    return s;
+  };
+  return EXERCISES
+    .filter(e => e.id !== exerciseId)
+    .filter(e => targetMuscles.some(m => e.primaryMuscles.includes(m)))
+    .filter(e => missingEquipmentFor(e, available).length === 0)
+    .sort((a, b) => score(b) - score(a))
+    .slice(0, limit);
+}
+
 export function filterExercises(opts: {
   primaryMuscle?: MuscleGroup;
   equipment?: Equipment[];

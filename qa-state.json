@@ -836,6 +836,25 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "workout-auto-substitute",
+      "title": "Auto-substitute on missing equipment",
+      "area": "Workout",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-C",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → Edit Profile → toggle OFF an equipment item you currently have (e.g. 'barbell')",
+        "Start a workout session that contains an exercise needing that equipment (e.g. Barbell Bench Press)",
+        "Verify the exercise card shows an orange ⇄ NEED BARBELL chip in its header",
+        "Tap the chip — verify a modal opens listing up to 4 alternative exercises matched on primary muscle group + equipment you DO have",
+        "Tap an alternative — verify the active session swaps the exercise (same sets/reps/rest, new name) and the chip disappears",
+        "Verify the saved routine is unchanged (refresh → original exercise comes back; swap is session-only)",
+        "Re-enable the missing equipment in Settings — verify the chip stops appearing"
+      ],
+      "notes": "[2026-05-21] missingEquipmentFor() + suggestSubstitutions() in lib/exercises.ts. Chip rendered on each session exercise card when the user's profile equipment list doesn't satisfy the exercise's requirements (bodyweight always counts as available). Modal lists same-primary-muscle alternatives the user CAN do today, scored by type/difficulty/secondary-muscle overlap. Swap is session-scoped — saved routine untouched."
+    },
+    {
       "id": "workout-progression-suggest",
       "title": "Auto progressive overload — system-suggested next weight",
       "area": "Workout",
