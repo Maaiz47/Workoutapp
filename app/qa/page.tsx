@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { AnimatePresence } from "framer-motion";
+import MascotSplash from "./MascotSplash";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -713,7 +715,22 @@ export default function QAPage() {
   const [authedUsername, setAuthedUsername] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [search, setSearch] = useState("");
+  const [showMascot, setShowMascot] = useState(false);
   const draftWriteTimer = useRef<any>(null);
+
+  // Doppo splash: show once per session, or whenever the user re-summons.
+  // Wait for the comments + auth to land first so the dialogue can react
+  // to the visitor's actual leaderboard standing.
+  const SS_MASCOT_KEY = "qa-doppo-seen-v1";
+  useEffect(() => {
+    if (loading) return;
+    try {
+      if (!sessionStorage.getItem(SS_MASCOT_KEY)) {
+        setShowMascot(true);
+        sessionStorage.setItem(SS_MASCOT_KEY, "1");
+      }
+    } catch {}
+  }, [loading]);
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -831,12 +848,37 @@ export default function QAPage() {
   const pct = allItems.length ? Math.round((totalP / allItems.length) * 100) : 0;
   const unprocessedCount = comments.filter(c => !c.processed).length;
 
+  // Find the visitor's leaderboard standing so Doppo's dialogue can react.
+  const allRows = buildLeaderboard(comments);
+  const visitorKey = authedUsername
+    ? "u:" + authedUsername.toLowerCase()
+    : tester.trim() ? "t:" + tester.trim().toLowerCase() : null;
+  const visitorIdx = visitorKey
+    ? allRows.findIndex(r =>
+        (r.isRegistered ? "u:" + r.name : "t:" + r.name).toLowerCase() === visitorKey)
+    : -1;
+  const visitorRow = visitorIdx >= 0 ? allRows[visitorIdx] : null;
+
   return (
     <div style={{
       minHeight: "100dvh", background: "#0a0a0a", color: "#fff",
       padding: "20px 16px 80px", boxSizing: "border-box",
       fontFamily: "'DM Sans', sans-serif",
     }}>
+      <AnimatePresence>
+        {showMascot && (
+          <MascotSplash
+            username={authedUsername}
+            points={visitorRow?.total ?? 0}
+            rank={visitorIdx >= 0 ? visitorIdx + 1 : null}
+            totalTesters={allRows.length}
+            bugs={visitorRow?.bugs ?? 0}
+            comments={visitorRow?.count ?? 0}
+            onDismiss={() => setShowMascot(false)}
+          />
+        )}
+      </AnimatePresence>
+
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         {/* Header */}
         <div style={{ marginBottom: 18 }}>
@@ -844,7 +886,22 @@ export default function QAPage() {
             fontSize: 10, fontWeight: 700, letterSpacing: 3, color: "#FF6B6B",
             fontFamily: "'Space Mono', monospace", marginBottom: 4,
           }}>IRONLOG</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 10 }}>QA Dashboard</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>QA Dashboard</div>
+            <button
+              onClick={() => setShowMascot(true)}
+              title="Re-summon Doppo"
+              style={{
+                padding: "6px 12px",
+                background: "rgba(255,107,107,0.08)",
+                border: "1px solid rgba(255,107,107,0.3)",
+                borderRadius: 999,
+                color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+                fontFamily: "'Space Mono', monospace",
+                cursor: "pointer", whiteSpace: "nowrap",
+              }}
+            >🥋 SUMMON DOPPO</button>
+          </div>
 
           {/* Summary chips */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>

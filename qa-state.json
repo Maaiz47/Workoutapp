@@ -998,6 +998,28 @@
       "notes": "[2026-05-21] Shipped scripts/qa-scan.ts + the `qa:scan` npm script + CLAUDE.md convention rule. The script is informational by default (warnings don't fail) and strict on demand (`--strict` makes everything an error, suitable for CI later). The rule in CLAUDE.md is the forcing function for Claude during QA passes."
     },
     {
+      "id": "qa-mascot-splash",
+      "title": "QA mascot splash — DOPPO the Baki-style QA sensei",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass mascot splash",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open /qa in a fresh tab (or clear sessionStorage key `qa-doppo-seen-v1`)",
+        "Verify the full-screen mascot splash appears with a red vignette, animated speed-lines backdrop, and either the Doppo PNG OR the 🥋 'DOPPO IS TRAINING' placeholder if /public/qa-mascot.png isn't uploaded yet",
+        "Verify the manga speech bubble at the bottom types out 4-5 lines of Baki-style dialogue character-by-character",
+        "Verify the dialogue is personalized to your leaderboard state: rank #1 gets a different speech than rank #3, zero comments gets a different speech than veteran",
+        "Tap mid-dialogue — verify it skips to the end of the script (TAP TO SKIP label)",
+        "Tap again after dialogue completes — verify the splash dismisses (TAP TO ENTER label)",
+        "Reload /qa in the same session — verify the splash does NOT re-appear (sessionStorage-gated)",
+        "Tap the 🥋 SUMMON DOPPO button next to the QA Dashboard title — verify the splash re-opens",
+        "Drop a transparent PNG at /public/qa-mascot.png and reload — verify the placeholder is replaced by the real mascot art",
+        "Verify the splash does not block scrolling or interaction once dismissed"
+      ],
+      "notes": "[2026-05-21] Shipped MascotSplash.tsx + integration in app/qa/page.tsx. Component is sessionStorage-gated (qa-doppo-seen-v1) and re-summonable via a chip in the dashboard header. Image is loaded from /public/qa-mascot.png with an onError fallback to a placeholder card so the splash is functional before the art lands. Dialogue picker has 5 arcs based on rank/bugs/comments. ChatGPT prompt for the mascot art is in the PR/PATCHLOG description."
+    },
+    {
       "id": "trainer-role-request",
       "title": "Trainer upgrade request flow",
       "area": "Trainer",

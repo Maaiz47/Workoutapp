@@ -2,6 +2,33 @@
 
 ---
 
+## Feature · 2026-05-21 (k) — Doppo, the Baki-style QA sensei splash (qa: qa-mascot-splash)
+
+### Added
+- `qa-mascot-splash`: full-screen mascot splash that greets testers on
+  `/qa`. Concept: a Baki-style hyper-muscular QA inspector named
+  DOPPO addresses the tester in a manga speech bubble with
+  personalised, slightly unhinged dialogue. Five dialogue arcs
+  selected by the visitor's standing:
+    - first-time / zero comments → introduces himself, demands a bug
+    - rank #1 → solemnly acknowledges, demands more
+    - top 3 → encourages the climb
+    - many comments, zero verified bugs → calls them cowardly
+    - default returning → recaps stats, demands more
+- Typewriter animation: tap mid-dialogue to skip, tap after to
+  dismiss. Sessionstorage-gated (`qa-doppo-seen-v1`) so it shows once
+  per session.
+- "🥋 SUMMON DOPPO" chip next to the QA Dashboard title to
+  re-summon him on demand.
+- Image loaded from `/public/qa-mascot.png`. If the file is missing
+  the splash falls back to a placeholder card explaining where to
+  drop the PNG, so the component is shippable before the art lands.
+- Visual: red radial vignette, animated manga speed-line conic
+  gradient backdrop, manga ink-style speech bubble with the
+  classic 3-px black border + black drop-shadow.
+
+---
+
 ## Feature · 2026-05-21 (j) — QA dashboard cleanup + coverage sweep (qa: qa-dashboard, qa-coverage-sweep)
 
 ### Cleaned up
