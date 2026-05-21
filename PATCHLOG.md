@@ -2,6 +2,25 @@
 
 ---
 
+## QA pass · 2026-05-21 (e) — first end-to-end mirror loop closes
+
+### Addressed
+- Two QA submissions arrived via the new auto-mirror (qa-comments/):
+  - `user-feedback` (id `cmpet8uo5...nmce573y`) — handshake test from
+    Settings → Send Feedback. Note: "Test show me 12345666 if you got
+    this". No code action; marked processed.
+  - `auth-trainer-login` (id `cmpetczrk...wzvu9kct`) — submitted via
+    /qa thread by @maaiz with status=passing, note: "Works". Flipped
+    `auth-trainer-login` from untested → passing in qa-state.json with
+    a dated resolution line. Marked processed.
+
+Both entries added to qa-processed.json so they don't reappear on the
+next "process QA" invocation. End-to-end loop now confirmed working:
+submission → mirror → git pull → resolve → push → /qa reflects new
+processed state on next deploy.
+
+---
+
 ## QA pass · 2026-05-21 (d) — re-link workout history (real fix)
 
 ### Addressed

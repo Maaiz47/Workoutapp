@@ -1,3 +1,14 @@
 {
-  "processedIds": {}
+  "processedIds": {
+    "cmpet8uo5000055xfnmce573y": {
+      "ts": "2026-05-21T01:30:00Z",
+      "sha": "104133e",
+      "summary": "Handshake submission confirming the GH-mirror loop works end-to-end. No code action."
+    },
+    "cmpetczrk0000i1g9wzvu9kct": {
+      "ts": "2026-05-21T01:30:30Z",
+      "sha": "104133e",
+      "summary": "auth-trainer-login marked passing by @maaiz via the /qa thread. No code action; status will flip to passing on the next qa-state.json reconciliation."
+    }
+  }
 }

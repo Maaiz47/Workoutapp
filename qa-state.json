@@ -44,8 +44,8 @@
       "area": "Auth",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "passing",
       "steps": [
         "On the landing page tap the 'TRAINERS' tab — the tab colour should change to teal",
         "Enter a trainer username and tap 'Continue'",
@@ -53,7 +53,7 @@
         "Verify the home screen shows the 'MY CLIENTS' section and trainer tier badge in the profile card",
         "Confirm role='trainer' in the profile card subtitle area"
       ],
-      "notes": "The TRAINERS tab affects UI copy; both tabs ultimately hit the same /api/auth endpoint."
+      "notes": "[2026-05-21 104133e] Passing: confirmed by @maaiz via /qa thread.\nThe TRAINERS tab affects UI copy; both tabs ultimately hit the same /api/auth endpoint."
     },
     {
       "id": "auth-forgot-password",
