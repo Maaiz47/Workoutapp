@@ -2705,10 +2705,201 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
   );
 }
 
+// ─── TIER INFO MODAL ────────────────────────────────────────────────────
+// Explains the tier system for users who don't know what "Coach" means
+// or where Tiger sits on the ladder. Triggered from any of the tier
+// pills on the home welcome card or the Settings → IDENTITY card.
+//
+// Renders both ladders (athlete + trainer) with thresholds visible.
+// Highlights the visitor's current tier on each ladder they participate
+// in. The opening copy makes the role-vs-tier distinction explicit:
+// "Coach is a TIER of TRAINERS, not a separate role."
+
+type TierLite = { label: string; emoji: string; min: number; color: string; bg: string; border: string };
+
+function TierInfoModal({
+  open, onClose, isAthlete, isTrainer,
+  athleteTier, trainerTier,
+  athleteUnit, trainerUnit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  isAthlete: boolean;        // include in the modal whether or not currently this user's role
+  isTrainer: boolean;
+  athleteTier: TierLite | null;   // current tier the visitor sits at (if any)
+  trainerTier: TierLite | null;
+  athleteUnit: string;       // "sessions" / "score" — what feeds the rank
+  trainerUnit: string;       // "clients"
+}) {
+  if (!open) return null;
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)",
+          zIndex: 9700,
+        }}
+      />
+      <div style={{
+        position: "fixed",
+        left: 12, right: 12, top: "5vh", bottom: "5vh",
+        zIndex: 9701,
+        background: "#0a0a0a",
+        border: "1px solid rgba(255,107,107,0.3)",
+        borderRadius: 18,
+        padding: "20px 18px",
+        boxShadow: "0 20px 50px -8px rgba(0,0,0,0.7)",
+        maxWidth: 540, margin: "0 auto",
+        overflow: "auto",
+        fontFamily: "'DM Sans', sans-serif",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 3, color: "#FF6B6B", fontFamily: "'Space Mono', monospace" }}>🏆 HOW TIERS WORK</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginTop: 4 }}>Two ladders, one app</div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close tier info"
+            style={{
+              background: "rgba(255,255,255,0.06)", border: "none", borderRadius: "50%",
+              width: 32, height: 32, color: "rgba(255,255,255,0.6)", fontSize: 18, cursor: "pointer",
+            }}
+          >×</button>
+        </div>
+
+        <div style={{
+          background: "rgba(255,107,107,0.05)",
+          border: "1px solid rgba(255,107,107,0.18)",
+          borderRadius: 12, padding: "12px 14px", marginBottom: 16,
+          fontSize: 13, color: "rgba(255,255,255,0.78)", lineHeight: 1.55,
+        }}>
+          Tiers are <strong>progression badges</strong> you earn over time — they're not
+          roles. There are two ladders:
+          <ul style={{ margin: "8px 0 0 0", paddingLeft: 18, color: "rgba(255,255,255,0.65)" }}>
+            <li>🐯 <strong>Athlete tiers</strong> (Kitten → Gorilla) — earned by training.</li>
+            <li>🎯 <strong>Trainer tiers</strong> (Rookie → Elite) — earned by coaching clients. <em>“Coach” is a tier of trainers, not a separate role.</em></li>
+          </ul>
+          {isAthlete && isTrainer && (
+            <div style={{ marginTop: 8, fontSize: 12, color: "rgba(78,205,196,0.85)" }}>
+              You're on both ladders — your trainer rank AND your own athlete rank are tracked independently.
+            </div>
+          )}
+        </div>
+
+        <TierLadder
+          title="ATHLETE LADDER"
+          subtitle={`Earned by training · headline = average of 5 sub-ranks · ${athleteUnit}`}
+          tiers={CLIENT_TIERS}
+          accent="#f0c040"
+          highlight={athleteTier?.label ?? null}
+          isParticipant={isAthlete}
+          unitWord="sessions"
+        />
+
+        <TierLadder
+          title="TRAINER LADDER"
+          subtitle={`Earned by growing your roster + helping clients progress · ${trainerUnit}`}
+          tiers={TRAINER_TIERS}
+          accent="#4ECDC4"
+          highlight={trainerTier?.label ?? null}
+          isParticipant={isTrainer}
+          unitWord="clients"
+        />
+
+        <div style={{
+          marginTop: 8, padding: "10px 12px",
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.06)",
+          borderRadius: 10,
+          fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.55,
+        }}>
+          Want the full breakdown — sub-rank bars, path-to-next, what feeds your
+          headline score? Open <strong>Progress → Dashboard</strong> for the athlete
+          ladder details. Trainer breakdown is coming next.
+        </div>
+      </div>
+    </>
+  );
+}
+
+function TierLadder({
+  title, subtitle, tiers, accent, highlight, isParticipant, unitWord,
+}: {
+  title: string;
+  subtitle: string;
+  tiers: TierLite[];
+  accent: string;
+  highlight: string | null;
+  isParticipant: boolean;
+  unitWord: string;
+}) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{
+        display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4,
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: accent, fontFamily: "'Space Mono', monospace" }}>{title}</div>
+        {!isParticipant && (
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>· NOT ACTIVE FOR YOU</div>
+        )}
+      </div>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>{subtitle}</div>
+      <div style={{
+        display: "flex", flexDirection: "column", gap: 4,
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: 12, padding: 6,
+      }}>
+        {tiers.map(t => {
+          const me = highlight === t.label && isParticipant;
+          return (
+            <div key={t.label} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "8px 10px",
+              background: me ? t.bg : "transparent",
+              border: `1px solid ${me ? t.border : "transparent"}`,
+              borderRadius: 8,
+            }}>
+              <div style={{ fontSize: 22, lineHeight: 1, filter: me ? `drop-shadow(0 0 6px ${t.color})` : "none" }}>{t.emoji}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 13, fontWeight: 700,
+                  color: me ? t.color : "rgba(255,255,255,0.85)",
+                  letterSpacing: 0.5,
+                }}>{t.label}</div>
+                <div style={{
+                  fontSize: 10, color: "rgba(255,255,255,0.4)",
+                  fontFamily: "'Space Mono', monospace", letterSpacing: 1,
+                }}>{t.min}+ {unitWord}</div>
+              </div>
+              {me && (
+                <div style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: 2,
+                  color: t.color, background: t.bg,
+                  border: `1px solid ${t.border}`, borderRadius: 4,
+                  padding: "3px 7px", fontFamily: "'Space Mono', monospace",
+                }}>YOU</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN ───────────────────────────────────────────────────────────────
 function HomePage() {
   const [user, setUser] = useState<{ id: string; username: string; role: string; extraRoles?: string[]; roleRequest?: string | null; createdAt?: string } | null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
+  // Tier info modal — opened from any of the tier pills on the welcome
+  // card or the Settings IDENTITY card so users can see what other
+  // tiers exist and that "Coach" is a tier of trainers, not a role.
+  const [tierModalOpen, setTierModalOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [appTheme, setAppTheme] = useState<"iron"|"mono"|"vivid">("iron");
   const [accentColor, setAccentColor] = useState("#FF6B6B");
@@ -5773,14 +5964,66 @@ function HomePage() {
           <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(10,10,18,0.48)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, cursor: "pointer", textAlign: "left", padding: "12px 16px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 24px -6px rgba(0,0,0,0.7)", display: "flex", alignItems: "center", gap: 12 }}>
             <img src="/ai/avatar-default.png" alt="" style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: -0.5 }}>{user.username}</div>
-              {userHasRole(user, "trainer") && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()} · TRAINER</span>; })()}
-              {userHasRole(user, "admin") && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
-              {user.role === "user" && (() => { const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
-              {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
-              <span style={{ marginLeft: "auto", fontSize: 14, color: "rgba(255,255,255,0.25)" }}>›</span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
+              <span style={{ fontSize: 14, color: "rgba(255,255,255,0.25)" }}>›</span>
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: -0.5, marginTop: 5 }}>{user.username}</div>
+            {/* Tier pills — separate ROLE labels from TIER badges so users
+                can tell that "Coach" / "Tiger" are tiers, not roles. Tapping
+                any tier badge stops the parent button + opens the tier
+                explainer modal. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, flexWrap: "wrap" }}>
+              {/* Role labels first — clear "what am I" indicators. */}
+              {userHasRole(user, "admin") && (
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>
+              )}
+              {userHasRole(user, "trainer") && (
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 4, padding: "2px 6px" }}>TRAINER</span>
+              )}
+              {user.role === "user" && !userHasRole(user, "trainer") && (
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, padding: "2px 6px" }}>ATHLETE</span>
+              )}
+              {user.role === "user" && user.roleRequest && (
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>
+              )}
+
+              {/* Trainer TIER badge — explicit "TIER" word so "Coach" isn't
+                  mistaken for a role. Tappable → opens the tier-info modal. */}
+              {userHasRole(user, "trainer") && (() => {
+                const t = getTrainerTier(clients.length);
+                const idx = TRAINER_TIERS.findIndex(x => x.label === t.label);
+                return (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }}
+                    title={`Trainer tier · tap to see how tiers work`}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 7px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                  >
+                    <span style={{ fontSize: 11 }}>{t.emoji}</span>
+                    <span>{t.label.toUpperCase()} · TIER {idx + 1}/{TRAINER_TIERS.length}</span>
+                    <span style={{ opacity: 0.55, marginLeft: 2 }}>ⓘ</span>
+                  </button>
+                );
+              })()}
+
+              {/* Athlete TIER badge — shown for athletes AND for trainers
+                  who also lift (so a trainer can see both their ladders).
+                  Same tap-to-explain affordance. */}
+              {(() => {
+                const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length);
+                const idx = CLIENT_TIERS.findIndex(x => x.label === t.label);
+                return (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }}
+                    title={`Athlete tier · tap to see how tiers work`}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 7px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                  >
+                    <span style={{ fontSize: 11 }}>{t.emoji}</span>
+                    <span>{t.label.toUpperCase()} · TIER {idx + 1}/{CLIENT_TIERS.length}</span>
+                    <span style={{ opacity: 0.55, marginLeft: 2 }}>ⓘ</span>
+                  </button>
+                );
+              })()}
             </div>
             </div>
           </button>
@@ -7770,22 +8013,83 @@ function HomePage() {
               "me" and "the app" stay distinct. ── */}
           <SettingsSectionHeader label="YOUR PROFILE" icon="👤" color="rgba(255,107,107,0.7)" />
 
-          {/* Profile card */}
+          {/* Profile card — identity, roles, and current tier badges.
+              Tier badges are tappable to open the same TierInfoModal as
+              the welcome card so users have one consistent surface for
+              "what does Coach mean / what other tiers exist?". */}
           <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 12 }}>IDENTITY</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-                <img src="/ai/avatar-default.png" alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.3), 0 6px 18px rgba(255,107,107,0.18)" }} />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Member since registration</div>
-                </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, marginBottom: 14 }}>
+              <img src="/ai/avatar-default.png" alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.3), 0 6px 18px rgba(255,107,107,0.18)" }} />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Member since registration</div>
               </div>
-              {isTrainer
-                ? <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 6, padding: "4px 10px" }}>TRAINER</span>
-                : <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "4px 10px" }}>USER</span>
-              }
             </div>
+
+            {/* Role labels — explicit "what am I" indicators. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>ROLE</span>
+              {userHasRole(user, "admin") && (
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 6, padding: "3px 10px" }}>ADMIN</span>
+              )}
+              {isTrainer && (
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 6, padding: "3px 10px" }}>TRAINER</span>
+              )}
+              {!isTrainer && !userHasRole(user, "admin") && (
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 10px" }}>ATHLETE</span>
+              )}
+            </div>
+
+            {/* Tier badges — both ladders the user participates in. The
+                explicit "TIER N/M" suffix makes "Coach" / "Tiger" read
+                unambiguously as positions on a ladder rather than as
+                role names. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>TIERS</span>
+              {isTrainer && (() => {
+                const t = getTrainerTier(clients.length);
+                const idx = TRAINER_TIERS.findIndex(x => x.label === t.label);
+                return (
+                  <button
+                    onClick={() => setTierModalOpen(true)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                  >
+                    <span style={{ fontSize: 12 }}>{t.emoji}</span>
+                    <span>{t.label.toUpperCase()} · TRAINER TIER {idx + 1}/{TRAINER_TIERS.length}</span>
+                  </button>
+                );
+              })()}
+              {(() => {
+                const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length);
+                const idx = CLIENT_TIERS.findIndex(x => x.label === t.label);
+                return (
+                  <button
+                    onClick={() => setTierModalOpen(true)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                  >
+                    <span style={{ fontSize: 12 }}>{t.emoji}</span>
+                    <span>{t.label.toUpperCase()} · ATHLETE TIER {idx + 1}/{CLIENT_TIERS.length}</span>
+                  </button>
+                );
+              })()}
+            </div>
+
+            <button
+              onClick={() => setTierModalOpen(true)}
+              style={{
+                width: "100%", padding: "10px 12px",
+                background: "rgba(255,107,107,0.06)",
+                border: "1px dashed rgba(255,107,107,0.3)",
+                borderRadius: 10,
+                color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1.5,
+                fontFamily: "'Space Mono', monospace", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+              }}
+            >
+              <span>🏆 HOW TIERS WORK — SEE BOTH LADDERS</span>
+              <span style={{ opacity: 0.65 }}>→</span>
+            </button>
           </div>
 
           {/* Body & Stats */}
@@ -10758,6 +11062,18 @@ function HomePage() {
         </motion.div>
       </AnimatePresence>
       <QuickFeedbackFab username={user?.username || ""} view={view} />
+      {/* Tier info modal — global so any tier pill (home welcome card or
+          Settings IDENTITY card) can open it without view-specific wiring. */}
+      <TierInfoModal
+        open={tierModalOpen}
+        onClose={() => setTierModalOpen(false)}
+        isAthlete={true}
+        isTrainer={userHasRole(user, "trainer")}
+        athleteTier={user ? getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length) : null}
+        trainerTier={userHasRole(user, "trainer") ? getTrainerTier(clients.length) : null}
+        athleteUnit="more sessions, PRs, streak & habits unlock the next tier"
+        trainerUnit="more active clients unlocks the next tier"
+      />
     </>
   );
 }

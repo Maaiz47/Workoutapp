@@ -1,6 +1,66 @@
 {
   "items": [
     {
+      "id": "tier-pills-clarity",
+      "title": "Welcome card pills make COACH unmistakably a TIER of TRAINERS",
+      "area": "UI",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass tier-clarity",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Log in as a trainer (or admin with the trainer extra-role). Open the home view.",
+        "Confirm the welcome card now shows the username on its own line, then a SEPARATE row of pills below it",
+        "Confirm the row contains in order: an 'ADMIN' pill (if applicable), a 'TRAINER' role pill, a trainer-tier pill like '🎯 COACH · TIER 2/4', and an athlete-tier pill like '🐯 TIGER · TIER 4/6'",
+        "Confirm the TIER pills explicitly contain the word 'TIER' followed by N/M position — leaves no doubt that COACH is a position on a ladder, not a duplicate role",
+        "Confirm both TIER pills carry a small ⓘ indicator and are tappable (cursor:pointer)",
+        "Tap either TIER pill — the tier-info modal should open and the parent welcome-card button should NOT navigate to Settings (event.stopPropagation works)",
+        "Log in as a pure athlete (role=user, no trainer extra-role) — confirm only an ATHLETE role pill + ONE athlete-tier pill render",
+        "If the athlete has a pending trainer request, confirm the REVIEWING pill still appears alongside",
+        "On narrow phones, confirm the pill row wraps cleanly without horizontal scroll"
+      ],
+      "notes": "[2026-05-21] Slice 1/N: rebuilt the welcome card to separate ROLE labels from TIER badges. Each TIER badge shows '<icon> <label> · TIER N/M' so 'Coach' is unambiguous as a tier position. ⓘ glyph + tappable affordance opens the new TierInfoModal. For trainers, BOTH tier ladders are surfaced (trainer tier + their personal athlete tier) so the user can see their full standing at a glance. Next slice: animate the pill on tap; show a tiny progress dot when the user is close to the next tier."
+    },
+    {
+      "id": "tier-info-modal",
+      "title": "Tier info modal — explains the tier system + both ladders",
+      "area": "UI",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass tier-clarity",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "From the home welcome card, tap any TIER pill (athlete or trainer). A bottom-sheet modal '🏆 HOW TIERS WORK · Two ladders, one app' should open",
+        "Confirm the intro paragraph explicitly says 'Coach is a tier of trainers, not a separate role'",
+        "Confirm the ATHLETE LADDER renders all 6 animal tiers (Kitten → Gorilla) in order, each with its emoji, label, and threshold (e.g. '5+ sessions')",
+        "Confirm the TRAINER LADDER renders all 4 badge tiers (Rookie → Elite) in order with thresholds (e.g. '3+ clients')",
+        "If you ARE that ladder's participant, your current tier row should be highlighted with the tier colour + a 'YOU' chip on the right",
+        "If you're NOT on that ladder (e.g. an athlete looking at the trainer ladder), the title should append '· NOT ACTIVE FOR YOU' and no row is highlighted",
+        "Trainers should see BOTH ladders highlighted (because they're on both)",
+        "Tap the X or the backdrop to close — modal should dismiss",
+        "Open the same modal from Settings → YOUR PROFILE → IDENTITY → '🏆 HOW TIERS WORK — SEE BOTH LADDERS' button — confirm it shows the same content"
+      ],
+      "notes": "[2026-05-21] Slice 1/N: new TierInfoModal renders both ladders with thresholds visible and highlights the visitor's row on each ladder they participate in. Opens from any tier pill on the home card AND from a dedicated button in Settings → IDENTITY. Modal copy explicitly distinguishes role-vs-tier so 'Coach' / 'Tiger' / 'Elite' read as ladder positions, never as separate roles. Next slice: link 'YOU' row to Progress → Dashboard's per-stat breakdown card so the user can drill in."
+    },
+    {
+      "id": "settings-identity-tiers",
+      "title": "Settings IDENTITY card — both tier badges visible + How Tiers Work button",
+      "area": "UI",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass tier-clarity",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → YOUR PROFILE → IDENTITY card",
+        "Confirm the card now shows avatar + @username on one row, then a 'ROLE' label with role pills (ADMIN / TRAINER / ATHLETE), then a 'TIERS' label with both tier pills (trainer tier if applicable + athlete tier always)",
+        "Confirm each tier pill reads e.g. '🎯 COACH · TRAINER TIER 2/4' — the word 'TRAINER TIER' / 'ATHLETE TIER' eliminates any chance of confusion",
+        "Confirm a dashed '🏆 HOW TIERS WORK — SEE BOTH LADDERS →' button sits below the pills",
+        "Tap any tier pill OR the dashed button — the same TierInfoModal as the home card should open",
+        "Log in as a pure athlete — confirm the TRAINER role pill is absent and only the ATHLETE tier pill renders, but the HOW TIERS WORK button still opens the modal (which then shows the trainer ladder labelled 'NOT ACTIVE FOR YOU')"
+      ],
+      "notes": "[2026-05-21] Slice 1/N: IDENTITY card extended to show role labels + both tier badges + a 'how tiers work' button so the user has a one-stop place to understand their ranking. Mirrors the welcome-card layout for consistency."
+    },
+    {
       "id": "auth-register",
       "title": "User registration — athlete flow",
       "area": "Auth",

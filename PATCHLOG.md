@@ -2,6 +2,66 @@
 
 ---
 
+## Feature · 2026-05-21 — Tier clarity: COACH is unmistakably a TIER + both ladders visible (qa: tier-pills-clarity, tier-info-modal, settings-identity-tiers)
+
+### Background
+User feedback flagged that the welcome card pill `🎯 COACH · TRAINER`
+was ambiguous: is COACH a role, a separate title, or a tier? There
+was also no surface anywhere in the app that explained the tier
+system, listed the other tiers that exist, or let a trainer see
+their own athlete tier alongside their trainer tier.
+
+### Added
+- **`TierInfoModal`** — bottom-sheet that explains the tier system
+  with one declarative line ("Coach is a tier of trainers, not a
+  separate role") and renders BOTH ladders in full: athlete (Kitten →
+  Gorilla, 6 tiers) and trainer (Rookie → Elite, 4 tiers). Each row
+  shows the threshold for that tier. The visitor's current tier row
+  on each ladder they participate in is highlighted with the tier
+  colour + a "YOU" chip. Ladders the visitor isn't on are still
+  rendered but tagged "NOT ACTIVE FOR YOU".
+- **`TierLadder`** — reusable presentational component used inside
+  the modal.
+
+### Changed — welcome card pills
+- Split the cramped single pill `🎯 COACH · TRAINER` into a clearer
+  row of separate badges. Role labels (ADMIN, TRAINER, ATHLETE) come
+  first as small monospace chips; tier badges come after as tappable
+  pills with explicit `· TIER N/M` suffixes (e.g. `🎯 COACH · TIER
+  2/4`). Each tier pill carries a ⓘ glyph and opens the new
+  TierInfoModal on tap (via stopPropagation so the parent welcome
+  card button doesn't simultaneously navigate to Settings).
+- **For trainers, BOTH ladders are now visible in the pill row**:
+  their trainer tier AND their athlete tier — so a coaching user
+  can see their full standing at a glance, addressing the explicit
+  "make their athlete tier visible right there too" feedback.
+
+### Changed — Settings IDENTITY card
+- Reworked the IDENTITY card under YOUR PROFILE to mirror the
+  welcome-card pill layout: a "ROLE" labelled row of role badges,
+  then a "TIERS" labelled row with both tier pills using the
+  long-form `· TRAINER TIER N/M` / `· ATHLETE TIER N/M` suffix
+  for absolute clarity.
+- Added a dashed "🏆 HOW TIERS WORK — SEE BOTH LADDERS →" button
+  that opens the same TierInfoModal so Settings has a discoverable
+  entry point too.
+
+### QA tracking
+- Added three items: `tier-pills-clarity` (welcome card),
+  `tier-info-modal` (the explainer modal), `settings-identity-tiers`
+  (Settings IDENTITY card). All in `regression-retest`.
+
+### Next slices (not in this pass)
+- A standalone TRAINER tier card on Progress → Dashboard mirroring
+  the existing athlete tier card (with the 4 sub-rank bars from
+  `computeTrainerTier`). Currently only the athlete card lives
+  there; trainers can see the full breakdown for athletes but only
+  a headline for themselves.
+- Wire the modal's "YOU" rows to deep-link into Progress →
+  Dashboard so users can jump from explainer to per-stat detail.
+
+---
+
 ## QA-design review · 2026-05-21 — Micro-testing + commenting along the way + Settings reorg (qa: quick-feedback-fab, settings-send-feedback, settings-reorg)
 
 ### Audit findings
