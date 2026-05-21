@@ -2,6 +2,39 @@
 
 ---
 
+## Feature · 2026-05-21 (as) — home polish v2 + tier intuitiveness (qa: home-polish-v2, tier-system-intuitive)
+
+### Changed — home
+- Hero height 220→200; tagline stays inside the hero at `top: 62%`
+  (user confirmed overlaid-on-hero is the right placement).
+- **Daily Quest compressed** from full card to a slim single-row
+  chip (icon · `QUEST` label · title · ›). Body text moved to a
+  tap-info modal.
+- **Daily Quest tappable** — opens an info modal with full body +
+  context-aware action: hydration / sleep / energy quests get an
+  `▸ OPEN WELLNESS` deep-link to Progress → Dashboard; behavioural
+  quests get a `GOT IT` acknowledge button.
+- **Dynamic day-card heights**: 1 day → 420px (hero card filling
+  the screen); 2 days → 260px; 3 days → 178px; 4-6 days → 138px in
+  2-col. No more dead black space when the user has only 1-2 days
+  in their split.
+- **Day-card expand overlay** — title + focus + `▶ START WORKOUT`
+  now vertically centered with flex (was glued to the bottom edge).
+
+### Redesigned — tier card
+- `tier-system-intuitive`: tier card on Progress → Dashboard now
+  obviously a tier system at a glance:
+  - **`🏆 YOUR RANK · TIER N OF 6`** explicit header at the top.
+  - Bigger animal icon (58px) + bigger name (26px caps).
+  - **Horizontal ladder of all 6 animals** below — current
+    highlighted with glow, past tiers full-colour, future tiers
+    greyed.
+  - Explicit `OVERALL SCORE · N / next-min → NEXT TIER` row.
+  - `5 STATS FEED THIS RANK` label above the sub-rank grid so
+    cause-and-effect is unmistakable.
+
+---
+
 ## Feature · 2026-05-21 (ar) — milestone info overlay + trainers see athlete tier (qa: milestone-info-overlay, tier-trainer-keeps-athlete)
 
 ### Added

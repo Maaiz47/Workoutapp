@@ -836,6 +836,45 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "home-polish-v2",
+      "title": "Home polish v2: tagline placement · Daily Quest compressed · dynamic card heights · centered START · Daily Quest tap-info",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass home-polish-v2",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open home — verify LIFT · TRACK · PROGRESS sits visually centered in the lower portion of the hero (over the barbell image), with the phrase italic below",
+        "Verify the Daily Quest now renders as a SLIM single-row chip (icon · 'QUEST' label · title · › chevron). No big body text or padded card",
+        "Tap the Daily Quest chip — verify an info modal opens with the icon, full title, body text. For hydration/sleep/energy quests it shows an 'OPEN WELLNESS' button that deep-links to Progress → Dashboard; for train/PR/RPE quests it shows a 'GOT IT' acknowledgement button",
+        "If you have 1 workout day in your split, verify the day card is BIG (~420px) filling the available space",
+        "If you have 2 workout days, verify each card is medium (~260px)",
+        "If you have 3 days, verify cards are ~178px single-column",
+        "If you have 4-6 days, verify cards stay compact (138px, 2-col)",
+        "Tap a day card → verify the expanding overlay now has title + START WORKOUT centered VERTICALLY on screen (not glued to the bottom)",
+        "Tap ← Back on the overlay — verify it collapses cleanly"
+      ],
+      "notes": "[2026-05-21] Hero height 220→200. Tagline kept inside hero at top: 62% (user confirmed this is the right placement). Daily Quest compressed from full card with body+title+label to a 36px-tall single-row chip with chevron. Tap opens questInfo modal — wellness-related quests deep-link to Progress → Dashboard; behavioural ones just acknowledge. Dynamic card heights: plan.length 1 → 420px, 2 → 260px, 3 → 178px, 4+ → 138px (2-col). Day-card expand overlay vertically centers title + focus + START WORKOUT button with flex justifyContent: center."
+    },
+    {
+      "id": "tier-system-intuitive",
+      "title": "Tier system header re-design — obvious rank ladder with TIER N OF 6 + animal ladder",
+      "area": "Progress",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass tier-intuitive",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard. Verify the tier card now leads with '🏆 YOUR RANK · TIER N OF 6' clearly visible at the top so it's instantly identifiable as a tier system",
+        "Verify the headline animal name (KITTEN/MONKEY/FOX/TIGER/LION/GORILLA) is now BIG (26px) and rendered in caps next to a bigger icon (58px)",
+        "Verify a horizontal ladder of all 6 animals is shown below — current tier highlighted (bigger icon + glow); past tiers full-colour; future tiers greyed out",
+        "Verify the overall score row shows 'OVERALL SCORE · N / next-min → NEXT-TIER' so the user knows the exact score breakpoints",
+        "Verify '5 STATS FEED THIS RANK' label sits above the 5 sub-rank cards making the cause-effect obvious",
+        "Trainers and admins should ALSO see this card (no role gate)"
+      ],
+      "notes": "[2026-05-21] Tier card header completely rebuilt to be obviously a tier system: '🏆 YOUR RANK' + 'TIER N OF 6' explicit header, bigger animal icon (58px) + bigger name (26px in caps), horizontal animal ladder of all 6 tiers (current highlighted/glowing, past coloured, future greyed), explicit OVERALL SCORE row with breakpoint, '5 STATS FEED THIS RANK' label above the sub-rank grid."
+    },
+    {
       "id": "tier-trainer-keeps-athlete",
       "title": "Trainers see their athlete tier on Progress dashboard too",
       "area": "Progress",

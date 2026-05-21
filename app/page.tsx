@@ -2346,6 +2346,10 @@ function HomePage() {
   // the unlock requirement for locked entries. Triggered from the
   // achievements wall in Settings.
   const [milestoneInfo, setMilestoneInfo] = useState<{ milestone: Milestone; earned: boolean } | null>(null);
+  // Daily Quest info modal — shows the full body + a context-aware
+  // "OPEN" deep-link to wherever the quest is actually completed
+  // (Wellness card for hydration / sleep / energy quests, etc).
+  const [questInfo, setQuestInfo] = useState<{ icon: string; title: string; body: string; done: boolean; action: { label: string; tab?: "dashboard" | "exercises" | "history" | "body" } | null } | null>(null);
   // Daily pro tip — picked deterministically by date so it stays stable
   // across home reloads, refreshes once per day.
   const [dismissedTodayTip, setDismissedTodayTip] = useState(false);
@@ -5188,25 +5192,65 @@ function HomePage() {
                   <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: d.color, fontWeight: 700, background: "rgba(0,0,0,0.55)", borderRadius: 8, padding: "5px 12px", backdropFilter: "blur(8px)", letterSpacing: 2 }}>{d.label}</span>
                 </div>
               </motion.div>
-              {/* Title + focus + START button — animated in after the
-                  layout transition settles, so the text doesn't try to
-                  morph alongside the card image. */}
+              {/* Title + focus + START button — vertically centered on
+                  the expanded image rather than glued to the bottom edge,
+                  so the user's eyes land on START without scrolling. */}
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.18, duration: 0.25 }}
-                style={{ position: "absolute", left: 0, right: 0, bottom: "calc(40px + env(safe-area-inset-bottom, 0px))", padding: "0 24px", textAlign: "center", zIndex: 2 }}
+                style={{ position: "absolute", inset: 0, padding: "0 24px", textAlign: "center", zIndex: 2, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", pointerEvents: "none" }}
               >
-                <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: -0.5, lineHeight: 1.15, textShadow: "0 4px 24px rgba(0,0,0,0.8)" }}>{d.title}</div>
-                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginTop: 8, textShadow: "0 2px 12px rgba(0,0,0,0.7)" }}>{d.focus}</div>
+                <div style={{ fontSize: 34, fontWeight: 800, color: "#fff", letterSpacing: -0.5, lineHeight: 1.15, textShadow: "0 4px 24px rgba(0,0,0,0.9)" }}>{d.title}</div>
+                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", marginTop: 8, textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}>{d.focus}</div>
                 <button
                   onClick={() => { openDay(d); setExpandingDay(null); }}
-                  style={{ marginTop: 28, padding: "16px 48px", background: d.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 14, fontWeight: 800, letterSpacing: 3, fontFamily: "'Space Mono', monospace", cursor: "pointer", boxShadow: `0 8px 28px ${d.color}55`, minWidth: 240 }}
+                  style={{ marginTop: 32, padding: "16px 48px", background: d.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 14, fontWeight: 800, letterSpacing: 3, fontFamily: "'Space Mono', monospace", cursor: "pointer", boxShadow: `0 8px 28px ${d.color}55`, minWidth: 240, pointerEvents: "auto" }}
                 >▶ START WORKOUT</button>
               </motion.div>
             </motion.div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* Daily Quest info modal — opened by tapping the quest chip on
+          home. Shows the full body + an OPEN action that deep-links
+          to wherever the quest is actually completed. */}
+      <AnimatePresence>
+        {questInfo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setQuestInfo(null)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 12 }}
+              animate={{ scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 240, damping: 22 }}
+              onClick={e => e.stopPropagation()}
+              style={{ maxWidth: 360, width: "100%", background: "#0a0a0a", border: `1px solid ${questInfo.done ? "rgba(46,204,113,0.4)" : "rgba(253,203,110,0.4)"}`, borderRadius: 18, padding: 24, position: "relative" }}
+            >
+              <button onClick={() => setQuestInfo(null)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+              <div style={{ fontSize: 56, lineHeight: 1, marginBottom: 14, textAlign: "center" }}>{questInfo.icon}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 3, textAlign: "center", marginBottom: 8, fontFamily: "'Space Mono', monospace", color: questInfo.done ? "#2ecc71" : "#fdcb6e" }}>
+                {questInfo.done ? "✓ QUEST COMPLETE" : "DAILY QUEST"}
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", textAlign: "center", marginBottom: 12, lineHeight: 1.2 }}>{questInfo.title}</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", textAlign: "center", lineHeight: 1.5, marginBottom: 18 }}>{questInfo.body}</div>
+              {questInfo.action && questInfo.action.tab && (
+                <button
+                  onClick={() => { goTo("progress"); if (questInfo.action?.tab) setProgressTab(questInfo.action.tab); setQuestInfo(null); }}
+                  style={{ width: "100%", padding: "12px 16px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 800, letterSpacing: 2, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                >▸ {questInfo.action.label}</button>
+              )}
+              {questInfo.action && !questInfo.action.tab && (
+                <button onClick={() => setQuestInfo(null)} style={{ width: "100%", padding: "12px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 700, letterSpacing: 2, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{questInfo.action.label}</button>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* First-launch / restart tutorial overlay */}
@@ -5303,14 +5347,13 @@ function HomePage() {
         </div>
       )}
       {/* Full-bleed hero — profile button floats over image, no solid wrapper.
-          Height trimmed from 290→220 so the session cards can sit higher.
-          The tagline (LIFT · TRACK · PROGRESS + phrase) is now visually
-          centered between the profile chip (top) and the cards section
-          (bottom) rather than glued to the hero's bottom edge. */}
-      <div style={{ position: "relative", height: 220, overflow: "hidden", zIndex: 5 }}>
+          Shorter now (200px). Tagline lives OUTSIDE the hero so it sits in
+          the actual dark space between the profile chip and the cards
+          section, not glued to the lower portion of the barbell image. */}
+      <div style={{ position: "relative", height: 200, overflow: "hidden", zIndex: 5 }}>
         <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", top: "-30px", left: 0, width: "100%", height: "calc(100% + 80px)", objectFit: "cover", opacity: 0.65 }} />
         {/* Gradient: dark at top for status bar readability, clear in middle, dark at bottom for text */}
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.88) 0%, rgba(10,10,15,0.35) 28%, rgba(10,10,15,0) 50%, rgba(10,10,15,0) 60%, rgba(10,10,15,0.94) 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.88) 0%, rgba(10,10,15,0.35) 28%, rgba(10,10,15,0) 50%, rgba(10,10,15,0) 65%, rgba(10,10,15,1) 100%)" }} />
         {/* Profile button — floats over the image */}
         <div ref={profileWrapperRef} style={{ position: "absolute", top: 14, left: 16, right: 16, zIndex: 10, transition: "transform 0.25s ease, opacity 0.25s ease", willChange: "transform" }}>
           <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(10,10,18,0.48)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, cursor: "pointer", textAlign: "left", padding: "12px 16px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 24px -6px rgba(0,0,0,0.7)", display: "flex", alignItems: "center", gap: 12 }}>
@@ -5328,19 +5371,16 @@ function HomePage() {
             </div>
           </button>
         </div>
-        {/* LIFT / TRACK / PROGRESS + phrase — now anchored ~58% down the
-            hero so it sits visually between the profile chip and the
-            cards section beneath. */}
-        <div style={{ position: "absolute", top: "58%", left: 0, right: 0, transform: "translateY(-50%)", textAlign: "center", pointerEvents: "none" }}>
+        {/* LIFT / TRACK / PROGRESS + phrase — overlaid on the lower
+            half of the hero image so it sits visually between the
+            profile chip (top) and the cards section beneath. */}
+        <div style={{ position: "absolute", top: "62%", left: 0, right: 0, transform: "translateY(-50%)", textAlign: "center", pointerEvents: "none" }}>
           <div style={{ fontSize: 18, color: "rgba(255,255,255,0.85)", letterSpacing: 7, fontFamily: "'Space Mono', monospace", fontWeight: 700, textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>LIFT · TRACK · PROGRESS</div>
           <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 16, color: "rgba(255,255,255,0.62)", fontStyle: "italic", marginTop: 9, fontFamily: "'DM Sans', sans-serif", textShadow: "0 1px 10px rgba(0,0,0,0.7)" }}>{phrase}</div>
         </div>
       </div>
 
-      {/* Fade overlay between the barbell image and the cards section.
-          Sits absolutely positioned at the top of the content area below
-          the hero — fades from transparent (where it overlaps the hero's
-          bottom) to opaque black at ~60px down, so there's no hard seam. */}
+      {/* Fade between hero and cards section so the transition isn't a hard line. */}
       <div aria-hidden style={{ position: "relative", height: 0, zIndex: 6 }}>
         <div style={{ position: "absolute", top: -40, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom, rgba(10,10,15,0) 0%, rgba(10,10,15,0.85) 60%, rgba(10,10,15,1) 100%)", pointerEvents: "none" }} />
       </div>
@@ -5395,16 +5435,26 @@ function HomePage() {
           };
           const done = q.isDone(state);
           return (
-            <div style={{ background: done ? "rgba(46,204,113,0.08)" : "rgba(253,203,110,0.06)", border: `1px solid ${done ? "rgba(46,204,113,0.3)" : "rgba(253,203,110,0.25)"}`, borderRadius: 12, padding: "10px 12px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 22 }}>{q.icon}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                  <span style={{ fontSize: 9, color: done ? "#2ecc71" : "#fdcb6e", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{done ? "✓ QUEST COMPLETE" : "DAILY QUEST"}</span>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginTop: 1 }}>{q.title}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1, lineHeight: 1.4 }}>{q.body}</div>
-              </div>
-            </div>
+            <button
+              onClick={() => {
+                // Pick a sensible deep-link for each quest type so tap →
+                // immediately go where you'd complete it.
+                let action: { label: string; tab?: "dashboard" | "exercises" | "history" | "body" } | null = null;
+                if (q.id === "q-hydrate" || q.id === "q-sleep" || q.id === "q-energy" || q.id === "q-double") {
+                  action = { label: "OPEN WELLNESS", tab: "dashboard" };
+                } else if (q.id === "q-train" || q.id === "q-pr-hunt" || q.id === "q-rpe") {
+                  action = { label: "GOT IT", tab: undefined };
+                }
+                setQuestInfo({ icon: q.icon, title: q.title, body: q.body, done, action });
+              }}
+              style={{ width: "100%", background: done ? "rgba(46,204,113,0.08)" : "rgba(253,203,110,0.05)", border: `1px solid ${done ? "rgba(46,204,113,0.3)" : "rgba(253,203,110,0.22)"}`, borderRadius: 10, padding: "6px 10px", marginBottom: 8, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}
+              title={q.body}
+            >
+              <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{q.icon}</span>
+              <span style={{ fontSize: 9, color: done ? "#2ecc71" : "#fdcb6e", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0 }}>{done ? "✓" : "QUEST"}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{q.title}</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>›</span>
+            </button>
           );
         })()}
 
@@ -5482,6 +5532,15 @@ function HomePage() {
         {(() => {
           const plan = customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA;
           const twoCol = plan.length >= 4;
+          // Dynamic card heights. With only 1-3 days the user gets BIG
+          // cards filling the remaining viewport instead of leaving dead
+          // black space below. 4-6 days pack tighter so all rows fit.
+          const dynamicHeight = (() => {
+            if (twoCol) return 138;              // 2-col, 3 rows for 5-6 days
+            if (plan.length === 1) return 420;   // single huge hero card
+            if (plan.length === 2) return 260;   // two big cards
+            return 178;                          // 3 days, medium
+          })();
           return (
             <div style={twoCol ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } : {}}>
               {plan.map((d, i) => {
@@ -5513,7 +5572,7 @@ function HomePage() {
                       transition={{ type: "spring", stiffness: 280, damping: 30 }}
                       style={{
                         borderRadius: 20,
-                        height: twoCol ? 138 : 178,
+                        height: dynamicHeight,
                         position: "relative",
                         overflow: "hidden",
                         border: isActive ? `1px solid ${d.color}70` : `1px solid ${d.color}22`,
@@ -7914,22 +7973,58 @@ function HomePage() {
               const curMin = ATHLETE_TIERS[tierIdx].min;
               const progress = next ? Math.min(1, Math.max(0, (breakdown.headlineScore - curMin) / (next.min - curMin))) : 1;
               return (
-                <div style={{ position: "relative", background: "linear-gradient(135deg, rgba(240,192,64,0.10), rgba(225,112,85,0.04) 60%, rgba(240,192,64,0.02))", border: "1px solid rgba(240,192,64,0.22)", borderRadius: 16, padding: "18px 20px", marginBottom: 14, overflow: "hidden", boxShadow: "0 4px 24px -8px rgba(240,192,64,0.18), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
+                <div style={{ position: "relative", background: "linear-gradient(135deg, rgba(240,192,64,0.10), rgba(225,112,85,0.04) 60%, rgba(240,192,64,0.02))", border: "1px solid rgba(240,192,64,0.22)", borderRadius: 16, padding: "16px 20px 18px", marginBottom: 14, overflow: "hidden", boxShadow: "0 4px 24px -8px rgba(240,192,64,0.18), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
                   <div aria-hidden style={{ position: "absolute", top: -40, right: -40, width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle, rgba(240,192,64,0.18), transparent 70%)", pointerEvents: "none" }} />
-                  {/* Header row */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14, position: "relative" }}>
-                    <div style={{ fontSize: 44, lineHeight: 1, filter: "drop-shadow(0 2px 8px rgba(240,192,64,0.35))" }}>{tier.icon}</div>
+
+                  {/* Explicit tier-system header — leaves no doubt this
+                      is a ranking ladder, not a generic stat card. */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12, position: "relative" }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#f0c040", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>🏆 YOUR RANK</div>
+                    <div style={{ fontSize: 9, color: "rgba(240,192,64,0.6)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>TIER {tierIdx + 1} OF {ATHLETE_TIERS.length}</div>
+                  </div>
+
+                  {/* Headline tier — big icon + big name. Plus experience
+                      badge as a sibling chip so it's not confusable with
+                      the headline name. */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12, position: "relative" }}>
+                    <div style={{ fontSize: 58, lineHeight: 1, filter: "drop-shadow(0 4px 14px rgba(240,192,64,0.45))" }}>{tier.icon}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: "#f0c040", letterSpacing: 0.3 }}>{tier.label}</div>
-                        <div style={{ fontSize: 10, color: expM.color, background: `${expM.color}1A`, border: `1px solid ${expM.color}55`, padding: "2px 6px", borderRadius: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, fontWeight: 700 }}>{expM.icon} {expM.label}</div>
-                      </div>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 4 }}>SCORE {breakdown.headlineScore} {next ? `· NEXT ${next.icon} ${next.label.toUpperCase()} AT ${next.min}` : "· MAX RANK"}</div>
-                      <div style={{ marginTop: 6, height: 4, background: "rgba(240,192,64,0.10)", borderRadius: 2, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)" }}>
-                        <div style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #f0c040, #e17055)", borderRadius: 2, transition: "width 0.5s" }} />
-                      </div>
+                      <div style={{ fontSize: 26, fontWeight: 800, color: "#f0c040", letterSpacing: -0.3, lineHeight: 1 }}>{tier.label.toUpperCase()}</div>
+                      <div style={{ display: "inline-flex", marginTop: 6, fontSize: 10, color: expM.color, background: `${expM.color}1A`, border: `1px solid ${expM.color}55`, padding: "3px 8px", borderRadius: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, fontWeight: 700 }}>{expM.icon} {expM.label}</div>
                     </div>
                   </div>
+
+                  {/* Tier ladder — 6 dots horizontally with the current
+                      one highlighted big. Visually shows "you are here,
+                      these are the others, this is the path". */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "0 4px", position: "relative" }}>
+                    {ATHLETE_TIERS.map((t, i) => {
+                      const reached = i <= tierIdx;
+                      const isCurrent = i === tierIdx;
+                      return (
+                        <div key={t.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, opacity: reached ? 1 : 0.35 }}>
+                          <div style={{ fontSize: isCurrent ? 22 : 16, lineHeight: 1, filter: isCurrent ? `drop-shadow(0 0 8px ${t.color})` : reached ? "none" : "grayscale(1)", transition: "all 0.3s" }}>{t.icon}</div>
+                          <div style={{ fontSize: 7, color: isCurrent ? t.color : "rgba(255,255,255,0.4)", marginTop: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 1, fontWeight: 700 }}>{t.label.toUpperCase().slice(0, 6)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Headline score + path-to-next progress bar. */}
+                  <div style={{ position: "relative", marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>OVERALL SCORE</div>
+                      <div style={{ fontSize: 13, color: "#f0c040", fontFamily: "'Space Mono', monospace", letterSpacing: 1, fontWeight: 700 }}>
+                        {breakdown.headlineScore} <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>/ {next ? next.min : 100} {next ? `→ ${next.label.toUpperCase()}` : "· MAX"}</span>
+                      </div>
+                    </div>
+                    <div style={{ height: 6, background: "rgba(240,192,64,0.10)", borderRadius: 3, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)" }}>
+                      <div style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #f0c040, #e17055)", borderRadius: 3, transition: "width 0.5s", boxShadow: "0 0 8px rgba(240,192,64,0.4)" }} />
+                    </div>
+                  </div>
+
+                  {/* What feeds the rank */}
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 2, marginBottom: 8 }}>5 STATS FEED THIS RANK</div>
                   {/* Sub-rank bars */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     {breakdown.subRanks.map(sr => (
