@@ -117,6 +117,23 @@
       "notes": "[2026-05-21 523f873+] Slice 1/2: equipment-by-location split. Schema gains UserProfile.equipmentHome[] + equipmentGym[]; /api/profile POST now reads + stores them when sent. Next slice: onboarding equipment step renders two equipment selectors (Home / Gym) when location='both', and plan generator picks the right set per day. Today the legacy single equipment[] is still authoritative — the new fields just store the user's intent. After slice 2 lands plan-gen will respect the split.\n[2026-05-21 523f873+] Slice 1/N: in-app tutorial after Get Started — onboarding welcome step now has a tighter visual hierarchy (image alignment fixed) which serves as the first orienting beat. Next slice: a 3-card swipeable tutorial after the user lands on home for the first time, covering 'tap a card to start', 'log a set', and 'theme settings'. localStorage flag will mark it shown once.\n[2026-05-21 523f873+] Slice 1/N: 'more pro tips' — onboarding welcome image alignment is the first concrete polish step. Next slice: rotating pro-tips card on the home screen showing tips like 'Long-press a set to copy it', 'Swipe between exercises', 'Tap LOG to save', plus a /pro-tips library page. Waiting for one round of user-supplied content too.\n[2026-05-21 523f873+] Fixed: 'UI fitting issues' on Get Started image after signup — see slice notes above. Reopen if screenshot https://kommodo.ai/i/EX97cHmDMifmmYNqHVGq shows the issue is elsewhere.\n[2026-05-21 523f873+] Already addressed elsewhere: 'I need to be able to save partial QA reports and submit later' — replaced by the new comment-thread QA dashboard (per-item save, localStorage drafts, backup export/restore). Also a General Notes section now lives at the top of /qa for random notes not tied to a specific item.\nSkipping required steps should keep the Next button disabled. Rebuild-mode reuses steps 3–8."
     },
     {
+      "id": "workout-warmup",
+      "title": "Warm-up section — auto-picked from day focus",
+      "area": "Workout",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass warmup-restore",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open any saved day and start a session — verify a 'Warm-Up' section appears above the main exercises with a focus-appropriate cardio entry (push days → incline treadmill walk; pull days → rowing machine; leg days → bike; etc.)",
+        "Verify the warm-up entry is non-trackable (no weight/reps inputs) — it just shows '5 min · NO REST' and a tap-to-mark-done state",
+        "Open the customise screen for the same day — verify a dashed yellow '🔥 WARM-UP' suggestion card sits at the top of the exercise list above the editable list",
+        "Verify the suggestion card notes that editing / custom warm-down / stretching is coming next pass",
+        "Regress: this is render-time only — the warm-up is NOT saved to the routine, it's auto-picked every session from the day's focus string"
+      ],
+      "notes": "[2026-05-21] Slice 1/N: shipped lib/warmups.ts with a small focus-keyed library (push → incline treadmill, pull → rower, legs → bike, upper/lower/full/cardio variants) + pickWarmupForDay({title, focus}) matcher. planToWorkoutDay() prepends a 'Warm-Up' section with the picked exercise so every active session gets one — even existing plans that never persisted warm-ups. Customise screen shows the same suggestion as a read-only dashed card at the top of the exercise list. Slice 2/N (next pass): full warm-up / cool-down / stretching system with form guides, custom exercises, persistence to the routine, dynamic-vs-static stretching by muscle group."
+    },
+    {
       "id": "workout-session-start",
       "title": "Starting a workout session",
       "area": "Workout",

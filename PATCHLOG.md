@@ -2,6 +2,31 @@
 
 ---
 
+## Fix · 2026-05-21 (w) — restore the missing warm-up section (qa: workout-warmup)
+
+### Fixed
+- `workout-warmup`: warm-ups were absent from every active session
+  because `lib/planGenerator.ts` never wrote warm-up exercises to
+  `PlanExercise` rows, and the only place warm-ups existed was the
+  hardcoded demo templates in `lib/workouts.ts`. The user-reported
+  regression was: "the saved workout had warm-ups built in like 5
+  min treadmill walks but they are missing now."
+- Shipped `lib/warmups.ts` — a small focus-keyed warm-up library:
+    - push days → incline treadmill walk
+    - pull days → rowing machine
+    - leg days → bike / light cardio
+    - upper / lower / full / cardio variants
+  `pickWarmupForDay({ title, focus })` picks the best match.
+- `planToWorkoutDay()` now prepends a `Warm-Up` section with the
+  picked exercise so every active session gets one — even existing
+  plans that never persisted warm-ups in the DB. Render-time only;
+  not saved back to the routine.
+- Customise screen shows the same suggestion as a read-only dashed
+  yellow card at the top of the exercise list, with a note saying
+  full editing + warm-down + stretching lands in the next pass.
+
+---
+
 ## Fix · 2026-05-21 (v) — iOS PWA refresh-to-black after "REFRESH NOW" (qa: settings-version-check)
 
 ### Fixed
