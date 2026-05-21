@@ -98,6 +98,25 @@ function fmtDateTime(iso: string) {
   return new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+// Short status-row datetime — drops year, keeps day+month + hours:mins.
+function fmtShortDateTime(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+// Each line in qa-state.json's `notes` is a chronological patch entry,
+// usually prefixed with [YYYY-MM-DD] or [YYYY-MM-DD <sha7>]. Parse into
+// rows so the UI can render them as a list instead of a wall of text.
+interface PatchEntry { dateTag: string | null; body: string }
+function parsePatchHistory(notes: string): PatchEntry[] {
+  if (!notes) return [];
+  const lines = notes.split("\n").map(l => l.trim()).filter(Boolean);
+  return lines.map(line => {
+    const m = line.match(/^\[([^\]]+)\]\s*(.*)$/);
+    return m ? { dateTag: m[1], body: m[2] } : { dateTag: null, body: line };
+  });
+}
+
 // Derive the item's "live" status: prefer the latest unprocessed comment's
 // status, else the latest comment overall, else the seeded item.status.
 function effectiveStatus(item: QAItem, comments: Comment[]): ItemStatus {
@@ -367,6 +386,17 @@ function ItemCard({
     .filter(c => c.itemId === item.id)
     .sort((a, b) => +new Date(a.ts) - +new Date(b.ts));
   const eff = effectiveStatus(item, comments);
+  // Most recent activity: the latest of item.lastTested (set by Claude
+  // during processing) or the timestamp of the newest comment. Whichever
+  // is more recent represents the last time this item was poked at.
+  const lastCommentTs = itemComments.length > 0 ? itemComments[itemComments.length - 1].ts : null;
+  const lastActivity = (() => {
+    const a = item.lastTested ? +new Date(item.lastTested) : 0;
+    const b = lastCommentTs ? +new Date(lastCommentTs) : 0;
+    const max = Math.max(a, b);
+    return max > 0 ? new Date(max).toISOString() : null;
+  })();
+  const patchHistory = parsePatchHistory(item.notes);
 
   const canSave = !!tester.trim() && !!draft.note.trim() && !saving;
 
@@ -434,11 +464,11 @@ function ItemCard({
           <div style={{
             fontSize: 11, color: "rgba(255,255,255,0.35)",
             fontFamily: "'Space Mono', monospace", marginTop: 3,
-            display: "flex", gap: 10, alignItems: "center",
+            display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap",
           }}>
-            <span>{itemComments.length} comment{itemComments.length === 1 ? "" : "s"}</span>
+            <span>TESTED ×{itemComments.length}</span>
             <span>·</span>
-            <span>Last tested: {fmtDate(item.lastTested)}</span>
+            <span>LAST {fmtShortDateTime(lastActivity)}</span>
           </div>
         </div>
         <StatusBadge status={eff} />
@@ -464,15 +494,37 @@ function ItemCard({
             </div>
           )}
 
-          {item.notes && (
-            <div style={{
-              fontSize: 11, color: "rgba(255,255,255,0.4)",
-              fontFamily: "'DM Sans', sans-serif",
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.05)",
-              borderRadius: 8, padding: "8px 10px", marginBottom: 14,
-              lineHeight: 1.5, whiteSpace: "pre-wrap",
-            }}>{item.notes}</div>
+          {patchHistory.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,0.5)",
+                fontFamily: "'Space Mono', monospace", marginBottom: 8,
+              }}>📜 PATCH HISTORY ({patchHistory.length})</div>
+              <div style={{
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.05)",
+                borderRadius: 8, padding: "8px 10px",
+              }}>
+                {patchHistory.map((p, i) => (
+                  <div key={i} style={{
+                    display: "flex", gap: 8, padding: "5px 0",
+                    borderTop: i === 0 ? "none" : "1px dashed rgba(255,255,255,0.05)",
+                  }}>
+                    {p.dateTag && (
+                      <span style={{
+                        flexShrink: 0, fontSize: 10,
+                        color: "#FF6B6B", fontFamily: "'Space Mono', monospace",
+                        letterSpacing: 0.5, opacity: 0.8,
+                      }}>{p.dateTag}</span>
+                    )}
+                    <span style={{
+                      fontSize: 11, color: "rgba(255,255,255,0.55)",
+                      fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5,
+                    }}>{p.body}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {itemComments.length > 0 && (

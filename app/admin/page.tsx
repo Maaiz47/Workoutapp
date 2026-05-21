@@ -8,6 +8,7 @@ type User = {
   username: string;
   email: string | null;
   role: string;
+  extraRoles?: string[];
   mustResetPassword: boolean;
   createdAt: string;
   roleRequest: string | null;
@@ -118,6 +119,29 @@ export default function AdminPage() {
       }
     } catch {
       setError("Role update failed.");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  // Toggle an extra-role on/off for a user. Sends the whole new array
+  // each time so the server doesn't need a separate add/remove API.
+  async function toggleExtraRole(u: User, role: string) {
+    const current = u.extraRoles ?? [];
+    const next = current.includes(role) ? current.filter(r => r !== role) : [...current, role];
+    setUpdatingId(u.id);
+    try {
+      const res = await fetch("/api/admin", {
+        method: "PATCH",
+        headers: { "x-admin-key": key, "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: u.id, action: "set-extra-roles", extraRoles: next }),
+      });
+      const data = await res.json();
+      if (data.user) {
+        setUsers(prev => prev.map(x => x.id === u.id ? { ...x, extraRoles: data.user.extraRoles ?? [] } : x));
+      }
+    } catch {
+      setError("Extra-role update failed.");
     } finally {
       setUpdatingId(null);
     }
@@ -480,7 +504,7 @@ export default function AdminPage() {
                     {new Date(u.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                   </td>
                   <td style={s.td}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                       <select
                         style={s.select}
                         value={u.role}
@@ -489,6 +513,29 @@ export default function AdminPage() {
                       >
                         {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
+                      {/* Extra-roles toggle chips. The primary `role` above
+                          is implicit, so only show the OTHER two as toggles. */}
+                      {ROLES.filter(r => r !== u.role && r !== "user").map(r => {
+                        const on = (u.extraRoles ?? []).includes(r);
+                        return (
+                          <button
+                            key={r}
+                            disabled={updatingId === u.id}
+                            onClick={() => toggleExtraRole(u, r)}
+                            title={on ? `Remove extra ${r} role` : `Also make this user a ${r}`}
+                            style={{
+                              padding: "4px 8px", borderRadius: 6,
+                              fontSize: 10, fontWeight: 600, letterSpacing: 0.5,
+                              cursor: updatingId === u.id ? "not-allowed" : "pointer",
+                              background: on ? (r === "trainer" ? "#1a2a1a" : "#2a1a4a") : "#111",
+                              color: on ? (r === "trainer" ? "#55efc4" : "#a29bfe") : "#666",
+                              border: `1px solid ${on ? (r === "trainer" ? "#2a5a2a" : "#4a2a8a") : "#333"}`,
+                            }}
+                          >+ {r.toUpperCase()}</button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
                       <button
                         style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #4a3a18", background: "#1f1a08", color: "#fdcb6e", fontSize: 11, cursor: updatingId === u.id ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
                         onClick={() => forceReset(u.id, u.username)}

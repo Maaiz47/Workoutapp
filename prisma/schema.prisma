@@ -14,6 +14,10 @@ model User {
   passwordHash      String?
   mustResetPassword Boolean          @default(false)
   role              String           @default("user")
+  // Extra roles a user holds *in addition to* their primary `role`. Lets a
+  // single account act as both admin AND trainer (or any combination)
+  // without forcing a single-role choice. Checked via userHasRole().
+  extraRoles        String[]         @default([])
   roleRequest       String?          // pending role upgrade request, e.g. "trainer"
   roleRequestNote   String?          // optional note submitted by the user
   roleRequestAt     DateTime?

@@ -85,7 +85,7 @@ function main() {
   const validIds = new Set(state.items.map(i => i.id));
 
   const sections = parseSections(md);
-  const recent = sections.filter(s => isFeatureSection(s.heading)).slice(0, 5);
+  const recent = sections.filter(s => isFeatureSection(s.heading)).slice(0, 10);
 
   const orphanTags = new Set<string>();
   const untaggedSections: string[] = [];
@@ -101,7 +101,7 @@ function main() {
   let fail = false;
   let warned = false;
   console.log("── QA coverage sweep ──");
-  console.log(`Scanned ${recent.length} recent feature/pass sections.`);
+  console.log(`Scanned the ${recent.length} most-recent feature/pass sections.`);
   console.log(`qa-state.json has ${validIds.size} tracked items.${strict ? " [strict mode]" : ""}\n`);
 
   if (orphanTags.size > 0) {

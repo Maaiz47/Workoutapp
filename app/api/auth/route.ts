@@ -141,6 +141,7 @@ export async function GET(req: NextRequest) {
   return jsonRes({
     user: {
       id: user.id, username: user.username, role: user.role,
+      extraRoles: (user as any).extraRoles ?? [],
       mustReset: user.mustResetPassword,
       roleRequest: user.roleRequest,
     },

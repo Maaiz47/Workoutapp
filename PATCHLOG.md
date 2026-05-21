@@ -2,6 +2,32 @@
 
 ---
 
+## QA pass · 2026-05-21 (s) — action 3 mirrored comments from @maaiz (qa: admin-multi-role, qa-dashboard, qa-coverage-sweep)
+
+### Addressed
+- `admin-multi-role`: schema gains `User.extraRoles String[] @default([])`
+  (Vercel auto-runs `prisma db push` on deploy). New
+  `userHasRole(user, name)` helper checks both the primary `role`
+  and the new extras array. All trainer-feature gates in
+  `app/page.tsx` migrated to use the helper, so an admin can also
+  hold the trainer role and unlock trainer-only surfaces without
+  losing admin powers. `/api/auth` GET returns `extraRoles`.
+  `/api/admin` PATCH gains a `set-extra-roles` action; `/admin`
+  page shows per-user `+ TRAINER` / `+ ADMIN` toggle chips next
+  to the existing primary-role select.
+- `qa-dashboard`: status row now reads `TESTED ×N · LAST <date hh:mm>`
+  instead of `N comments · Last tested: <date>`. Latest activity
+  is `max(item.lastTested, newest comment ts)` so a just-submitted
+  comment moves the line forward before the next QA pass. The
+  notes blob is now rendered as a structured **📜 PATCH HISTORY**
+  list — each `[date]` line becomes its own row with the date
+  tag highlighted in red and the body in regular weight.
+- `qa-coverage-sweep`: bumped `npm run qa:scan` from 5 → 10
+  most-recent feature/pass sections per the request, so more of
+  the recent history gets covered each run.
+
+---
+
 ## Polish · 2026-05-21 (r) — rename "+ PERMANENT" → "+ ROUTINE" + rewrite confirms (qa: workout-supersets, workout-in-session-exercise-add)
 
 ### Changed

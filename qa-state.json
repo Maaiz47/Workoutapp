@@ -968,9 +968,11 @@
         "Verify the old BACKUP / RESTORE buttons are gone (no longer needed — comments save to the server)",
         "Tap the teal '📤 OPEN IN BROWSER' chip in the dashboard header. In the installed PWA on iOS: verify the native share sheet appears (so you can pick 'Open in Safari'). In a regular browser tab: verify it opens /qa in a new tab. If neither works, verify it falls back to copying the URL to clipboard.",
         "Verify the short helper line under the chips explains what each one does (📤 vs 🥋).",
-        "Each comment shows @username if the submitter was logged in"
+        "Each comment shows @username if the submitter was logged in",
+        "Verify each item card's status row shows TESTED ×N (count of comments) AND LAST <date hh:mm> (most recent of item.lastTested or newest comment ts)",
+        "Expand an item with a populated notes field — verify a 📜 PATCH HISTORY (count) section appears with each [date] entry rendered as its own row (date tag highlighted, body text in regular weight)"
       ],
-      "notes": "[2026-05-21] Slice 2/N (PWA escape, real this time): the previous `<a target=_blank>` to /qa stayed trapped in the iOS PWA's in-app webview. Switched to a button that calls navigator.share() first — on iOS PWA the native share sheet appears with 'Open in Safari', which is the only reliable escape path. Falls back to window.open() (Android PWA + desktop), then clipboard copy (last resort). Label changed from '↗ IN BROWSER' to '📤 OPEN IN BROWSER' and a one-line helper under the chips now explains 📤 vs 🥋 so first-time testers know what each button does without needing to hover for a tooltip.\n[2026-05-21] Slice 1/N: Added '↗ IN BROWSER' chip in the dashboard header — target=_blank link to /qa so testers using the installed PWA can pop the dashboard out into the system browser and document issues while the PWA itself remains free for actual testing.\n[2026-05-21] Cleanup: removed the BACKUP / RESTORE buttons (server-side comment save makes them unnecessary). Tester name input now auto-fills + hides when the visitor is logged in (only anonymous testers see it). State lives in QAComment table; drafts persist in localStorage."
+      "notes": "[2026-05-21] Item card status row now shows TESTED ×N · LAST <date time> instead of the previous date-only `Last tested:`. Latest activity is computed as max(item.lastTested, newest comment ts) so fresh feedback moves the line forward before the next QA pass. The notes blob is now rendered as a 📜 PATCH HISTORY list — each `[date]` line becomes its own row with the date tag highlighted in red, body in regular weight.\n[2026-05-21] Slice 2/N (PWA escape, real this time): the previous `<a target=_blank>` to /qa stayed trapped in the iOS PWA's in-app webview. Switched to a button that calls navigator.share() first — on iOS PWA the native share sheet appears with 'Open in Safari', which is the only reliable escape path. Falls back to window.open() (Android PWA + desktop), then clipboard copy (last resort).\n[2026-05-21] Cleanup: removed the BACKUP / RESTORE buttons (server-side comment save makes them unnecessary). Tester name input now auto-fills + hides when the visitor is logged in."
     },
     {
       "id": "qa-leaderboard",
@@ -1000,14 +1002,14 @@
       "lastTested": "2026-05-21",
       "status": "regression-retest",
       "steps": [
-        "Run `npm run qa:scan` from the repo root — verify it scans the 5 most recent feature/pass sections in PATCHLOG.md",
+        "Run `npm run qa:scan` from the repo root — verify it scans the 10 most recent feature/pass sections in PATCHLOG.md",
         "Verify each (qa: <id>) tag resolves to a real item in qa-state.json — orphans should print as ✗ and exit non-zero",
         "Verify entries with no (qa: …) tag at all print as ⚠ warnings and DO NOT fail the run",
         "Run `npm run qa:scan -- --strict` — verify the warning is escalated to ✗ and the run exits non-zero",
         "Add a fake `(qa: nonexistent-thing)` to a temp PATCHLOG copy, run the script, verify the orphan is caught — then revert the PATCHLOG edit",
         "Open CLAUDE.md — verify the 'Every shipped feature MUST have a qa-state.json item' section is present and documents the workflow"
       ],
-      "notes": "[2026-05-21] Shipped scripts/qa-scan.ts + the `qa:scan` npm script + CLAUDE.md convention rule. The script is informational by default (warnings don't fail) and strict on demand (`--strict` makes everything an error, suitable for CI later). The rule in CLAUDE.md is the forcing function for Claude during QA passes."
+      "notes": "[2026-05-21] Bumped scan window from 5 to 10 most-recent feature/pass sections so more of the recent history is covered each run.\n[2026-05-21] Shipped scripts/qa-scan.ts + the `qa:scan` npm script + CLAUDE.md convention rule. The script is informational by default (warnings don't fail) and strict on demand (`--strict` makes everything an error, suitable for CI later)."
     },
     {
       "id": "qa-mascot-splash",
@@ -1030,6 +1032,25 @@
         "Verify the splash does not block scrolling or interaction once dismissed"
       ],
       "notes": "[2026-05-21] Slice 2/N (Doppo fixes): (a) the prior 'fix' added `user: { select: ... }` to the prisma findMany, but QAComment has no schema @relation to User — at runtime that throws and returns 500, which is why the dashboard showed 0 counts and Doppo greeted everyone as STRANGER (the comments array stayed empty). Replaced with a manual batched user enrichment: fetch distinct userIds → batched user lookup → merge in the route handler. No schema migration risk. (b) Speech-bubble grew line-by-line during the typewriter, pushing the mascot upward — fixed by reserving vertical space for every line in the chosen arc upfront via `minHeight: calc(N * 1.55em + (N-1)*4px)` on the dialogue container. Mascot now stays anchored. Bumped sessionStorage key to qa-doppo-seen-v3 so every active session sees the correct greeting + layout.\n[2026-05-21] Slice 1/N: shipped MascotSplash.tsx + integration in app/qa/page.tsx. Component is sessionStorage-gated and re-summonable via a chip in the dashboard header. Image is loaded from /public/qa-mascot.png with an onError fallback to a placeholder card so the splash is functional before the art lands. Dialogue picker has 5 arcs based on rank/bugs/comments."
+    },
+    {
+      "id": "admin-multi-role",
+      "title": "Multi-role support — admin + trainer on one account",
+      "area": "Admin",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass multi-role",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open /admin with the admin secret",
+        "Find a user row — verify the role <select> is unchanged, and that two new chip buttons appear next to it: '+ TRAINER' and '+ ADMIN' (whichever isn't already their primary role)",
+        "Tap '+ TRAINER' on an existing admin user — verify the chip turns green and the user is granted extraRoles=['trainer']",
+        "Reload the page — verify the chip stays green (persisted)",
+        "Log in as that user — verify their primary role badge AND a 'TRAINER' badge both appear in the profile area, and all trainer-feature gates (dashboard, client management, leaderboard groups) now unlock",
+        "Tap '+ TRAINER' again on /admin to remove — verify the chip greys out and trainer features disappear on next login refresh",
+        "Verify users with only their primary role (no extras) work exactly as before (no regression)"
+      ],
+      "notes": "[2026-05-21] Schema: User.extraRoles String[] @default([]) — Vercel auto-runs prisma db push on deploy. Auth GET returns the field. New userHasRole(user, name) helper checks both primary role and the extras array; all trainer-feature gates in app/page.tsx updated to use it. Admin GET/PATCH endpoints expose the new field and a set-extra-roles action. The /admin UI shows per-user toggle chips for granting/revoking extras."
     },
     {
       "id": "trainer-role-request",

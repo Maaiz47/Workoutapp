@@ -361,6 +361,15 @@ function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: s
   return { dataPoints: dataPoints.reverse(), pb: { weight: pbWeight, reps: pbReps, date: pbDate } };
 }
 
+// Multi-role check. Returns true if the user holds `name` as their primary
+// `role` OR has it in their `extraRoles` array. Use this anywhere a feature
+// is gated on a specific role so an admin can also be a trainer (etc).
+function userHasRole(user: { role?: string; extraRoles?: string[] } | null | undefined, name: string): boolean {
+  if (!user) return false;
+  if (user.role === name) return true;
+  return Array.isArray(user.extraRoles) && user.extraRoles.includes(name);
+}
+
 // Drop set mode: the user runs each set as a chain of drops (initial weight
 // to failure → drop weight → to failure → …) without rest between drops.
 // New code uses the dropSet boolean. Legacy data with dropSets > 0 is
@@ -1478,7 +1487,7 @@ function SendFeedbackCard({ username }: { username: string }) {
 
 // ─── MAIN ───────────────────────────────────────────────────────────────
 function HomePage() {
-  const [user, setUser] = useState<{ id: string; username: string; role: string; roleRequest?: string | null } | null>(null);
+  const [user, setUser] = useState<{ id: string; username: string; role: string; extraRoles?: string[]; roleRequest?: string | null } | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [appTheme, setAppTheme] = useState<"iron"|"mono"|"vivid">("iron");
   const [accentColor, setAccentColor] = useState("#FF6B6B");
@@ -1776,7 +1785,7 @@ function HomePage() {
   const refreshUser = useCallback(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
       if (data.user) {
-        setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user", roleRequest: data.user.roleRequest ?? null });
+        setUser({ id: data.user.id, username: data.user.username, role: data.user.role ?? "user", extraRoles: data.user.extraRoles ?? [], roleRequest: data.user.roleRequest ?? null });
         if (data.user.mustReset) setMustResetPassword(true);
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           subscribeToPush().then(s => setNotifStatus(s));
@@ -1812,7 +1821,7 @@ function HomePage() {
   }, [user]);
 
   useEffect(() => {
-    if (user?.role === "trainer") {
+    if (userHasRole(user, "trainer")) {
       fetch("/api/trainer/request").then(r => r.json()).then(data => {
         if (data.requests) setTrainerRequests(data.requests);
       }).catch(() => {});
@@ -3875,8 +3884,8 @@ function HomePage() {
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
               <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: -0.5 }}>{user.username}</div>
-              {user.role === "trainer" && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()} · TRAINER</span>; })()}
-              {user.role === "admin" && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
+              {userHasRole(user, "trainer") && (() => { const t = getTrainerTier(clients.length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()} · TRAINER</span>; })()}
+              {userHasRole(user, "admin") && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>}
               {user.role === "user" && (() => { const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length); return <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 6px" }}>{t.emoji} {t.label.toUpperCase()}</span>; })()}
               {user.role === "user" && user.roleRequest && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>}
               <span style={{ marginLeft: "auto", fontSize: 14, color: "rgba(255,255,255,0.25)" }}>›</span>
@@ -4054,7 +4063,7 @@ function HomePage() {
                 {sharingRoutineId === r.id && (
                   <div className="fade-in" style={{ padding: "0 14px 12px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
                     <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8, paddingTop: 10 }}>SHARE WITH</div>
-                    {user?.role === "trainer" && clients.length > 0 ? (
+                    {userHasRole(user, "trainer") && clients.length > 0 ? (
                       <>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
                           {clients.map((c: any) => {
@@ -4090,7 +4099,7 @@ function HomePage() {
                         </div>
                       </>
                     ) : null}
-                    <div style={{ display: "flex", gap: 8, marginTop: user?.role === "trainer" && clients.length > 0 ? 8 : 0 }}>
+                    <div style={{ display: "flex", gap: 8, marginTop: userHasRole(user, "trainer") && clients.length > 0 ? 8 : 0 }}>
                       <input
                         value={shareUsername}
                         onChange={e => { setShareUsername(e.target.value); setShareResult(null); }}
@@ -4110,7 +4119,7 @@ function HomePage() {
           </div>
         )}
       </div>
-      {user.role === "trainer" && (
+      {userHasRole(user, "trainer") && (
         <div style={{ padding: "20px 20px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <span style={{ fontSize: 18, lineHeight: 1 }}>👥</span>
@@ -4190,7 +4199,7 @@ function HomePage() {
         </div>
       )}
 
-      {user.role === "trainer" && (
+      {userHasRole(user, "trainer") && (
         <>
         <div style={{ padding: "20px 20px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -4541,7 +4550,7 @@ function HomePage() {
       )}
 
       {/* ── Trainer: Custom Exercises ── */}
-      {user.role === "trainer" && (
+      {userHasRole(user, "trainer") && (
         <div style={{ padding: "20px 20px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <span style={{ fontSize: 18, lineHeight: 1 }}>🏋️</span>
@@ -5481,7 +5490,7 @@ function HomePage() {
 
   // ─── SETTINGS ───────────────────────────────────────────────────────
   if (view === "settings") {
-    const isTrainer = user.role === "trainer";
+    const isTrainer = userHasRole(user, "trainer");
     const hasPendingRequest = user.roleRequest === "trainer";
 
     const doUpgrade = async () => {

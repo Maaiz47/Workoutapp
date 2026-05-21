@@ -16,13 +16,14 @@ function isAuthorized(req: NextRequest) {
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) return json({ error: "Unauthorized" }, 401);
 
-  const users = await prisma.user.findMany({
+  const users: any[] = await (prisma.user.findMany as any)({
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
       username: true,
       email: true,
       role: true,
+      extraRoles: true,
       mustResetPassword: true,
       createdAt: true,
       roleRequest: true,
@@ -102,6 +103,21 @@ export async function PATCH(req: NextRequest) {
       where: { id: userId },
       data: { mustResetPassword: true },
       select: { id: true, username: true, mustResetPassword: true },
+    });
+    return json({ user });
+  }
+
+  // Set the extra-roles array directly (multi-role support). Lets an
+  // admin grant a user concurrent roles, e.g. admin + trainer.
+  if (body.action === "set-extra-roles") {
+    const list: unknown = body.extraRoles;
+    if (!Array.isArray(list)) return json({ error: "extraRoles must be an array" }, 400);
+    const validRoles = ["user", "trainer", "admin"];
+    const filtered = list.filter(r => typeof r === "string" && validRoles.includes(r)) as string[];
+    const user = await (prisma.user.update as any)({
+      where: { id: userId },
+      data: { extraRoles: Array.from(new Set(filtered)) },
+      select: { id: true, username: true, role: true, extraRoles: true },
     });
     return json({ user });
   }

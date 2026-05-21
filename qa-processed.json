@@ -29,6 +29,18 @@
     "cmpewcs3o0000vh3mw3at8fqw": {
       "ts": "2026-05-21T03:00:00Z",
       "summary": "Removed the auto-advance Settings toggle per user feedback. Behaviour is now unconditional: stay on current exercise while incomplete sets remain, then auto-advance to next incomplete exercise once sets are done (or user skips/manually picks another). Deleted the ⚙ WORKOUT BEHAVIOUR card and the ironlog-auto-advance localStorage key."
+    },
+    "cmpf74zdk000014bil8eji34j": {
+      "ts": "2026-05-21T08:10:00Z",
+      "summary": "Multi-role support: User.extraRoles String[] field added so a single account can hold admin + trainer (etc) concurrently. Auth route returns it, userHasRole() helper checks both primary role and extras, trainer feature gates updated. Admin page exposes per-user + TRAINER / + ADMIN toggle chips next to the primary-role select."
+    },
+    "cmpf76c900000rbocnbdnbdfi": {
+      "ts": "2026-05-21T08:10:00Z",
+      "summary": "QA dashboard item card shows TESTED ×N + LAST <date time> in the status row (replaces the previous date-only). The notes blob is now rendered as a 📜 PATCH HISTORY list — each [date] line becomes its own row with the date tag highlighted. Latest activity is computed as max(item.lastTested, last comment ts) so a fresh submission moves the line forward even before the next QA pass."
+    },
+    "cmpf77zl200005voyruidq5iz": {
+      "ts": "2026-05-21T08:10:00Z",
+      "summary": "qa:scan now scans the 10 most-recent feature/pass sections in PATCHLOG (was 5). One-line change to scripts/qa-scan.ts."
     }
   }
 }
