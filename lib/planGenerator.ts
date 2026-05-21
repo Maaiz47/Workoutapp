@@ -1,5 +1,6 @@
 import { EXERCISES, filterExercises, Equipment, MuscleGroup, Goal, Location } from "./exercises";
 import { pickWarmups, pickCooldowns } from "./stretching";
+import { REP_RANGES_BY_GOAL, blendedRepRange } from "./principles";
 
 export interface UserProfileInput {
   daysPerWeek: number;
@@ -52,27 +53,26 @@ function primaryGoal(goals: Goal[]): Goal {
 }
 
 // ── Sets / reps / rest — blended across all selected goals ─────────────────
+// Reads the authoritative bands from lib/principles.ts so the source of
+// truth is single-file. Set count layers on top based on experience —
+// newcomers get fewer sets, advanced lifters get more.
 
 function volumeForGoals(goals: Goal[], level: "newcomer" | "beginner" | "intermediate" | "advanced") {
-  const configs: Record<Goal, { sets: number; repsLow: number; repsHigh: number; rest: number }> = {
-    muscle:   { sets: 4, repsLow: 8,  repsHigh: 12, rest: 75 },
-    strength: { sets: 5, repsLow: 3,  repsHigh: 6,  rest: 180 },
-    fat_loss: { sets: 3, repsLow: 12, repsHigh: 20, rest: 45 },
-    fitness:  { sets: 3, repsLow: 10, repsHigh: 15, rest: 60 },
+  // Default set counts per session by primary goal — cited in
+  // principles.ts but kept here since "sets per exercise" is a
+  // plan-generator concern, not a global principle.
+  const setsPerGoal: Record<Goal, number> = {
+    muscle: 4, strength: 5, fat_loss: 3, fitness: 3,
   };
-
-  const selected = goals.map(g => configs[g]);
-  const n = selected.length;
-
-  let sets     = Math.round(selected.reduce((s, v) => s + v.sets,     0) / n);
-  let repsLow  = Math.round(selected.reduce((s, v) => s + v.repsLow,  0) / n);
-  let repsHigh = Math.round(selected.reduce((s, v) => s + v.repsHigh, 0) / n);
-  let rest     = Math.round(selected.reduce((s, v) => s + v.rest,     0) / n / 15) * 15;
+  const blended = blendedRepRange(goals);
+  const n = goals.length || 1;
+  let sets = Math.round(goals.map(g => setsPerGoal[g] ?? 3).reduce((a, b) => a + b, 0) / n);
 
   if (level === "newcomer") sets = Math.max(2, sets - 2);
   if (level === "beginner") sets = Math.max(2, sets - 1);
-  if (level === "advanced")  sets = Math.min(6, sets + 1);
-  return { sets, repsLow, repsHigh, rest };
+  if (level === "advanced") sets = Math.min(6, sets + 1);
+
+  return { sets, repsLow: blended.low, repsHigh: blended.high, rest: blended.restSec };
 }
 
 function makeEx(

@@ -21,6 +21,7 @@ import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepTod
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap } from "../lib/challenges";
 import { isDeGamified, setDeGamified, pickTodayQuest, QuestState, isFullStackDay, recordFullStackDay, fullStackDayCount, checkBalancedWeek, recordBalancedWeek, detectNewHidden, HiddenState, HiddenAchievement } from "../lib/gamification";
 import { postWithQueue, drainQueue, queueCount } from "../lib/offlineSync";
+import { TIPS, pickDailyTip, TipContext, ProTip } from "../lib/proTips";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -2335,6 +2336,10 @@ function HomePage() {
   // Marked seen for the current ISO week so it only fires once.
   const [recapShown, setRecapShown] = useState<WeeklyRecap | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
+  const [showTipsLibrary, setShowTipsLibrary] = useState(false);
+  // Daily pro tip — picked deterministically by date so it stays stable
+  // across home reloads, refreshes once per day.
+  const [dismissedTodayTip, setDismissedTodayTip] = useState(false);
   // Offline-queue indicator — refreshes on online event + after each
   // session save so a "N pending" pill can show in the home header.
   const [pendingSyncs, setPendingSyncs] = useState(0);
@@ -5326,6 +5331,65 @@ function HomePage() {
           );
         })()}
 
+        {/* Pro Tip — daily contextual tip drawn from lib/proTips.ts. The
+            picker biases toward tips whose relevantWhen() matches the
+            user's current state (low sleep, long streak, missing
+            hydration, recent high-RPE grinding, etc). Dismissible
+            per-day so users who don't want it can hide it. */}
+        {!deGamified && !dismissedTodayTip && (() => {
+          const ctx: TipContext = {
+            totalSessionsLifetime: overall.totalSessions,
+            daysSinceLastSession: (() => {
+              const allDates = Object.values(history).flat().map((s: any) => new Date(s.date).getTime()).filter(t => !isNaN(t));
+              if (allDates.length === 0) return 999;
+              return Math.floor((Date.now() - Math.max(...allDates)) / 86400000);
+            })(),
+            currentStreak: overall.streak,
+            experienceLevel: (() => {
+              if (!user) return "newcomer";
+              const monthsOnApp = user.createdAt ? (Date.now() - +new Date(user.createdAt)) / (30 * 86400000) : 0;
+              return effectiveExperience({
+                recorded: (ob.fitnessLevel as ExperienceLevel) || null,
+                monthsOnApp,
+                totalSessions: overall.totalSessions,
+                prCount: Object.keys(overall.exercisePRs).length,
+              }).level;
+            })(),
+            recentAvgRpe: (() => {
+              let sum = 0, count = 0;
+              const all = Object.values(history).flat().sort((a: any, b: any) => (b.date + "").localeCompare(a.date + ""));
+              outer: for (const s of all as any[]) {
+                const sets = (s.sets ?? {}) as Record<string, any>;
+                for (const k in sets) {
+                  if (typeof sets[k]?.rpe === "number") { sum += sets[k].rpe; count++; if (count >= 10) break outer; }
+                }
+              }
+              return count > 0 ? sum / count : null;
+            })(),
+            prCountLast30Days: 0,
+            hydrationToday: readHydrationToday(),
+            hydrationTarget: HYDRATION_TARGET,
+            sleepLastNight: readSleepToday().sleepHours ?? null,
+            hasActiveInjury: readInjuries().length > 0,
+            hour: new Date().getHours(),
+            dayOfWeek: new Date().getDay(),
+          };
+          const tip = pickDailyTip(ctx);
+          return (
+            <div style={{ background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 12, padding: "10px 12px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <span style={{ fontSize: 18, lineHeight: 1, marginTop: 2 }}>💡</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6 }}>
+                  <span style={{ fontSize: 9, color: "#4ECDC4", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>PRO TIP · {tip.category.toUpperCase()}</span>
+                  <button onClick={() => setDismissedTodayTip(true)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 14, cursor: "pointer", padding: 0, lineHeight: 1 }} title="Hide for today">×</button>
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", lineHeight: 1.5, marginTop: 4 }}>{tip.text}</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>src: {tip.source}</div>
+              </div>
+            </div>
+          );
+        })()}
+
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -7566,6 +7630,34 @@ function HomePage() {
               </div>
             );
           })()}
+
+          {/* Pro Tips library — browse the full catalogue grouped by
+              category. Always visible (not gated by de-gamify) because
+              it's educational, not gamification. Each tip carries a
+              source citation so the user can verify. */}
+          <button
+            onClick={() => setShowTipsLibrary(s => !s)}
+            style={{ width: "100%", marginTop: 8, padding: "14px", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 12, color: "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+          ><span>💡 PRO TIPS LIBRARY ({TIPS.length})</span><span style={{ fontSize: 10, color: "rgba(78,205,196,0.6)" }}>{showTipsLibrary ? "▲" : "▼"}</span></button>
+          {showTipsLibrary && (
+            <div className="fade-in" style={{ marginTop: 8, marginBottom: 8, background: "rgba(78,205,196,0.02)", border: "1px solid rgba(78,205,196,0.10)", borderRadius: 12, padding: 12 }}>
+              {(["programming", "technique", "recovery", "nutrition", "mindset", "habit"] as const).map(cat => {
+                const tips = TIPS.filter(t => t.category === cat);
+                if (tips.length === 0) return null;
+                return (
+                  <div key={cat} style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: "#4ECDC4", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>{cat.toUpperCase()} ({tips.length})</div>
+                    {tips.map(t => (
+                      <div key={t.id} style={{ padding: "8px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, marginBottom: 5 }}>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", lineHeight: 1.5 }}>{t.text}</div>
+                        <div style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", marginTop: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>src: {t.source}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Restart tutorial */}
           <button

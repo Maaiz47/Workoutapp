@@ -2,6 +2,49 @@
 
 ---
 
+## Feature · 2026-05-21 (ap) — knowledge base unification: principles + pro tips (qa: knowledge-principles, knowledge-pro-tips)
+
+### Phase 1 — `lib/principles.ts` (the single source of truth)
+- Every numerical training value the app uses (rep ranges, rest seconds,
+  volume landmarks, RPE rubric, deload windows, overload increments,
+  experience gates, recovery guidelines, warm-up / cool-down protocol,
+  compound:isolation mix, default tempo) is now centralised in
+  `lib/principles.ts`, each entry carrying a `source: ...` field citing
+  the canonical reference (NSCA Essentials, ACSM position stands,
+  Schoenfeld meta-analyses, Renaissance Periodization, Helms et al.
+  Pyramids of Training, Practical Programming by Rippetoe & Kilgore,
+  Behm & Chaouachi warm-up review, etc.).
+- Helpers: `targetRpeFor(goals)`, `blendedRepRange(goals)`.
+- Audit pass:
+  - `lib/planGenerator.ts` → `volumeForGoals()` now reads `blendedRepRange()`
+    instead of inline numbers.
+  - `lib/experience.ts` → `experienceProfile()` reads `DELOAD_POLICY`
+    from principles for the deload window.
+  - `lib/performance.ts` → `suggestProgression()` RPE rubric already
+    aligned; header comment added for traceability.
+
+### Phase 2 — `lib/proTips.ts` (curated, context-aware)
+- 40 vetted training tips across 6 categories: programming, technique,
+  recovery, nutrition, mindset, habit.
+- Each carries a `source` citation. Many are conditioned by a
+  `relevantWhen(ctx)` predicate so they surface when the user actually
+  needs them — e.g. low-sleep tip when sleep < 7h, long-streak deload
+  tip at 14+ day streak, high-RPE bias tip when recent average ≥ 8.7,
+  injury-substitution tip when there's an active injury, etc.
+- `pickDailyTip(ctx)` picks deterministically by ISO date with a 60%
+  bias toward context-relevant matches; falls back to evergreens.
+- **Home surface**: small teal `💡 PRO TIP` card below the Daily Quest,
+  above YOUR SPLIT. Dismissible per-day with `×`.
+- **Settings library**: `💡 PRO TIPS LIBRARY (40)` button below the
+  Achievements wall. Collapsible, grouped by category, every tip
+  shows its source. NOT hidden by de-gamify mode (educational ≠
+  gamification).
+
+### Skipped (deferred per user)
+- AI coach via Claude API — explicitly not now.
+
+---
+
 ## Feature · 2026-05-21 (ao) — Slice G 2/2: progress photo log via Vercel Blob (qa: progress-photo-log)
 
 ### Added

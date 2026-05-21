@@ -33,6 +33,9 @@ export type ProgressionSuggestion = {
   reason: string;              // short label for the UI chip
   basis: "rpe" | "reps";
 };
+// RPE rubric here aligns with lib/principles.ts TARGET_RPE_BY_GOAL and
+// RPE_SCALE — source: Tuchscherer (RTS) and Helms et al. Pyramids.
+// Working RPE for hypertrophy: 7-9. RPE 8 = right at target.
 export function suggestProgression(
   prev: { weight: number; reps: number; rpe?: number | null } | null,
   targetReps: { low: number; high: number } | null,

@@ -836,6 +836,44 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "knowledge-principles",
+      "title": "Training principles knowledge base (lib/principles.ts)",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass knowledge-base",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open lib/principles.ts. Verify every numerical value (rep ranges, rest seconds, volume landmarks, RPE rubric, deload windows, overload increments, experience gates, recovery guidelines, warm-up/cool-down protocol, compound/isolation mix, default tempo) carries a `source: '...'` field citing where the number comes from (NSCA, Schoenfeld, ACSM, Renaissance Periodization, Practical Programming, etc.)",
+        "Verify lib/planGenerator.ts uses blendedRepRange() from principles for its volumeForGoals() helper, so the rep band emitted to new plans matches the principle file",
+        "Verify lib/experience.ts experienceProfile() pulls deloadWindowWeeks from DELOAD_POLICY in principles.ts (newcomer 8w, beginner 6w, intermediate 5w, advanced 4w)",
+        "Verify lib/performance.ts suggestProgression() has a header comment referencing the principle file's RPE scale",
+        "Verify there's no other lib file hard-coding rep ranges, rest seconds, or RPE thresholds that disagree with principles.ts — those are now sourced from one place"
+      ],
+      "notes": "[2026-05-21] Phase 1 of the knowledge-base unification. lib/principles.ts ships REP_RANGES_BY_GOAL, REST_BY_TYPE, RPE_SCALE / TARGET_RPE_BY_GOAL, VOLUME_LANDMARKS (RP MEV/MAV/MRV per muscle), FREQUENCY_PER_MUSCLE, DELOAD_POLICY by experience, OVERLOAD_INCREMENTS_KG by experience, ONE_RM_ZONES, EXPERIENCE_GATES, RECOVERY_GUIDELINES, WARMUP_PROTOCOL, COOLDOWN_PROTOCOL, COMPOUND_ISOLATION_MIX_BY_GOAL, DEFAULT_TEMPO — each with a `source` field. Helpers: targetRpeFor(goals), blendedRepRange(goals). planGenerator + experience modules updated to read from this single source instead of inline numbers. RPE rubric in suggestProgression already aligned, header comment added for traceability."
+    },
+    {
+      "id": "knowledge-pro-tips",
+      "title": "Pro Tips library + daily contextual card",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass knowledge-base",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open the home view — verify a teal '💡 PRO TIP' card appears below the Daily Quest, above YOUR SPLIT. Shows the tip's category, body text, and a 'src:' citation line",
+        "Verify the tip is the SAME on reload (deterministically picked by ISO date)",
+        "Tap × — verify the card disappears for the rest of the day; reappears tomorrow",
+        "Trigger a contextual tip — e.g. log sleep < 7 hours and reload: verify the 'Sleep is the single biggest recovery lever' tip surfaces (relevantWhen kicks in)",
+        "Get to a 14+ day streak — verify the 'long streak deload' tip becomes eligible",
+        "Average recent RPE ≥ 8.7 — verify the 'high RPE bias' tip becomes eligible",
+        "Have < 50% of hydration target by end of day — verify the hydration tip surfaces",
+        "Open Settings → '💡 PRO TIPS LIBRARY (40)' button — verify all tips listed grouped by category (programming / technique / recovery / nutrition / mindset / habit), each with text + source line",
+        "Verify the library is NOT hidden by de-gamify mode — pro tips are educational, not gamification"
+      ],
+      "notes": "[2026-05-21] Phase 2 of the knowledge-base unification. lib/proTips.ts ships 40 vetted training tips across 6 categories, each carrying a source citation and an optional relevantWhen() predicate. pickDailyTip(ctx) picks deterministically by ISO date with a 60% bias toward context-relevant tips. Surfaced as a small dismissible card on home (below Daily Quest, above YOUR SPLIT) and as a full browsable library in Settings. Citation chain links back to lib/principles.ts where possible."
+    },
+    {
       "id": "progress-photo-log",
       "title": "Progress photo log via Vercel Blob",
       "area": "Progress",

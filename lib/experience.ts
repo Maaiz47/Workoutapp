@@ -55,8 +55,10 @@ export function monthsUntilExpRecordedExpires(monthsOnApp: number): number {
   return Math.max(0, 6 - monthsOnApp);
 }
 
-// What does this level mean for training pace? Returned multipliers feed
-// into the deload detector and progression suggestion.
+// What does this level mean for training pace? Returned values are
+// sourced from lib/principles.ts DELOAD_POLICY so the deload detector
+// reads the same numbers training science has settled on.
+import { DELOAD_POLICY } from "./principles";
 export function experienceProfile(level: ExperienceLevel): {
   // How many weeks of stacking before a deload is suggested.
   deloadWindowWeeks: number;
@@ -65,10 +67,10 @@ export function experienceProfile(level: ExperienceLevel): {
   // Recommended top-set RPE on heavy lifts (lower for newcomers).
   recommendedRpe: number;
 } {
-  if (level === "newcomer")    return { deloadWindowWeeks: 6, deloadSessionThreshold: 15, recommendedRpe: 7 };
-  if (level === "beginner")    return { deloadWindowWeeks: 5, deloadSessionThreshold: 12, recommendedRpe: 7 };
-  if (level === "intermediate")return { deloadWindowWeeks: 4, deloadSessionThreshold: 10, recommendedRpe: 8 };
-  return                              { deloadWindowWeeks: 3, deloadSessionThreshold: 8,  recommendedRpe: 8 };
+  const p = DELOAD_POLICY[level];
+  const sessionThreshold = level === "newcomer" ? 15 : level === "beginner" ? 12 : level === "intermediate" ? 10 : 8;
+  const recommendedRpe = level === "newcomer" || level === "beginner" ? 7 : 8;
+  return { deloadWindowWeeks: p.weeksBetween, deloadSessionThreshold: sessionThreshold, recommendedRpe };
 }
 
 // Compact label-and-icon meta for the UI badge.
