@@ -1374,18 +1374,25 @@ function ProfileNagBanner({
 // the user is offered a one-tap refresh that also kicks the service
 // worker to update itself.
 function VersionCheckCard() {
-  const [running, setRunning] = useState<string | null>(null);
-  const [latest, setLatest] = useState<string | null>(null);
+  // SHA is the canonical compare key. appVersion is the friendly "v1.0.20"
+  // label rendered to the user (derived from PATCHLOG section count on
+  // the server). Track both — display appVersion, compare SHAs.
+  const [runningSha, setRunningSha] = useState<string | null>(null);
+  const [runningVer, setRunningVer] = useState<string | null>(null);
+  const [latestSha, setLatestSha] = useState<string | null>(null);
+  const [latestVer, setLatestVer] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [status, setStatus] = useState<"idle" | "uptodate" | "stale">("idle");
 
-  // Snapshot the SHA we're running against on mount. This is essentially the
-  // SHA that was live when the JS bundle was fetched — even if the server
+  // Snapshot the version we're running on mount. Even if the server
   // redeploys to a newer one, this stays put so the comparison still works.
   useEffect(() => {
     fetch("/api/version", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
-      .then((d: any) => { if (d?.shortSha) setRunning(d.shortSha); })
+      .then((d: any) => {
+        if (d?.shortSha) setRunningSha(d.shortSha);
+        if (d?.appVersion) setRunningVer(d.appVersion);
+      })
       .catch(() => {});
   }, []);
 
@@ -1396,8 +1403,9 @@ function VersionCheckCard() {
       const r = await fetch("/api/version", { cache: "no-store" });
       const d = await r.json();
       if (d?.shortSha) {
-        setLatest(d.shortSha);
-        setStatus(running && d.shortSha !== running ? "stale" : "uptodate");
+        setLatestSha(d.shortSha);
+        setLatestVer(d.appVersion ?? null);
+        setStatus(runningSha && d.shortSha !== runningSha ? "stale" : "uptodate");
       }
     } catch {
       setStatus("idle");
@@ -1427,8 +1435,13 @@ function VersionCheckCard() {
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontFamily: "'DM Sans', sans-serif" }}>You&apos;re running</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 2 }}>
-            {running ? `v ${running}` : "checking…"}
+            {runningVer ? `v${runningVer}` : runningSha ? `v ${runningSha}` : "checking…"}
           </div>
+          {runningVer && runningSha && (
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 2 }}>
+              build {runningSha}
+            </div>
+          )}
         </div>
         <button
           onClick={check}
@@ -1448,13 +1461,13 @@ function VersionCheckCard() {
 
       {status === "uptodate" && (
         <div style={{ fontSize: 11, color: "#2ecc71", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-          ✓ YOU&apos;RE ON THE LATEST · v {latest}
+          ✓ YOU&apos;RE ON THE LATEST · v{latestVer ?? latestSha}
         </div>
       )}
       {status === "stale" && (
         <div style={{ padding: 12, background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.3)", borderRadius: 10 }}>
           <div style={{ fontSize: 12, color: "#FF6B6B", fontFamily: "'DM Sans', sans-serif", marginBottom: 8, lineHeight: 1.5 }}>
-            New version available — <strong>v {latest}</strong>. You&apos;re still on <strong>v {running}</strong>.
+            New version available — <strong>v{latestVer ?? latestSha}</strong>. You&apos;re still on <strong>v{runningVer ?? runningSha}</strong>.
           </div>
           <button
             onClick={refreshNow}

@@ -2,6 +2,22 @@
 
 ---
 
+## Polish · 2026-05-21 (u) — user-facing `v1.0.N` version label (qa: settings-version-check)
+
+### Changed
+- `settings-version-check`: the user-visible version is now a friendly
+  `v1.0.N` semver-ish string instead of a raw commit SHA. The patch
+  number (`N`) is auto-derived on each request from the count of
+  `^## (QA pass|Feature|Fix|Polish)` sections in `PATCHLOG.md`.
+  `MAJOR_MINOR = "1.0"` is a constant in `/api/version` — bump it
+  manually for milestone releases.
+- The SHA stays as the canonical compare key (two pushes within the
+  same patch count will always have different SHAs). A small
+  `build <sha7>` line surfaces beneath the friendly label for
+  QA / support reference.
+
+---
+
 ## Feature · 2026-05-21 (t) — manual "Check for updates" in Settings (qa: settings-version-check)
 
 ### Added
