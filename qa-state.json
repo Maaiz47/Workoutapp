@@ -658,36 +658,41 @@
     },
     {
       "id": "progress-exercises",
-      "title": "Progress — exercises tab (per-exercise history)",
+      "title": "Progress — exercises tab with per-metric graphs",
       "area": "Progress",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
         "Open Progress → 'Exercises' tab",
-        "A list of exercises you have logged at least once should appear",
-        "Tap an exercise — a detail view or expanded section should show all logged sets (date, weight, reps)",
-        "Verify the personal best weight and reps are highlighted",
-        "Verify the muscle diagram shows the primary muscles for the selected exercise"
+        "Tap any day card to expand — verify each logged exercise shows a card with AVG WEIGHT / AVG REPS / PB stat boxes",
+        "Verify the bottom of each card now has a metric chart with 4 switchable tabs: EST 1RM (default) · MAX WEIGHT · VOLUME · AVG EFFORT",
+        "Verify the chart is an SVG line graph (not bars) with dots at each session, last dot slightly bigger and bottom labels showing min and latest values",
+        "Tap AVG EFFORT — verify it shows RPE data if you've been logging it; if not, shows 'NO EFFORT DATA YET — TAP A CHIP NEXT SESSION'",
+        "Tap VOLUME — verify the chart redraws with volume per session (weight × reps × sets, integer kg)",
+        "Verify exercises with no logged sessions show the 'No data yet' placeholder"
       ],
-      "notes": ""
+      "notes": "[2026-05-21] Slice A · Commit 2: replaced the single MiniChart with ExerciseMetricChart — 4-tab SVG line chart (EST 1RM / MAX WEIGHT / VOLUME / AVG EFFORT). Stats per session now include est1RM (Epley) + avgRpe so all four metrics plot from real data. EFFORT graph requires the new RPE chip to have been used during sessions."
     },
     {
       "id": "progress-history",
-      "title": "Progress — history tab (session log)",
+      "title": "Progress — history tab with month calendar",
       "area": "Progress",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
         "Open Progress → 'History' tab",
-        "A chronological list of past sessions should appear with date, day title, and duration",
-        "Tap a session to see details — sets logged for each exercise should be visible",
-        "Verify the most recent session is at the top"
+        "Verify a month-grid calendar appears at the top with: month/year title, ‹ / › month navigation, and two switchable tabs (INTENSITY / PBs)",
+        "Verify each cell shows the day number and is coloured: red gradient when INTENSITY is selected (deeper red = higher session intensity); gold gradient when PBs is selected (brighter gold = more PBs that day)",
+        "Verify today's cell has a thin white outline",
+        "Tap ‹ to navigate to previous months — verify › is disabled when on the current month",
+        "Hover over (or long-press on mobile) a session cell — verify the tooltip shows intensity / PBs / session count",
+        "Below the calendar, verify the existing chronological day-list still works (tap a day to expand sessions)"
       ],
-      "notes": ""
+      "notes": "[2026-05-21] Slice A · Commit 2: shipped HistoryCalendar component. Builds a 6×7 month grid (Monday-start). Cells coloured by INTENSITY (volume × avg-RPE proxy) or PBs (count of new personal bests detected that day via est1RM tracking). Switchable tabs at the top, ‹ / › month navigation, today indicator."
     },
     {
       "id": "progress-body",
@@ -1078,6 +1083,24 @@
         "Verify users with only their primary role (no extras) work exactly as before (no regression)"
       ],
       "notes": "[2026-05-21] Schema: User.extraRoles String[] @default([]) — Vercel auto-runs prisma db push on deploy. Auth GET returns the field. New userHasRole(user, name) helper checks both primary role and the extras array; all trainer-feature gates in app/page.tsx updated to use it. Admin GET/PATCH endpoints expose the new field and a set-extra-roles action. The /admin UI shows per-user toggle chips for granting/revoking extras."
+    },
+    {
+      "id": "settings-csv-export",
+      "title": "Settings — CSV export of workout history",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass csv-export",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings — scroll to find the ⬇ EXPORT WORKOUT HISTORY (CSV) button below SEND FEEDBACK and above 🎓 RESTART TUTORIAL",
+        "Tap it — verify a file downloads named like 'ironlog-history-2026-05-21.csv'",
+        "Open the CSV — verify columns: date, dayId, exerciseKey, setKey, weight, reps, rpe, est1RM, note. One row per logged set across every session in history.",
+        "Verify special characters (commas, quotes, newlines) in notes are properly escaped",
+        "Verify est1RM is computed from weight × (1 + reps/30) — should be 0 when weight or reps are 0",
+        "Verify the rpe column is empty for sets that didn't have RPE logged (vs 0)"
+      ],
+      "notes": "[2026-05-21] Slice A · Commit 2: lib/performance.ts gained buildHistoryCSV(history). Walks every dayId's session list and every set in each session, outputs one CSV row per set with comma/quote/newline escaping. Wired to a button in Settings between SEND FEEDBACK and 🎓 RESTART TUTORIAL."
     },
     {
       "id": "settings-version-check",

@@ -11,6 +11,38 @@ export function estimate1RM(weight: number, reps: number): number {
   return Math.round(weight * (1 + reps / 30) * 10) / 10;
 }
 
+// Build a CSV string from a workout history map. One row per logged set
+// across every session, columns: date, dayId, exercise, setKey, weight,
+// reps, RPE, note, est1RM. Used by the Settings "Export CSV" button.
+export function buildHistoryCSV(history: Record<string, any[]>): string {
+  const rows: string[] = [];
+  rows.push("date,dayId,exerciseKey,setKey,weight,reps,rpe,est1RM,note");
+  const esc = (s: any) => {
+    const v = s == null ? "" : String(s);
+    return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  };
+  for (const dayId in history) {
+    for (const session of history[dayId]) {
+      const date = session.date ?? "";
+      const sets = session.sets ?? {};
+      for (const setKey in sets) {
+        const s = sets[setKey];
+        if (!s) continue;
+        const exKey = setKey.replace(/-\d+(-d\d+)?$/, "");
+        const w = s.weight ?? 0, r = s.reps ?? 0;
+        const e1 = estimate1RM(w, r);
+        rows.push([
+          esc(date), esc(dayId), esc(exKey), esc(setKey),
+          esc(w), esc(r),
+          esc(s.rpe ?? ""), esc(e1),
+          esc(s.note ?? ""),
+        ].join(","));
+      }
+    }
+  }
+  return rows.join("\n") + "\n";
+}
+
 // Combined effort scale meta — what to show under each 1-10 chip. Maps the
 // classic RPE (Rate of Perceived Exertion) and RIR (Reps in Reserve)
 // interpretations onto the same 1-10 scale so the UI works for both schools

@@ -2,6 +2,35 @@
 
 ---
 
+## Feature · 2026-05-21 (ac) — per-exercise metric graphs · month calendar · CSV export (qa: progress-exercises, progress-history, settings-csv-export)
+
+### Added (Slice A · Commit 2 — viewing layer)
+- `progress-exercises`: replaced the single MiniChart bar in each
+  per-exercise card with **`ExerciseMetricChart`** — a 4-tab SVG line
+  chart switching between `EST 1RM` (default) · `MAX WEIGHT` ·
+  `VOLUME` · `AVG EFFORT`. `getExerciseStats()` now emits `est1RM`
+  (Epley) and `avgRpe` per session so all four metrics plot from
+  real data.
+- `progress-history`: month-grid **`HistoryCalendar`** now sits at
+  the top of the History tab. 6×7 Monday-start grid with `‹ / ›`
+  month nav, today indicator, and two switchable colour modes:
+  - **INTENSITY** — red gradient by `volume × avg-RPE` (or proxy 6
+    when RPE is unset)
+  - **PBs** — gold gradient by count of personal bests detected
+    that day (tracked via 1RM-tracker walking the chronological log)
+- `settings-csv-export`: new **`⬇ EXPORT WORKOUT HISTORY (CSV)`**
+  button in Settings (between SEND FEEDBACK and RESTART TUTORIAL).
+  `lib/performance.ts` gained `buildHistoryCSV(history)` — emits
+  one row per logged set with columns: date, dayId, exerciseKey,
+  setKey, weight, reps, rpe, est1RM, note. Comma/quote/newline
+  escaping included. Filename: `ironlog-history-<YYYY-MM-DD>.csv`.
+
+This closes out **Slice A** — the foundation for the performance
+metrics system. Slice B (auto progressive overload + plateau
+detector) depends on this and is next.
+
+---
+
 ## Feature · 2026-05-21 (ab) — RPE/effort + set notes + 1RM helper · kill yellow PAIR button (qa: workout-set-logging)
 
 ### Added (Slice A · Commit 1 — capture layer)

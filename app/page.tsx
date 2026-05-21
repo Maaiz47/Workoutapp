@@ -12,7 +12,7 @@ import { getFormCues } from "../lib/formCues";
 import { pickWarmupForDay } from "../lib/warmups";
 import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutorial";
-import { estimate1RM, EFFORT_SCALE } from "../lib/performance";
+import { estimate1RM, EFFORT_SCALE, buildHistoryCSV } from "../lib/performance";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -331,23 +331,28 @@ function suggestedStartingSet(exId: string, exName: string, exType: string | und
 
 function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: string) {
   const sessions = history[dayId] || [];
-  const dataPoints: { date: string; avgWeight: number; maxWeight: number; totalVolume: number; avgReps: number; setCount: number }[] = [];
+  const dataPoints: { date: string; avgWeight: number; maxWeight: number; totalVolume: number; avgReps: number; setCount: number; est1RM: number; avgRpe: number | null }[] = [];
   let pbWeight = 0, pbReps = 0, pbDate = "";
 
   for (const s of sessions) {
-    const sets = s.sets as Record<string, { weight: number; reps: number }>;
+    const sets = s.sets as Record<string, { weight: number; reps: number; rpe?: number; note?: string }>;
     let weights: number[] = [], reps: number[] = [], volume = 0, count = 0;
+    let maxEst1RM = 0;
+    let rpeSum = 0, rpeCount = 0;
     for (const k in sets) {
       if (k.startsWith(exId + "-")) {
-        weights.push(sets[k].weight);
-        reps.push(sets[k].reps);
-        volume += sets[k].weight * sets[k].reps;
+        const w = sets[k].weight, r = sets[k].reps;
+        weights.push(w);
+        reps.push(r);
+        volume += w * r;
         count++;
-        // Track PB: highest weight, and if tied, most reps at that weight
-        if (sets[k].weight > pbWeight || (sets[k].weight === pbWeight && sets[k].reps > pbReps)) {
-          pbWeight = sets[k].weight;
-          pbReps = sets[k].reps;
-          pbDate = s.date;
+        if (w > 0 && r > 0) {
+          const e1 = Math.round(w * (1 + r / 30) * 10) / 10;
+          if (e1 > maxEst1RM) maxEst1RM = e1;
+        }
+        if (typeof sets[k].rpe === "number") { rpeSum += sets[k].rpe!; rpeCount++; }
+        if (w > pbWeight || (w === pbWeight && r > pbReps)) {
+          pbWeight = w; pbReps = r; pbDate = s.date;
         }
       }
     }
@@ -359,6 +364,8 @@ function getExerciseStats(history: Record<string, any[]>, dayId: string, exId: s
         totalVolume: volume,
         avgReps: reps.reduce((a, b) => a + b, 0) / reps.length,
         setCount: count,
+        est1RM: maxEst1RM,
+        avgRpe: rpeCount > 0 ? Math.round((rpeSum / rpeCount) * 10) / 10 : null,
       });
     }
   }
@@ -636,6 +643,204 @@ function MiniChart({ data, color, label }: { data: number[]; color: string; labe
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
         <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{data.slice(-12)[0]?.toFixed(1)}</span>
         <span style={{ fontSize: 9, color, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{data[data.length - 1]?.toFixed(1)}</span>
+      </div>
+    </div>
+  );
+}
+
+// Per-exercise multi-metric chart with a tab switcher. Renders an SVG line
+// chart of the chosen metric over the last N sessions. Used inside the
+// Progress → Exercises tab to show actual strength trends, not just bars.
+function ExerciseMetricChart({ stats, color }: { stats: Array<{ date: string; avgWeight: number; maxWeight: number; totalVolume: number; avgReps: number; est1RM: number; avgRpe: number | null }>; color: string }) {
+  type Metric = "weight" | "1rm" | "volume" | "rpe";
+  const [metric, setMetric] = useState<Metric>("1rm");
+  const tabs: Array<{ id: Metric; label: string; format: (v: number) => string }> = [
+    { id: "1rm",    label: "EST 1RM",    format: v => `${v.toFixed(1)}kg` },
+    { id: "weight", label: "MAX WEIGHT", format: v => `${v.toFixed(1)}kg` },
+    { id: "volume", label: "VOLUME",     format: v => `${Math.round(v)}kg`  },
+    { id: "rpe",    label: "AVG EFFORT", format: v => v.toFixed(1) },
+  ];
+  const pick = (s: typeof stats[number]): number | null => {
+    if (metric === "weight") return s.maxWeight;
+    if (metric === "1rm") return s.est1RM;
+    if (metric === "volume") return s.totalVolume;
+    if (metric === "rpe") return s.avgRpe;
+    return null;
+  };
+  const series = stats.slice(-12).map(s => pick(s)).map(v => v ?? null);
+  const filtered = series.map((v, i) => ({ v, i })).filter(p => p.v != null) as Array<{ v: number; i: number }>;
+  if (filtered.length < 2) {
+    return (
+      <div style={{ marginTop: 12 }}>
+        <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setMetric(t.id)} style={{ flex: 1, padding: "5px 0", background: metric === t.id ? `${color}26` : "rgba(255,255,255,0.04)", border: `1px solid ${metric === t.id ? color : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: metric === t.id ? color : "rgba(255,255,255,0.45)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{t.label}</button>
+          ))}
+        </div>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "12px 0", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+          {metric === "rpe" ? "NO EFFORT DATA YET — TAP A CHIP NEXT SESSION" : "MORE SESSIONS NEEDED"}
+        </div>
+      </div>
+    );
+  }
+  const vals = filtered.map(p => p.v);
+  const max = Math.max(...vals), min = Math.min(...vals);
+  const range = max - min || 1;
+  const W = 280, H = 70, pad = 6;
+  const xStep = (W - pad * 2) / Math.max(series.length - 1, 1);
+  const norm = (v: number) => H - pad - ((v - min) / range) * (H - pad * 2);
+  // Build a polyline path skipping null gaps.
+  const segments: string[] = [];
+  let current: string[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const v = series[i];
+    if (v == null) { if (current.length) { segments.push(current.join(" ")); current = []; } continue; }
+    const x = pad + i * xStep;
+    const y = norm(v);
+    current.push((current.length === 0 ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1));
+  }
+  if (current.length) segments.push(current.join(" "));
+  const activeTab = tabs.find(t => t.id === metric)!;
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setMetric(t.id)} style={{ flex: 1, padding: "5px 0", background: metric === t.id ? `${color}26` : "rgba(255,255,255,0.04)", border: `1px solid ${metric === t.id ? color : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: metric === t.id ? color : "rgba(255,255,255,0.45)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{t.label}</button>
+        ))}
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: "block" }}>
+        {segments.map((d, i) => (
+          <path key={i} d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        ))}
+        {/* Dots */}
+        {filtered.map((p, i) => {
+          const x = pad + p.i * xStep;
+          const y = norm(p.v);
+          const isLast = i === filtered.length - 1;
+          return <circle key={i} cx={x} cy={y} r={isLast ? 3 : 2} fill={color} />;
+        })}
+      </svg>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{activeTab.format(min)} · {filtered.length} pts</span>
+        <span style={{ fontSize: 9, color, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{activeTab.format(filtered[filtered.length - 1].v)}</span>
+      </div>
+    </div>
+  );
+}
+
+// Month-grid history calendar with INTENSITY / PBs switchable tabs.
+// Builds a 6×7 grid for the chosen month, cells coloured by either total
+// session intensity (volume × avg RPE proxy) or PB count that day.
+function HistoryCalendar({ history }: { history: Record<string, any[]> }) {
+  type Mode = "intensity" | "pbs";
+  const [mode, setMode] = useState<Mode>("intensity");
+  const [offset, setOffset] = useState(0); // 0 = current month, -1 = prev, etc.
+
+  // Aggregate per ISO-date (YYYY-MM-DD): all sessions across all days.
+  const byDate = useMemo(() => {
+    const m: Record<string, { intensity: number; pbs: number; sessions: number }> = {};
+    const pbTracker: Record<string, number> = {}; // exerciseKey -> best 1RM ever seen so far
+    const allSessions: Array<{ iso: string; sets: Record<string, any> }> = [];
+    for (const dayId in history) {
+      for (const s of history[dayId]) {
+        // s.date format: "21 May" or similar — try to parse via Date if it's ISO.
+        let iso = s.date as string;
+        const parsed = new Date(s.date);
+        if (!isNaN(+parsed)) {
+          iso = parsed.toISOString().slice(0, 10);
+        }
+        allSessions.push({ iso, sets: s.sets ?? {} });
+      }
+    }
+    allSessions.sort((a, b) => a.iso.localeCompare(b.iso));
+    for (const { iso, sets } of allSessions) {
+      let volume = 0, rpeSum = 0, rpeCount = 0, pbs = 0;
+      for (const k in sets) {
+        const s = sets[k];
+        if (!s || s.skipped) continue;
+        const w = s.weight || 0, r = s.reps || 0;
+        volume += w * r;
+        if (typeof s.rpe === "number") { rpeSum += s.rpe; rpeCount++; }
+        if (w > 0 && r > 0) {
+          // Exercise key = drop the set-number suffix
+          const exKey = k.replace(/-\d+(-d\d+)?$/, "");
+          const est1RM = w * (1 + r / 30);
+          if (est1RM > (pbTracker[exKey] ?? 0)) {
+            pbTracker[exKey] = est1RM;
+            pbs += 1;
+          }
+        }
+      }
+      const avgRpe = rpeCount > 0 ? rpeSum / rpeCount : 6; // assume moderate when unset
+      const intensity = volume * (avgRpe / 10);
+      if (!m[iso]) m[iso] = { intensity: 0, pbs: 0, sessions: 0 };
+      m[iso].intensity += intensity;
+      m[iso].pbs += pbs;
+      m[iso].sessions += 1;
+    }
+    return m;
+  }, [history]);
+
+  // Build month grid.
+  const now = new Date();
+  const month = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const monthLabel = month.toLocaleString("en-GB", { month: "long", year: "numeric" });
+  const firstDow = (month.getDay() + 6) % 7; // Monday-start grid
+  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const cells: Array<{ iso: string | null; day: number | null }> = [];
+  for (let i = 0; i < firstDow; i++) cells.push({ iso: null, day: null });
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    cells.push({ iso, day: d });
+  }
+  while (cells.length % 7 !== 0) cells.push({ iso: null, day: null });
+
+  // Normalise the chosen metric for colour scaling.
+  const values = Object.values(byDate).map(v => mode === "intensity" ? v.intensity : v.pbs);
+  const maxV = Math.max(...values, 0) || 1;
+
+  const cellColor = (iso: string): string => {
+    const v = byDate[iso];
+    if (!v || v.sessions === 0) return "rgba(255,255,255,0.04)";
+    const raw = mode === "intensity" ? v.intensity : v.pbs;
+    if (raw === 0) return "rgba(255,255,255,0.05)";
+    const intensityRatio = Math.min(1, raw / maxV);
+    if (mode === "intensity") {
+      return `rgba(255,107,107,${0.18 + intensityRatio * 0.55})`;
+    }
+    return `rgba(240,192,64,${0.2 + intensityRatio * 0.6})`;
+  };
+
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "14px", marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <button onClick={() => setOffset(o => o - 1)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer" }}>‹</button>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>{monthLabel.toUpperCase()}</div>
+        <button onClick={() => setOffset(o => Math.min(0, o + 1))} disabled={offset === 0} style={{ background: "none", border: "none", color: offset === 0 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", fontSize: 16, cursor: offset === 0 ? "default" : "pointer" }}>›</button>
+      </div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+        <button onClick={() => setMode("intensity")} style={{ flex: 1, padding: "6px 0", background: mode === "intensity" ? "rgba(255,107,107,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${mode === "intensity" ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: mode === "intensity" ? "#FF6B6B" : "rgba(255,255,255,0.45)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>INTENSITY</button>
+        <button onClick={() => setMode("pbs")} style={{ flex: 1, padding: "6px 0", background: mode === "pbs" ? "rgba(240,192,64,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${mode === "pbs" ? "#f0c040" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: mode === "pbs" ? "#f0c040" : "rgba(255,255,255,0.45)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>PBs</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 6 }}>
+        {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+          <div key={i} style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", textAlign: "center", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>{d}</div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+        {cells.map((c, i) => {
+          if (!c.iso) return <div key={i} style={{ aspectRatio: "1 / 1" }} />;
+          const v = byDate[c.iso];
+          const isToday = c.iso === new Date().toISOString().slice(0, 10);
+          return (
+            <div key={i} title={v ? (mode === "intensity" ? `${Math.round(v.intensity)} intensity · ${v.sessions} session${v.sessions !== 1 ? "s" : ""}` : `${v.pbs} PB${v.pbs !== 1 ? "s" : ""} · ${v.sessions} session${v.sessions !== 1 ? "s" : ""}`) : ""} style={{ aspectRatio: "1 / 1", borderRadius: 6, background: cellColor(c.iso), border: isToday ? "1px solid rgba(255,255,255,0.5)" : "1px solid transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: v ? "#fff" : "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>
+              {c.day}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 10, textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+        {mode === "intensity" ? "DEEPER RED = MORE INTENSE SESSION" : "BRIGHTER GOLD = MORE PBs THAT DAY"}
       </div>
     </div>
   );
@@ -6446,6 +6651,30 @@ function HomePage() {
           {/* Send feedback */}
           <SendFeedbackCard username={user?.username || ""} />
 
+          {/* Export workout history as CSV */}
+          <button
+            onClick={() => {
+              try {
+                const csv = buildHistoryCSV(history);
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `ironlog-history-${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+              } catch (e) { console.error("CSV export failed:", e); }
+            }}
+            style={{
+              width: "100%", marginTop: 8, padding: "14px",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 12,
+              color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 700, letterSpacing: 2,
+              cursor: "pointer", fontFamily: "'Space Mono', monospace",
+            }}
+          >⬇ EXPORT WORKOUT HISTORY (CSV)</button>
+
           {/* Restart tutorial */}
           <button
             onClick={() => { try { localStorage.removeItem(TUTORIAL_STORAGE_KEY); } catch {}; setShowTutorial(true); }}
@@ -6849,7 +7078,7 @@ function HomePage() {
                         </div>
                       </div>
 
-                      <MiniChart data={stats.map(s => s.avgWeight)} color={d.color} label="WEIGHT TREND" />
+                      <ExerciseMetricChart stats={stats} color={d.color} />
                     </div>
                   );
                 }))}
@@ -6861,6 +7090,7 @@ function HomePage() {
         {/* ─── HISTORY TAB ───────────────────────────────────────────── */}
         {progressTab === "history" && (
           <div className="fade-in" style={{ padding: "16px 20px 0" }}>
+            <HistoryCalendar history={history} />
             {WORKOUT_DATA.map(d => (
               <div key={d.id} style={{ marginBottom: 4 }}>
                 <div className="card-hover" onClick={() => setOpenHist(openHist === d.id ? null : d.id)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px 18px", cursor: "pointer" }}>
