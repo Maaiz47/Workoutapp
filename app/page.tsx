@@ -2955,6 +2955,9 @@ function HomePage() {
   // Daily pro tip — picked deterministically by date so it stays stable
   // across home reloads, refreshes once per day.
   const [dismissedTodayTip, setDismissedTodayTip] = useState(false);
+  // Pro Tip — when chip is tapped, expand full body in a bottom-sheet
+  // instead of using the home card slot. Saves ~140px of vertical space.
+  const [tipModalOpen, setTipModalOpen] = useState(false);
   // Offline-queue indicator — refreshes on online event + after each
   // session save so a "N pending" pill can show in the home header.
   const [pendingSyncs, setPendingSyncs] = useState(0);
@@ -3271,13 +3274,13 @@ function HomePage() {
   const changeTheme = (t: "iron"|"mono"|"vivid") => { setAppTheme(t); localStorage.setItem("ironlog-theme", t); };
   const changeAccent = (c: string) => { setAccentColor(c); localStorage.setItem("ironlog-accent", c); };
 
-  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "workout"]);
+  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout"]);
   useSwipeBack(() => {
     if (view === "conversation") { setView("messages"); setActiveConversation(null); }
     else if (view === "messages") setView("home");
     else if (view === "clientDetail") { setView("home"); setEditingPlan(false); setEditedPlanDays(null); }
     else if (view === "progress") { setView("home"); }
-    else if (view === "settings") setView("home");
+    else if (view === "settings" || view === "profile") setView("home");
     else if (view === "workout" && started) setView("home"); // leave but keep session alive
   }, swipeBackViews.has(view));
 
@@ -5960,98 +5963,52 @@ function HomePage() {
           </div>
         </div>
       )}
-      {/* Full-bleed hero — profile button floats over image, no solid wrapper.
-          Shorter now (200px). Tagline lives OUTSIDE the hero so it sits in
-          the actual dark space between the profile chip and the cards
-          section, not glued to the lower portion of the barbell image. */}
-      <div style={{ position: "relative", height: 200, overflow: "hidden", zIndex: 5 }}>
-        {/* Hero image — objectPosition pushed toward the top of the
-            source so the bar + plates land low in the visible hero,
-            just above the dashboard / Daily Quest below. */}
-        <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 12%", opacity: 0.65 }} />
-        {/* Gradient: dark at top for status bar readability, clear in middle, dark at bottom for text */}
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.88) 0%, rgba(10,10,15,0.35) 28%, rgba(10,10,15,0) 50%, rgba(10,10,15,0) 65%, rgba(10,10,15,1) 100%)" }} />
-        {/* Profile button — floats over the image */}
-        <div ref={profileWrapperRef} style={{ position: "absolute", top: 14, left: 16, right: 16, zIndex: 10, transition: "transform 0.25s ease, opacity 0.25s ease", willChange: "transform" }}>
-          <button onClick={() => setView("settings")} style={{ position: "relative", zIndex: 1, background: "rgba(10,10,18,0.48)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, cursor: "pointer", textAlign: "left", padding: "12px 16px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 24px -6px rgba(0,0,0,0.7)", display: "flex", alignItems: "center", gap: 12 }}>
-            <img src="/ai/avatar-default.png" alt="" style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
+      {/* Compact hero (150px). Profile chip in one row: avatar · name +
+          inline tier pills. WELCOME BACK label dropped (redundant). Tagline
+          smaller, sits in the lower hero. */}
+      <div style={{ position: "relative", height: 150, overflow: "hidden", zIndex: 5 }}>
+        <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 12%", opacity: 0.55 }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.9) 0%, rgba(10,10,15,0.35) 35%, rgba(10,10,15,0) 60%, rgba(10,10,15,1) 100%)" }} />
+        {/* Profile chip — compact horizontal layout */}
+        <div ref={profileWrapperRef} style={{ position: "absolute", top: 10, left: 12, right: 12, zIndex: 10, transition: "transform 0.25s ease, opacity 0.25s ease", willChange: "transform" }}>
+          <button onClick={() => setView("profile")} style={{ position: "relative", zIndex: 1, background: "rgba(10,10,18,0.5)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "8px 12px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)", display: "flex", alignItems: "center", gap: 10 }}>
+            <img src="/ai/avatar-default.png" alt="" style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>WELCOME BACK</div>
-              <span style={{ fontSize: 14, color: "rgba(255,255,255,0.25)" }}>›</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", letterSpacing: -0.3, marginRight: 2 }}>{user.username}</div>
+                {/* Inline tier pills — emoji-first, compact (no "TIER N/M"). */}
+                {userHasRole(user, "trainer") && (() => {
+                  const t = getTrainerTier(clients.length);
+                  return (
+                    <button onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }} title="Trainer tier · tap to see how tiers work" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "1px 5px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                      <span style={{ fontSize: 10 }}>{t.emoji}</span><span>{t.label.toUpperCase()}</span>
+                    </button>
+                  );
+                })()}
+                {(() => {
+                  const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length);
+                  return (
+                    <button onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }} title="Athlete tier · tap to see how tiers work" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "1px 5px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                      <span style={{ fontSize: 10 }}>{t.emoji}</span><span>{t.label.toUpperCase()}</span>
+                    </button>
+                  );
+                })()}
+                {user.role === "user" && user.roleRequest && (
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "1px 5px" }}>REVIEWING</span>
+                )}
+                {userHasRole(user, "admin") && (
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "1px 5px" }}>ADMIN</span>
+                )}
+              </div>
             </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: -0.5, marginTop: 5 }}>{user.username}</div>
-            {/* Tier pills — separate ROLE labels from TIER badges so users
-                can tell that "Coach" / "Tiger" are tiers, not roles. Tapping
-                any tier badge stops the parent button + opens the tier
-                explainer modal. */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, flexWrap: "wrap" }}>
-              {/* Role labels first — clear "what am I" indicators. */}
-              {userHasRole(user, "admin") && (
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "2px 6px" }}>ADMIN</span>
-              )}
-              {userHasRole(user, "trainer") && (
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 4, padding: "2px 6px" }}>TRAINER</span>
-              )}
-              {user.role === "user" && !userHasRole(user, "trainer") && (
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, padding: "2px 6px" }}>ATHLETE</span>
-              )}
-              {user.role === "user" && user.roleRequest && (
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "2px 6px" }}>REVIEWING</span>
-              )}
-
-              {/* Trainer TIER badge — explicit "TIER" word so "Coach" isn't
-                  mistaken for a role. Tappable → opens the tier-info modal. */}
-              {userHasRole(user, "trainer") && (() => {
-                const t = getTrainerTier(clients.length);
-                const idx = TRAINER_TIERS.findIndex(x => x.label === t.label);
-                return (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }}
-                    title={`Trainer tier · tap to see how tiers work`}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 7px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
-                  >
-                    <span style={{ fontSize: 11 }}>{t.emoji}</span>
-                    <span>{t.label.toUpperCase()} · TIER {idx + 1}/{TRAINER_TIERS.length}</span>
-                    <span style={{ opacity: 0.55, marginLeft: 2 }}>ⓘ</span>
-                  </button>
-                );
-              })()}
-
-              {/* Athlete TIER badge — shown for athletes AND for trainers
-                  who also lift (so a trainer can see both their ladders).
-                  Same tap-to-explain affordance. */}
-              {(() => {
-                const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length);
-                const idx = CLIENT_TIERS.findIndex(x => x.label === t.label);
-                return (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }}
-                    title={`Athlete tier · tap to see how tiers work`}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "2px 7px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
-                  >
-                    <span style={{ fontSize: 11 }}>{t.emoji}</span>
-                    <span>{t.label.toUpperCase()} · TIER {idx + 1}/{CLIENT_TIERS.length}</span>
-                    <span style={{ opacity: 0.55, marginLeft: 2 }}>ⓘ</span>
-                  </button>
-                );
-              })()}
-            </div>
-            </div>
+            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>›</span>
           </button>
         </div>
-        {/* LIFT / TRACK / PROGRESS + phrase — overlaid on the lower
-            half of the hero image so it sits visually between the
-            profile chip (top) and the cards section beneath. */}
-        <div style={{ position: "absolute", top: "62%", left: 0, right: 0, transform: "translateY(-50%)", textAlign: "center", pointerEvents: "none" }}>
-          <div style={{ fontSize: 18, color: "rgba(255,255,255,0.85)", letterSpacing: 7, fontFamily: "'Space Mono', monospace", fontWeight: 700, textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>LIFT · TRACK · PROGRESS</div>
-          <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 16, color: "rgba(255,255,255,0.62)", fontStyle: "italic", marginTop: 9, fontFamily: "'DM Sans', sans-serif", textShadow: "0 1px 10px rgba(0,0,0,0.7)" }}>{phrase}</div>
+        {/* Tagline overlay — compact, lower in the hero */}
+        <div style={{ position: "absolute", top: "70%", left: 0, right: 0, transform: "translateY(-50%)", textAlign: "center", pointerEvents: "none" }}>
+          <div style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", letterSpacing: 6, fontFamily: "'Space Mono', monospace", fontWeight: 700, textShadow: "0 2px 14px rgba(0,0,0,0.7)" }}>LIFT · TRACK · PROGRESS</div>
+          <div key={phraseIdx} className={phraseVisible ? "phrase-in" : "phrase-out"} style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontStyle: "italic", marginTop: 4, fontFamily: "'DM Sans', sans-serif", textShadow: "0 1px 8px rgba(0,0,0,0.7)" }}>{phrase}</div>
         </div>
-      </div>
-
-      {/* Fade between hero and cards section so the transition isn't a hard line. */}
-      <div aria-hidden style={{ position: "relative", height: 0, zIndex: 6 }}>
-        <div style={{ position: "absolute", top: -40, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom, rgba(10,10,15,0) 0%, rgba(10,10,15,0.85) 60%, rgba(10,10,15,1) 100%)", pointerEvents: "none" }} />
       </div>
       {/* Notification banner — sits below the hero */}
       {showNotifBanner && notifStatus === "idle" && (
@@ -6071,7 +6028,7 @@ function HomePage() {
           </div>
         </div>
       )}
-      <ProfileNagBanner ob={ob} onGoToSettings={() => setView("settings")} />
+      <ProfileNagBanner ob={ob} onGoToSettings={() => setView("profile")} />
       <div style={{ padding: "10px 16px 0", position: "relative", zIndex: 20 }}>
         {/* Daily Quest — randomised tiny goal per day. Suppressed when
             the user has toggled de-gamify mode in Settings. */}
@@ -6171,18 +6128,30 @@ function HomePage() {
             dayOfWeek: new Date().getDay(),
           };
           const tip = pickDailyTip(ctx);
+          // Slim chip like Daily Quest — title only, tap to expand full
+          // body in a modal. Saves ~120px of home real estate.
           return (
-            <div style={{ background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 12, padding: "10px 12px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <span style={{ fontSize: 18, lineHeight: 1, marginTop: 2 }}>💡</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6 }}>
-                  <span style={{ fontSize: 9, color: "#4ECDC4", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>PRO TIP · {tip.category.toUpperCase()}</span>
-                  <button onClick={() => setDismissedTodayTip(true)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.35)", fontSize: 14, cursor: "pointer", padding: 0, lineHeight: 1 }} title="Hide for today">×</button>
+            <>
+              <button onClick={() => setTipModalOpen(true)} style={{ width: "100%", boxSizing: "border-box", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 10, padding: "8px 12px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left" }}>
+                <span style={{ fontSize: 15, lineHeight: 1 }}>💡</span>
+                <span style={{ fontSize: 9, color: "#4ECDC4", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0 }}>PRO TIP</span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tip.text}</span>
+                <span style={{ fontSize: 13, color: "rgba(78,205,196,0.5)", flexShrink: 0 }}>›</span>
+              </button>
+              {tipModalOpen && (
+                <div onClick={() => setTipModalOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(8px)" }}>
+                  <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, background: "#0a0a0f", borderTop: "1px solid rgba(78,205,196,0.3)", borderRadius: "18px 18px 0 0", padding: "20px 22px 28px", boxSizing: "border-box" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, color: "#4ECDC4", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>💡 PRO TIP · {tip.category.toUpperCase()}</div>
+                      <button onClick={() => setTipModalOpen(false)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 20, cursor: "pointer", padding: 0, lineHeight: 1 }}>×</button>
+                    </div>
+                    <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.55 }}>{tip.text}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 14, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>src: {tip.source}</div>
+                    <button onClick={() => { setDismissedTodayTip(true); setTipModalOpen(false); }} style={{ marginTop: 16, padding: "8px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.55)", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1, cursor: "pointer" }}>HIDE FOR TODAY</button>
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", lineHeight: 1.5, marginTop: 4 }}>{tip.text}</div>
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>src: {tip.source}</div>
-              </div>
-            </div>
+              )}
+            </>
           );
         })()}
 
@@ -7985,7 +7954,8 @@ function HomePage() {
   }
 
   // ─── SETTINGS ───────────────────────────────────────────────────────
-  if (view === "settings") {
+  if (view === "settings" || view === "profile") {
+    const isProfileView = view === "profile";
     const isTrainer = userHasRole(user, "trainer");
     const hasPendingRequest = user.roleRequest === "trainer";
 
@@ -8068,7 +8038,8 @@ function HomePage() {
         </AnimatePresence>
         <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>SETTINGS</div>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>{isProfileView ? "PROFILE" : "SETTINGS"}</div>
+          <button onClick={() => setView(isProfileView ? "settings" : "profile")} style={{ marginLeft: "auto", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.6)", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, padding: "5px 9px", cursor: "pointer" }}>{isProfileView ? "⚙ SETTINGS" : "👤 PROFILE"}</button>
         </div>
 
         <div style={{ padding: "0 20px" }}>
@@ -8077,6 +8048,7 @@ function HomePage() {
               they're the "how does this app look to me" knobs. The PROFILE
               section below is the "who am I" data, kept visually
               independent. ── */}
+          {!isProfileView && (<>
           <SettingsSectionHeader label="APP PREFERENCES" icon="⚙" color="rgba(255,255,255,0.5)" />
 
           {/* ── THEME ── */}
@@ -8120,9 +8092,11 @@ function HomePage() {
             </div>
           </div>
 
+          </>)}
           {/* ── SECTION: YOUR PROFILE — who you are + your training data.
               Visually separated from the APP PREFERENCES block above so
               "me" and "the app" stay distinct. ── */}
+          {isProfileView && (<>
           <SettingsSectionHeader label="YOUR PROFILE" icon="👤" color="rgba(255,107,107,0.7)" />
 
           {/* Profile card — identity, roles, and current tier badges.
@@ -8545,7 +8519,9 @@ function HomePage() {
             </div>
           )}
 
+          </>)}
           {/* ── SECTION: ALERTS — push notifications. ── */}
+          {!isProfileView && (<>
           <SettingsSectionHeader label="ALERTS" icon="🔔" color="rgba(78,205,196,0.75)" />
 
           {/* Notifications */}
@@ -8741,6 +8717,7 @@ function HomePage() {
 
           {/* Log out */}
           <button onClick={doLogout} style={{ width: "100%", marginTop: 8, padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.35)", fontSize: 12, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>LOG OUT</button>
+          </>)}
         </div>
       </div>
     );

@@ -914,7 +914,26 @@
         "Tap a day card → verify the expanding overlay now has title + START WORKOUT centered VERTICALLY on screen (not glued to the bottom)",
         "Tap ← Back on the overlay — verify it collapses cleanly"
       ],
-      "notes": "[2026-05-21] Hero height 220→200. Tagline kept inside hero at top: 62% (user confirmed this is the right placement). Daily Quest compressed from full card with body+title+label to a 36px-tall single-row chip with chevron. Tap opens questInfo modal — wellness-related quests deep-link to Progress → Dashboard; behavioural ones just acknowledge. Dynamic card heights: plan.length 1 → 420px, 2 → 260px, 3 → 178px, 4+ → 138px (2-col). Day-card expand overlay vertically centers title + focus + START WORKOUT button with flex justifyContent: center."
+      "notes": "[2026-05-21] Slice 2 — declutter pass. Hero 200→150. Welcome chip compressed to a single horizontal row: avatar (38→32) · name · inline tier pills · ›. Dropped 'WELCOME BACK' label (redundant), and tier pills now show emoji + tier label only (no 'TIER N/M' suffix — already explained in modal). Tagline shrunk (18→15) and moved deeper into hero. Pro Tip card compressed from ~140px padded card to a single-line slim chip with tap-to-expand modal that shows full body + source + 'hide for today'.\n[2026-05-21] Hero height 220→200. Tagline kept inside hero at top: 62% (user confirmed this is the right placement). Daily Quest compressed from full card with body+title+label to a 36px-tall single-row chip with chevron. Tap opens questInfo modal — wellness-related quests deep-link to Progress → Dashboard; behavioural ones just acknowledge. Dynamic card heights: plan.length 1 → 420px, 2 → 260px, 3 → 178px, 4+ → 138px (2-col). Day-card expand overlay vertically centers title + focus + START WORKOUT button with flex justifyContent: center."
+    },
+    {
+      "id": "profile-settings-split",
+      "title": "Profile separated from Settings — /profile = identity + training data, /settings = theme + alerts + feedback + system",
+      "area": "Settings",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass profile-settings-split",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Tap the welcome card chip on home — verify it now opens the PROFILE page (label says PROFILE, not SETTINGS)",
+        "Verify PROFILE page shows only: YOUR PROFILE (identity, role, tiers, body metrics, photos) + TRAINING (HIIT, trainer upgrade)",
+        "Tap the ⚙ SETTINGS button (top-right of the profile header) — verify the page swaps to SETTINGS view",
+        "Verify SETTINGS shows: APP PREFERENCES (theme), ALERTS (notifications), FEEDBACK & QA, LIBRARY & SYSTEM (export, log out, etc)",
+        "Tap the 👤 PROFILE button on settings — verify it swaps back to PROFILE view",
+        "Tap ← Back on either page → returns to home",
+        "Swipe back gesture on the page also returns to home"
+      ],
+      "notes": "[2026-05-21] Introduced new view value 'profile'. The welcome chip and ProfileNagBanner both setView('profile') instead of 'settings'. Inside the existing settings render block, wrapped APP PREFERENCES + ALERTS + FEEDBACK & QA + LIBRARY & SYSTEM in `{!isProfileView && ...}` and wrapped YOUR PROFILE + TRAINING in `{isProfileView && ...}`. Header label switches PROFILE ↔ SETTINGS and a small top-right button toggles between the two surfaces."
     },
     {
       "id": "tier-system-intuitive",

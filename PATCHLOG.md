@@ -2,6 +2,55 @@
 
 ---
 
+## Feature · 2026-05-21 — Home declutter v3 + Profile split from Settings (qa: home-polish-v2, profile-settings-split)
+
+### Background
+User feedback on the home view: "Reorganise, a lot of overlays
+and profile tab wasting space." On a 5-day plan the welcome
+card + hero + tagline + Pro Tip card + YOUR SPLIT label
+combined left the 5th day card half-cut at the bottom of the
+viewport. The welcome card alone took ~150px (avatar + WELCOME
+BACK label + big name + two rows of tier pills with `· TIER
+N/M` suffixes). Pro Tip was another ~140px padded card.
+
+User also asked for the "profile" to be conceptually separate
+from "settings" — theme/notifications/feedback are app-level
+concerns, while identity/training/body data are about the
+user.
+
+### Home declutter (qa: home-polish-v2)
+- **Hero 200 → 150px** with brighter gradient.
+- **Welcome chip compressed**: single horizontal row — avatar
+  (38→32px) · name · inline tier pills · `›`. Dropped the
+  "WELCOME BACK" overhead label entirely (redundant). Tier
+  pills now show `emoji + LABEL` (e.g. `🎯 COACH`, `🐒 MONKEY`)
+  with no "TIER N/M" suffix — the explainer modal carries the
+  full breakdown so the chip stays tiny.
+- **Tagline shrunk**: 18→15px, italic phrase 16→12px, moved
+  deeper into the hero.
+- **Pro Tip card → slim chip**: single-row chip (icon · PRO TIP
+  label · truncated text · ›). Taps open a bottom-sheet modal
+  with full body, source citation, and a HIDE FOR TODAY button.
+  Saves ~120px of vertical real-estate on home.
+
+### Profile / Settings split (qa: profile-settings-split)
+- Introduced a new view value `"profile"` distinct from
+  `"settings"`. The welcome chip and ProfileNagBanner now route
+  to `"profile"`.
+- Same render block, conditional sections:
+  - **PROFILE view**: YOUR PROFILE (identity, roles, tiers,
+    body metrics, photos) + TRAINING (HIIT prefs, trainer
+    upgrade).
+  - **SETTINGS view**: APP PREFERENCES (theme), ALERTS
+    (notifications), FEEDBACK & QA, LIBRARY & SYSTEM (export,
+    log out, app version).
+- Header label switches PROFILE ↔ SETTINGS. A small top-right
+  button (`⚙ SETTINGS` / `👤 PROFILE`) toggles between the two
+  surfaces so users can hop without going back to home.
+- Swipe-back gesture supports both views.
+
+---
+
 ## Feature · 2026-05-21 — Tier clarity: COACH is unmistakably a TIER + both ladders visible (qa: tier-pills-clarity, tier-info-modal, settings-identity-tiers)
 
 ### Background
