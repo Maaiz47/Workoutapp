@@ -2,6 +2,45 @@
 
 ---
 
+## Fix · 2026-05-21 — Server-side canonical tier on every leaderboard row (qa: tier-pills-clarity)
+
+### Background
+After the previous slice unified the visitor's OWN tier across all
+surfaces, other users' rows on group + trainer leaderboards were
+still approximate: the frontend recomputed `computeAthleteTier`
+with `distinctExercises = monthsOnApp = 0` because the API didn't
+ship those fields.
+
+### Fix
+- `lib/leaderboardStats.ts::computeStatsFromLogs` now walks every
+  logged set once to collect PR count + total volume + distinct
+  exercises in a single pass (previously distinct-exercises was
+  computed only on the visitor's machine).
+- `computeStatsForUsers` additionally fetches each user's
+  `User.createdAt` to derive `monthsOnApp`, then calls
+  `computeAthleteTier` to bake a `CanonicalTier` object onto every
+  row: `{ label, icon, color, bg, border, min, score, idx }`.
+- The trainer's clients leaderboard route now uses
+  `computeStatsForUsers` (was its own ad-hoc loop) so it gets the
+  same canonical tier for free.
+- The user-facing group leaderboard route stops shadowing the
+  canonical tier with a legacy session-count string — the spread
+  of `stats` carries the tier object through.
+- Frontend reads `m.tier` / `c.tier` directly instead of
+  recomputing client-side. Visitor's own row still overrides with
+  the local breakdown (only place wellness data can join in,
+  since hydration/sleep/energy live in localStorage).
+
+### Known limitation
+Wellness data is still localStorage-only, so OTHER users' rows
+can sit one rung below their own dashboard view (specifically when
+their dashboard's Habits sub-rank is high). All surfaces now agree
+on the same LADDER, threshold formula, and labels — so a "your
+Tiger is their Tiger" feel is consistent, even if the absolute
+score may differ slightly per row.
+
+---
+
 ## Fix · 2026-05-21 — Unify athlete tier across welcome card, Settings, leaderboards, modal (qa: tier-pills-clarity)
 
 ### Background

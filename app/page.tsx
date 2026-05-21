@@ -6955,24 +6955,14 @@ function HomePage() {
                   </div>
                   {[...leaderboard].sort((a, b) => leaderboardSort === "streak" ? b.streak - a.streak : leaderboardSort === "intensity" ? (b.totalIntensityPoints ?? 0) - (a.totalIntensityPoints ?? 0) : b.totalSessions - a.totalSessions).map((c, i) => {
                     const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
-                    // Canonical athlete tier on the score ladder, computed
-                    // from whatever stats the trainer-leaderboard API
-                    // shipped (totalSessions, streak, prCount, totalVolume).
-                    // Wellness / distinctEx / monthsOnApp default to 0
-                    // server-side — the tier may slightly under-count vs
-                    // the client's own Progress dashboard, but the LADDER
-                    // is the same, so labels are consistent.
-                    const tier = computeAthleteTier({
-                      totalSessions: c.totalSessions ?? 0,
-                      streak: c.streak ?? 0,
-                      totalVolumeKg: c.totalVolume ?? 0,
-                      prCount: c.prCount ?? 0,
-                      distinctExercises: 0,
-                      monthsOnApp: 0,
-                      hydrationGoalDays: 0,
-                      sleepLoggedDays: 0,
-                      energyLoggedDays: 0,
-                    }).headline;
+                    // Canonical athlete tier, computed server-side in
+                    // computeStatsForUsers — distinctExercises and
+                    // monthsOnApp are baked in. Wellness still defaults
+                    // to 0 server-side (localStorage-only) so the tier
+                    // may sit one rung below what the client sees on
+                    // their own dashboard, but every leaderboard
+                    // surface reads from the same source.
+                    const tier = c.tier ?? ATHLETE_TIERS[0];
                     return (
                       <div key={c.id} style={{ display: "grid", gridTemplateColumns: "28px 1fr 48px 48px 48px 48px", gap: 6, padding: "11px 12px", borderBottom: i < leaderboard.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.03)" : "transparent" }}>
                         <div style={{ fontSize: 14, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
@@ -7150,6 +7140,11 @@ function HomePage() {
                               streak: m.stats?.streak ?? 0,
                               prCount: m.stats?.prCount ?? 0,
                               totalVolume: m.stats?.totalVolume ?? 0,
+                              // Canonical tier from computeStatsForUsers
+                              // (server-side computeAthleteTier). Frontend
+                              // overrides with the local breakdown for
+                              // the visitor's own row.
+                              tier: m.stats?.tier ?? null,
                               weightStart: m.stats?.weightStart ?? null,
                               weightCurrent: m.stats?.weightCurrent ?? null,
                               weightChangeKg: m.stats?.weightChangeKg ?? null,
@@ -7248,37 +7243,23 @@ function HomePage() {
                                   {ranked.map((m: any, i: number) => {
                                     const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
                                     const isMe = m.userId === user.id;
-                                    // Canonical athlete tier — uses the
-                                    // same 0–100 score ladder as the
-                                    // Progress dashboard. For the visitor's
-                                    // own row, override with the locally
-                                    // computed breakdown so wellness data
-                                    // (not shipped from the leaderboard
-                                    // API) still feeds the score. For
-                                    // other rows, compute from the stats
-                                    // the API does ship — distinct
-                                    // exercises / months / wellness
-                                    // default to 0, which under-counts
-                                    // slightly but is still the right
-                                    // LADDER (Kitten → Gorilla on score)
-                                    // and is far more accurate than the
-                                    // legacy session-count fallback.
-                                    const otherBreakdown = !isMe
-                                      ? computeAthleteTier({
-                                          totalSessions: m.totalSessions ?? 0,
-                                          streak: m.streak ?? 0,
-                                          totalVolumeKg: m.totalVolume ?? 0,
-                                          prCount: m.prCount ?? 0,
-                                          distinctExercises: 0,
-                                          monthsOnApp: 0,
-                                          hydrationGoalDays: 0,
-                                          sleepLoggedDays: 0,
-                                          energyLoggedDays: 0,
-                                        })
-                                      : null;
+                                    // Tier source priority:
+                                    // 1. Visitor's OWN row → use the
+                                    //    locally-computed breakdown
+                                    //    (includes wellness, fully
+                                    //    canonical).
+                                    // 2. Other rows → use the server-
+                                    //    shipped m.tier from
+                                    //    computeStatsForUsers (covers
+                                    //    distinctExercises + monthsOnApp
+                                    //    via prisma; wellness still 0
+                                    //    server-side since it's
+                                    //    localStorage-only).
+                                    // 3. Fallback if the API somehow
+                                    //    omits tier → Kitten.
                                     const tier = isMe && myAthleteBreakdown
                                       ? myAthleteBreakdown.headline
-                                      : (otherBreakdown?.headline ?? ATHLETE_TIERS[0]);
+                                      : (m.tier as { label: string; icon: string; color: string; bg: string; border: string } | undefined) ?? ATHLETE_TIERS[0];
                                     const rowStyle: React.CSSProperties = { display: "grid", gap: 6, padding: "9px 10px", borderBottom: i < ranked.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.04)" : isMe ? "rgba(78,205,196,0.04)" : "transparent" };
                                     const nameCell = (
                                       <>

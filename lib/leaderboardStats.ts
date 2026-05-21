@@ -4,6 +4,25 @@
 // management endpoint.
 
 import { prisma } from "./prisma";
+import { computeAthleteTier, ATHLETE_TIERS, AnimalTier } from "./tiers";
+
+// Canonical athlete tier label shipped on every leaderboard row so
+// the frontend doesn't have to re-derive (or worse, fall back to the
+// legacy session-count ladder). Wellness data is still localStorage-
+// only so this is computed with hydration/sleep/energy = 0; the
+// resulting tier may be one rung below the user's own dashboard
+// view, but it uses the same ladder & labels — single source of
+// truth from the user's perspective.
+export interface CanonicalTier {
+  label: string;
+  icon: string;
+  color: string;
+  bg: string;
+  border: string;
+  min: number;
+  score: number; // 0-100 headlineScore
+  idx: number;   // position on the ladder, 0-indexed
+}
 
 export interface LeaderboardMemberStats {
   totalSessions: number;
@@ -12,6 +31,14 @@ export interface LeaderboardMemberStats {
   totalVolume: number;
   totalIntensityPoints: number;
   lastSession: string | null;
+  // Inputs that feed the canonical tier — exposed so callers that
+  // want to display "distinct exercises trained" or "months on app"
+  // don't have to recompute.
+  distinctExercises: number;
+  monthsOnApp: number;
+  // Canonical athlete tier (computed via computeAthleteTier). Always
+  // present; new users land at Kitten with score 0.
+  tier: CanonicalTier;
   // Body metrics for the group leaderboard's WEIGHT / BF views. Each value
   // is the first vs latest entry from BodyMetric, plus the signed delta.
   // null = no recorded data.
@@ -31,7 +58,47 @@ type LogLike = {
   intensityPoints: number | null;
 };
 
-export function computeStatsFromLogs(logs: LogLike[]): LeaderboardMemberStats {
+// Build a CanonicalTier record from the stats we have. Wellness
+// inputs default to 0 (server can't read localStorage); when the
+// frontend has full local data it can override on the visitor's
+// OWN row via the same lib/tiers.ts function — both surfaces still
+// agree on the LADDER (Kitten/Monkey/Fox/Tiger/Lion/Gorilla on the
+// 0-100 score).
+function buildCanonicalTier(s: {
+  totalSessions: number;
+  streak: number;
+  totalVolumeKg: number;
+  prCount: number;
+  distinctExercises: number;
+  monthsOnApp: number;
+}): CanonicalTier {
+  const breakdown = computeAthleteTier({
+    totalSessions: s.totalSessions,
+    streak: s.streak,
+    totalVolumeKg: s.totalVolumeKg,
+    prCount: s.prCount,
+    distinctExercises: s.distinctExercises,
+    monthsOnApp: s.monthsOnApp,
+    hydrationGoalDays: 0,
+    sleepLoggedDays: 0,
+    energyLoggedDays: 0,
+  });
+  const t: AnimalTier = breakdown.headline;
+  return {
+    label: t.label,
+    icon: t.icon,
+    color: t.color,
+    bg: t.bg,
+    border: t.border,
+    min: t.min,
+    score: breakdown.headlineScore,
+    idx: ATHLETE_TIERS.findIndex(x => x.label === t.label),
+  };
+}
+
+// `monthsOnApp` is passed by computeStatsForUsers (which has the
+// User.createdAt); single-log callers default it to 0.
+export function computeStatsFromLogs(logs: LogLike[], monthsOnApp: number = 0): LeaderboardMemberStats {
   const totalSessions = logs.length;
 
   // Streak: consecutive days with at least one session, anchored on today/yesterday
@@ -50,20 +117,27 @@ export function computeStatsFromLogs(logs: LogLike[]): LeaderboardMemberStats {
     }
   }
 
-  // PR count: max (weight, reps) per exercise across all logged sets
+  // PR count + total volume + distinct exercises in one pass. The
+  // exercise key is everything before the trailing "-<setNum>"
+  // (optionally followed by "-d<dropNum>" for drop sets) so the
+  // same exercise across different set numbers collapses to one
+  // entry in `distinctEx`.
   const prs: Record<string, { weight: number; reps: number }> = {};
+  const distinctEx = new Set<string>();
   let totalVolume = 0;
   for (const log of logs) {
-    const sets = (log.sets ?? {}) as Record<string, { weight?: number; reps?: number } | null>;
+    const sets = (log.sets ?? {}) as Record<string, { weight?: number; reps?: number; skipped?: boolean } | null>;
     for (const [k, v] of Object.entries(sets)) {
-      const w = v?.weight ?? 0;
-      const r = v?.reps ?? 0;
+      if (!v || v.skipped) continue;
+      const w = v.weight ?? 0;
+      const r = v.reps ?? 0;
       totalVolume += w * r;
       const parts = k.split("-");
       const last = parts[parts.length - 1];
       const isDropSet = /^d\d+$/.test(last) && parts.length >= 3;
       if (isDropSet) { parts.pop(); parts.pop(); } else { parts.pop(); }
       const eid = parts.join("-");
+      if (eid) distinctEx.add(eid);
       if (!prs[eid] || w > prs[eid].weight || (w === prs[eid].weight && r > prs[eid].reps)) {
         prs[eid] = { weight: w, reps: r };
       }
@@ -71,14 +145,26 @@ export function computeStatsFromLogs(logs: LogLike[]): LeaderboardMemberStats {
   }
 
   const totalIntensityPoints = logs.reduce((sum, l) => sum + (l.intensityPoints ?? 0), 0);
+  const prCount = Object.keys(prs).length;
+  const distinctExercises = distinctEx.size;
+  const tier = buildCanonicalTier({
+    totalSessions, streak,
+    totalVolumeKg: totalVolume,
+    prCount,
+    distinctExercises,
+    monthsOnApp,
+  });
 
   return {
     totalSessions,
     streak,
-    prCount: Object.keys(prs).length,
+    prCount,
     totalVolume: Math.round(totalVolume),
     totalIntensityPoints,
     lastSession: logs[0]?.date.toISOString().slice(0, 10) ?? null,
+    distinctExercises,
+    monthsOnApp,
+    tier,
     // Body metrics filled in by computeStatsForUsers — placeholder values
     // here so single-log callers don't see undefined.
     weightStart: null,
@@ -134,7 +220,11 @@ function computeBodyStats(metrics: MetricLike[]) {
  */
 export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: string): Promise<Map<string, LeaderboardMemberStats>> {
   if (userIds.length === 0) return new Map();
-  const [allLogs, allMetrics] = await Promise.all([
+  // Fetch logs, body metrics, AND the users' createdAt timestamps in
+  // one round-trip. createdAt feeds `monthsOnApp` into the canonical
+  // tier computation — without it the "Consistency" sub-rank doesn't
+  // get its time-on-app blend right.
+  const [allLogs, allMetrics, users] = await Promise.all([
     prisma.workoutLog.findMany({
       where: groupWorkoutId
         ? { userId: { in: userIds }, groupWorkoutId }
@@ -146,6 +236,10 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
       where: { userId: { in: userIds } },
       select: { userId: true, date: true, weightKg: true, bodyFatPct: true },
       orderBy: { date: "asc" },
+    }),
+    prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, createdAt: true },
     }),
   ]);
   const byUser = new Map<string, LogLike[]>();
@@ -160,9 +254,13 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
     arr.push({ date: m.date, weightKg: m.weightKg, bodyFatPct: m.bodyFatPct });
     metricsByUser.set(m.userId, arr);
   }
+  const createdAtByUser = new Map<string, Date>();
+  for (const u of users) createdAtByUser.set(u.id, u.createdAt);
   const result = new Map<string, LeaderboardMemberStats>();
   for (const userId of userIds) {
-    const base = computeStatsFromLogs(byUser.get(userId) ?? []);
+    const createdAt = createdAtByUser.get(userId);
+    const monthsOnApp = createdAt ? (Date.now() - +createdAt) / (30 * 86400000) : 0;
+    const base = computeStatsFromLogs(byUser.get(userId) ?? [], monthsOnApp);
     const body = computeBodyStats(metricsByUser.get(userId) ?? []);
     result.set(userId, { ...base, ...body });
   }

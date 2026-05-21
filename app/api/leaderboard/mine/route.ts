@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
-import { computeStatsForUsers, CLIENT_TIERS } from "../../../../lib/leaderboardStats";
+import { computeStatsForUsers } from "../../../../lib/leaderboardStats";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
-
-function getTier(totalSessions: number): string {
-  let tier = CLIENT_TIERS[0].label;
-  for (const t of CLIENT_TIERS) if (totalSessions >= t.min) tier = t.label;
-  return tier;
-}
 
 // Client-facing group leaderboard. Returns each member's full stats
 // (including body metrics) so the rankings UI can render the WEIGHT /
@@ -71,7 +65,11 @@ export async function GET(req: NextRequest) {
             userId: m.userId,
             username: m.user.username,
             role: m.role,
-            tier: getTier(stats?.totalSessions ?? 0),
+            // stats.tier is the canonical CanonicalTier object from
+            // computeStatsForUsers (lib/leaderboardStats.ts) —
+            // computed via computeAthleteTier on the 0-100 score
+            // ladder. Always present; defaults to Kitten for new
+            // users.
             ...(stats ?? {}),
             // Filtered (only sessions tagged with this group's workout).
             groupActivated: activatedSet.has(m.userId),

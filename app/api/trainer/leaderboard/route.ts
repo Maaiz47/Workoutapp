@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { computeStatsForUsers } from "../../../../lib/leaderboardStats";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
@@ -23,67 +24,31 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         username: true,
-        workoutLogs: {
-          select: { date: true, duration: true, sets: true, intensityPoints: true },
-          orderBy: { date: "desc" },
-          take: 200,
-        },
         profile: { select: { weightKg: true, bodyFatPct: true, goal: true, fitnessLevel: true } },
       },
     });
 
+    // Single source of truth — computeStatsForUsers computes stats +
+    // canonical athlete tier with the same logic the group
+    // leaderboards use. Wellness is still localStorage-only, so the
+    // resulting tier may sit one rung below what the client sees on
+    // their own dashboard, but it's on the SAME ladder
+    // (Kitten → Gorilla on the 0-100 score) and matches every other
+    // leaderboard surface.
+    const statsByUser = await computeStatsForUsers(clientIds);
     const leaderboard = clients.map(c => {
-      const logs = c.workoutLogs;
-      const totalSessions = logs.length;
-
-      // Compute streak
-      const dates = Array.from(new Set(logs.map(l => l.date.toISOString().slice(0, 10)))).sort().reverse();
-      let streak = 0;
-      const today = new Date().toISOString().slice(0, 10);
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-      if (dates[0] === today || dates[0] === yesterday) {
-        streak = 1;
-        for (let i = 1; i < dates.length; i++) {
-          const prev = new Date(dates[i - 1]);
-          const curr = new Date(dates[i]);
-          const diff = Math.round((prev.getTime() - curr.getTime()) / 86400000);
-          if (diff === 1) streak++;
-          else break;
-        }
-      }
-
-      // Compute PRs per exercise
-      const prs: Record<string, { weight: number; reps: number }> = {};
-      for (const log of logs) {
-        const sets = (log.sets ?? {}) as Record<string, { weight: number; reps: number }>;
-        for (const [k, v] of Object.entries(sets)) {
-          const parts = k.split("-");
-          const last = parts[parts.length - 1];
-          const isDropSet = /^d\d+$/.test(last) && parts.length >= 3;
-          if (isDropSet) { parts.pop(); parts.pop(); } else { parts.pop(); }
-          const eid = parts.join("-");
-          if (!prs[eid] || v.weight > prs[eid].weight || (v.weight === prs[eid].weight && v.reps > prs[eid].reps)) {
-            prs[eid] = { weight: v.weight, reps: v.reps };
-          }
-        }
-      }
-      const prCount = Object.keys(prs).length;
-      const totalVolume = logs.reduce((sum, log) => {
-        const sets = (log.sets ?? {}) as Record<string, { weight: number; reps: number }>;
-        return sum + Object.values(sets).reduce((s, v) => s + (v.weight || 0) * (v.reps || 0), 0);
-      }, 0);
-
-      const totalIntensityPoints = logs.reduce((sum, log) => sum + ((log as any).intensityPoints ?? 0), 0);
-
+      const s = statsByUser.get(c.id);
       return {
         id: c.id,
         username: c.username,
-        totalSessions,
-        streak,
-        prCount,
-        totalVolume: Math.round(totalVolume),
-        totalIntensityPoints,
-        lastSession: logs[0]?.date.toISOString().slice(0, 10) ?? null,
+        totalSessions: s?.totalSessions ?? 0,
+        streak: s?.streak ?? 0,
+        prCount: s?.prCount ?? 0,
+        totalVolume: s?.totalVolume ?? 0,
+        totalIntensityPoints: s?.totalIntensityPoints ?? 0,
+        lastSession: s?.lastSession ?? null,
+        tier: s?.tier ?? null,
+        distinctExercises: s?.distinctExercises ?? 0,
         profile: c.profile,
       };
     });
