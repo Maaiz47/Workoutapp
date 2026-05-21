@@ -2,6 +2,21 @@
 
 ---
 
+## Feature · 2026-05-21 (n) — "Open in browser" escape chip for PWA testers (qa: qa-dashboard)
+
+### Added
+- `qa-dashboard`: a teal "↗ IN BROWSER" chip in the dashboard
+  header next to SUMMON DOPPO. Target is `/qa` with
+  `target="_blank"` + `rel="noopener noreferrer"`. Purpose: when
+  a tester has IRONLOG installed as a PWA and the PWA itself is
+  what they're testing, they can pop the dashboard out into the
+  system browser (Safari / Chrome) so the PWA stays free for
+  the actual testing while feedback gets logged in the browser.
+  In non-PWA contexts the chip simply opens a fresh tab — still
+  useful for sharing the URL or for split-window workflows.
+
+---
+
 ## Fix · 2026-05-21 (m) — Doppo: comments load, mascot stops drifting (qa: qa-mascot-splash)
 
 ### Fixed

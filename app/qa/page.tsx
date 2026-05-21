@@ -901,21 +901,38 @@ export default function QAPage() {
             fontSize: 10, fontWeight: 700, letterSpacing: 3, color: "#FF6B6B",
             fontFamily: "'Space Mono', monospace", marginBottom: 4,
           }}>IRONLOG</div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>QA Dashboard</div>
-            <button
-              onClick={() => setShowMascot(true)}
-              title="Re-summon Doppo"
-              style={{
-                padding: "6px 12px",
-                background: "rgba(255,107,107,0.08)",
-                border: "1px solid rgba(255,107,107,0.3)",
-                borderRadius: 999,
-                color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
-                fontFamily: "'Space Mono', monospace",
-                cursor: "pointer", whiteSpace: "nowrap",
-              }}
-            >🥋 SUMMON DOPPO</button>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <a
+                href="/qa"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open /qa in your system browser — handy when the IRONLOG PWA itself is what you're testing"
+                style={{
+                  padding: "6px 12px",
+                  background: "rgba(78,205,196,0.08)",
+                  border: "1px solid rgba(78,205,196,0.3)",
+                  borderRadius: 999,
+                  color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+                  fontFamily: "'Space Mono', monospace",
+                  textDecoration: "none", whiteSpace: "nowrap",
+                }}
+              >↗ IN BROWSER</a>
+              <button
+                onClick={() => setShowMascot(true)}
+                title="Re-summon Doppo"
+                style={{
+                  padding: "6px 12px",
+                  background: "rgba(255,107,107,0.08)",
+                  border: "1px solid rgba(255,107,107,0.3)",
+                  borderRadius: 999,
+                  color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+                  fontFamily: "'Space Mono', monospace",
+                  cursor: "pointer", whiteSpace: "nowrap",
+                }}
+              >🥋 SUMMON DOPPO</button>
+            </div>
           </div>
 
           {/* Summary chips */}
