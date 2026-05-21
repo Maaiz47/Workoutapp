@@ -1779,6 +1779,57 @@ function lookupExMuscles(name: string): { muscles: string[]; secondaryMuscles: s
   return { muscles: found?.primaryMuscles ?? [], secondaryMuscles: found?.secondaryMuscles ?? [] };
 }
 
+// ─── MOTIVATIONAL WATERMARK BACKDROP ────────────────────────────────────
+// Tiles the current motivational phrase down the full content height of
+// its parent. The previous implementation hardcoded 16 rows, which left
+// the bottom of long views (Progress dashboard, etc.) blank. This
+// version measures the parent's scrollHeight with ResizeObserver and
+// renders enough rows to cover it, regardless of viewport / content.
+const WATERMARK_ROW_PX = 100; // 52px font + 48px marginBottom — keep in sync with the row style
+function WatermarkBackdrop({ phrase, opacity = 0.022 }: { phrase: string; opacity?: number }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [rows, setRows] = useState(24);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+    const recompute = () => {
+      const h = Math.max(parent.scrollHeight, parent.clientHeight);
+      // Buffer a few extra so we never stop short during scroll bounce.
+      const needed = Math.max(8, Math.ceil(h / WATERMARK_ROW_PX) + 4);
+      setRows(prev => (prev === needed ? prev : needed));
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(parent);
+    // Re-check on window resize too — orientation changes don't always
+    // fire on the parent element.
+    window.addEventListener("resize", recompute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", recompute);
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} aria-hidden style={{
+      position: "absolute", top: 0, bottom: 0, left: "-20%", right: "-20%",
+      pointerEvents: "none", overflow: "hidden",
+    }}>
+      {Array.from({ length: rows }).map((_, n) => (
+        <div key={n} style={{
+          fontSize: 52, fontWeight: 800, color: "#fff", opacity,
+          fontFamily: "'DM Sans', sans-serif", letterSpacing: -1,
+          whiteSpace: "nowrap", transform: "rotate(-18deg)",
+          marginBottom: 48, userSelect: "none",
+        }}>{phrase}</div>
+      ))}
+    </div>
+  );
+}
+
 // ─── MOTIVATIONAL PHRASES ───────────────────────────────────────────────
 const PHRASES = [
   "Trust the process.",
@@ -8925,11 +8976,7 @@ function HomePage() {
 
     return (
       <div key="progress" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
-        <div aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
-          {Array.from({ length: 16 }).map((_, n) => (
-            <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.022, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
-          ))}
-        </div>
+        <WatermarkBackdrop phrase={phrase} opacity={0.022} />
         <div style={{ padding: "24px 20px 0" }}>
           <button onClick={() => { setView("home"); setOpenHist(null); setSelectedExDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 12, letterSpacing: 1 }}>Progress</div>
@@ -9829,11 +9876,7 @@ function HomePage() {
       return (
         <div key="workout-prep" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: "80vw", height: "80vw", borderRadius: "50%", background: `radial-gradient(circle, ${activeDay.color}12 0%, transparent 60%)`, pointerEvents: "none", animation: "breathe 4s ease infinite" }} />
-          <div aria-hidden style={{ position: "absolute", top: "10%", left: "-20%", right: "-20%", pointerEvents: "none", overflow: "hidden" }}>
-            {[0, 1, 2, 3].map(n => (
-              <div key={n} style={{ fontSize: 52, fontWeight: 800, color: "#fff", opacity: 0.03, fontFamily: "'DM Sans', sans-serif", letterSpacing: -1, whiteSpace: "nowrap", transform: "rotate(-18deg)", marginBottom: 48, userSelect: "none" }}>{phrase}</div>
-            ))}
-          </div>
+          <WatermarkBackdrop phrase={phrase} opacity={0.03} />
           <div className="slide-up" style={{ zIndex: 1 }}>
             <button onClick={() => { setView("home"); setActiveDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 48 }}>← Back</button>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: activeDay.color, letterSpacing: 4, marginBottom: 12, opacity: 0.7 }}>DAY {activeDay.label}</div>
