@@ -2,6 +2,35 @@
 
 ---
 
+## Feature · 2026-05-21 (z) — planGenerator bakes warm-ups + cool-downs into new plans (qa: workout-warmup)
+
+### Added (slice 4/N — final slice of the warm-up / cool-down system)
+- `workout-warmup`: `lib/planGenerator.ts` now persists warm-up +
+  cool-down exercises on every newly generated plan. Each day's
+  `exercises` array is rebuilt as `[warmups..., mains..., cooldowns...]`
+  before the plan is returned.
+- `pickWarmups()` / `pickCooldowns()` are called with the user's full
+  context — focus, goals, available equipment, and the rehab profile
+  if set — so rehab users get safer substitutions baked into their
+  saved routine, not just at session time.
+- `/api/plan` POST persists the new `kind` field alongside the
+  existing PUT path. Newly registered users now have warm-ups +
+  cool-downs in their plan from day one rather than relying on the
+  render-time injection used for legacy plans.
+
+### Behaviour summary across the full slice 2 → 4
+- Existing users (plans without warm-up rows): see auto-picks
+  injected at session render time (no migration needed).
+- New users: warm-ups + cool-downs persisted directly into their
+  saved plan from creation.
+- Either way, customise screen offers `+ ADD WARM-UP` /
+  `+ ADD COOL-DOWN` to override the defaults from the stretch
+  library, with REMOVE to revert.
+- Every stretch row in customise or the active session opens a
+  form-cue modal with 2-3 short technique cues + an icon.
+
+---
+
 ## Feature · 2026-05-21 (y) — custom warm-up/cool-down editing + form-cue modal (qa: workout-warmup)
 
 ### Added (slice 3/N)

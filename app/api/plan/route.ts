@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
                   reps: ex.reps,
                   rest: ex.rest,
                   notes: ex.notes ?? null,
+                  kind: (ex as any).kind === "warmup" || (ex as any).kind === "cooldown" ? (ex as any).kind : "main",
                 })),
               },
             })),

@@ -1,4 +1,5 @@
 import { EXERCISES, filterExercises, Equipment, MuscleGroup, Goal, Location } from "./exercises";
+import { pickWarmups, pickCooldowns } from "./stretching";
 
 export interface UserProfileInput {
   daysPerWeek: number;
@@ -23,6 +24,7 @@ export interface GeneratedExercise {
   reps: string;
   rest: number;
   notes?: string;
+  kind?: "warmup" | "main" | "cooldown";
 }
 
 export interface GeneratedDay {
@@ -595,6 +597,30 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
     planNote += " HIIT circuits added as finishers to each training day.";
   } else if (profile.hiitPreference === "dedicated_day") {
     planNote += " Dedicated HIIT day included for maximum fat-burning.";
+  }
+
+  // Bake in warm-up + cool-down exercises so they're persisted from
+  // creation rather than rendered ad-hoc per session. Picks are matched
+  // to each day's focus + the profile's equipment / goals / rehab.
+  const rehab = (profile as any).rehab as "knee" | "shoulder" | "lower_back" | null | undefined;
+  for (const day of finalDays) {
+    const ctx = {
+      title: day.title, focus: day.focus,
+      goals: profile.goals as string[],
+      equipment: profile.equipment as string[] | undefined,
+      rehab: rehab ?? null,
+    };
+    const wus = pickWarmups(ctx).map(s => ({
+      exerciseId: s.id, name: s.name, sets: 1, reps: s.reps, rest: 0,
+      notes: undefined, kind: "warmup" as const,
+    }));
+    const cds = pickCooldowns(ctx).map(s => ({
+      exerciseId: s.id, name: s.name, sets: 1, reps: s.reps, rest: 0,
+      notes: undefined, kind: "cooldown" as const,
+    }));
+    // Tag any existing exercises as 'main' so the API persistence stays consistent.
+    const mains = day.exercises.map(ex => ({ ...ex, kind: ex.kind ?? ("main" as const) }));
+    day.exercises = [...wus, ...mains, ...cds];
   }
 
   return { days: finalDays, planNote };
