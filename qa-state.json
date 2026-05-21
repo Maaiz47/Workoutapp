@@ -956,10 +956,11 @@
         "Submit a comment — verify it appears immediately at the bottom of the thread",
         "Refresh the page — verify the comment persists (it's server-side)",
         "Verify the old BACKUP / RESTORE buttons are gone (no longer needed — comments save to the server)",
-        "Tap the teal '↗ IN BROWSER' chip in the dashboard header — verify it opens /qa in a new tab. In the installed PWA, verify it escapes into Safari/Chrome so you can keep testing the PWA while logging feedback in the browser.",
+        "Tap the teal '📤 OPEN IN BROWSER' chip in the dashboard header. In the installed PWA on iOS: verify the native share sheet appears (so you can pick 'Open in Safari'). In a regular browser tab: verify it opens /qa in a new tab. If neither works, verify it falls back to copying the URL to clipboard.",
+        "Verify the short helper line under the chips explains what each one does (📤 vs 🥋).",
         "Each comment shows @username if the submitter was logged in"
       ],
-      "notes": "[2026-05-21] Added '↗ IN BROWSER' chip in the dashboard header — target=_blank link to /qa so testers using the installed PWA can pop the dashboard out into the system browser and document issues while the PWA itself remains free for actual testing.\n[2026-05-21] Cleanup: removed the BACKUP / RESTORE buttons (server-side comment save makes them unnecessary). Tester name input now auto-fills + hides when the visitor is logged in (only anonymous testers see it). State lives in QAComment table; drafts persist in localStorage."
+      "notes": "[2026-05-21] Slice 2/N (PWA escape, real this time): the previous `<a target=_blank>` to /qa stayed trapped in the iOS PWA's in-app webview. Switched to a button that calls navigator.share() first — on iOS PWA the native share sheet appears with 'Open in Safari', which is the only reliable escape path. Falls back to window.open() (Android PWA + desktop), then clipboard copy (last resort). Label changed from '↗ IN BROWSER' to '📤 OPEN IN BROWSER' and a one-line helper under the chips now explains 📤 vs 🥋 so first-time testers know what each button does without needing to hover for a tooltip.\n[2026-05-21] Slice 1/N: Added '↗ IN BROWSER' chip in the dashboard header — target=_blank link to /qa so testers using the installed PWA can pop the dashboard out into the system browser and document issues while the PWA itself remains free for actual testing.\n[2026-05-21] Cleanup: removed the BACKUP / RESTORE buttons (server-side comment save makes them unnecessary). Tester name input now auto-fills + hides when the visitor is logged in (only anonymous testers see it). State lives in QAComment table; drafts persist in localStorage."
     },
     {
       "id": "qa-leaderboard",

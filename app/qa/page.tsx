@@ -853,6 +853,30 @@ export default function QAPage() {
   const pct = allItems.length ? Math.round((totalP / allItems.length) * 100) : 0;
   const unprocessedCount = comments.filter(c => !c.processed).length;
 
+  // PWA escape: tap "Open in Browser" → try the native share sheet first
+  // (iOS PWAs only reliably escape via Share → "Open in Safari"), then
+  // window.open (works on Android PWA + desktop), then clipboard as a
+  // last resort so the user can paste the URL into their browser.
+  const openQaInBrowser = async () => {
+    const url = (typeof window !== "undefined" ? window.location.origin : "") + "/qa";
+    if (typeof navigator !== "undefined" && (navigator as any).share) {
+      try {
+        await (navigator as any).share({ title: "IRONLOG QA", url });
+        return;
+      } catch (e: any) {
+        if (e?.name === "AbortError") return; // user cancelled the share
+      }
+    }
+    const opened = typeof window !== "undefined" && window.open(url, "_blank", "noopener,noreferrer");
+    if (opened) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert("QA URL copied. Paste it into your browser to open.");
+    } catch {
+      window.prompt("Copy this URL and paste it into your browser:", url);
+    }
+  };
+
   // Find the visitor's leaderboard standing so Doppo's dialogue can react.
   // Prefer the username-keyed row when logged in; fall back to a tester-name
   // match (case-insensitive on either the username OR the typed tester) so
@@ -901,14 +925,12 @@ export default function QAPage() {
             fontSize: 10, fontWeight: 700, letterSpacing: 3, color: "#FF6B6B",
             fontFamily: "'Space Mono', monospace", marginBottom: 4,
           }}>IRONLOG</div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, gap: 8, flexWrap: "wrap" }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>QA Dashboard</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <a
-                href="/qa"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Open /qa in your system browser — handy when the IRONLOG PWA itself is what you're testing"
+              <button
+                onClick={openQaInBrowser}
+                title="Pop /qa out into your system browser (Safari / Chrome). Useful when the IRONLOG PWA itself is what you're testing — keeps the PWA free while you log feedback in the browser."
                 style={{
                   padding: "6px 12px",
                   background: "rgba(78,205,196,0.08)",
@@ -916,12 +938,12 @@ export default function QAPage() {
                   borderRadius: 999,
                   color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
                   fontFamily: "'Space Mono', monospace",
-                  textDecoration: "none", whiteSpace: "nowrap",
+                  cursor: "pointer", whiteSpace: "nowrap",
                 }}
-              >↗ IN BROWSER</a>
+              >📤 OPEN IN BROWSER</button>
               <button
                 onClick={() => setShowMascot(true)}
-                title="Re-summon Doppo"
+                title="Re-play the Doppo intro splash with your current leaderboard stats"
                 style={{
                   padding: "6px 12px",
                   background: "rgba(255,107,107,0.08)",
@@ -933,6 +955,14 @@ export default function QAPage() {
                 }}
               >🥋 SUMMON DOPPO</button>
             </div>
+          </div>
+          <div style={{
+            fontSize: 10, color: "rgba(255,255,255,0.4)",
+            fontFamily: "'Space Mono', monospace",
+            marginBottom: 12, lineHeight: 1.5,
+          }}>
+            📤 <strong>OPEN IN BROWSER</strong> pops this dashboard into Safari / Chrome — use it when you&apos;re testing the installed PWA itself.{" "}
+            🥋 <strong>SUMMON DOPPO</strong> re-plays the QA-sensei intro.
           </div>
 
           {/* Summary chips */}

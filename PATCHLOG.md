@@ -2,6 +2,27 @@
 
 ---
 
+## Fix · 2026-05-21 (o) — make "Open in browser" actually escape the PWA + clearer labels (qa: qa-dashboard)
+
+### Fixed
+- `qa-dashboard`: the previous `<a target="_blank">` to /qa stayed
+  trapped in the iOS PWA's in-app webview — exact same overlay
+  behaviour as the Doppo splash. Replaced with a button that:
+    1. Tries `navigator.share({title, url})` first — on iOS PWA the
+       native share sheet appears with "Open in Safari", which is
+       the only reliable escape from a standalone PWA on iOS.
+    2. Falls back to `window.open(url, "_blank", ...)` — handles
+       Android PWA + desktop.
+    3. Last resort: copies the URL to clipboard so the user can
+       paste into their browser manually.
+- `qa-dashboard`: relabelled "↗ IN BROWSER" → "📤 OPEN IN BROWSER"
+  and added a one-line helper directly under the chip row that
+  explains 📤 (pop into system browser) vs 🥋 (re-play Doppo
+  intro) so testers don't have to hover for a tooltip to
+  understand the actions.
+
+---
+
 ## Feature · 2026-05-21 (n) — "Open in browser" escape chip for PWA testers (qa: qa-dashboard)
 
 ### Added
