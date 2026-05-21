@@ -710,8 +710,8 @@ export default function QAPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [tester, setTester] = useState("");
+  const [authedUsername, setAuthedUsername] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const draftWriteTimer = useRef<any>(null);
 
@@ -725,6 +725,19 @@ export default function QAPage() {
       const d = localStorage.getItem(LS_DRAFTS);
       if (d) setDrafts(JSON.parse(d));
     } catch {}
+
+    // If the visitor is logged in, the server has them — pre-fill the tester
+    // name from the user's username and skip rendering the name field.
+    fetch("/api/auth", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const u = data?.user?.username;
+        if (typeof u === "string" && u.trim()) {
+          setAuthedUsername(u);
+          setTester(u);
+        }
+      })
+      .catch(() => {});
 
     Promise.all([
       fetch("/api/qa", { cache: "no-store" }).then(r => r.json()),
@@ -755,10 +768,7 @@ export default function QAPage() {
   useEffect(() => {
     if (draftWriteTimer.current) clearTimeout(draftWriteTimer.current);
     draftWriteTimer.current = setTimeout(() => {
-      try {
-        localStorage.setItem(LS_DRAFTS, JSON.stringify(drafts));
-        setLastSavedAt(new Date().toLocaleTimeString());
-      } catch {}
+      try { localStorage.setItem(LS_DRAFTS, JSON.stringify(drafts)); } catch {}
     }, 300);
     return () => { if (draftWriteTimer.current) clearTimeout(draftWriteTimer.current); };
   }, [drafts]);
@@ -770,33 +780,6 @@ export default function QAPage() {
   const onSaved = useCallback((c: Comment) => {
     setComments(prev => [...prev, c]);
   }, []);
-
-  // ── Backup export ─────────────────────────────────────────────────────────
-  const downloadBackup = () => {
-    const blob = new Blob([JSON.stringify({ tester, drafts, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `qa-drafts-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.json`;
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  // ── Backup import ─────────────────────────────────────────────────────────
-  const importBackup = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(String(reader.result));
-        if (typeof data.tester === "string") setTester(data.tester);
-        if (data.drafts && typeof data.drafts === "object") {
-          setDrafts(prev => ({ ...prev, ...data.drafts }));
-        }
-        alert("Backup imported.");
-      } catch { alert("Could not parse backup file."); }
-    };
-    reader.readAsText(file);
-  };
 
   if (loading) return (
     <div style={{
@@ -902,48 +885,35 @@ export default function QAPage() {
             }}>{unprocessedCount} TO PROCESS</span>
           </div>
 
-          {/* Tester + tools row */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+          {/* Signed-in chip OR name field for anonymous testers */}
+          {authedUsername ? (
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "6px 12px",
+              background: "rgba(78,205,196,0.08)",
+              border: "1px solid rgba(78,205,196,0.25)",
+              borderRadius: 999,
+              fontSize: 11, color: "#4ECDC4",
+              fontFamily: "'Space Mono', monospace", letterSpacing: 1,
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ECDC4" }} />
+              SIGNED IN AS @{authedUsername.toUpperCase()}
+            </div>
+          ) : (
             <input
               value={tester}
               onChange={e => setTester(e.target.value)}
-              placeholder="Your name"
+              placeholder="Your name (for the comment thread)"
               style={{
-                flex: 1, background: "#111", color: "#fff",
+                width: "100%", boxSizing: "border-box",
+                background: "#111", color: "#fff",
                 border: "1px solid rgba(255,255,255,0.12)",
                 borderRadius: 8, padding: "10px 12px",
                 fontSize: 16, fontFamily: "'DM Sans', sans-serif",
                 minHeight: 44,
               }}
             />
-            <button onClick={downloadBackup} title="Download draft backup" style={{
-              padding: "10px 12px", background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8,
-              color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 700, letterSpacing: 1,
-              fontFamily: "'Space Mono', monospace", cursor: "pointer", minHeight: 44, whiteSpace: "nowrap",
-            }}>⬇ BACKUP</button>
-            <label style={{
-              padding: "10px 12px", background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8,
-              color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 700, letterSpacing: 1,
-              fontFamily: "'Space Mono', monospace", cursor: "pointer", minHeight: 44,
-              display: "flex", alignItems: "center", whiteSpace: "nowrap",
-            }}>
-              ⬆ RESTORE
-              <input
-                type="file" accept="application/json" style={{ display: "none" }}
-                onChange={e => { const f = e.target.files?.[0]; if (f) importBackup(f); e.target.value = ""; }}
-              />
-            </label>
-          </div>
-
-          <div style={{
-            fontSize: 10, color: "rgba(255,255,255,0.3)",
-            fontFamily: "'Space Mono', monospace",
-          }}>
-            {lastSavedAt ? `Draft saved locally at ${lastSavedAt}` : "Drafts auto-save as you type"} ·
-            comments save to the server when you tap SAVE COMMENT inside each item
-          </div>
+          )}
 
           {/* Search */}
           <div style={{ marginTop: 14, position: "relative" }}>

@@ -944,20 +944,21 @@
       "area": "Other",
       "introduced": "2026-05-21",
       "introducedBy": "QA pass 01da6f1",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
       "steps": [
-        "Navigate to /qa",
+        "Navigate to /qa while logged in — verify a single 'SIGNED IN AS @<your-username>' chip is shown (no name input)",
+        "Open /qa in an incognito window (not logged in) — verify the 'Your name' input appears in its place",
         "Verify the General Notes card at the top is open by default and accepts comments",
         "Type in the search box — verify items + general notes filter live",
         "Tap an area group to collapse/expand it",
         "Tap an item to expand the thread + comment form",
         "Submit a comment — verify it appears immediately at the bottom of the thread",
         "Refresh the page — verify the comment persists (it's server-side)",
-        "Tap BACKUP to download a draft snapshot; tap RESTORE to re-import one",
+        "Verify the old BACKUP / RESTORE buttons are gone (no longer needed — comments save to the server)",
         "Each comment shows @username if the submitter was logged in"
       ],
-      "notes": "Replaces the original whole-form-submit QA dashboard. State lives in QAComment table; drafts persist in localStorage."
+      "notes": "[2026-05-21] Cleanup: removed the BACKUP / RESTORE buttons (server-side comment save makes them unnecessary). Tester name input now auto-fills + hides when the visitor is logged in (only anonymous testers see it). State lives in QAComment table; drafts persist in localStorage."
     },
     {
       "id": "qa-leaderboard",
@@ -977,6 +978,24 @@
         "Search anything in the search box — leaderboard should hide (it's a focus-mode behaviour)"
       ],
       "notes": "[2026-05-21] Slice 2/N: rubric tightened per user feedback — status, screenshot and 'processed' bonuses are now gated behind verification (the comment must be marked processed by Claude). isValidScreenshotUrl() rejects empty/non-http/malformed URLs so a screenshot field still has to be a real URL even when processed. Note-detail cap raised from +5 to +15 (rate stays 0.05/char). Leaderboard row now shows a ⧗ pending chip so testers can see what's awaiting verification.\n[2026-05-21] Slice 1/N: shipped the client-side leaderboard component in app/qa/page.tsx. Aggregates from already-loaded QAComment rows (no new endpoint). Rendered with rank medals, breakdown chips, and an expandable rubric. Future slices (if requested): per-user trend over time, all-time vs this-week toggle, server-side aggregation if comment volume gets large."
+    },
+    {
+      "id": "qa-coverage-sweep",
+      "title": "QA coverage sweep — qa:scan script + CLAUDE.md rule",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass auto-doc workflow",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Run `npm run qa:scan` from the repo root — verify it scans the 5 most recent feature/pass sections in PATCHLOG.md",
+        "Verify each (qa: <id>) tag resolves to a real item in qa-state.json — orphans should print as ✗ and exit non-zero",
+        "Verify entries with no (qa: …) tag at all print as ⚠ warnings and DO NOT fail the run",
+        "Run `npm run qa:scan -- --strict` — verify the warning is escalated to ✗ and the run exits non-zero",
+        "Add a fake `(qa: nonexistent-thing)` to a temp PATCHLOG copy, run the script, verify the orphan is caught — then revert the PATCHLOG edit",
+        "Open CLAUDE.md — verify the 'Every shipped feature MUST have a qa-state.json item' section is present and documents the workflow"
+      ],
+      "notes": "[2026-05-21] Shipped scripts/qa-scan.ts + the `qa:scan` npm script + CLAUDE.md convention rule. The script is informational by default (warnings don't fail) and strict on demand (`--strict` makes everything an error, suitable for CI later). The rule in CLAUDE.md is the forcing function for Claude during QA passes."
     },
     {
       "id": "trainer-role-request",

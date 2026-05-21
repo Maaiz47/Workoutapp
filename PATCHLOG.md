@@ -2,6 +2,35 @@
 
 ---
 
+## Feature · 2026-05-21 (j) — QA dashboard cleanup + coverage sweep (qa: qa-dashboard, qa-coverage-sweep)
+
+### Cleaned up
+- `qa-dashboard`: removed the BACKUP / RESTORE buttons. They were
+  vestigial — comments save to the server immediately on SAVE COMMENT,
+  so the only thing those buttons rescued was un-submitted draft text.
+  Toolbar real-estate reclaimed.
+- `qa-dashboard`: the "Your name" input now auto-fills from the
+  logged-in user's username and is hidden entirely when authed. A
+  small "SIGNED IN AS @username" chip replaces it. Anonymous
+  visitors (incognito etc.) still see the input as a fallback. The
+  page fetches `/api/auth` on mount to detect this.
+
+### Added
+- `qa-coverage-sweep`: new `scripts/qa-scan.ts` (run via
+  `npm run qa:scan`). Parses `PATCHLOG.md` for `(qa: <id>)` tags,
+  cross-references `qa-state.json`, and flags:
+  - **Orphan tags** — `(qa: foo)` referenced but foo isn't in
+    qa-state.json. Hard error (exit non-zero).
+  - **Untagged sections** — recent feature/pass entries with no
+    `(qa: …)` tag at all. Warning by default; `--strict` escalates
+    it to an error so this can gate CI later.
+- `qa-coverage-sweep`: CLAUDE.md updated with a new forcing rule —
+  every shipped feature MUST have a qa-state.json item, and every
+  PATCHLOG entry MUST tag the item(s) it touches. The qa:scan
+  script enforces it.
+
+---
+
 ## Feature · 2026-05-21 (i) — QA leaderboard: verification-gated scoring (qa: qa-leaderboard)
 
 ### Refined

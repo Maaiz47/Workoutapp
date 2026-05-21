@@ -190,6 +190,29 @@ present a summary, wait for explicit go-ahead, then execute.
 - **Audit trail is sacred.** Never edit or delete an existing `QAComment` row,
   never edit historic `PATCHLOG.md` entries. Append-only.
 
+## Every shipped feature MUST have a `qa-state.json` item
+
+This is a forcing rule, not a suggestion. Anything that adds user-visible
+behaviour — a new page, a new button, a new API surface, a behaviour
+change — needs a corresponding test item so a human can verify it.
+
+Workflow each pass:
+1. When you write a PATCHLOG entry, tag it inline with the qa-state
+   item(s) it addresses: `(qa: workout-rest-timer)` (or comma-separated
+   `(qa: foo, bar)` for entries that touch multiple items).
+2. If the feature has no existing item, ADD a new one to `qa-state.json`
+   with `id`, `title`, `area`, `introduced`, `status: "regression-retest"`,
+   a populated `steps[]` array that walks through the new flow, and a
+   `notes` line citing the commit.
+3. Before pushing, run `npm run qa:scan`. The script reads PATCHLOG and
+   qa-state.json and flags:
+   - **Orphan tags** (a `(qa: …)` tag referencing an id that doesn't
+     exist in qa-state.json) — hard error.
+   - **Untagged sections** (recent PATCHLOG entries with no `(qa: …)`
+     tag at all) — warning; pass `--strict` to make it an error too.
+4. Resolve every orphan tag before pushing. If you legitimately can't,
+   add the item.
+
 ## Repo basics
 
 - Framework: Next.js 14 (App Router, TypeScript, ES5 target)
