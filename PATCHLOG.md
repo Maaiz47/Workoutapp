@@ -2,6 +2,36 @@
 
 ---
 
+## Feature · 2026-05-21 (ab) — RPE/effort + set notes + 1RM helper · kill yellow PAIR button (qa: workout-set-logging)
+
+### Added (Slice A · Commit 1 — capture layer)
+- `workout-set-logging`: every set now has an optional **1-10
+  EFFORT** chip row between the reps input and LOG SET. Combined
+  scale — value's RPE label and RIR equivalent show inline
+  (e.g. `8 → VERY HARD · 2 RIR`). Chip colour ramps cool→warm with
+  difficulty. Tapping the same chip deselects (null = unset).
+- **Long-press a logged set badge** to open a 📝 SET NOTE modal
+  (240-char textarea). Notes persist in the WorkoutLog sets JSON.
+  Badges with a note attached show a small amber dot in the
+  top-right corner.
+- New `lib/performance.ts` with `estimate1RM(weight, reps)` (Epley:
+  `w × (1 + r/30)`) and `EFFORT_SCALE` metadata. The 1RM helper is
+  used by the upcoming history graphs in Commit 2.
+
+### Removed
+- `workout-supersets`: yellow `⟳ PAIR` header button removed from
+  the active workout view. It only redirected to the customise
+  screen and is fully redundant — the per-exercise `+ SUPERSET`
+  button now picks recommended pairings, in-session OR library
+  partners, and offers `+ SESSION` vs `+ ROUTINE` save.
+
+### Next (Slice A · Commit 2)
+- Per-exercise graphs in History (weight / 1RM / volume / RPE)
+- Calendar upgrade with INTENSITY / PBs switchable tabs
+- CSV export in Settings
+
+---
+
 ## Feature · 2026-05-21 (aa) — first-launch tutorial + Settings restart (qa: tutorial-onboarding)
 
 ### Added

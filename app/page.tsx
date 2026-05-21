@@ -12,6 +12,7 @@ import { getFormCues } from "../lib/formCues";
 import { pickWarmupForDay } from "../lib/warmups";
 import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutorial";
+import { estimate1RM, EFFORT_SCALE } from "../lib/performance";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -1765,10 +1766,16 @@ function HomePage() {
   const [view, setView] = useState("home");
   const [activeDay, setActiveDay] = useState<WorkoutDay | null>(null);
   const [started, setStarted] = useState(false);
-  const [log, setLog] = useState<Record<string, { weight: number; reps: number; skipped?: boolean }>>({});
+  const [log, setLog] = useState<Record<string, { weight: number; reps: number; skipped?: boolean; rpe?: number; note?: string }>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
   const [wInput, setWInput] = useState("");
   const [rInput, setRInput] = useState("");
+  // Effort/RPE input for the in-progress set (1-10 scale). null = not set.
+  // Resets between sets the same way wInput/rInput do.
+  const [effortInput, setEffortInput] = useState<number | null>(null);
+  // Long-press → set-note modal. The key is the WorkoutLog sets key
+  // (e.g. "bench-press-1" or "bench-press-1-d2") so we can patch it.
+  const [noteModal, setNoteModal] = useState<{ key: string; current: string } | null>(null);
   // True when the current wInput/rInput values came from suggestedStartingSet()
   // rather than from a real prior session — used to show a "SUGGESTED" tag.
   const [isSuggested, setIsSuggested] = useState(false);
@@ -1789,7 +1796,7 @@ function HomePage() {
   const [dropWInput, setDropWInput] = useState("");
   const [dropRInput, setDropRInput] = useState("");
   const [editEx, setEditEx] = useState<string | null>(null);
-  const [editSets, setEditSets] = useState<Record<string, { weight: number; reps: number; skipped?: boolean }>>({});
+  const [editSets, setEditSets] = useState<Record<string, { weight: number; reps: number; skipped?: boolean; rpe?: number; note?: string }>>({});
   const [showFinishPrompt, setShowFinishPrompt] = useState(false);
   const [adjustedDuration, setAdjustedDuration] = useState("");
   const [resumeOverlay, setResumeOverlay] = useState<{ title: string; ageStr: string } | null>(null);
@@ -3076,7 +3083,7 @@ function HomePage() {
   };
 
   const openEditModal = (eid: string) => {
-    const sets: Record<string, { weight: number; reps: number; skipped?: boolean }> = {};
+    const sets: Record<string, { weight: number; reps: number; skipped?: boolean; rpe?: number; note?: string }> = {};
     for (const [k, v] of Object.entries(log)) {
       if (k.startsWith(eid + "-")) sets[k] = { ...v };
     }
@@ -3121,14 +3128,38 @@ function HomePage() {
     } catch {}
   };
 
-  const logSet = (eid: string, sn: number, w: string, r: string, dropNum?: number) => {
+  const logSet = (eid: string, sn: number, w: string, r: string, dropNum?: number, opts?: { rpe?: number | null; note?: string | null }) => {
     const key = typeof dropNum === "number" && dropNum > 0 ? `${eid}-${sn}-d${dropNum}` : `${eid}-${sn}`;
-    const newLog = { ...log, [key]: { weight: parseFloat(w) || 0, reps: parseInt(r) || 0 } };
+    const entry: any = { weight: parseFloat(w) || 0, reps: parseInt(r) || 0 };
+    if (opts?.rpe != null) entry.rpe = opts.rpe;
+    if (opts?.note != null && opts.note.trim()) entry.note = opts.note.trim();
+    const newLog = { ...log, [key]: entry };
     setLog(newLog);
     try {
       const saved = localStorage.getItem("ironlog-session");
       if (saved) { const s = JSON.parse(saved); s.log = newLog; localStorage.setItem("ironlog-session", JSON.stringify(s)); }
     } catch {}
+  };
+
+  // Patch an already-logged set (used by the long-press note modal +
+  // any post-log RPE edit). Merges into the existing entry rather than
+  // replacing — preserves weight/reps/dropNum context.
+  const patchSet = (key: string, patch: { rpe?: number | null; note?: string | null }) => {
+    setLog(prev => {
+      const existing = prev[key];
+      if (!existing) return prev;
+      const next: any = { ...existing };
+      if (patch.rpe === null) delete next.rpe;
+      else if (patch.rpe != null) next.rpe = patch.rpe;
+      if (patch.note === null || patch.note === "") delete next.note;
+      else if (patch.note != null) next.note = patch.note.trim();
+      const newLog = { ...prev, [key]: next };
+      try {
+        const saved = localStorage.getItem("ironlog-session");
+        if (saved) { const s = JSON.parse(saved); s.log = newLog; localStorage.setItem("ironlog-session", JSON.stringify(s)); }
+      } catch {}
+      return newLog;
+    });
   };
 
   const awardIP = (pts: number, icon: string, label: string) => {
@@ -7157,6 +7188,35 @@ function HomePage() {
 
     return (
       <div key="workout-session" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
+        {/* Set-note modal — long-press a logged set badge to open this. */}
+        {noteModal && (
+          <div onClick={() => setNoteModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 350, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ maxWidth: 360, width: "100%", background: "#0a0a0a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 20, position: "relative" }}>
+              <button onClick={() => setNoteModal(null)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#fdcb6e", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>📝 SET NOTE</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginBottom: 12, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{noteModal.key.toUpperCase()}</div>
+              <textarea
+                autoFocus
+                value={noteModal.current}
+                onChange={e => setNoteModal(m => m ? { ...m, current: e.target.value.slice(0, 240) } : m)}
+                placeholder="Felt strong, form broke on last rep, etc."
+                rows={4}
+                maxLength={240}
+                style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: 10, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", resize: "vertical", outline: "none" }}
+              />
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button
+                  onClick={() => { patchSet(noteModal.key, { note: null }); setNoteModal(null); }}
+                  style={{ flex: 1, padding: 10, background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                >CLEAR</button>
+                <button
+                  onClick={() => { patchSet(noteModal.key, { note: noteModal.current }); setNoteModal(null); }}
+                  style={{ flex: 2, padding: 10, background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 8, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: 2, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                >✓ SAVE NOTE</button>
+              </div>
+            </div>
+          </div>
+        )}
         {newPBs.length > 0 && !rest.running && (
           <div className="pb-overlay" onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer" }}>
             <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
@@ -7435,22 +7495,11 @@ function HomePage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
             <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Home</button>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              {/* Jump to multi-select customise for this day — lets the user
-                  pair already-existing exercises into a superset without
-                  hunting for the customise screen first. */}
-              <button
-                onClick={() => {
-                  const pd = customPlan?.find(d => d.id === activeDay.id);
-                  if (pd) {
-                    setEditingDay(pd);
-                    setCustomMultiMode(true);
-                    setSuperSelection([]);
-                    setView("customise");
-                  }
-                }}
-                style={{ background: "rgba(255,230,109,0.08)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 6, padding: "5px 10px", color: "#FFE66D", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
-                title="Pair exercises into a superset"
-              >⟳ PAIR</button>
+              {/* Yellow ⟳ PAIR header button removed — each exercise card's
+                  + SUPERSET button is now strictly more powerful (picks
+                  recommended pairings, in-session OR library partners,
+                  SESSION vs ROUTINE save). The old button only redirected
+                  to the customise screen, which is redundant. */}
               <button onClick={abandonWorkout} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.45)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>QUIT ×</button>
             </div>
           </div>
@@ -7504,21 +7553,22 @@ function HomePage() {
                 const effectiveWeight = activeBW && !bwAddWeight ? "0" : wInput;
                 const handleLog = () => {
                   if (!ns) return;
+                  const logOpts = { rpe: effortInput, note: null };
                   if (superCtx && superCtx.idx < superCtx.group.length - 1) {
-                    logSet(ex.id, ns, effectiveWeight, rInput);
+                    logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
                     const nextEx = superCtx.group[superCtx.idx + 1];
                     const { weight: nw, reps: nr } = lastSessionBest(nextEx.id);
-                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false); setManualBW(false);
+                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false); setManualBW(false); setEffortInput(null);
                   } else if (dropCount > 0) {
-                    logSet(ex.id, ns, effectiveWeight, rInput);
+                    logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
                     const w = parseFloat(effectiveWeight) || 0;
                     setPendingDrop({ exId: ex.id, setNum: ns, dropNum: 1 });
-                    setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput("");
+                    setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput(""); setEffortInput(null);
                   } else {
-                    logSet(ex.id, ns, effectiveWeight, rInput);
+                    logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
+                    setEffortInput(null);
                     if (ns + 1 > ex.sets) {
                       setExpanded(null);
-                      // Award IP for completing full superset (last exercise, last set)
                       if (isLastInSuper && ex.groupId && !completedSupersetGroups.current.has(ex.groupId)) {
                         completedSupersetGroups.current.add(ex.groupId);
                         awardIP(5, "⚡", "SUPERSET LOCKED");
@@ -7647,10 +7697,39 @@ function HomePage() {
                       {trackable && (
                         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
                           {Array.from({ length: ex.sets }, (_, i) => {
-                            const entry = log[`${ex.id}-${i + 1}`];
+                            const k = `${ex.id}-${i + 1}`;
+                            const entry = log[k];
                             const d = !!entry, c = i + 1 === ns;
                             const skipped = entry?.skipped;
-                            return <div key={i} style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace", background: skipped ? "rgba(255,107,107,0.08)" : d ? "#2ecc7120" : c ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)", color: skipped ? "rgba(255,107,107,0.5)" : d ? "#2ecc71" : c ? "#fff" : "rgba(255,255,255,0.25)", border: c ? "1px solid rgba(255,255,255,0.15)" : skipped ? "1px solid rgba(255,107,107,0.2)" : "1px solid transparent" }}>{skipped ? "−" : d ? "✓" : i + 1}</div>;
+                            const hasNote = !!entry?.note;
+                            // Long-press → open the set-note modal so the
+                            // user can attach context. Only enabled on
+                            // logged sets (no point note-ing a future set).
+                            let pressTimer: any = null;
+                            const onPressStart = () => {
+                              if (!d || skipped) return;
+                              pressTimer = setTimeout(() => {
+                                setNoteModal({ key: k, current: entry?.note ?? "" });
+                              }, 450);
+                            };
+                            const onPressEnd = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+                            return (
+                              <button
+                                key={i}
+                                onMouseDown={onPressStart}
+                                onMouseUp={onPressEnd}
+                                onMouseLeave={onPressEnd}
+                                onTouchStart={onPressStart}
+                                onTouchEnd={onPressEnd}
+                                onTouchCancel={onPressEnd}
+                                disabled={!d}
+                                style={{ position: "relative", width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace", background: skipped ? "rgba(255,107,107,0.08)" : d ? "#2ecc7120" : c ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)", color: skipped ? "rgba(255,107,107,0.5)" : d ? "#2ecc71" : c ? "#fff" : "rgba(255,255,255,0.25)", border: c ? "1px solid rgba(255,255,255,0.15)" : skipped ? "1px solid rgba(255,107,107,0.2)" : "1px solid transparent", cursor: d ? "pointer" : "default", padding: 0 }}
+                                title={d && !skipped ? "Long-press to add a note" : ""}
+                              >
+                                {skipped ? "−" : d ? "✓" : i + 1}
+                                {hasNote && <span style={{ position: "absolute", top: 2, right: 2, width: 5, height: 5, borderRadius: "50%", background: "#fdcb6e" }} />}
+                              </button>
+                            );
                           })}
                         </div>
                       )}
@@ -7766,6 +7845,48 @@ function HomePage() {
                             {rDiff(parseInt(rInput))}
                           </div>
                         </div>
+
+                        {/* EFFORT chip row — 1-10 scale, optional. Skipped
+                            values stay null and don't get persisted. The
+                            chip rgb maps to perceived difficulty (cool →
+                            warm). Hover/long-press shows RPE + RIR labels
+                            via the parent estimate1RM / EFFORT_SCALE meta. */}
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>EFFORT (optional)</span>
+                            {effortInput != null && (() => {
+                              const meta = EFFORT_SCALE.find(e => e.value === effortInput);
+                              return meta ? (
+                                <span style={{ fontSize: 10, color: meta.color, letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>
+                                  {meta.rpe} · {meta.rir.toUpperCase()}
+                                </span>
+                              ) : null;
+                            })()}
+                          </div>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            {EFFORT_SCALE.map(meta => {
+                              const active = effortInput === meta.value;
+                              return (
+                                <button
+                                  key={meta.value}
+                                  onClick={() => setEffortInput(active ? null : meta.value)}
+                                  title={`${meta.rpe} · ${meta.rir}`}
+                                  style={{
+                                    flex: 1, minWidth: 0, padding: "8px 0",
+                                    background: active ? meta.color : "rgba(255,255,255,0.04)",
+                                    border: `1px solid ${active ? meta.color : "rgba(255,255,255,0.08)"}`,
+                                    borderRadius: 6,
+                                    color: active ? "#000" : "rgba(255,255,255,0.55)",
+                                    fontSize: 12, fontWeight: 700,
+                                    fontFamily: "'Space Mono', monospace",
+                                    cursor: "pointer",
+                                  }}
+                                >{meta.value}</button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
                         <button
                           onClick={() => {
                             const w = parseFloat(effectiveWeight) || 0;
