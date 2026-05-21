@@ -2,6 +2,35 @@
 
 ---
 
+## Feature · 2026-05-21 (aa) — first-launch tutorial + Settings restart (qa: tutorial-onboarding)
+
+### Added
+- `tutorial-onboarding`: data-driven first-launch coach-card
+  walkthrough. 8 steps live in `lib/tutorial.ts`:
+    1. Welcome
+    2. QA + feedback (Doppo at /qa, SEND FEEDBACK in Settings)
+    3. Start today's session
+    4. Warm-up + cool-down baked in
+    5. Log a set + rest timer + auto-advance
+    6. Supersets + drop sets
+    7. Customise your routine (+ SESSION / + ROUTINE)
+    8. App version + CHECK FOR UPDATES
+- `TutorialOverlay` component renders the steps as full-screen
+  cards with a top progress bar, SKIP, BACK / NEXT, and a final
+  ✓ GOT IT button. Mounted on both home and settings so the
+  Settings restart button doesn't have to navigate away.
+- One-time per device: localStorage key `ironlog-tutorial-seen-v1`
+  set on first dismissal. `TUTORIAL_VERSION` constant in
+  `lib/tutorial.ts` controls the key suffix — bumping it forces
+  every existing user to see the tutorial once.
+- **🎓 RESTART TUTORIAL** button in Settings clears the flag and
+  reopens the overlay without changing view.
+- `CLAUDE.md` updated with a new "Every shipped user-facing
+  feature MUST update the tutorial" forcing rule so future
+  passes keep `TUTORIAL_STEPS` in sync with what's actually live.
+
+---
+
 ## Feature · 2026-05-21 (z) — planGenerator bakes warm-ups + cool-downs into new plans (qa: workout-warmup)
 
 ### Added (slice 4/N — final slice of the warm-up / cool-down system)

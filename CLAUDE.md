@@ -213,6 +213,30 @@ Workflow each pass:
 4. Resolve every orphan tag before pushing. If you legitimately can't,
    add the item.
 
+## Every shipped user-facing feature MUST update the tutorial
+
+Same forcing principle. The first-launch tutorial in `lib/tutorial.ts`
+introduces new users to the app's surfaces. When a feature ships a new
+surface or meaningfully changes one of the surfaces the tutorial
+already covers, add or update the corresponding step. The shape is
+data-driven — just edit the `TUTORIAL_STEPS` array.
+
+Workflow each pass:
+1. After deciding the slice, check `lib/tutorial.ts` — is the new
+   surface already mentioned in a step? If not, add one with an id
+   that won't collide, an icon emoji, a 1-3 sentence body, and an
+   optional `where` tag telling the user where it lives.
+2. If the change is large enough that existing users should see the
+   tutorial again, bump `TUTORIAL_VERSION` (it's used to derive the
+   localStorage key). Use sparingly — once or twice per major arc.
+3. If a step is genuinely out of date because the feature was
+   removed, edit the step. The tutorial is not append-only audit
+   trail (unlike PATCHLOG); it's the live "how to use the app"
+   intro and should reflect current reality.
+4. If a slice legitimately doesn't change any user-facing surface
+   (e.g. pure internal refactor, infra change), no step needed —
+   just say so in the PATCHLOG entry so the next reviewer knows.
+
 ## Repo basics
 
 - Framework: Next.js 14 (App Router, TypeScript, ES5 target)

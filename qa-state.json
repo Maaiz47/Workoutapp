@@ -1091,6 +1091,26 @@
       "notes": "[2026-05-21] Slice 3/N: REFRESH NOW button no longer leaves the iOS PWA on a black screen until the user swipes. Replaced location.reload() with a location.replace() to the same URL + a `?_v=<timestamp>` cache-bust query — iOS treats that as a fresh navigation which renders cleanly, instead of the in-place reload which can leave the page suspended until a touch event. Also: the refresh now sends SKIP_WAITING to any waiting SW so the new bundle activates immediately, and public/sw.js gained a message handler that calls self.skipWaiting() when it receives that message.\n[2026-05-21] Slice 2/N: friendly user-facing version label `v1.0.N` derived from PATCHLOG section count.\n[2026-05-21] Slice 1/N: shipped /api/version + Settings card."
     },
     {
+      "id": "tutorial-onboarding",
+      "title": "First-launch tutorial + Settings restart",
+      "area": "Other",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass tutorial",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Clear the `ironlog-tutorial-seen-v1` localStorage key (or open in incognito), then log in — verify a full-screen coach-card tutorial overlay appears with 8 steps",
+        "Verify each step shows: icon (top), STEP N OF 8, title, body copy, optional 📍 location pin, and BACK/NEXT buttons. Last step's NEXT label flips to ✓ GOT IT",
+        "Verify the top progress bar fills as you advance and the SKIP button is always accessible",
+        "Step content includes QA/feedback (Doppo at /qa), starting a workout, warm-up + cool-down, logging a set, supersets + drop sets, customise routine, and app updates",
+        "Tap SKIP or finish the last step — verify the overlay closes and `localStorage.ironlog-tutorial-seen-v1` is set to '1'",
+        "Reload — verify the tutorial does NOT auto-reappear (one-time per device until version bumps)",
+        "Open Settings — verify a teal '🎓 RESTART TUTORIAL' button sits between SEND FEEDBACK and LOG OUT. Tap it — verify the overlay reopens immediately without leaving Settings",
+        "Verify CLAUDE.md has a section called 'Every shipped user-facing feature MUST update the tutorial' (the forcing rule)"
+      ],
+      "notes": "[2026-05-21] Shipped lib/tutorial.ts with 8 steps (welcome, qa-feedback, start-workout, warmup-cooldown, log-set, supersets-dropsets, customise, updates) — each carries an id, icon, title, body, and optional `where` location hint. TutorialOverlay component is data-driven from that array. localStorage key `ironlog-tutorial-seen-v1` gates one-time auto-show; bumping TUTORIAL_VERSION re-shows. Restart button in Settings clears the flag + reopens. CLAUDE.md updated with a 'Every shipped user-facing feature MUST update the tutorial' rule so future passes keep the tutorial in sync with what's actually live."
+    },
+    {
       "id": "trainer-role-request",
       "title": "Trainer upgrade request flow",
       "area": "Trainer",

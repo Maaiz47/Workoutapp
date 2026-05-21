@@ -11,6 +11,7 @@ import { MUSCLE_DETAIL, lookupMuscleDetail } from "../lib/muscleDetail";
 import { getFormCues } from "../lib/formCues";
 import { pickWarmupForDay } from "../lib/warmups";
 import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
+import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutorial";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -1369,6 +1370,128 @@ function ProfileNagBanner({
   );
 }
 
+// ─── TUTORIAL OVERLAY ───────────────────────────────────────────────────
+// First-launch coach-card walkthrough. Steps come from lib/tutorial.ts so
+// the content is data-driven and easy to update as features ship.
+// Triggered on first authed visit per device; restartable from Settings.
+function TutorialOverlay({ onClose }: { onClose: () => void }) {
+  const [idx, setIdx] = useState(0);
+  const total = TUTORIAL_STEPS.length;
+  const step: TutorialStep = TUTORIAL_STEPS[idx];
+  const isLast = idx >= total - 1;
+
+  const done = () => {
+    try { localStorage.setItem(TUTORIAL_STORAGE_KEY, "1"); } catch {}
+    onClose();
+  };
+  const next = () => isLast ? done() : setIdx(i => Math.min(total - 1, i + 1));
+  const back = () => setIdx(i => Math.max(0, i - 1));
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9998,
+        background: "rgba(0,0,0,0.85)",
+        backdropFilter: "blur(8px)",
+        display: "flex", alignItems: "flex-end",
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 480, margin: "0 auto", padding: 16 }}>
+        {/* Top bar: progress + skip */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 4, alignItems: "center", flex: 1 }}>
+            {TUTORIAL_STEPS.map((_, i) => (
+              <div key={i} style={{
+                flex: 1, height: 3, borderRadius: 2,
+                background: i <= idx ? "#FF6B6B" : "rgba(255,255,255,0.15)",
+                transition: "background 0.2s",
+              }} />
+            ))}
+          </div>
+          <button onClick={done} style={{
+            marginLeft: 12, padding: "6px 10px",
+            background: "transparent", border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: 6,
+            color: "rgba(255,255,255,0.55)", fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+            fontFamily: "'Space Mono', monospace", cursor: "pointer", whiteSpace: "nowrap",
+          }}>SKIP</button>
+        </div>
+
+        {/* Card */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step.id}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.18 }}
+            style={{
+              background: "#0a0a0a",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 18, padding: "24px 22px 18px",
+              boxShadow: "0 16px 36px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div style={{ fontSize: 56, lineHeight: 1, marginBottom: 14, textAlign: "center" }}>{step.icon}</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#FF6B6B", letterSpacing: 3, textAlign: "center", marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>
+              STEP {idx + 1} OF {total}
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", textAlign: "center", marginBottom: 10, lineHeight: 1.3 }}>
+              {step.title}
+            </div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.72)", textAlign: "center", lineHeight: 1.55, marginBottom: step.where ? 14 : 22 }}>
+              {step.body}
+            </div>
+            {step.where && (
+              <div style={{
+                fontSize: 10, color: "rgba(78,205,196,0.85)",
+                background: "rgba(78,205,196,0.06)",
+                border: "1px solid rgba(78,205,196,0.2)",
+                borderRadius: 8, padding: "8px 10px",
+                textAlign: "center", letterSpacing: 1,
+                fontFamily: "'Space Mono', monospace",
+                marginBottom: 22,
+              }}>📍 {step.where}</div>
+            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={back}
+                disabled={idx === 0}
+                style={{
+                  flex: 1, padding: "12px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 10,
+                  color: idx === 0 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.7)",
+                  fontSize: 12, fontWeight: 700, letterSpacing: 2,
+                  fontFamily: "'Space Mono', monospace",
+                  cursor: idx === 0 ? "not-allowed" : "pointer",
+                }}
+              >◀ BACK</button>
+              <button
+                onClick={next}
+                style={{
+                  flex: 2, padding: "12px",
+                  background: "linear-gradient(135deg,#FF6B6B,#ee5a24)",
+                  border: "none", borderRadius: 10,
+                  color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: 2,
+                  fontFamily: "'Space Mono', monospace",
+                  cursor: "pointer",
+                }}
+              >{isLast ? "✓ GOT IT" : "NEXT ▶"}</button>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── VERSION / UPDATE CHECK CARD ────────────────────────────────────────
 // Lives in Settings. Stores the SHA of the build the client originally
 // loaded against, then on tap refetches /api/version and compares. If the
@@ -1622,6 +1745,7 @@ function SendFeedbackCard({ username }: { username: string }) {
 // ─── MAIN ───────────────────────────────────────────────────────────────
 function HomePage() {
   const [user, setUser] = useState<{ id: string; username: string; role: string; extraRoles?: string[]; roleRequest?: string | null } | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [appTheme, setAppTheme] = useState<"iron"|"mono"|"vivid">("iron");
   const [accentColor, setAccentColor] = useState("#FF6B6B");
@@ -1921,6 +2045,18 @@ function HomePage() {
   }, []);
 
   useEffect(() => { setIsMounted(true); }, []);
+
+  // First-launch tutorial: open the overlay once user auth resolves,
+  // but only if this device hasn't dismissed it yet. Bumping the version
+  // in lib/tutorial.ts forces a one-time re-show after major UI shifts.
+  useEffect(() => {
+    if (!user) return;
+    try {
+      if (!localStorage.getItem(TUTORIAL_STORAGE_KEY)) {
+        setShowTutorial(true);
+      }
+    } catch {}
+  }, [user?.id]);
 
   const refreshUser = useCallback(() => {
     fetch("/api/auth").then(r => r.json()).then(data => {
@@ -4192,6 +4328,8 @@ function HomePage() {
   // ─── HOME ───────────────────────────────────────────────────────────
   if (view === "home") return (
     <div key="home" className={viewDir === "back" ? "view-back" : "view-forward"} style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "clip" }}>
+      {/* First-launch / restart tutorial overlay */}
+      <AnimatePresence>{showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}</AnimatePresence>
       {/* PB celebration overlay */}
       {newPBs.length > 0 && (
         <div className="pb-overlay" onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer" }}>
@@ -5867,6 +6005,9 @@ function HomePage() {
 
     return (
       <div key="settings" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", paddingBottom: safeBot }}>
+        {/* Tutorial overlay (also mounted on home; here so the Settings
+            "Restart Tutorial" button can show it without changing view). */}
+        <AnimatePresence>{showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}</AnimatePresence>
         <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>ACCOUNT</div>
@@ -6273,6 +6414,19 @@ function HomePage() {
 
           {/* Send feedback */}
           <SendFeedbackCard username={user?.username || ""} />
+
+          {/* Restart tutorial */}
+          <button
+            onClick={() => { try { localStorage.removeItem(TUTORIAL_STORAGE_KEY); } catch {}; setShowTutorial(true); }}
+            style={{
+              width: "100%", marginTop: 8, padding: "14px",
+              background: "rgba(78,205,196,0.06)",
+              border: "1px solid rgba(78,205,196,0.2)",
+              borderRadius: 12,
+              color: "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 2,
+              cursor: "pointer", fontFamily: "'Space Mono', monospace",
+            }}
+          >🎓 RESTART TUTORIAL</button>
 
           {/* Log out */}
           <button onClick={doLogout} style={{ width: "100%", marginTop: 8, padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, color: "rgba(255,255,255,0.35)", fontSize: 12, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>LOG OUT</button>
