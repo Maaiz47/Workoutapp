@@ -1078,7 +1078,15 @@ function VolumeHeatmap({ history }: { history: Record<string, any[]> }) {
 // Month-grid history calendar with INTENSITY / PBs switchable tabs.
 // Builds a 6×7 grid for the chosen month, cells coloured by either total
 // session intensity (volume × avg RPE proxy) or PB count that day.
-function HistoryCalendar({ history }: { history: Record<string, any[]> }) {
+// Optional `selectedIso` + `onSelect` make the cells tappable so a parent
+// view can render a Session Recap card for the chosen date.
+function HistoryCalendar({
+  history, selectedIso, onSelect,
+}: {
+  history: Record<string, any[]>;
+  selectedIso?: string | null;
+  onSelect?: (iso: string) => void;
+}) {
   type Mode = "intensity" | "pbs";
   const [mode, setMode] = useState<Mode>("intensity");
   const [offset, setOffset] = useState(0); // 0 = current month, -1 = prev, etc.
@@ -1179,8 +1187,30 @@ function HistoryCalendar({ history }: { history: Record<string, any[]> }) {
           if (!c.iso) return <div key={i} style={{ aspectRatio: "1 / 1" }} />;
           const v = byDate[c.iso];
           const isToday = c.iso === new Date().toISOString().slice(0, 10);
+          const isSelected = !!selectedIso && c.iso === selectedIso;
+          const canTap = !!(v && v.sessions > 0 && onSelect);
+          const baseBorder = isSelected
+            ? "1px solid rgba(255,255,255,0.85)"
+            : isToday ? "1px solid rgba(255,255,255,0.5)" : "1px solid transparent";
           return (
-            <div key={i} title={v ? (mode === "intensity" ? `${Math.round(v.intensity)} intensity · ${v.sessions} session${v.sessions !== 1 ? "s" : ""}` : `${v.pbs} PB${v.pbs !== 1 ? "s" : ""} · ${v.sessions} session${v.sessions !== 1 ? "s" : ""}`) : ""} style={{ aspectRatio: "1 / 1", borderRadius: 6, background: cellColor(c.iso), border: isToday ? "1px solid rgba(255,255,255,0.5)" : "1px solid transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: v ? "#fff" : "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>
+            <div
+              key={i}
+              onClick={canTap ? () => onSelect!(c.iso!) : undefined}
+              title={v ? (mode === "intensity" ? `${Math.round(v.intensity)} intensity · ${v.sessions} session${v.sessions !== 1 ? "s" : ""}` : `${v.pbs} PB${v.pbs !== 1 ? "s" : ""} · ${v.sessions} session${v.sessions !== 1 ? "s" : ""}`) : ""}
+              style={{
+                aspectRatio: "1 / 1", borderRadius: 6,
+                background: isSelected ? "linear-gradient(135deg, #fff, #f5f5f5)" : cellColor(c.iso),
+                border: baseBorder,
+                boxShadow: isSelected ? "0 0 14px rgba(255,255,255,0.4)" : "none",
+                transform: isSelected ? "scale(1.06)" : "scale(1)",
+                transition: "transform 0.15s ease, box-shadow 0.2s ease",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 10,
+                color: isSelected ? "#111" : v ? "#fff" : "rgba(255,255,255,0.25)",
+                fontFamily: "'Space Mono', monospace",
+                cursor: canTap ? "pointer" : "default",
+              }}
+            >
               {c.day}
             </div>
           );
@@ -1777,6 +1807,112 @@ function lookupExMuscles(name: string): { muscles: string[]; secondaryMuscles: s
   let found = EXERCISES.find(e => n(e.name) === key);
   if (!found) found = EXERCISES.find(e => key.includes(n(e.name)) || n(e.name).includes(key));
   return { muscles: found?.primaryMuscles ?? [], secondaryMuscles: found?.secondaryMuscles ?? [] };
+}
+
+// ─── SESSION RECAP CARD ────────────────────────────────────────────────
+// Renders the workout(s) logged on a single date with per-set deltas.
+// Lives here so both the Progress Dashboard and Progress History tabs
+// can mount it (previously inlined inside Dashboard only). Closure-free
+// — takes plain props so it stays portable.
+function DaySessionRecap({
+  iso, history, findExName, parseSetKey, customPlan, onClose,
+}: {
+  iso: string;
+  history: Record<string, any[]>;
+  findExName: (eid: string) => string;
+  parseSetKey: (k: string) => { eid: string; setNum: string };
+  customPlan: any[] | null;
+  onClose: () => void;
+}) {
+  const dateLabel = new Date(iso + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const daySessions: { dayId: string; session: any }[] = [];
+  for (const [dayId, sessions] of Object.entries(history)) {
+    for (const s of sessions as any[]) {
+      if (s.date === iso) daySessions.push({ dayId, session: s });
+    }
+  }
+  return (
+    <div className="fade-in" style={{ position: "relative", overflow: "hidden", background: "linear-gradient(180deg, rgba(255,107,107,0.05), rgba(255,255,255,0.02))", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 16, padding: "18px", marginBottom: 12, boxShadow: "0 4px 20px -8px rgba(255,107,107,0.18)" }}>
+      <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.5), transparent)" }} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 10, color: "#FF6B6B", letterSpacing: 2.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 4 }}>SESSION RECAP</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{dateLabel}</div>
+        </div>
+        <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
+      </div>
+      {daySessions.map(({ dayId, session }, si) => {
+        const dayName = findExName(dayId) !== dayId ? findExName(dayId) : (() => {
+          for (const d of WORKOUT_DATA) if (d.id === dayId) return d.title;
+          if (customPlan) for (const d of customPlan as any[]) if (d.id === dayId) return d.title;
+          return dayId;
+        })();
+        const rawSets = (session.sets ?? {}) as Record<string, { weight: number; reps: number }>;
+        const byEx: Record<string, { name: string; sets: { sn: string; weight: number; reps: number }[] }> = {};
+        for (const [k, v] of Object.entries(rawSets)) {
+          const { eid, setNum: sn } = parseSetKey(k);
+          if (!byEx[eid]) byEx[eid] = { name: findExName(eid), sets: [] };
+          byEx[eid].sets.push({ sn, weight: v.weight, reps: v.reps });
+        }
+        for (const ex of Object.values(byEx)) ex.sets.sort((a, b) => Number(a.sn) - Number(b.sn));
+        return (
+          <div key={si} style={{ marginBottom: si < daySessions.length - 1 ? 16 : 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>{dayName}</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", background: "rgba(255,255,255,0.04)", padding: "2px 7px", borderRadius: 4 }}>{session.duration}</div>
+            </div>
+            {Object.entries(byEx).map(([eid, ex]) => (
+              <div key={eid} style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 12, color: "#fff", fontWeight: 500, marginBottom: 5 }}>{ex.name}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {ex.sets.map((set, idx) => {
+                    const prev = idx > 0 ? ex.sets[idx - 1] : null;
+                    const hasWeight = (set.weight ?? 0) > 0 || (prev?.weight ?? 0) > 0;
+                    const wDelta = prev ? (set.weight ?? 0) - (prev.weight ?? 0) : 0;
+                    const rDelta = prev ? (set.reps ?? 0) - (prev.reps ?? 0) : 0;
+                    const primary = hasWeight ? wDelta : rDelta;
+                    const primaryUnit = hasWeight ? "kg" : "r";
+                    const showSecondary = hasWeight && rDelta !== 0;
+                    const same = prev && primary === 0 && !showSecondary;
+                    const up = primary > 0;
+                    const deltaColor = up ? "#4caf50" : primary < 0 ? "#FF6B6B" : "rgba(255,255,255,0.4)";
+                    return (
+                      <div key={set.sn} style={{
+                        fontSize: 10, color: "#fff",
+                        background: "rgba(255,255,255,0.08)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: 6, padding: "3px 8px",
+                        fontFamily: "'Space Mono', monospace",
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                      }}>
+                        <span>{set.weight > 0 ? `${set.weight}kg × ${set.reps}` : `${set.reps} reps`}</span>
+                        {prev && (
+                          <span style={{
+                            fontSize: 9, color: deltaColor, letterSpacing: 0.5,
+                            background: same ? "transparent" : `${deltaColor}1a`,
+                            border: same ? "none" : `1px solid ${deltaColor}33`,
+                            borderRadius: 4, padding: same ? "0 2px" : "1px 5px",
+                          }}>
+                            {same ? "=" : `${up ? "↑+" : "↓"}${Math.abs(primary)}${primaryUnit}`}
+                            {showSecondary && (
+                              <span style={{ marginLeft: 4, opacity: 0.85 }}>
+                                {rDelta > 0 ? "+" : ""}{rDelta}r
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+      {daySessions.length === 0 && <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No session data for this date.</div>}
+    </div>
+  );
 }
 
 // ─── MOTIVATIONAL WATERMARK BACKDROP ────────────────────────────────────
@@ -2808,6 +2944,23 @@ function HomeGlobals({
 // "Coach is a TIER of TRAINERS, not a separate role."
 
 type TierLite = { label: string; emoji: string; min: number; color: string; bg: string; border: string };
+
+// Bridge the new lib/tiers.ts AnimalTier shape (uses `icon`) to the
+// local TierLite shape (uses `emoji`) so TierInfoModal can render
+// the canonical score-based athlete ladder rather than the legacy
+// session-count ladder. Same labels (Kitten → Gorilla), different
+// thresholds (0/15/30/50/70/90 on a 0-100 score).
+const ATHLETE_TIERS_LITE: TierLite[] = ATHLETE_TIERS.map(t => ({
+  label: t.label, emoji: t.icon, min: t.min,
+  color: t.color, bg: t.bg, border: t.border,
+}));
+
+// Same bridge for the trainer ladder so future migrations to the
+// multi-dim trainer computation can use it without ceremony.
+const TRAINER_TIERS_NEW_LITE: TierLite[] = TRAINER_TIERS_NEW.map(t => ({
+  label: t.label, emoji: t.icon, min: t.min,
+  color: t.color, bg: t.bg, border: t.border,
+}));
 
 function TierInfoModal({
   open, onClose, isAthlete, isTrainer,
@@ -4774,6 +4927,45 @@ function HomePage() {
   };
 
   const overall = useMemo(() => getOverallStats(history), [history]);
+
+  // Canonical athlete-tier breakdown for the visitor. Computed once
+  // from the visitor's full local stats so every surface — welcome
+  // card pill, Settings IDENTITY, TierInfoModal, leaderboard "you"
+  // row — shows the SAME tier. Previously the welcome card +
+  // leaderboard used a legacy session-count ladder (CLIENT_TIERS)
+  // that disagreed with the Progress dashboard's score-based ladder
+  // (ATHLETE_TIERS) — user saw Monkey in one place, Tiger in another.
+  // ob/createdAt access is wrapped so this memo never crashes for
+  // an unauthenticated render.
+  const myAthleteBreakdown = useMemo(() => {
+    if (!user) return null;
+    const distinctEx = new Set<string>();
+    let totalVolume = 0;
+    for (const dayId in history) for (const s of history[dayId]) {
+      const sets = (s.sets ?? {}) as Record<string, any>;
+      for (const k in sets) {
+        const exKey = k.replace(/-\d+(-d\d+)?$/, "");
+        if (exKey) distinctEx.add(exKey);
+        const v = sets[k];
+        if (v && !v.skipped) totalVolume += (v.weight ?? 0) * (v.reps ?? 0);
+      }
+    }
+    const monthsOnApp = user.createdAt ? (Date.now() - +new Date(user.createdAt)) / (30 * 86400000) : 0;
+    let wl = { hydrationGoalDays: 0, sleepLoggedDays: 0, energyLoggedDays: 0 };
+    try { wl = wellnessLast14Days(); } catch {}
+    const stats: AthleteStatsForTier = {
+      totalSessions: overall.totalSessions,
+      streak: overall.streak,
+      totalVolumeKg: totalVolume,
+      prCount: Object.keys(overall.exercisePRs).length,
+      distinctExercises: distinctEx.size,
+      monthsOnApp,
+      hydrationGoalDays: wl.hydrationGoalDays,
+      sleepLoggedDays: wl.sleepLoggedDays,
+      energyLoggedDays: wl.energyLoggedDays,
+    };
+    return computeAthleteTier(stats);
+  }, [user, history, overall]);
   const bc: Record<string, string> = { compound: "#2ecc71", isolation: "#74b9ff", cardio: "#FF6B6B" };
 
   const sessionExSuggestions = useMemo(() => {
@@ -6188,10 +6380,34 @@ function HomePage() {
           </div>
         </div>
       )}
-      {/* Compact hero (150px). Profile chip in one row: avatar · name +
-          inline tier pills. WELCOME BACK label dropped (redundant). Tagline
-          smaller, sits in the lower hero. */}
-      <div style={{ position: "relative", height: 150, overflow: "hidden", zIndex: 5 }}>
+      {/* Hero auto-sizes to fill the viewport up to the last day-card
+          row. The previous 150px height left a wide black gap above
+          the barbell on tall phones AND wasted the chance to show
+          more of the image. We compute the height of everything
+          BELOW the hero for the current plan (quest pill + YOUR
+          SPLIT row + card grid + paddings + safe-area) and let the
+          hero grow into the remaining 100dvh, clamped so it never
+          shrinks below 170 or balloons past 320.
+          Stale formula here would push the last card row under the
+          system home indicator — keep the constants below in sync
+          with the card grid layout farther down this file. */}
+      <div style={(() => {
+        const planLen = (customPlan ?? WORKOUT_DATA).length;
+        const cardRowH = planLen >= 4 ? 138 : planLen === 1 ? 420 : planLen === 2 ? 260 : 178;
+        const rows = planLen >= 4 ? Math.ceil(planLen / 2) : planLen;
+        const gapPx = planLen >= 4 ? 8 : 12;
+        const cardsH = rows * cardRowH + Math.max(0, rows - 1) * gapPx;
+        // Quest pill (~52 + 14 margin) + YOUR SPLIT row (~36 + 14
+        // margin) + cards + a 12px breathing buffer above the bottom
+        // safe area so the last row doesn't kiss the home indicator.
+        const belowHero = 66 + 50 + cardsH + 12;
+        return {
+          position: "relative" as const,
+          height: `clamp(170px, calc(100dvh - ${belowHero}px - env(safe-area-inset-bottom, 0px)), 320px)`,
+          overflow: "hidden" as const,
+          zIndex: 5,
+        };
+      })()}>
         <img ref={heroImgRef} src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 12%", opacity: 0.55 }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.9) 0%, rgba(10,10,15,0.35) 35%, rgba(10,10,15,0) 60%, rgba(10,10,15,1) 100%)" }} />
         {/* Profile chip — compact horizontal layout */}
@@ -9156,161 +9372,17 @@ function HomePage() {
               ))}
             </div>
 
-            {/* 28-Day Activity Calendar */}
-            {(() => {
-              // Pre-compute date numbers for each cell
-              const dateNums: number[] = [];
-              for (let i = 27; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                dateNums.push(d.getDate());
-              }
-              return (
-                <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600 }}>LAST 4 WEEKS</div>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>
-                      {overall.calendarDays.filter(d => d.active).length} days trained
-                    </div>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
-                    {dayLabels.map((l, i) => (
-                      <div key={i} style={{ textAlign: "center", fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>{l}</div>
-                    ))}
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
-                    {Array.from({ length: overall.calendarPadding }, (_, i) => (
-                      <div key={`pad-${i}`} style={{ aspectRatio: "1" }} />
-                    ))}
-                    {overall.calendarDays.map((day, i) => (
-                      <div key={i}
-                        onClick={() => day.active ? setCalDateSel(calDateSel === day.date ? null : day.date) : undefined}
-                        style={{
-                          aspectRatio: "1", borderRadius: 7, display: "flex", flexDirection: "column",
-                          alignItems: "center", justifyContent: "center",
-                          background: calDateSel === day.date ? "linear-gradient(135deg, #fff, #f5f5f5)" : day.active ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.03)",
-                          border: day.isToday ? "1px solid rgba(255,255,255,0.45)" : calDateSel === day.date ? "1px solid rgba(255,255,255,0.6)" : "1px solid transparent",
-                          opacity: day.active || day.isToday ? 1 : 0.35,
-                          cursor: day.active ? "pointer" : "default",
-                          boxShadow: calDateSel === day.date ? "0 0 16px rgba(255,255,255,0.35)" : day.active ? "0 2px 8px -2px rgba(255,107,107,0.35), inset 0 1px 0 rgba(255,255,255,0.12)" : "none",
-                          transition: "transform 0.15s ease, box-shadow 0.2s ease",
-                          transform: calDateSel === day.date ? "scale(1.08)" : "scale(1)",
-                        }}>
-                        <div style={{
-                          fontSize: 10, fontWeight: day.isToday ? 700 : 500,
-                          fontFamily: "'Space Mono', monospace",
-                          color: calDateSel === day.date ? "#111" : day.active ? "#fff" : day.isToday ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)",
-                        }}>{dateNums[i]}</div>
-                        {day.hasIntensity && <div style={{ fontSize: 7, lineHeight: 1, marginTop: 1 }}>⚡</div>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
+            {/* Calendar lives in the HISTORY tab now — the Dashboard
+                used to host a 28-day grid AND History had its own
+                month grid, which felt like two surfaces doing the
+                same job. Tap → see Session Recap is wired up on the
+                HISTORY calendar instead. The Session Recap render
+                below stays here so the layout still surfaces it if
+                a recap is open. */}
 
-            {/* Calendar Session Recap */}
-            {calDateSel && (() => {
-              const dateLabel = new Date(calDateSel + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
-              const daySessions: { dayId: string; session: any }[] = [];
-              for (const [dayId, sessions] of Object.entries(history)) {
-                for (const s of sessions as any[]) {
-                  if (s.date === calDateSel) daySessions.push({ dayId, session: s });
-                }
-              }
-              return (
-                <div className="fade-in" style={{ position: "relative", overflow: "hidden", background: "linear-gradient(180deg, rgba(255,107,107,0.05), rgba(255,255,255,0.02))", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 16, padding: "18px", marginBottom: 12, boxShadow: "0 4px 20px -8px rgba(255,107,107,0.18)" }}>
-                  <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.5), transparent)" }} />
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 10, color: "#FF6B6B", letterSpacing: 2.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 4 }}>SESSION RECAP</div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{dateLabel}</div>
-                    </div>
-                    <button onClick={() => setCalDateSel(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
-                  </div>
-                  {daySessions.map(({ dayId, session }, si) => {
-                    const dayName = findExName(dayId) !== dayId ? findExName(dayId) : (() => {
-                      for (const d of WORKOUT_DATA) if (d.id === dayId) return d.title;
-                      if (customPlan) for (const d of customPlan as any[]) if (d.id === dayId) return d.title;
-                      return dayId;
-                    })();
-                    const rawSets = (session.sets ?? {}) as Record<string, { weight: number; reps: number }>;
-                    const byEx: Record<string, { name: string; sets: { sn: string; weight: number; reps: number }[] }> = {};
-                    for (const [k, v] of Object.entries(rawSets)) {
-                      const { eid, setNum: sn } = parseSetKey(k);
-                      if (!byEx[eid]) byEx[eid] = { name: findExName(eid), sets: [] };
-                      byEx[eid].sets.push({ sn, weight: v.weight, reps: v.reps });
-                    }
-                    for (const ex of Object.values(byEx)) ex.sets.sort((a, b) => Number(a.sn) - Number(b.sn));
-                    return (
-                      <div key={si} style={{ marginBottom: si < daySessions.length - 1 ? 16 : 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>{dayName}</div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", background: "rgba(255,255,255,0.04)", padding: "2px 7px", borderRadius: 4 }}>{session.duration}</div>
-                        </div>
-                        {Object.entries(byEx).map(([eid, ex]) => (
-                          <div key={eid} style={{ marginBottom: 8 }}>
-                            <div style={{ fontSize: 12, color: "#fff", fontWeight: 500, marginBottom: 5 }}>{ex.name}</div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                              {ex.sets.map((set, idx) => {
-                                const prev = idx > 0 ? ex.sets[idx - 1] : null;
-                                // Pick the primary dimension to diff on: if
-                                // either side carries weight it's a loaded
-                                // lift and weight delta is the headline.
-                                // Bodyweight exercises diff on reps.
-                                const hasWeight = (set.weight ?? 0) > 0 || (prev?.weight ?? 0) > 0;
-                                const wDelta = prev ? (set.weight ?? 0) - (prev.weight ?? 0) : 0;
-                                const rDelta = prev ? (set.reps ?? 0) - (prev.reps ?? 0) : 0;
-                                const primary = hasWeight ? wDelta : rDelta;
-                                const primaryUnit = hasWeight ? "kg" : "r";
-                                // Secondary delta surfaces only when both
-                                // dimensions move on a weighted lift —
-                                // e.g. dropped 5kg and lost 2 reps.
-                                const showSecondary = hasWeight && rDelta !== 0;
-                                const same = prev && primary === 0 && !showSecondary;
-                                const up = primary > 0;
-                                const down = primary < 0;
-                                const deltaColor = up ? "#4caf50" : down ? "#FF6B6B" : "rgba(255,255,255,0.4)";
-                                return (
-                                  <div key={set.sn} style={{
-                                    fontSize: 10, color: "#fff",
-                                    background: "rgba(255,255,255,0.08)",
-                                    border: "1px solid rgba(255,255,255,0.1)",
-                                    borderRadius: 6, padding: "3px 8px",
-                                    fontFamily: "'Space Mono', monospace",
-                                    display: "inline-flex", alignItems: "center", gap: 6,
-                                  }}>
-                                    <span>{set.weight > 0 ? `${set.weight}kg × ${set.reps}` : `${set.reps} reps`}</span>
-                                    {prev && (
-                                      <span style={{
-                                        fontSize: 9, color: deltaColor, letterSpacing: 0.5,
-                                        background: same ? "transparent" : `${deltaColor}1a`,
-                                        border: same ? "none" : `1px solid ${deltaColor}33`,
-                                        borderRadius: 4, padding: same ? "0 2px" : "1px 5px",
-                                      }}>
-                                        {same
-                                          ? "="
-                                          : `${up ? "↑+" : "↓"}${Math.abs(primary)}${primaryUnit}`}
-                                        {showSecondary && (
-                                          <span style={{ marginLeft: 4, opacity: 0.85 }}>
-                                            {rDelta > 0 ? "+" : ""}{rDelta}r
-                                          </span>
-                                        )}
-                                      </span>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                  {daySessions.length === 0 && <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No session data for this date.</div>}
-                </div>
-              );
-            })()}
+            {/* Session Recap is rendered in the History tab now (where
+                the tappable calendar lives). Keeping no calendar here
+                keeps the Dashboard focused on rank + overview cards. */}
 
             {/* Personal Records */}
             {prList.length > 0 && (
@@ -9610,10 +9682,47 @@ function HomePage() {
         )}
 
         {/* ─── HISTORY TAB ───────────────────────────────────────────── */}
-        {progressTab === "history" && (
+        {progressTab === "history" && (() => {
+          // Union of: current plan days (custom if set, else default
+          // WORKOUT_DATA), PLUS any history-keyed day ids that the
+          // current plan doesn't include — keeps sessions logged
+          // against routines the user has since deleted / replaced
+          // visible. Was a bug: the old code only iterated
+          // WORKOUT_DATA, so custom-plan users (most of them) saw
+          // "No sessions yet" for every row.
+          const planSource = customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA;
+          const planIds = new Set(planSource.map(d => d.id));
+          const orphans: typeof planSource = Object.keys(history)
+            .filter(id => !planIds.has(id) && (history[id]?.length ?? 0) > 0)
+            .map((id, idx) => ({
+              id,
+              title: id,
+              subtitle: "Removed routine",
+              label: `LEGACY`,
+              color: "#94a3b8",
+              gradient: "linear-gradient(135deg,#94a3b8,#64748b)",
+              focus: "",
+              sections: [],
+            } as WorkoutDay));
+          const dayList: WorkoutDay[] = [...planSource, ...orphans];
+          return (
           <div className="fade-in" style={{ padding: "16px 20px 0" }}>
-            <HistoryCalendar history={history} />
-            {WORKOUT_DATA.map(d => (
+            <HistoryCalendar
+              history={history}
+              selectedIso={calDateSel}
+              onSelect={iso => setCalDateSel(calDateSel === iso ? null : iso)}
+            />
+            {calDateSel && (
+              <DaySessionRecap
+                iso={calDateSel}
+                history={history}
+                findExName={findExName}
+                parseSetKey={parseSetKey}
+                customPlan={customPlan}
+                onClose={() => setCalDateSel(null)}
+              />
+            )}
+            {dayList.map(d => (
               <div key={d.id} style={{ marginBottom: 4 }}>
                 <div className="card-hover" onClick={() => setOpenHist(openHist === d.id ? null : d.id)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "16px 18px", cursor: "pointer" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -9665,7 +9774,8 @@ function HomePage() {
               </div>
             ))}
           </div>
-        )}
+          );
+        })()}
         {/* ─── BODY TAB ──────────────────────────────────────────────── */}
         {progressTab === "body" && (
           <div className="fade-in" style={{ padding: "16px 20px 0" }}>
