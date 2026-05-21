@@ -25,15 +25,37 @@ async function repairOrphanLogs(uid: string): Promise<number> {
     exerciseIds: d.exercises.map(e => e.exerciseId),
   }));
 
+  // Set keys are saved client-side in the format
+  //   "<exerciseId>-<setNum>"          (normal sets)
+  //   "<exerciseId>-<setNum>-d<dropNum>" (drop sets)
+  // where exerciseId itself contains hyphens (e.g. "barbell-bench-press").
+  // Mirror app/page.tsx → parseSetKey() here so we extract the real eid.
+  function eidFromSetKey(key: string): string {
+    const parts = key.split("-");
+    const last = parts[parts.length - 1];
+    if (/^d\d+$/.test(last) && parts.length >= 3) {
+      parts.pop();      // drop number
+      parts.pop();      // set number
+    } else {
+      parts.pop();      // set number
+    }
+    return parts.join("-");
+  }
+
   let relinked = 0;
   for (const log of orphans) {
     const sets = log.sets as any;
     const loggedExerciseIds: string[] = [];
     try {
       if (Array.isArray(sets)) {
+        // Older / alternate shape: array of objects with exerciseId on each.
         for (const s of sets) if (s?.exerciseId) loggedExerciseIds.push(String(s.exerciseId));
       } else if (sets && typeof sets === "object") {
-        for (const key of Object.keys(sets)) loggedExerciseIds.push(String(key));
+        // Current shape: Record<setKey, { weight, reps, skipped? }>.
+        for (const key of Object.keys(sets)) {
+          const eid = eidFromSetKey(key);
+          if (eid) loggedExerciseIds.push(eid);
+        }
       }
     } catch {}
     if (loggedExerciseIds.length === 0) continue;

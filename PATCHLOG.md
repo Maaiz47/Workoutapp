@@ -2,6 +2,24 @@
 
 ---
 
+## QA pass · 2026-05-21 (d) — re-link workout history (real fix)
+
+### Addressed
+- `routines-restore` / home cards: the orphan-log self-heal added in pass (a)
+  wasn't actually finding any matches. The `repairOrphanLogs()` server fn
+  was reading WorkoutLog.sets as `Record<exerciseId, ...>` but the real
+  shape is `Record<"<exerciseId>-<setNum>", ...>` (with `-d<n>` suffix
+  for drop sets). Every "exerciseId" it was scoring was actually a full
+  set key — so zero overlap with current plan days, zero relinks.
+  Fixed by mirroring the client-side `parseSetKey()` algorithm
+  server-side: pop the trailing set-number (and any `dN` drop-set suffix)
+  and use the joined remainder as the eid. On the next home-screen load
+  the GET /api/workout call should now find your old logs and relink
+  them to the matching new plan days. The "Last: <date>" line on each
+  workout card should reappear after that single page load.
+
+---
+
 ## QA pass · 2026-05-21 (c) — iOS autofill
 
 ### Addressed
