@@ -2,6 +2,29 @@
 
 ---
 
+## Feature · 2026-05-21 (ak) — Slice E: wellness card (hydration, sleep, soreness, injury) (qa: progress-wellness-card)
+
+### Added
+- `progress-wellness-card`: a new `🌱 WELLNESS` collapsible card at
+  the top of Progress → Dashboard. Four lightweight daily trackers,
+  all localStorage-backed, all opt-in:
+  - 💧 **Hydration** — glass counter, target 8/day, segmented bar.
+  - 😴 **Sleep & Energy** — 5/6/7/8/9h chips for sleep duration,
+    😴/😐/🙂/💪/⚡ chips for energy. Tap same chip again to clear.
+  - 💢 **Soreness** — 10 muscle groups, each with a 1-5 rating row.
+    Tap a number to set, same number again to clear.
+  - 🤕 **Injury log** — persistent list of active injuries (16 body
+    parts incl. joints). + ADD picks from a body-part chip-set;
+    ✓ HEALED removes.
+- **In-session integration**: active session exercise cards now
+  show a red `🤕 INJURY · <PART>` chip when the exercise's primary
+  or secondary muscles match an active injury. Tap → reuses the
+  existing substitute-modal to swap the lift.
+- All wellness data is localStorage-backed for now — no schema
+  migration. Easy to promote to DB later if/when needed.
+
+---
+
 ## Feature · 2026-05-21 (aj) — Slice D: plate calculator + music launcher (qa: workout-plate-calculator, workout-music-launcher)
 
 ### Added

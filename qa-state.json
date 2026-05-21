@@ -836,6 +836,27 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "progress-wellness-card",
+      "title": "Wellness card — hydration / sleep / energy / soreness / injuries",
+      "area": "Progress",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-E",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard. Verify a '🌱 WELLNESS' collapsed card sits at the top with a one-line summary (💧 0/8 · 😴 -h · ⚡ -/5 · 💢 N · 🤕 N)",
+        "Expand it. Verify four sections appear:",
+        "  💧 HYDRATION: + and − buttons + 8-segment progress bar (default target 8 glasses/day)",
+        "  😴 SLEEP & ENERGY: row of 5h/6h/7h/8h/9h chips for sleep, row of 😴/😐/🙂/💪/⚡ for energy. Tap same chip again to clear.",
+        "  💢 SORENESS: 10 muscle groups, each with 1-5 rating chips. Tap same number to clear.",
+        "  🤕 INJURY LOG: + ADD button reveals body-part picker (10 muscles + knee/elbow/wrist/ankle/lower-back/neck). Each entry has start date + ✓ HEALED button.",
+        "Add an injury (e.g. 'knee') — start an active workout — verify any exercise touching that muscle shows a '🤕 INJURY · KNEE' chip. Tap the chip to open the same substitute-modal as the missing-equipment chip.",
+        "Tap ✓ HEALED on an injury — verify the chip disappears from the next session card render",
+        "Reload the page — verify all wellness data persists (localStorage-backed)"
+      ],
+      "notes": "[2026-05-21] Slice E shipped. lib/wellness.ts: localStorage-backed daily-keyed trackers for hydration (HYDRATION_TARGET=8), sleep+energy ({sleepHours, energy 1-5}), soreness (muscle→1-5), and a persistent injury list. WellnessCard component on Progress → Dashboard. injuriesFor(exerciseMuscles, list) helper drives the in-session injury chip — reuses the existing substitute-modal so the swap flow is consistent. All four trackers are opt-in / no-nag."
+    },
+    {
       "id": "workout-plate-calculator",
       "title": "Plate calculator hint on barbell exercises",
       "area": "Workout",

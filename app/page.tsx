@@ -17,6 +17,7 @@ import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
+import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -648,6 +649,153 @@ function MiniChart({ data, color, label }: { data: number[]; color: string; labe
         <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{data.slice(-12)[0]?.toFixed(1)}</span>
         <span style={{ fontSize: 9, color, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{data[data.length - 1]?.toFixed(1)}</span>
       </div>
+    </div>
+  );
+}
+
+// Wellness card — 4 lightweight daily trackers (hydration / sleep+energy
+// / soreness / injuries). All localStorage-backed, all opt-in, all
+// touchpoint-light. Shown collapsed by default so it doesn't dominate
+// the Progress dashboard.
+function WellnessCard() {
+  const MUSCLES = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "calves", "core"];
+  const INJURY_PARTS = [...MUSCLES, "knee", "elbow", "wrist", "ankle", "lower-back", "neck"];
+  const [hydra, setHydra] = useState(0);
+  const [sleep, setSleep] = useState<SleepEntry>({});
+  const [soreness, setSoreness] = useState<SorenessMap>({});
+  const [injuries, setInjuries] = useState<Injury[]>([]);
+  const [open, setOpen] = useState(false);
+  const [addingInjury, setAddingInjury] = useState(false);
+  const [pickedMuscle, setPickedMuscle] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHydra(readHydrationToday());
+    setSleep(readSleepToday());
+    setSoreness(readSorenessToday());
+    setInjuries(readInjuries());
+  }, []);
+
+  const bumpHydra = (d: number) => {
+    const next = Math.max(0, hydra + d);
+    setHydra(next);
+    writeHydrationToday(next);
+  };
+  const updateSleep = (patch: Partial<SleepEntry>) => {
+    const next = { ...sleep, ...patch };
+    setSleep(next);
+    writeSleepToday(patch);
+  };
+  const toggleSore = (muscle: string, rating: number) => {
+    const current = soreness[muscle] ?? 0;
+    const next = current === rating ? 0 : rating;
+    writeSorenessToday(muscle, next);
+    setSoreness(s => {
+      const out = { ...s };
+      if (next === 0) delete out[muscle]; else out[muscle] = next;
+      return out;
+    });
+  };
+
+  const summaryBits: string[] = [];
+  summaryBits.push(`💧 ${hydra}/${HYDRATION_TARGET}`);
+  if (sleep.sleepHours != null) summaryBits.push(`😴 ${sleep.sleepHours}h`);
+  if (sleep.energy != null) summaryBits.push(`⚡ ${sleep.energy}/5`);
+  if (Object.keys(soreness).length > 0) summaryBits.push(`💢 ${Object.keys(soreness).length}`);
+  if (injuries.length > 0) summaryBits.push(`🤕 ${injuries.length}`);
+
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, marginBottom: 12 }}>
+      <button onClick={() => setOpen(o => !o)} style={{ width: "100%", padding: 14, background: "transparent", border: "none", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>🌱 WELLNESS</span>
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{summaryBits.join(" · ")} {open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div style={{ padding: "0 14px 14px" }}>
+          {/* Hydration */}
+          <div style={{ padding: "10px 12px", background: "rgba(116,185,255,0.05)", border: "1px solid rgba(116,185,255,0.18)", borderRadius: 10, marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 11, color: "#74b9ff", fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>💧 HYDRATION</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{hydra} / {HYDRATION_TARGET} glasses today</div>
+              </div>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button onClick={() => bumpHydra(-1)} style={{ width: 34, height: 34, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#74b9ff", fontSize: 16, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>−</button>
+                <button onClick={() => bumpHydra(1)} style={{ width: 34, height: 34, background: "rgba(116,185,255,0.15)", border: "1px solid rgba(116,185,255,0.3)", borderRadius: 8, color: "#74b9ff", fontSize: 16, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+</button>
+              </div>
+            </div>
+            <div style={{ marginTop: 8, display: "flex", gap: 3 }}>
+              {Array.from({ length: HYDRATION_TARGET }).map((_, i) => (
+                <div key={i} style={{ flex: 1, height: 4, background: i < hydra ? "#74b9ff" : "rgba(255,255,255,0.08)", borderRadius: 2 }} />
+              ))}
+            </div>
+          </div>
+
+          {/* Sleep + Energy */}
+          <div style={{ padding: "10px 12px", background: "rgba(162,155,254,0.05)", border: "1px solid rgba(162,155,254,0.18)", borderRadius: 10, marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: "#a29bfe", fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>😴 SLEEP &amp; ENERGY (TODAY)</div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", width: 50 }}>Slept</span>
+              {[5, 6, 7, 8, 9].map(h => (
+                <button key={h} onClick={() => updateSleep({ sleepHours: sleep.sleepHours === h ? null : h })} style={{ flex: 1, padding: "5px 0", background: sleep.sleepHours === h ? "rgba(162,155,254,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${sleep.sleepHours === h ? "#a29bfe" : "rgba(255,255,255,0.08)"}`, borderRadius: 5, color: sleep.sleepHours === h ? "#a29bfe" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{h}h</button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", width: 50 }}>Energy</span>
+              {[1, 2, 3, 4, 5].map(e => (
+                <button key={e} onClick={() => updateSleep({ energy: sleep.energy === e ? null : e })} style={{ flex: 1, padding: "5px 0", background: sleep.energy === e ? "rgba(162,155,254,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${sleep.energy === e ? "#a29bfe" : "rgba(255,255,255,0.08)"}`, borderRadius: 5, color: sleep.energy === e ? "#a29bfe" : "rgba(255,255,255,0.5)", fontSize: 14, cursor: "pointer" }}>{["😴", "😐", "🙂", "💪", "⚡"][e - 1]}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Soreness — opt-in per muscle */}
+          <div style={{ padding: "10px 12px", background: "rgba(253,203,110,0.04)", border: "1px solid rgba(253,203,110,0.15)", borderRadius: 10, marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: "#fdcb6e", fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>💢 SORENESS (OPTIONAL)</div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>Tap a number 1-5 next to a muscle. Cycles off when you tap the same value.</div>
+            {MUSCLES.map(m => (
+              <div key={m} style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", flex: 1, textTransform: "capitalize" }}>{m}</span>
+                {[1, 2, 3, 4, 5].map(r => {
+                  const active = soreness[m] === r;
+                  const heat = r <= 2 ? "#a78bfa" : r <= 3 ? "#fdcb6e" : "#FF6B6B";
+                  return (
+                    <button key={r} onClick={() => toggleSore(m, r)} style={{ width: 22, height: 22, padding: 0, background: active ? heat : "rgba(255,255,255,0.04)", border: `1px solid ${active ? heat : "rgba(255,255,255,0.08)"}`, borderRadius: 4, color: active ? "#000" : "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{r}</button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Injuries */}
+          <div style={{ padding: "10px 12px", background: "rgba(255,107,107,0.05)", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: "#FF6B6B", fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>🤕 INJURY LOG</div>
+              <button onClick={() => setAddingInjury(a => !a)} style={{ fontSize: 9, color: "#FF6B6B", background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 5, padding: "2px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{addingInjury ? "CANCEL" : "+ ADD"}</button>
+            </div>
+            {addingInjury && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                {INJURY_PARTS.filter(p => !injuries.some(i => i.muscle === p)).map(p => (
+                  <button key={p} onClick={() => {
+                    const inj = addInjury(p);
+                    setInjuries(readInjuries());
+                    setAddingInjury(false);
+                  }} style={{ padding: "5px 8px", fontSize: 10, background: "rgba(255,107,107,0.05)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 5, color: "#FF6B6B", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, textTransform: "capitalize" }}>{p}</button>
+                ))}
+              </div>
+            )}
+            {injuries.length === 0 ? (
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>No active injuries. Hit + ADD if something's hurting — the active session will flag exercises that touch it.</div>
+            ) : (
+              injuries.map(inj => (
+                <div key={inj.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderTop: "1px dashed rgba(255,255,255,0.05)" }}>
+                  <span style={{ fontSize: 11, color: "#FF6B6B", textTransform: "capitalize", flex: 1, fontWeight: 600 }}>{inj.muscle}</span>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace" }}>since {inj.startedIso}</span>
+                  <button onClick={() => { removeInjury(inj.id); setInjuries(readInjuries()); }} style={{ fontSize: 9, color: "#2ecc71", background: "rgba(46,204,113,0.1)", border: "1px solid rgba(46,204,113,0.3)", borderRadius: 5, padding: "3px 7px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>✓ HEALED</button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -7167,6 +7315,7 @@ function HomePage() {
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {progressTab === "dashboard" && (
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
+            <WellnessCard />
             <VolumeHeatmap history={history} />
             {/* Tier Card — multi-dim ladder. Headline animal tier comes
                 from the average of 4 sub-rank bars (Consistency · Strength
@@ -8561,6 +8710,24 @@ function HomePage() {
                                 onClick={(e: any) => { e.stopPropagation(); setSubModal({ exerciseId: ex.id, name: ex.name, missing }); }}
                                 style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.1)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
                               >⇄ NEED {missing[0].toUpperCase().replace("_", " ")}</button>
+                            );
+                          })()}
+                          {(() => {
+                            // Injury chip — flags exercises that hit a
+                            // currently-active injury. Tap to swap via the
+                            // same substitute-modal as missing-equipment.
+                            const lib = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
+                            if (!lib) return null;
+                            const allMuscles = [...(lib.primaryMuscles ?? []), ...(lib.secondaryMuscles ?? [])];
+                            const injuriesNow = readInjuries();
+                            const hit = injuriesFor(allMuscles, injuriesNow);
+                            if (hit.length === 0) return null;
+                            return (
+                              <button
+                                onClick={(e: any) => { e.stopPropagation(); setSubModal({ exerciseId: ex.id, name: ex.name, missing: [`INJURED ${hit[0].muscle.toUpperCase()}`] }); }}
+                                title={`Hits your injured ${hit[0].muscle}. Tap to swap.`}
+                                style={{ fontSize: 9, fontWeight: 700, color: "#FF6B6B", background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.35)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                              >🤕 INJURY · {hit[0].muscle.toUpperCase()}</button>
                             );
                           })()}
                           {ex.note === "HIIT circuit" && <span style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, flexShrink: 0, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT</span>}
