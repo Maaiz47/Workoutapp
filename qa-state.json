@@ -836,6 +836,27 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "progress-photo-log",
+      "title": "Progress photo log via Vercel Blob",
+      "area": "Progress",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass slice-G",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "PREREQ: add a BLOB_READ_WRITE_TOKEN env var on Vercel (settings → environment variables). Without it the upload route returns a helpful error.",
+        "Open Progress → Body tab. Verify a collapsible '📸 PROGRESS PHOTOS' card sits at the top",
+        "Expand it — verify '📸 ADD PHOTO' button. Tap → file/camera picker opens",
+        "Pick a photo — verify it uploads (button shows 'UPLOADING…') and on success appears in a 3-col grid below",
+        "Verify each photo card shows the date (e.g. '21 May') and bodyweight at time of capture (if your profile has a weight)",
+        "Tap the × on a card — confirm dialog → on accept the photo is removed (DB row deleted + blob deleted)",
+        "Without BLOB_READ_WRITE_TOKEN set: verify the upload returns a clear error 'Photo storage isn't configured. Add BLOB_READ_WRITE_TOKEN to Vercel env vars and redeploy.'",
+        "Verify photos > 8MB are rejected client-side (server enforces the same limit)",
+        "Verify photos are owner-only — visiting another user's photo URL works (public blob URLs) but only the owner sees them in their gallery"
+      ],
+      "notes": "[2026-05-21] /api/photos POST uploads to Vercel Blob with per-user pathing (`progress/<uid>/<ts>-<rand>.<ext>`), saves the URL in the new ProgressPhoto schema (userId, url, takenAt, weightKg, notes). /api/photos/[id] DELETE removes the DB row + best-effort deletes the blob. ProgressPhotosCard component on Progress → Body shows the gallery with date + weight overlays. Surfaces a friendly error if BLOB_READ_WRITE_TOKEN isn't set."
+    },
+    {
       "id": "workout-offline-sync",
       "title": "Offline-tolerant workout save with replay queue",
       "area": "Workout",

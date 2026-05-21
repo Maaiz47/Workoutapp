@@ -212,6 +212,17 @@ model PlanProposal {
   @@index([trainerId])
 }
 
+model ProgressPhoto {
+  id        String   @id @default(cuid())
+  userId    String
+  url       String                          // Vercel Blob URL
+  takenAt   DateTime @default(now())
+  weightKg  Float?                          // snapshot of bodyweight at the time
+  notes     String?                         // user caption, optional
+
+  @@index([userId, takenAt])
+}
+
 model BodyMetric {
   id         String   @id @default(cuid())
   userId     String

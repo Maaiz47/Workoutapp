@@ -803,6 +803,95 @@ function WellnessCard() {
   );
 }
 
+// Progress photos card — capture, store, gallery. Uses /api/photos
+// (which upstreams to Vercel Blob) for storage. Needs the
+// BLOB_READ_WRITE_TOKEN env var set on Vercel; the upload endpoint
+// surfaces a clear error message if it's missing.
+function ProgressPhotosCard({ currentWeight }: { currentWeight: number | null }) {
+  type PhotoRow = { id: string; url: string; takenAt: string; weightKg: number | null; notes: string | null };
+  const [photos, setPhotos] = useState<PhotoRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/photos")
+      .then(r => r.ok ? r.json() : { photos: [] })
+      .then(d => { setPhotos(d.photos ?? []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      if (currentWeight != null) fd.append("weightKg", String(currentWeight));
+      const r = await fetch("/api/photos", { method: "POST", body: fd });
+      const data = await r.json();
+      if (!r.ok) {
+        setError(data.error ?? "Upload failed");
+      } else if (data.photo) {
+        setPhotos(p => [data.photo, ...p]);
+      }
+    } catch {
+      setError("Upload failed");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const onDelete = async (id: string) => {
+    if (!window.confirm("Delete this photo? Can't be undone.")) return;
+    try {
+      await fetch(`/api/photos/${id}`, { method: "DELETE" });
+      setPhotos(p => p.filter(x => x.id !== id));
+    } catch {}
+  };
+
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, marginBottom: 12 }}>
+      <button onClick={() => setOpen(o => !o)} style={{ width: "100%", padding: 14, background: "transparent", border: "none", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>📸 PROGRESS PHOTOS</span>
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{photos.length} TAKEN {open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div style={{ padding: "0 14px 14px" }}>
+          <label style={{ display: "block", padding: "10px 12px", background: uploading ? "rgba(255,255,255,0.05)" : "linear-gradient(135deg, rgba(255,107,107,0.12), rgba(238,90,36,0.06))", border: `1px solid ${uploading ? "rgba(255,255,255,0.1)" : "rgba(255,107,107,0.22)"}`, borderRadius: 8, color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, cursor: uploading ? "wait" : "pointer", fontFamily: "'Space Mono', monospace", textAlign: "center" }}>
+            {uploading ? "UPLOADING…" : "📸 ADD PHOTO"}
+            <input type="file" accept="image/*" capture="environment" onChange={onPick} disabled={uploading} style={{ display: "none" }} />
+          </label>
+          {error && (
+            <div style={{ marginTop: 8, padding: "8px 10px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.3)", borderRadius: 6, color: "#FF6B6B", fontSize: 11, lineHeight: 1.4 }}>{error}</div>
+          )}
+          {loading ? (
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11, padding: "20px 0" }}>Loading…</div>
+          ) : photos.length === 0 ? (
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 11, padding: "16px 0", lineHeight: 1.5 }}>No photos yet. One a week is enough to see real change over a few months.</div>
+          ) : (
+            <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+              {photos.map(p => (
+                <div key={p.id} style={{ position: "relative", aspectRatio: "3/4", borderRadius: 8, overflow: "hidden", background: "rgba(255,255,255,0.03)" }}>
+                  <img src={p.url} alt={p.takenAt} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "4px 6px", background: "linear-gradient(transparent, rgba(0,0,0,0.85))", fontSize: 9, color: "#fff", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>
+                    {new Date(p.takenAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}{p.weightKg != null ? ` · ${p.weightKg}kg` : ""}
+                  </div>
+                  <button onClick={() => onDelete(p.id)} style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, padding: 0, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 4, color: "#FF6B6B", fontSize: 10, cursor: "pointer" }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Monthly challenges card — surfaces the current month's catalogue with
 // opt-in toggle + live progress bar against personal history. Global
 // leaderboard rank lands in a follow-up slice (needs server-side opt-in
@@ -8100,6 +8189,9 @@ function HomePage() {
         {/* ─── BODY TAB ──────────────────────────────────────────────── */}
         {progressTab === "body" && (
           <div className="fade-in" style={{ padding: "16px 20px 0" }}>
+            {/* Progress photos — capture, upload, gallery. Storage via
+                Vercel Blob; needs BLOB_READ_WRITE_TOKEN env var. */}
+            <ProgressPhotosCard currentWeight={parseFloat(ob.weightKg) || null} />
 
             {showGoalCelebration && (
               <div style={{ position: "fixed", inset: 0, zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.82)", backdropFilter: "blur(16px)" }} onClick={() => setShowGoalCelebration(false)}>

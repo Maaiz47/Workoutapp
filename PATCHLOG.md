@@ -2,6 +2,36 @@
 
 ---
 
+## Feature · 2026-05-21 (ao) — Slice G 2/2: progress photo log via Vercel Blob (qa: progress-photo-log)
+
+### Added
+- `progress-photo-log`: new `📸 PROGRESS PHOTOS` card on Progress →
+  Body tab. Capture or pick a photo, it uploads to Vercel Blob and
+  appears in a 3-col gallery with date + bodyweight overlays.
+- Schema: new `ProgressPhoto` model (userId, url, takenAt, weightKg,
+  notes). Vercel auto-migrates on deploy.
+- API: `POST /api/photos` (multipart upload, 8MB cap, per-user
+  pathing `progress/<uid>/<ts>-<rand>.<ext>`), `GET /api/photos`
+  (lists newest-first), `DELETE /api/photos/[id]` (owner-only,
+  removes DB row + best-effort deletes blob).
+- Surfaces a clear error message if `BLOB_READ_WRITE_TOKEN` isn't
+  configured.
+
+### ⚠ ACTION REQUIRED ON VERCEL
+- Add `BLOB_READ_WRITE_TOKEN` to **Project → Settings →
+  Environment Variables**. Create the token in **Project →
+  Storage → Connect Blob Store**. Without this the upload route
+  will return a friendly error telling the user to set it up.
+- New package: `@vercel/blob` is now in dependencies; Vercel
+  installs it on the next deploy automatically.
+
+### Slice closeout
+With this push **Slices A through G + Modality Mix + Tier redesign
++ Gamification+ pass are all live**. The full set of features the
+user approved is shipped.
+
+---
+
 ## Feature · 2026-05-21 (an) — Slice G ½: offline-tolerant workout save (qa: workout-offline-sync)
 
 ### Added
