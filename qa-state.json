@@ -34,13 +34,16 @@
         "Confirm the intro paragraph explicitly says 'Coach is a tier of trainers, not a separate role'",
         "Confirm the ATHLETE LADDER renders all 6 animal tiers (Kitten → Gorilla) in order, each with its emoji, label, and threshold (e.g. '5+ sessions')",
         "Confirm the TRAINER LADDER renders all 4 badge tiers (Rookie → Elite) in order with thresholds (e.g. '3+ clients')",
-        "If you ARE that ladder's participant, your current tier row should be highlighted with the tier colour + a 'YOU' chip on the right",
-        "If you're NOT on that ladder (e.g. an athlete looking at the trainer ladder), the title should append '· NOT ACTIVE FOR YOU' and no row is highlighted",
-        "Trainers should see BOTH ladders highlighted (because they're on both)",
+        "If you ARE that ladder's participant, your current tier row should be highlighted with the tier colour + a 'YOU · <count>' chip on the right",
+        "On your current tier row, confirm a PROGRESS BAR renders below the tier name showing '<current> / <next-min> <unit>' on the left and '<remaining> TO <next-tier-name> <emoji>' on the right, with a gradient-filled bar between (current-tier colour → next-tier colour)",
+        "Confirm the bar width visually matches (currentRaw − currentTierMin) / (nextTierMin − currentTierMin), clamped 0–100%",
+        "If you're already at the TOP tier of a ladder, confirm the row shows '★ TOP OF THE LADDER · <count> <unit>' instead of a progress bar (no 'next' to progress to)",
+        "If you're NOT on that ladder (e.g. an athlete looking at the trainer ladder), the title should append '· NOT ACTIVE FOR YOU' and no row is highlighted / no bar renders",
+        "Trainers should see BOTH ladders highlighted (because they're on both) with independent progress bars",
         "Tap the X or the backdrop to close — modal should dismiss",
-        "Open the same modal from Settings → YOUR PROFILE → IDENTITY → '🏆 HOW TIERS WORK — SEE BOTH LADDERS' button — confirm it shows the same content"
+        "Open the same modal from Settings → YOUR PROFILE → IDENTITY → '🏆 HOW TIERS WORK — SEE BOTH LADDERS' button — confirm it shows the same content + progress bars"
       ],
-      "notes": "[2026-05-21] Slice 1/N: new TierInfoModal renders both ladders with thresholds visible and highlights the visitor's row on each ladder they participate in. Opens from any tier pill on the home card AND from a dedicated button in Settings → IDENTITY. Modal copy explicitly distinguishes role-vs-tier so 'Coach' / 'Tiger' / 'Elite' read as ladder positions, never as separate roles. Next slice: link 'YOU' row to Progress → Dashboard's per-stat breakdown card so the user can drill in."
+      "notes": "[2026-05-21] Slice 2/N: added a progress bar to the user's current tier row showing raw count, next-tier threshold, and remaining count. Top-tier row shows '★ TOP OF THE LADDER' instead. [2026-05-21] Slice 1/N: new TierInfoModal renders both ladders with thresholds visible and highlights the visitor's row on each ladder they participate in. Opens from any tier pill on the home card AND from a dedicated button in Settings → IDENTITY. Modal copy explicitly distinguishes role-vs-tier so 'Coach' / 'Tiger' / 'Elite' read as ladder positions, never as separate roles. Next slice: link 'YOU' row to Progress → Dashboard's per-stat breakdown card so the user can drill in."
     },
     {
       "id": "settings-identity-tiers",

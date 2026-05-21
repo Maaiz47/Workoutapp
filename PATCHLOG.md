@@ -2,6 +2,49 @@
 
 ---
 
+## Polish · 2026-05-21 — Tier modal progress bars + globally-mounted floating note pill (qa: tier-info-modal, quick-feedback-fab)
+
+### Why
+Two QA notes:
+1. The floating 💬 NOTE pill wasn't visible on home, settings, or any
+   other major view — only on conversation. Root cause: HomePage has
+   8+ view branches that each early-return their own JSX, bypassing
+   the fall-through render where the FAB was mounted.
+2. The TierInfoModal showed thresholds but no visual progress — users
+   couldn't see at a glance how far they were from the next tier.
+
+### Fixed — Quick Note pill visibility
+- Refactored FAB + TierInfoModal mounting to use a SEPARATE React
+  root attached to `<div id="ironlog-overlay-root">` on
+  `document.body`, kept in sync via two effects at the top of
+  HomePage. Effects fire regardless of which view branch
+  ultimately returns. Container creation is idempotent so React
+  18 Strict Mode's dev-only double-invoke doesn't leak elements;
+  cleanup defers the unmount one tick to avoid racing the
+  remount.
+- Bundled FAB + TierInfoModal into a new `HomeGlobals` component
+  for reuse.
+
+### Added — tier-modal progress bars
+- Each ladder row in TierInfoModal now reads the user's RAW count
+  for that ladder (sessions for athlete, clients for trainer).
+  On the user's CURRENT tier row, a progress bar renders below
+  the tier name showing `<current> / <next-min> <unit>` on the
+  left and `<remaining> TO <next-tier-name> <emoji>` on the
+  right, with a gradient-filled bar between (current-tier colour
+  → next-tier colour).
+- At the top tier the bar is replaced with "★ TOP OF THE LADDER ·
+  <count> <unit>".
+- The YOU chip on the highlighted row also gains the raw count
+  ("YOU · 12") so it's a useful summary at a glance.
+
+### QA tracking
+- Extended `tier-info-modal` test plan to include the progress bar
+  and max-tier behaviour. Status flipped back to
+  regression-retest.
+
+---
+
 ## Feature · 2026-05-21 — Home declutter v3 + Profile split from Settings (qa: home-polish-v2, profile-settings-split)
 
 ### Background

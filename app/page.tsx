@@ -2739,6 +2739,8 @@ function HomeGlobals({
         trainerTier={trainerTier}
         athleteUnit="more sessions, PRs, streak & habits unlock the next tier"
         trainerUnit="more active clients unlocks the next tier"
+        athleteRaw={overall.totalSessions}
+        trainerRaw={clients.length}
       />
     </>
   );
@@ -2760,6 +2762,7 @@ function TierInfoModal({
   open, onClose, isAthlete, isTrainer,
   athleteTier, trainerTier,
   athleteUnit, trainerUnit,
+  athleteRaw, trainerRaw,
 }: {
   open: boolean;
   onClose: () => void;
@@ -2769,6 +2772,8 @@ function TierInfoModal({
   trainerTier: TierLite | null;
   athleteUnit: string;       // "sessions" / "score" — what feeds the rank
   trainerUnit: string;       // "clients"
+  athleteRaw: number;        // user's raw session count for the athlete ladder
+  trainerRaw: number;        // user's raw client count for the trainer ladder
 }) {
   if (!open) return null;
 
@@ -2837,6 +2842,7 @@ function TierInfoModal({
           highlight={athleteTier?.label ?? null}
           isParticipant={isAthlete}
           unitWord="sessions"
+          currentRaw={athleteRaw}
         />
 
         <TierLadder
@@ -2847,6 +2853,7 @@ function TierInfoModal({
           highlight={trainerTier?.label ?? null}
           isParticipant={isTrainer}
           unitWord="clients"
+          currentRaw={trainerRaw}
         />
 
         <div style={{
@@ -2866,7 +2873,7 @@ function TierInfoModal({
 }
 
 function TierLadder({
-  title, subtitle, tiers, accent, highlight, isParticipant, unitWord,
+  title, subtitle, tiers, accent, highlight, isParticipant, unitWord, currentRaw,
 }: {
   title: string;
   subtitle: string;
@@ -2875,7 +2882,19 @@ function TierLadder({
   highlight: string | null;
   isParticipant: boolean;
   unitWord: string;
+  currentRaw: number; // user's raw count feeding this ladder (sessions / clients)
 }) {
+  const currentIdx = highlight ? tiers.findIndex(t => t.label === highlight) : -1;
+  const nextTier = currentIdx >= 0 && currentIdx < tiers.length - 1 ? tiers[currentIdx + 1] : null;
+  const curMin = currentIdx >= 0 ? tiers[currentIdx].min : 0;
+  // Progress 0–1 from current tier's min toward next tier's min. Clamps
+  // to 1 when at max tier. Uses Math.max so the bar doesn't go negative
+  // if currentRaw briefly drops below curMin during state transitions.
+  const progress = nextTier
+    ? Math.max(0, Math.min(1, (currentRaw - curMin) / Math.max(1, nextTier.min - curMin)))
+    : 1;
+  const remaining = nextTier ? Math.max(0, nextTier.min - currentRaw) : 0;
+
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{
@@ -2897,31 +2916,66 @@ function TierLadder({
           const me = highlight === t.label && isParticipant;
           return (
             <div key={t.label} style={{
-              display: "flex", alignItems: "center", gap: 10,
               padding: "8px 10px",
               background: me ? t.bg : "transparent",
               border: `1px solid ${me ? t.border : "transparent"}`,
               borderRadius: 8,
             }}>
-              <div style={{ fontSize: 22, lineHeight: 1, filter: me ? `drop-shadow(0 0 6px ${t.color})` : "none" }}>{t.emoji}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 13, fontWeight: 700,
-                  color: me ? t.color : "rgba(255,255,255,0.85)",
-                  letterSpacing: 0.5,
-                }}>{t.label}</div>
-                <div style={{
-                  fontSize: 10, color: "rgba(255,255,255,0.4)",
-                  fontFamily: "'Space Mono', monospace", letterSpacing: 1,
-                }}>{t.min}+ {unitWord}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ fontSize: 22, lineHeight: 1, filter: me ? `drop-shadow(0 0 6px ${t.color})` : "none" }}>{t.emoji}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 13, fontWeight: 700,
+                    color: me ? t.color : "rgba(255,255,255,0.85)",
+                    letterSpacing: 0.5,
+                  }}>{t.label}</div>
+                  <div style={{
+                    fontSize: 10, color: "rgba(255,255,255,0.4)",
+                    fontFamily: "'Space Mono', monospace", letterSpacing: 1,
+                  }}>{t.min}+ {unitWord}</div>
+                </div>
+                {me && (
+                  <div style={{
+                    fontSize: 9, fontWeight: 700, letterSpacing: 2,
+                    color: t.color, background: t.bg,
+                    border: `1px solid ${t.border}`, borderRadius: 4,
+                    padding: "3px 7px", fontFamily: "'Space Mono', monospace",
+                  }}>YOU · {currentRaw}</div>
+                )}
               </div>
-              {me && (
+              {/* Progress bar — only on the user's current tier row,
+                  showing how close they are to the next tier. Hidden
+                  at max tier (no "next" to progress toward). */}
+              {me && nextTier && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "baseline",
+                    fontSize: 9, color: "rgba(255,255,255,0.55)",
+                    fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginBottom: 4,
+                  }}>
+                    <span>{currentRaw} / {nextTier.min} {unitWord}</span>
+                    <span style={{ color: nextTier.color }}>{remaining} TO {nextTier.label.toUpperCase()} {nextTier.emoji}</span>
+                  </div>
+                  <div style={{
+                    height: 6, borderRadius: 3,
+                    background: "rgba(255,255,255,0.06)",
+                    overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)",
+                  }}>
+                    <div style={{
+                      height: "100%", width: `${progress * 100}%`,
+                      background: `linear-gradient(90deg, ${t.color}, ${nextTier.color})`,
+                      borderRadius: 3,
+                      boxShadow: `0 0 6px ${t.color}55`,
+                      transition: "width 0.4s ease",
+                    }} />
+                  </div>
+                </div>
+              )}
+              {me && !nextTier && (
                 <div style={{
-                  fontSize: 9, fontWeight: 700, letterSpacing: 2,
-                  color: t.color, background: t.bg,
-                  border: `1px solid ${t.border}`, borderRadius: 4,
-                  padding: "3px 7px", fontFamily: "'Space Mono', monospace",
-                }}>YOU</div>
+                  marginTop: 6, fontSize: 10, color: t.color,
+                  fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, fontWeight: 700,
+                }}>★ TOP OF THE LADDER · {currentRaw} {unitWord}</div>
               )}
             </div>
           );
