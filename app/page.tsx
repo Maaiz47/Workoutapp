@@ -2256,6 +2256,7 @@ function HomePage() {
   const [ob, setOb] = useState({
     dob: "", gender: "", heightCm: "", weightKg: "", bodyFatPct: "",
     goals: [] as string[], targetAreas: [] as string[], fitnessLevel: "", location: "", equipment: [] as string[], daysPerWeek: 4,
+    modalities: [] as string[],
   });
   const [rebuildMode, setRebuildMode] = useState(false);
 
@@ -2510,6 +2511,7 @@ function HomePage() {
           location: p.location || "",
           equipment: p.equipment || [],
           daysPerWeek: p.daysPerWeek || 4,
+          modalities: (p as any).modalities ?? [],
         });
         if (p.targetWeightKg) setGoalWeight(p.targetWeightKg.toString());
         if (p.targetBodyFatPct) setGoalBf(p.targetBodyFatPct.toString());
@@ -6659,6 +6661,45 @@ function HomePage() {
                     {["newcomer", "beginner", "intermediate", "advanced"].map(l => (
                       <button key={l} onClick={() => setOb(o => ({ ...o, fitnessLevel: l }))} style={{ flex: "1 0 auto", padding: "10px 4px", background: ob.fitnessLevel === l ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${ob.fitnessLevel === l ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: ob.fitnessLevel === l ? "#FF6B6B" : "rgba(255,255,255,0.45)", fontSize: 11, cursor: "pointer", textTransform: "capitalize" }}>{l}</button>
                     ))}
+                  </div>
+                </div>
+                {/* Modality chip-row — multi-select. Strength is the
+                    default; user can add Calisthenics (bias toward
+                    bodyweight progressions), Recovery (adds a mobility
+                    day to the plan), Cardio (keeps cardio finishers
+                    / dedicated cardio day on). All optional. */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>MODALITY MIX</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                    {[
+                      { id: "strength", icon: "💪", label: "STRENGTH", hint: "Classic lifting" },
+                      { id: "calisthenics", icon: "🤸", label: "CALISTHENICS", hint: "Bodyweight" },
+                      { id: "recovery", icon: "🧘", label: "RECOVERY", hint: "Mobility day" },
+                      { id: "cardio", icon: "🏃", label: "CARDIO+", hint: "Extra cardio" },
+                    ].map(m => {
+                      const active = (ob.modalities ?? []).includes(m.id) || (m.id === "strength" && (ob.modalities ?? []).length === 0);
+                      return (
+                        <button
+                          key={m.id}
+                          onClick={() => setOb(o => {
+                            const cur = o.modalities ?? [];
+                            const has = cur.includes(m.id);
+                            const next = has ? cur.filter(x => x !== m.id) : [...cur, m.id];
+                            return { ...o, modalities: next };
+                          })}
+                          style={{ padding: "10px 12px", background: active ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${active ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: active ? "#FF6B6B" : "rgba(255,255,255,0.5)", textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}
+                        >
+                          <span style={{ fontSize: 18 }}>{m.icon}</span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>{m.label}</div>
+                            <div style={{ fontSize: 9, color: active ? "rgba(255,107,107,0.6)" : "rgba(255,255,255,0.35)", marginTop: 1 }}>{m.hint}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 6, lineHeight: 1.5 }}>
+                    Strength is the default. Add others to mix them in. Rebuild your plan after changing.
                   </div>
                 </div>
                 <div style={{ marginBottom: 16 }}>

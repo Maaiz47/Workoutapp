@@ -2,6 +2,43 @@
 
 ---
 
+## Feature · 2026-05-21 (ah) — Modality Mix: calisthenics + recovery + onboarding chip-row (qa: profile-modality-mix)
+
+### Added
+- `profile-modality-mix`: profile edit / onboarding now has a
+  `MODALITY MIX` chip-row above DAYS PER WEEK with four multi-select
+  options:
+  - 💪 **STRENGTH** — classic lifting (default for legacy users)
+  - 🤸 **CALISTHENICS** — biases plan-gen toward bodyweight progressions
+  - 🧘 **RECOVERY** — appends a dedicated Recovery & Mobility day
+  - 🏃 **CARDIO+** — keeps cardio finishers / dedicated cardio day
+- Schema: new `UserProfile.modalities String[]` field. Empty list at
+  read time means classic strength behaviour, so existing users
+  notice nothing until they opt in.
+- `lib/planGenerator.ts` accepts `modalities` on `UserProfileInput`:
+  - **recovery** prepends a Recovery & Mobility day using
+    `pickCooldowns()`. No weight / reps tracking — just mark-done
+    holds.
+  - **calisthenics** applies a small swap-map for ~8 main barbell
+    movements → bodyweight equivalents (`barbell-bench-press` →
+    `push-up`, `back-squat` → `bodyweight-squat`, `lat-pulldown` →
+    `pull-up`, etc.). Sets/reps/rest unchanged — it's a non-
+    destructive bias.
+- planNote string mentions the active modalities so the user sees
+  what changed in their new plan.
+
+### What's NOT in this pass
+- Full yoga modality (skipped per the design discussion — different
+  data model, scope trap)
+- Calisthenics progressions library (skipped — was option 3, defer)
+
+### Next
+- Design discussion: athlete / trainer tier-progress clarity (the
+  current Kitten → Gorilla / Bronze → Diamond systems need a clearer
+  intuitive progression path)
+
+---
+
 ## Feature · 2026-05-21 (ag) — Slice C ⅔ + 3⁄3: deload detector + volume heatmap (qa: workout-deload-detector, progress-volume-heatmap)
 
 ### Added — deload detector

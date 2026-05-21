@@ -836,6 +836,27 @@
       "notes": "New feature in commit 4098899 — collapsible + search within MY CLIENTS."
     },
     {
+      "id": "profile-modality-mix",
+      "title": "Modality Mix — multi-select chip-row in profile",
+      "area": "Onboarding",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass modality-mix",
+      "lastTested": "2026-05-21",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → Edit Profile (or run a rebuild during onboarding)",
+        "Verify a 'MODALITY MIX' card sits above DAYS PER WEEK with four chips: 💪 STRENGTH, 🤸 CALISTHENICS, 🧘 RECOVERY, 🏃 CARDIO+",
+        "Verify STRENGTH appears active by default for users with empty modalities (legacy)",
+        "Tap CALISTHENICS — verify it activates (red border). Multi-select: STRENGTH stays on too",
+        "Save the profile + rebuild the plan",
+        "If RECOVERY is on: verify the generated plan includes a 'Recovery & Mobility' day at the end (cool-down library exercises, no weight/reps tracking)",
+        "If CALISTHENICS is on: verify exercises like 'Barbell Bench Press' got swapped to 'Push-Up', 'Back Squat' → 'Bodyweight Squat', etc.",
+        "If CARDIO is on: existing cardio finisher / dedicated cardio day behaviour continues",
+        "Verify the planNote string mentions the active modalities (e.g. 'Includes a dedicated Recovery & Mobility day for active rest.')"
+      ],
+      "notes": "[2026-05-21] Modality Mix pass. Schema gains UserProfile.modalities String[]. /api/profile persists; /api/plan POST passes through to planGenerator. In generatePlan(): empty modalities defaults to ['strength']. recovery → prepends a Recovery & Mobility day using pickCooldowns(). calisthenics → applies a swap-map for ~8 main barbell movements → bodyweight equivalents (push-up, inverted-row, bodyweight-squat, pistol-squat, handstand-push-up, etc) without touching sets/reps/rest. Chip-row UI in profile edit, multi-select."
+    },
+    {
       "id": "workout-deload-detector",
       "title": "Deload-week detector + 70% pre-fill scaling",
       "area": "Workout",

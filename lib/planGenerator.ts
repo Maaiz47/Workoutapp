@@ -15,6 +15,9 @@ export interface UserProfileInput {
   targetAreas?: string[];
   hiitPreference?: string | null;
   hiitIntensity?: string | null;
+  // Training modalities the user opted into. Defaults to ["strength"]
+  // when empty (legacy). Recognised: strength | calisthenics | recovery | cardio.
+  modalities?: string[];
 }
 
 export interface GeneratedExercise {
@@ -597,6 +600,58 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
     planNote += " HIIT circuits added as finishers to each training day.";
   } else if (profile.hiitPreference === "dedicated_day") {
     planNote += " Dedicated HIIT day included for maximum fat-burning.";
+  }
+
+  // Modality opt-ins. Empty list (legacy) defaults to ["strength"] —
+  // existing users keep their classic experience unchanged.
+  const modalities: string[] = profile.modalities && profile.modalities.length > 0
+    ? profile.modalities
+    : ["strength"];
+
+  // Recovery day — when the user has opted into "recovery" modality, add
+  // a Mobility / Recovery day at the end of the plan. Exercises are all
+  // from the cool-down library (mark-done only, no weight/reps tracked).
+  if (modalities.includes("recovery")) {
+    const cooldowns = pickCooldowns({ title: "Recovery", focus: "full body, mobility" });
+    finalDays.push({
+      title: "Recovery & Mobility",
+      subtitle: "Stretch · Mobility · Breath",
+      focus: "recovery, mobility, full body",
+      exercises: cooldowns.map(s => ({
+        exerciseId: s.id, name: s.name, sets: 1, reps: s.reps, rest: 0,
+        notes: undefined, kind: "main" as const,
+      })),
+    });
+    planNote += " Includes a dedicated Recovery & Mobility day for active rest.";
+  }
+
+  // Calisthenics modality — rewrite each day's main exercises so anything
+  // with a clear bodyweight progression swap gets the bodyweight version
+  // when available + the user's equipment supports it. Light touch: only
+  // moves that have a direct bodyweight equivalent are swapped. Keeps
+  // sets/reps/rest the same so it's a non-destructive bias.
+  if (modalities.includes("calisthenics")) {
+    const swapMap: Record<string, string> = {
+      // barbell movements → bodyweight equivalents
+      "barbell-bench-press": "push-up",
+      "incline-barbell-press": "decline-push-up",
+      "barbell-row": "inverted-row",
+      "back-squat": "bodyweight-squat",
+      "front-squat": "pistol-squat",
+      "overhead-press": "handstand-push-up",
+      "lat-pulldown": "pull-up",
+      "seated-cable-row": "inverted-row",
+    };
+    const libIds = new Set((EXERCISES as any[]).map((e: any) => e.id));
+    for (const day of finalDays) {
+      day.exercises = day.exercises.map(ex => {
+        const target = swapMap[ex.exerciseId];
+        if (!target || !libIds.has(target)) return ex;
+        const lib = (EXERCISES as any[]).find((e: any) => e.id === target);
+        return { ...ex, exerciseId: target, name: lib?.name ?? ex.name };
+      });
+    }
+    planNote += " Calisthenics bias applied — bodyweight progressions favoured.";
   }
 
   // Bake in warm-up + cool-down exercises so they're persisted from

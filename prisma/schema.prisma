@@ -90,6 +90,14 @@ model UserProfile {
   targetArea       String?  @default("none")
   targetAreas      String[]
   targetWeightKg   Float?
+  // Training modalities the user is interested in. Multi-select.
+  // Default treated as ["strength"] at read time when empty so existing
+  // users keep their classic experience. Recognised values:
+  //   "strength"     — classic weighted lifting (default)
+  //   "calisthenics" — bias plan toward bodyweight progressions
+  //   "recovery"     — include a Mobility/Recovery day in the plan
+  //   "cardio"       — keep cardio finishers / dedicated cardio day on
+  modalities       String[]   @default([])
   targetBodyFatPct Float?
   hiitPreference   String?
   hiitIntensity    String?

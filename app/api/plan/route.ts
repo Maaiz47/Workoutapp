@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
       targetAreas: (profile as any).targetAreas ?? [],
       hiitPreference: (profile as any).hiitPreference ?? null,
       hiitIntensity: (profile as any).hiitIntensity ?? null,
+      modalities: (profile as any).modalities ?? [],
     };
 
     const generated = generatePlan(input);
