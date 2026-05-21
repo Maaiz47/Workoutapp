@@ -1,11 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import fs from "fs/promises";
+import path from "path";
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 function isAuthorized(req: NextRequest) {
   const key = req.headers.get("x-admin-key") || req.nextUrl.searchParams.get("secret");
   return ADMIN_SECRET && key === ADMIN_SECRET;
+}
+
+// Read qa-processed.json from the deployed filesystem. It's committed to the
+// repo by Claude after a processing pass, so its contents become live on the
+// next Vercel build. Empty / missing → nothing processed via the file path.
+async function readProcessedManifest(): Promise<Record<string, { ts: string; sha?: string; summary?: string }>> {
+  try {
+    const p = path.join(process.cwd(), "qa-processed.json");
+    const raw = await fs.readFile(p, "utf-8");
+    const parsed = JSON.parse(raw);
+    return parsed?.processedIds || {};
+  } catch {
+    return {};
+  }
 }
 
 // GET /api/qa/comments?since=<iso>&processed=<bool>&secret=...
@@ -25,10 +41,30 @@ export async function GET(req: NextRequest) {
     if (!isNaN(d.getTime())) where.ts = { gte: d };
   }
 
-  const comments = await (prisma as any).qAComment.findMany({
+  const rawComments = await (prisma as any).qAComment.findMany({
     where,
     orderBy: { ts: "asc" },
   });
+
+  // Merge in the file-backed processed manifest. After a Claude processing
+  // pass, qa-processed.json gets committed with the IDs Claude actioned;
+  // we treat those as processed regardless of the DB flag (the file is the
+  // source of truth for processed state going forward).
+  const processedMap = await readProcessedManifest();
+  const comments = rawComments.map((c: any) => {
+    const fileEntry = processedMap[c.id];
+    if (fileEntry) {
+      return { ...c, processed: true, processedAt: fileEntry.ts, processedSha: fileEntry.sha ?? null };
+    }
+    return c;
+  });
+
+  // If the caller asked for unprocessed only, re-apply that filter post-merge.
+  if (!includeProcessed) {
+    const filteredComments = comments.filter((c: any) => !c.processed);
+    comments.length = 0;
+    for (const c of filteredComments) comments.push(c);
+  }
 
   // Resolve userId → username/role for the admin view so Claude can group by user.
   const userIds = Array.from(new Set(comments.map((c: any) => c.userId).filter(Boolean))) as string[];

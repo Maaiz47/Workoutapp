@@ -61,15 +61,18 @@ present a summary, wait for explicit go-ahead, then execute.
 
 ## QA processing pass — what to do
 
-1. **Fetch the unprocessed comments** from the deployed app:
-   ```
-   GET https://ironlogmv.vercel.app/api/qa/comments?secret=<ADMIN_SECRET>
-   ```
-   Returns `{ comments: QAComment[], legacyReports: QAReport[], counts }`.
-   The cloud Claude Code env can't reach `*.vercel.app` directly — ask the user
-   to paste that URL into Safari/Arc and copy the JSON back, OR to run a console
-   one-liner that POSTs the result back. If they're on iPhone with no DevTools,
-   the URL-paste flow is easiest.
+1. **Fetch the unprocessed comments — via the repo, NOT the API.**
+   Every feedback submission is auto-mirrored by the deployed app to a JSON
+   file at `qa-comments/<timestamp>--<itemId>--<shortId>.json`. Just
+   `git pull origin main` then read the files. No API call, no admin secret,
+   no manual paste from the user.
+   Comments that have been processed in a prior pass are listed in
+   `qa-processed.json` at the repo root — skip those.
+
+   If the `qa-comments/` directory is empty even though the user mentions
+   recent submissions, check that `GH_QA_TOKEN` and `GH_QA_REPO` are set in
+   Vercel env vars. The mirror is fire-and-forget and silently no-ops if
+   either is missing.
 2. **Group comments by `itemId`**. For each item, the comments form a thread —
    read them in chronological order so the LATEST comment carries the most weight.
 3. **Reconcile statuses** in `qa-state.json` (pre-action snapshot — reflects what the tester saw):
@@ -127,13 +130,21 @@ present a summary, wait for explicit go-ahead, then execute.
    ### Items with no action needed (status flips only)
    - <item-id>: passing → passing (no regression)
    ```
-6. **Mark the comments processed** so they don't come back next pass:
+6. **Mark the comments processed** by updating `qa-processed.json` at the
+   repo root and pushing. Add one entry per actioned comment id:
+   ```json
+   {
+     "processedIds": {
+       "cmpe8yix00008qi1mindqm2lq": { "ts": "2026-05-21T12:34:56Z", "sha": "abc1234", "summary": "Fixed password eye toggle" }
+     }
+   }
    ```
-   POST https://ironlogmv.vercel.app/api/qa/comments/mark-processed?secret=<ADMIN_SECRET>
-   Body: { "ids": ["...", "..."], "sha": "<the sha you committed>" }
-   ```
-   Again, if you can't reach the URL directly, give the user a console snippet
-   to run.
+   `/api/qa/comments` reads this file at request time and merges processed=true
+   onto matching comments, so `/qa` will show them as processed once Vercel
+   rebuilds (auto, triggered by your push).
+   The legacy admin endpoint `POST /api/qa/comments/mark-processed` still
+   exists but you should NOT need it — only useful if the network allowlist
+   ever opens up.
 7. **Reply to the user** with a concise summary:
    - Number of comments processed
    - List of items now passing

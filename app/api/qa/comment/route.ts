@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { mirrorCommentToRepo } from "@/lib/qaGitMirror";
+import fs from "fs/promises";
+import path from "path";
+
+async function readProcessedManifest(): Promise<Record<string, { ts: string; sha?: string; summary?: string }>> {
+  try {
+    const p = path.join(process.cwd(), "qa-processed.json");
+    const raw = await fs.readFile(p, "utf-8");
+    const parsed = JSON.parse(raw);
+    return parsed?.processedIds || {};
+  } catch {
+    return {};
+  }
+}
 
 // POST /api/qa/comment
 // Body: { itemId, tester, status, note, screenshotUrl? }
@@ -39,6 +53,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Fire-and-forget: mirror the comment into the repo so Claude can git pull
+    // and read it later. Doesn't block the response; silently no-ops if the
+    // GH_QA_TOKEN / GH_QA_REPO env vars aren't set.
+    mirrorCommentToRepo(row).catch(() => {});
+
     return NextResponse.json({ ok: true, id: row.id, ts: row.ts });
   } catch (e: any) {
     console.error("POST /api/qa/comment", e);
@@ -55,9 +74,13 @@ export async function GET(req: NextRequest) {
     where,
     orderBy: { ts: "asc" },
     select: {
-      id: true, itemId: true, tester: true, status: true,
+      id: true, itemId: true, tester: true, userId: true, status: true,
       note: true, screenshotUrl: true, ts: true, processed: true,
     },
   });
-  return NextResponse.json({ comments: rows });
+  const processedMap = await readProcessedManifest();
+  const comments = rows.map((c: any) => processedMap[c.id]
+    ? { ...c, processed: true }
+    : c);
+  return NextResponse.json({ comments });
 }
