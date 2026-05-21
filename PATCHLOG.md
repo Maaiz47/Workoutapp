@@ -2,6 +2,58 @@
 
 ---
 
+## Fix · 2026-05-21 — Unify athlete tier across welcome card, Settings, leaderboards, modal (qa: tier-pills-clarity)
+
+### Background
+Two athlete-tier ladders coexisted. The Progress dashboard tier card
+used the canonical `computeAthleteTier` from `lib/tiers.ts` (a 0–100
+composite score with thresholds Kitten 0 / Monkey 15 / Fox 30 /
+Tiger 50 / Lion 70 / Gorilla 90). Everywhere else — welcome card
+pill, Settings IDENTITY card, TierInfoModal, group leaderboards,
+trainer's clients leaderboard — used the legacy session-count
+ladder in `page.tsx::CLIENT_TIERS` (5/15/30/60/100 sessions). The
+user saw "MONKEY" in their group leaderboard but "TIGER" on
+Progress, with no explanation.
+
+### Fix
+- Hoisted the canonical breakdown to a HomePage `useMemo`
+  (`myAthleteBreakdown`) computed once from full local stats
+  (totalSessions, streak, totalVolumeKg, prCount, distinctExercises,
+  monthsOnApp, hydration/sleep/energy days).
+- Welcome card pill, Settings IDENTITY pill, and the TierInfoModal
+  now read from `myAthleteBreakdown.headline` so all three match
+  the Progress dashboard tier.
+- TierInfoModal switched from `CLIENT_TIERS` to a `ATHLETE_TIERS_LITE`
+  adapter (lib/tiers.ts `AnimalTier` mapped to local `TierLite`
+  shape) — same labels, score-based thresholds, progress bar
+  driven by `headlineScore`.
+- Group leaderboard rows: visitor's row uses `myAthleteBreakdown`
+  directly; other rows call `computeAthleteTier` with the stats the
+  API ships (totalSessions / streak / prCount / totalVolume) and
+  zero-defaults for wellness / distinctExercises / monthsOnApp.
+  Other rows are slightly under-counted vs their own dashboards but
+  read from the same score LADDER, so labels are consistent across
+  surfaces.
+- Trainer's clients leaderboard: same `computeAthleteTier`
+  treatment.
+- Fixed the rogue "· COACH" suffix on trainer rows in the group
+  leaderboard — "COACH" is a TIER name (Rookie/Coach/Pro/Elite),
+  so appending it to an athlete-tier row was nonsense. Now reads
+  "· TRAINER" (the role) when the row belongs to a trainer.
+- Dropped the "1 PT = 1 SESSION" footnote inside TierInfoModal for
+  ladders whose unit is already "pts" (athlete ladder) — was reading
+  "1 PT = 1 PT". Kept on the trainer ladder where "1 PT = 1
+  CLIENT" is the right semantic.
+
+### Known limitation, deferred
+Other users' rows still under-count because the leaderboard API
+doesn't ship wellness / distinctExercises / monthsOnApp. Next
+slice: enhance `lib/leaderboardStats.ts` to compute and return a
+canonical tier label per user so the frontend can render it
+verbatim.
+
+---
+
 ## Polish · 2026-05-21 — Tier modal progress bars + globally-mounted floating note pill (qa: tier-info-modal, quick-feedback-fab)
 
 ### Why

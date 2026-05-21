@@ -2900,18 +2900,24 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
 // needs to be inserted into EACH branch's return — there's no
 // single bottom render to attach to.
 function HomeGlobals({
-  user, view, overall, clients, tierModalOpen, setTierModalOpen,
+  user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown,
 }: {
   user: { username: string; role: string; extraRoles?: string[] } | null;
   view: string;
-  overall: { totalSessions: number; streak: number; exercisePRs: Record<string, any> };
   clients: any[];
   tierModalOpen: boolean;
   setTierModalOpen: (b: boolean) => void;
+  // Canonical athlete tier breakdown (lib/tiers.ts). Computed once in
+  // HomePage from full local stats; passed through here so every
+  // surface (welcome card pill, Settings IDENTITY, TierInfoModal,
+  // leaderboard "you" row) renders the SAME tier.
+  athleteBreakdown: TierBreakdown | null;
 }) {
   const isTrainer = userHasRole(user as any, "trainer");
-  const athleteTier = user
-    ? getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length)
+  // Map the new AnimalTier shape → local TierLite shape so the
+  // existing modal renders consistently.
+  const athleteTier: TierLite | null = athleteBreakdown
+    ? { label: athleteBreakdown.headline.label, emoji: athleteBreakdown.headline.icon, min: athleteBreakdown.headline.min, color: athleteBreakdown.headline.color, bg: athleteBreakdown.headline.bg, border: athleteBreakdown.headline.border }
     : null;
   const trainerTier = isTrainer ? getTrainerTier(clients.length) : null;
   return (
@@ -2924,9 +2930,9 @@ function HomeGlobals({
         isTrainer={isTrainer}
         athleteTier={athleteTier}
         trainerTier={trainerTier}
-        athleteUnit="more sessions, PRs, streak & habits unlock the next tier"
+        athleteUnit="raw athlete score (0–100). Five sub-ranks feed it."
         trainerUnit="more active clients unlocks the next tier"
-        athleteRaw={overall.totalSessions}
+        athleteRaw={athleteBreakdown?.headlineScore ?? 0}
         trainerRaw={clients.length}
       />
     </>
@@ -3041,11 +3047,11 @@ function TierInfoModal({
         <TierLadder
           title="ATHLETE LADDER"
           subtitle={`Earned by training · headline = average of 5 sub-ranks · ${athleteUnit}`}
-          tiers={CLIENT_TIERS}
+          tiers={ATHLETE_TIERS_LITE}
           accent="#f0c040"
           highlight={athleteTier?.label ?? null}
           isParticipant={isAthlete}
-          unitWord="sessions"
+          unitWord="pts"
           currentRaw={athleteRaw}
         />
 
@@ -3186,15 +3192,18 @@ function TierLadder({
                       transition: "width 0.4s ease",
                     }} />
                   </div>
-                  {/* Foot row: current/needed in points + the unit label
-                      so "PTS" never feels abstract. */}
+                  {/* Foot row: current/needed in points + (when the unit
+                      isn't already "pts") a "1 PT = 1 X" tip so users
+                      know what a point represents on this ladder. */}
                   <div style={{
                     display: "flex", justifyContent: "space-between", alignItems: "baseline",
                     fontSize: 9, color: "rgba(255,255,255,0.5)",
                     fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 5,
                   }}>
                     <span>{currentRaw} / {nextTier.min} PTS</span>
-                    <span>1 PT = 1 {unitWord.toUpperCase().replace(/S$/, "")}</span>
+                    {unitWord.toLowerCase() !== "pts" && (
+                      <span>1 PT = 1 {unitWord.toUpperCase().replace(/S$/, "")}</span>
+                    )}
                   </div>
                 </div>
               )}
@@ -3331,10 +3340,10 @@ function HomePage() {
       <HomeGlobals
         user={user}
         view={view}
-        overall={overall}
         clients={clients}
         tierModalOpen={tierModalOpen}
         setTierModalOpen={setTierModalOpen}
+        athleteBreakdown={myAthleteBreakdown}
       />
     );
   });
@@ -6427,10 +6436,15 @@ function HomePage() {
                   );
                 })()}
                 {(() => {
-                  const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length);
+                  // Canonical athlete tier (0–100 score ladder) — matches
+                  // the Progress dashboard tier card and the new
+                  // TierInfoModal. Previously used the legacy session-only
+                  // ladder which disagreed with everything else.
+                  const h = myAthleteBreakdown?.headline;
+                  if (!h) return null;
                   return (
-                    <button onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }} title="Athlete tier · tap to see how tiers work" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 4, padding: "1px 5px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
-                      <span style={{ fontSize: 10 }}>{t.emoji}</span><span>{t.label.toUpperCase()}</span>
+                    <button onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }} title={`Athlete tier · ${myAthleteBreakdown?.headlineScore ?? 0} pts · tap to see how tiers work`} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: h.color, background: h.bg, border: `1px solid ${h.border}`, borderRadius: 4, padding: "1px 5px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                      <span style={{ fontSize: 10 }}>{h.icon}</span><span>{h.label.toUpperCase()}</span>
                     </button>
                   );
                 })()}
@@ -6941,13 +6955,30 @@ function HomePage() {
                   </div>
                   {[...leaderboard].sort((a, b) => leaderboardSort === "streak" ? b.streak - a.streak : leaderboardSort === "intensity" ? (b.totalIntensityPoints ?? 0) - (a.totalIntensityPoints ?? 0) : b.totalSessions - a.totalSessions).map((c, i) => {
                     const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
-                    const tier = (() => { const t = CLIENT_TIERS.slice().reverse().find(t => c.totalSessions >= t.min); return t ?? CLIENT_TIERS[0]; })();
+                    // Canonical athlete tier on the score ladder, computed
+                    // from whatever stats the trainer-leaderboard API
+                    // shipped (totalSessions, streak, prCount, totalVolume).
+                    // Wellness / distinctEx / monthsOnApp default to 0
+                    // server-side — the tier may slightly under-count vs
+                    // the client's own Progress dashboard, but the LADDER
+                    // is the same, so labels are consistent.
+                    const tier = computeAthleteTier({
+                      totalSessions: c.totalSessions ?? 0,
+                      streak: c.streak ?? 0,
+                      totalVolumeKg: c.totalVolume ?? 0,
+                      prCount: c.prCount ?? 0,
+                      distinctExercises: 0,
+                      monthsOnApp: 0,
+                      hydrationGoalDays: 0,
+                      sleepLoggedDays: 0,
+                      energyLoggedDays: 0,
+                    }).headline;
                     return (
                       <div key={c.id} style={{ display: "grid", gridTemplateColumns: "28px 1fr 48px 48px 48px 48px", gap: 6, padding: "11px 12px", borderBottom: i < leaderboard.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.03)" : "transparent" }}>
                         <div style={{ fontSize: 14, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.emoji} {tier.label} · {c.totalVolume.toLocaleString()}kg vol</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.icon} {tier.label} · {c.totalVolume.toLocaleString()}kg vol</div>
                         </div>
                         <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                           <div style={{ fontSize: 14, fontWeight: 700, color: leaderboardSort === "sessions" ? "#a29bfe" : "#fff" }}>{c.totalSessions}</div>
@@ -7216,15 +7247,45 @@ function HomePage() {
 
                                   {ranked.map((m: any, i: number) => {
                                     const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
-                                    const tier = CLIENT_TIERS.slice().reverse().find(t => m.totalSessions >= t.min) ?? CLIENT_TIERS[0];
                                     const isMe = m.userId === user.id;
+                                    // Canonical athlete tier — uses the
+                                    // same 0–100 score ladder as the
+                                    // Progress dashboard. For the visitor's
+                                    // own row, override with the locally
+                                    // computed breakdown so wellness data
+                                    // (not shipped from the leaderboard
+                                    // API) still feeds the score. For
+                                    // other rows, compute from the stats
+                                    // the API does ship — distinct
+                                    // exercises / months / wellness
+                                    // default to 0, which under-counts
+                                    // slightly but is still the right
+                                    // LADDER (Kitten → Gorilla on score)
+                                    // and is far more accurate than the
+                                    // legacy session-count fallback.
+                                    const otherBreakdown = !isMe
+                                      ? computeAthleteTier({
+                                          totalSessions: m.totalSessions ?? 0,
+                                          streak: m.streak ?? 0,
+                                          totalVolumeKg: m.totalVolume ?? 0,
+                                          prCount: m.prCount ?? 0,
+                                          distinctExercises: 0,
+                                          monthsOnApp: 0,
+                                          hydrationGoalDays: 0,
+                                          sleepLoggedDays: 0,
+                                          energyLoggedDays: 0,
+                                        })
+                                      : null;
+                                    const tier = isMe && myAthleteBreakdown
+                                      ? myAthleteBreakdown.headline
+                                      : (otherBreakdown?.headline ?? ATHLETE_TIERS[0]);
                                     const rowStyle: React.CSSProperties = { display: "grid", gap: 6, padding: "9px 10px", borderBottom: i < ranked.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.04)" : isMe ? "rgba(78,205,196,0.04)" : "transparent" };
                                     const nameCell = (
                                       <>
                                         <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
                                         <div style={{ minWidth: 0 }}>
                                           <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : `@${m.username}`}</div>
-                                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.emoji} {tier.label}{m.role === "trainer" ? " · COACH" : ""}</div>
+                                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.icon} {tier.label}{m.role === "trainer" ? " · TRAINER" : ""}</div>
                                         </div>
                                       </>
                                     );
@@ -8588,15 +8649,19 @@ function HomePage() {
                 );
               })()}
               {(() => {
-                const t = getClientTier(overall.totalSessions, overall.streak, Object.keys(overall.exercisePRs).length);
-                const idx = CLIENT_TIERS.findIndex(x => x.label === t.label);
+                // Canonical athlete tier — same source as the Progress
+                // dashboard, the welcome card pill, and the
+                // TierInfoModal. One ladder, one truth.
+                const h = myAthleteBreakdown?.headline;
+                if (!h) return null;
+                const idx = ATHLETE_TIERS.findIndex(x => x.label === h.label);
                 return (
                   <button
                     onClick={() => setTierModalOpen(true)}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: 1, color: h.color, background: h.bg, border: `1px solid ${h.border}`, borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
                   >
-                    <span style={{ fontSize: 12 }}>{t.emoji}</span>
-                    <span>{t.label.toUpperCase()} · ATHLETE TIER {idx + 1}/{CLIENT_TIERS.length}</span>
+                    <span style={{ fontSize: 12 }}>{h.icon}</span>
+                    <span>{h.label.toUpperCase()} · ATHLETE TIER {idx + 1}/{ATHLETE_TIERS.length}</span>
                   </button>
                 );
               })()}

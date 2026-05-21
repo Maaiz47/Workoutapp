@@ -12,6 +12,8 @@
         "Log in as a trainer (or admin with the trainer extra-role). Open the home view.",
         "Confirm the welcome card now shows the username on its own line, then a SEPARATE row of pills below it",
         "Confirm the row contains in order: an 'ADMIN' pill (if applicable), a 'TRAINER' role pill, a trainer-tier pill like '🎯 COACH · TIER 2/4', and an athlete-tier pill like '🐯 TIGER · TIER 4/6'",
+        "Confirm the athlete-tier pill matches the tier shown on Progress → Dashboard (same Kitten/Monkey/Fox/Tiger/Lion/Gorilla label) — both surfaces now read from the canonical computeAthleteTier on the 0–100 score ladder. Was previously inconsistent (welcome card said Monkey while Progress said Tiger)",
+        "Open My Leaderboards and pick any group. Confirm the YOU row's tier sub-line matches the welcome card pill (same icon + label) — leaderboard rows now use the same ladder",
         "Confirm the TIER pills explicitly contain the word 'TIER' followed by N/M position — leaves no doubt that COACH is a position on a ladder, not a duplicate role",
         "Confirm both TIER pills carry a small ⓘ indicator and are tappable (cursor:pointer)",
         "Tap either TIER pill — the tier-info modal should open and the parent welcome-card button should NOT navigate to Settings (event.stopPropagation works)",
@@ -19,7 +21,7 @@
         "If the athlete has a pending trainer request, confirm the REVIEWING pill still appears alongside",
         "On narrow phones, confirm the pill row wraps cleanly without horizontal scroll"
       ],
-      "notes": "[2026-05-21] Slice 1/N: rebuilt the welcome card to separate ROLE labels from TIER badges. Each TIER badge shows '<icon> <label> · TIER N/M' so 'Coach' is unambiguous as a tier position. ⓘ glyph + tappable affordance opens the new TierInfoModal. For trainers, BOTH tier ladders are surfaced (trainer tier + their personal athlete tier) so the user can see their full standing at a glance. Next slice: animate the pill on tap; show a tiny progress dot when the user is close to the next tier."
+      "notes": "[2026-05-21] Slice 2/N: unified all athlete-tier surfaces on the canonical computeAthleteTier (lib/tiers.ts) so welcome card pill, Settings IDENTITY, TierInfoModal, the trainer's client leaderboard AND group leaderboards all show the SAME tier. Hoisted myAthleteBreakdown to a HomePage useMemo. Leaderboard rows for OTHER users computeAthleteTier with the stats the API ships (totalSessions/streak/prCount/totalVolume; wellness defaults to 0) so they show on the same score ladder, just slightly under-counted vs their own dashboard. [2026-05-21] Slice 1/N: rebuilt the welcome card to separate ROLE labels from TIER badges. Each TIER badge shows '<icon> <label> · TIER N/M' so 'Coach' is unambiguous as a tier position. ⓘ glyph + tappable affordance opens the new TierInfoModal. For trainers, BOTH tier ladders are surfaced (trainer tier + their personal athlete tier) so the user can see their full standing at a glance. Next slice: server-side per-user canonical-tier label on the leaderboard API so other rows are 100% accurate too (currently approximate due to missing wellness/distinctEx)."
     },
     {
       "id": "tier-info-modal",
