@@ -18,7 +18,7 @@
         "Verify the app moves straight to the onboarding flow (not to the dashboard)",
         "Confirm the new user row exists in the DB with role='user'"
       ],
-      "notes": "[2026-05-21 01da6f1] Fixed: added eye toggle to reveal/hide characters on both password fields.\nEdge cases: duplicate username → expect an error message. Short password → expect validation message."
+      "notes": "[2026-05-21 ecd2e59] Fixed: iOS autofill on register flow. The choose-username field declares autocomplete=\"username\"; the password fields declare autocomplete=\"new-password\" with distinct names (\"new-password\" / \"confirm-password\"). After submitting a registration, iCloud Keychain should prompt to save the new credentials.\n[2026-05-21 01da6f1] Fixed: added eye toggle to reveal/hide characters on both password fields.\nEdge cases: duplicate username → expect an error message. Short password → expect validation message."
     },
     {
       "id": "auth-login",
@@ -36,7 +36,7 @@
         "Enter correct password and tap 'Sign in'",
         "Verify you land on the home dashboard and the username appears in the top profile card"
       ],
-      "notes": "[2026-05-21 523f873+] Fixed: password field now has eye/hide toggle on login.\n[2026-05-21 523f873+] Slice 1/N: 'Get started after sign up image alignment' — onboarding welcome image switched from aspectRatio 3:4 (was cropping the source 2:3 photo) to 2:3 with objectPosition center 35% so the figure stays centred; maxHeight bumped to 360 and the gradient overlay tightened. Next slice: re-test on the original device size from the original screenshot (https://kommodo.ai/i/GU546DBZf0aGwpwXesPk) to confirm; if still off, adjust object-position per device class.\n[2026-05-21 523f873+] Slice 1/N: daily nag prompt for incomplete profile shipped — new ProfileNagBanner at the top of the home screen, localStorage-driven cooldown (1 day for dob/gender/height/weight, 7 days for body fat). Tap FIX to jump to Settings, ✕ to dismiss until the cooldown window passes. Next slice: per-field nag messages with custom copy + a 'remind me next week' option.\nEdge: wrong password → error message. Non-existent username → error message. Empty field → inline validation."
+      "notes": "[2026-05-21 ecd2e59] Fixed: iOS autofill now works on the login flow. Username field declares autocomplete=\"username\" + name=\"username\"; password field declares autocomplete=\"current-password\" + name=\"password\". iCloud Keychain should surface saved IronLog credentials at the top of the keyboard. Kill and reopen Safari/Arc to refresh form-context caching if it doesn't show on first try.\n[2026-05-21 523f873+] Fixed: password field now has eye/hide toggle on login.\n[2026-05-21 523f873+] Slice 1/N: 'Get started after sign up image alignment' — onboarding welcome image switched from aspectRatio 3:4 (was cropping the source 2:3 photo) to 2:3 with objectPosition center 35% so the figure stays centred; maxHeight bumped to 360 and the gradient overlay tightened. Next slice: re-test on the original device size from the original screenshot (https://kommodo.ai/i/GU546DBZf0aGwpwXesPk) to confirm; if still off, adjust object-position per device class.\n[2026-05-21 523f873+] Slice 1/N: daily nag prompt for incomplete profile shipped — new ProfileNagBanner at the top of the home screen, localStorage-driven cooldown (1 day for dob/gender/height/weight, 7 days for body fat). Tap FIX to jump to Settings, ✕ to dismiss until the cooldown window passes. Next slice: per-field nag messages with custom copy + a 'remind me next week' option.\nEdge: wrong password → error message. Non-existent username → error message. Empty field → inline validation."
     },
     {
       "id": "auth-trainer-login",
@@ -73,7 +73,7 @@
         "Tap 'Back to login' — verify the email you just typed is pre-filled in the username field (NOT the previous username you tried)",
         "Log in with the new password and verify it works"
       ],
-      "notes": "[2026-05-21 01da6f1] Fixed: 'Back to login' from forgot-password now carries the email into the username field so user logs in with the right identity (login accepts username OR email).\n[2026-05-21 01da6f1] Addressed: added explanatory helper text under the input + on the sent-confirmation screen. NOTE: the API intentionally returns success even when the email isn't found (anti-enumeration); we surface that as 'if it's registered you'll get an email' rather than a hard 'not found' error. If tester wants a stricter not-found error we'd be trading off security to fix it — re-raise to discuss.\nRequires SMTP env vars set. Check SMTP_FROM appears correctly in the email From field."
+      "notes": "[2026-05-21 ecd2e59] Fixed: email input on forgot-password declares autocomplete=\"email\" + name=\"email\" + inputMode=\"email\", so iOS suggests saved email addresses from QuickType.\n[2026-05-21 01da6f1] Fixed: 'Back to login' from forgot-password now carries the email into the username field so user logs in with the right identity (login accepts username OR email).\n[2026-05-21 01da6f1] Addressed: added explanatory helper text under the input + on the sent-confirmation screen. NOTE: the API intentionally returns success even when the email isn't found (anti-enumeration); we surface that as 'if it's registered you'll get an email' rather than a hard 'not found' error. If tester wants a stricter not-found error we'd be trading off security to fix it — re-raise to discuss.\nRequires SMTP env vars set. Check SMTP_FROM appears correctly in the email From field."
     },
     {
       "id": "auth-must-reset",
@@ -91,7 +91,7 @@
         "Verify you are then taken to the dashboard normally",
         "Confirm mustResetPassword is now false in the DB"
       ],
-      "notes": "[2026-05-21 01da6f1] Fixed: must-reset screen now has eye toggle on both password fields."
+      "notes": "[2026-05-21 ecd2e59] Fixed: must-reset screen password fields declare autocomplete=\"new-password\" so iCloud Keychain offers to update the saved credential when the user sets their new password.\n[2026-05-21 01da6f1] Fixed: must-reset screen now has eye toggle on both password fields."
     },
     {
       "id": "onboarding-profile-setup",

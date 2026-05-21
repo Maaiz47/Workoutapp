@@ -2,6 +2,20 @@
 
 ---
 
+## QA pass · 2026-05-21 (c) — iOS autofill
+
+### Addressed
+- `auth-login`, `auth-register`, `auth-must-reset`, `auth-forgot-password`:
+  All auth inputs now declare the right `autocomplete` + `name` +
+  `inputMode` attributes so iOS's QuickType bar and iCloud Keychain
+  surface saved credentials for IronLog. Login uses
+  `autocomplete="current-password"`; register / setup / must-reset use
+  `autocomplete="new-password"` so iOS prompts to save (or update) the
+  password on submit. Username inputs add `autocapitalize="none"` +
+  `autocorrect="off"` + `spellcheck=false` so they don't get autocorrected.
+
+---
+
 ## QA pass · 2026-05-21 (b) — eliminate deferrals, ship slices
 
 Process change: **CLAUDE.md no longer permits a "deferred" outcome.** Every
