@@ -154,3 +154,15 @@ export function pickPrimaryWarmup(ctx: DayContext): StretchExercise {
   const list = pickWarmups(ctx);
   return list[0] ?? WARMUP_CARDIO.bike;
 }
+
+// Full flat arrays for the customise stretch-library picker.
+export const ALL_WARMUPS: StretchExercise[] = [
+  ...Object.values(WARMUP_CARDIO),
+  ...Object.values(WARMUP_DYNAMIC),
+];
+export const ALL_COOLDOWNS: StretchExercise[] = Object.values(COOLDOWN);
+
+// Look up by id (the warm-up/cool-down ids are stable across sessions).
+export function findStretchById(id: string): StretchExercise | null {
+  return ALL_WARMUPS.find(s => s.id === id) ?? ALL_COOLDOWNS.find(s => s.id === id) ?? null;
+}

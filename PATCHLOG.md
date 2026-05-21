@@ -2,6 +2,35 @@
 
 ---
 
+## Feature · 2026-05-21 (y) — custom warm-up/cool-down editing + form-cue modal (qa: workout-warmup)
+
+### Added (slice 3/N)
+- `workout-warmup`: the warm-up and cool-down sections in the
+  customise screen are now editable. Each section has a
+  `+ ADD WARM-UP` / `+ ADD COOL-DOWN` button that opens a stretch-
+  library sheet filtered to that kind (`ALL_WARMUPS` — 11 entries;
+  `ALL_COOLDOWNS` — 12 entries). Tapping a library item appends a
+  `PlanExercise` row with `kind="warmup"` / `"cooldown"` and saves
+  via `/api/plan` PUT.
+- Saved items take precedence over the auto-picks; each saved row
+  has a `REMOVE` button. When the last saved row is removed the
+  section reverts to the auto-pick.
+- **Form-cue modal** — tap any row in either section (saved OR
+  auto-picked) and a modal opens with the icon, name, duration,
+  and 2-3 short technique cues pulled from the library. Works
+  universally because `findStretchById()` resolves cue data from
+  the saved row's `exerciseId`.
+- Auto-pick fallback still applies in the active session — if a
+  user never customises, their session shows focus-appropriate
+  defaults from `pickWarmups()` / `pickCooldowns()`.
+
+### Next slice (4/N)
+- `lib/planGenerator.ts` wires warm-up + cool-down exercises into
+  newly generated plans so they're persisted from creation rather
+  than relying on render-time injection.
+
+---
+
 ## Feature · 2026-05-21 (x) — three-section workout: warm-up + main + cool-down (qa: workout-warmup)
 
 ### Added (slice 2/N — foundation + customise integration)

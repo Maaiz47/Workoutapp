@@ -10,7 +10,7 @@ import { getExerciseImageUrls } from "../lib/exerciseImages";
 import { MUSCLE_DETAIL, lookupMuscleDetail } from "../lib/muscleDetail";
 import { getFormCues } from "../lib/formCues";
 import { pickWarmupForDay } from "../lib/warmups";
-import { pickWarmups, pickCooldowns, StretchExercise } from "../lib/stretching";
+import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
@@ -1849,6 +1849,12 @@ function HomePage() {
   const [rebuildMode, setRebuildMode] = useState(false);
 
   const [formPreview, setFormPreview] = useState<{ id: string; name: string; muscles: string[]; secondaryMuscles?: string[] } | null>(null);
+  // Stretch picker: when set to "warmup" or "cooldown", shows a sheet
+  // listing the stretching library filtered to that kind. Tapping an
+  // entry appends it to the current editing day with the right `kind`.
+  const [stretchPickerKind, setStretchPickerKind] = useState<"warmup" | "cooldown" | null>(null);
+  // Cue modal — shows the form cues + icon for any stretch when tapped.
+  const [cuePreview, setCuePreview] = useState<{ name: string; reps: string; cues: string[]; icon?: string } | null>(null);
   const [formFrame, setFormFrame] = useState(0);
   const [formImgError, setFormImgError] = useState(false);
   const [modalSlide, setModalSlide] = useState(0);
@@ -3650,28 +3656,47 @@ function HomePage() {
             <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{editingDay.title}</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>{editingDay.focus}</div>
 
-            {/* Warm-up section — auto-picked sequence shown above the
-                editable main list. User can replace these via the
-                "+ ADD WARM-UP" library in the next slice; for now they're
-                a read-only auto preview tied to the day's focus. */}
+            {/* Warm-up section. Saved warm-ups (kind="warmup") override
+                the auto-picks. Each row taps open to the form-cue modal.
+                Saved items can be removed; the "+ ADD WARM-UP" button
+                opens the stretch-library picker. */}
             {(() => {
-              const wus = pickWarmups({ title: editingDay.title, focus: editingDay.focus });
+              const savedWus = exs.filter((x: any) => x.kind === "warmup");
+              const showSaved = savedWus.length > 0;
+              const autoWus = pickWarmups({ title: editingDay.title, focus: editingDay.focus });
+              const display = showSaved ? savedWus : autoWus;
               return (
                 <div style={{ marginBottom: 18 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#FFE66D", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>🔥 WARM-UP</span>
-                    <span style={{ fontSize: 9, color: "rgba(255,230,109,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>AUTO · {wus.length} ITEMS</span>
+                    <span style={{ fontSize: 9, color: "rgba(255,230,109,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{showSaved ? `${display.length} CUSTOM` : `AUTO · ${display.length} ITEMS`}</span>
                   </div>
                   <div style={{ background: "rgba(255,230,109,0.04)", border: "1px dashed rgba(255,230,109,0.22)", borderRadius: 12, padding: "8px 6px" }}>
-                    {wus.map((wu, i) => (
-                      <div key={wu.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderTop: i === 0 ? "none" : "1px dashed rgba(255,255,255,0.05)" }}>
-                        <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{wu.icon ?? "🔥"}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{wu.name}</div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{wu.reps.toUpperCase()}</div>
+                    {display.map((wu: any, i: number) => {
+                      const stretchData = findStretchById(showSaved ? wu.exerciseId : wu.id);
+                      const cues: string[] = stretchData?.cues ?? [];
+                      const icon = stretchData?.icon ?? wu.icon ?? "🔥";
+                      const repsLabel = (showSaved ? wu.reps : wu.reps) ?? "";
+                      const name = wu.name;
+                      return (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderTop: i === 0 ? "none" : "1px dashed rgba(255,255,255,0.05)" }}>
+                          <button onClick={() => setCuePreview({ name, reps: repsLabel, cues, icon })} style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, flex: 1, textAlign: "left", minWidth: 0 }}>
+                            <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{icon}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{name}</div>
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{repsLabel?.toUpperCase()} {cues.length > 0 ? "· TAP FOR CUES" : ""}</div>
+                            </div>
+                          </button>
+                          {showSaved && (
+                            <button onClick={async () => {
+                              const updated = exs.filter((x: any) => x !== wu);
+                              await saveDay(editingDay, updated);
+                            }} style={{ padding: "4px 8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 6, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>REMOVE</button>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+                    <button onClick={() => setStretchPickerKind("warmup")} style={{ width: "100%", marginTop: 6, padding: "10px", background: "rgba(255,230,109,0.08)", border: "1px dashed rgba(255,230,109,0.35)", borderRadius: 8, color: "#FFE66D", fontSize: 11, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ADD WARM-UP</button>
                   </div>
                 </div>
               );
@@ -3792,29 +3817,46 @@ function HomePage() {
               </div>
             )}
 
-            {/* Cool-down section — auto-picked static stretches matched to
-                the focus. Read-only this slice; custom editing next slice. */}
+            {/* Cool-down section — same pattern: saved kind="cooldown"
+                rows override auto-picks. Each row taps to form cues.
+                The "+ ADD COOL-DOWN" button opens the stretch picker. */}
             {(() => {
-              const cds = pickCooldowns({ title: editingDay.title, focus: editingDay.focus });
+              const savedCds = exs.filter((x: any) => x.kind === "cooldown");
+              const showSaved = savedCds.length > 0;
+              const autoCds = pickCooldowns({ title: editingDay.title, focus: editingDay.focus });
+              const display = showSaved ? savedCds : autoCds;
               return (
                 <div style={{ marginTop: 18 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>🧘 COOL-DOWN</span>
-                    <span style={{ fontSize: 9, color: "rgba(78,205,196,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>AUTO · {cds.length} STRETCHES</span>
+                    <span style={{ fontSize: 9, color: "rgba(78,205,196,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{showSaved ? `${display.length} CUSTOM` : `AUTO · ${display.length} STRETCHES`}</span>
                   </div>
                   <div style={{ background: "rgba(78,205,196,0.04)", border: "1px dashed rgba(78,205,196,0.22)", borderRadius: 12, padding: "8px 6px" }}>
-                    {cds.map((cd, i) => (
-                      <div key={cd.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderTop: i === 0 ? "none" : "1px dashed rgba(255,255,255,0.05)" }}>
-                        <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{cd.icon ?? "🧘"}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{cd.name}</div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{cd.reps.toUpperCase()}</div>
+                    {display.map((cd: any, i: number) => {
+                      const stretchData = findStretchById(showSaved ? cd.exerciseId : cd.id);
+                      const cues: string[] = stretchData?.cues ?? [];
+                      const icon = stretchData?.icon ?? cd.icon ?? "🧘";
+                      const repsLabel = cd.reps ?? "";
+                      const name = cd.name;
+                      return (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderTop: i === 0 ? "none" : "1px dashed rgba(255,255,255,0.05)" }}>
+                          <button onClick={() => setCuePreview({ name, reps: repsLabel, cues, icon })} style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, flex: 1, textAlign: "left", minWidth: 0 }}>
+                            <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{icon}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{name}</div>
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{repsLabel?.toUpperCase()} {cues.length > 0 ? "· TAP FOR CUES" : ""}</div>
+                            </div>
+                          </button>
+                          {showSaved && (
+                            <button onClick={async () => {
+                              const updated = exs.filter((x: any) => x !== cd);
+                              await saveDay(editingDay, updated);
+                            }} style={{ padding: "4px 8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 6, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>REMOVE</button>
+                          )}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 8, lineHeight: 1.5 }}>
-                    Custom warm-up / cool-down editing &amp; form guides land in the next slice. Today they auto-pick from the day&apos;s focus.
+                      );
+                    })}
+                    <button onClick={() => setStretchPickerKind("cooldown")} style={{ width: "100%", marginTop: 6, padding: "10px", background: "rgba(78,205,196,0.08)", border: "1px dashed rgba(78,205,196,0.35)", borderRadius: 8, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ADD COOL-DOWN</button>
                   </div>
                 </div>
               );
@@ -3955,6 +3997,78 @@ function HomePage() {
             )}
           </div>
         </div>
+
+        {/* Stretch picker sheet — opens when the user taps "+ ADD WARM-UP"
+            or "+ ADD COOL-DOWN" in the customise view. Lists ALL_WARMUPS
+            (filtered by kind=warmup) or ALL_COOLDOWNS (kind=cooldown).
+            Tapping appends to the editing day via saveDay. */}
+        {stretchPickerKind && editingDay && (() => {
+          const library = stretchPickerKind === "warmup" ? ALL_WARMUPS : ALL_COOLDOWNS;
+          const themeColor = stretchPickerKind === "warmup" ? "#FFE66D" : "#4ECDC4";
+          const themeBg = stretchPickerKind === "warmup" ? "rgba(255,230,109,0.04)" : "rgba(78,205,196,0.04)";
+          const themeBorder = stretchPickerKind === "warmup" ? "rgba(255,230,109,0.22)" : "rgba(78,205,196,0.22)";
+          const addStretch = async (s: StretchExercise) => {
+            const newEx = {
+              exerciseId: s.id, name: s.name,
+              sets: 1, reps: s.reps, rest: 0, notes: null,
+              groupId: null, groupType: null,
+              dropSets: 0, dropSet: false,
+              kind: stretchPickerKind!,
+            };
+            const updated = [...(editingDay.exercises ?? []), newEx];
+            await saveDay(editingDay, updated);
+            setStretchPickerKind(null);
+          };
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 250, display: "flex", flexDirection: "column", padding: 20, backdropFilter: "blur(16px)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>{stretchPickerKind === "warmup" ? "ADD WARM-UP" : "ADD COOL-DOWN STRETCH"}</div>
+                  <div style={{ fontSize: 13, color: themeColor, marginTop: 4 }}>{stretchPickerKind === "warmup" ? "Pick a dynamic mobility move or cardio primer" : "Pick a static stretch to add"}</div>
+                </div>
+                <button onClick={() => setStretchPickerKind(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                {library.map(s => (
+                  <button key={s.id} onClick={() => addStretch(s)} style={{ width: "100%", textAlign: "left", padding: "12px 14px", marginBottom: 6, background: themeBg, border: `1px solid ${themeBorder}`, borderRadius: 10, color: "#fff", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                    <span style={{ fontSize: 22, width: 32, textAlign: "center" }}>{s.icon ?? (stretchPickerKind === "warmup" ? "🔥" : "🧘")}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}</div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{s.reps.toUpperCase()} · {s.primaryMuscles.slice(0,2).join(" · ").toUpperCase()}</div>
+                    </div>
+                    <span style={{ color: themeColor, fontSize: 16 }}>+</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Form-cue modal — tapped from any warm-up / cool-down row. Shows
+            the icon, name, duration, and 2-3 short technique cues. */}
+        {cuePreview && (
+          <div onClick={() => setCuePreview(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ maxWidth: 360, width: "100%", background: "#0a0a0a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 20, position: "relative" }}>
+              <button onClick={() => setCuePreview(null)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+              <div style={{ fontSize: 48, textAlign: "center", marginBottom: 8 }}>{cuePreview.icon ?? "💪"}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", textAlign: "center", marginBottom: 2 }}>{cuePreview.name}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textAlign: "center", fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, marginBottom: 16 }}>{cuePreview.reps?.toUpperCase()}</div>
+              {cuePreview.cues.length > 0 ? (
+                <>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#FF6B6B", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>FORM CUES</div>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {cuePreview.cues.map((c, i) => (
+                      <li key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", marginBottom: 6, lineHeight: 1.5 }}>{c}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>No specific cues — move with control, breathe steadily.</div>
+              )}
+            </div>
+          </div>
+        )}
+
         {formPreview && (() => {
           const urls = getExerciseImageUrls(formPreview.id, formPreview.name);
           const primary = formPreview.muscles; const secondary = formPreview.secondaryMuscles ?? [];
