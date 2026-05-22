@@ -2,6 +2,34 @@
 
 ---
 
+## Plan · 2026-05-22 — Tier scoring veteran-fairness + body comp + leaderboard refresh (qa: tier-scoring-veteran-fairness)
+
+User feedback bundle captured as a design-only slice (NO code shipped):
+
+- **PR plateau:** "tier system using recent PRs seems too easy points
+  for a newcomer ... don't want them to plateau because they stopped
+  hitting first-time PRs but stayed consistent and tried to progress".
+  Strength sub-rank (`prCount` log curve) heavily front-loads beginners
+  and starves veterans who don't hit new lifetime maxes.
+- **Body composition:** "I want body fat% and bmi together to be used
+  to calculate a body score or something to be part of their tier
+  because how in shape they are is a valuable thing especially to be
+  maintaining". Data is already there: `UserProfile.heightCm`,
+  `weightKg`, `bodyFatPct` + historical `BodyMetric` rows.
+- **Leaderboard columns:** "current sesh leaderboards don't make sense,
+  I like the total volume pushed and stuff". Trainer's inline client
+  leaderboard on home is the surface in question (SESS/STREAK/PRs/⚡IP).
+- **Ranks ↔ Tier modal split:** Ranks button on home holds ALL
+  leaderboard surfaces; Tier modal stays as pure ladder-explainer
+  (with optional links back to leaderboards — confirmed OK).
+
+Full spec in qa-state.json item `tier-scoring-veteran-fairness`. To pick
+up tomorrow: confirm direction with user, prototype on a feature flag,
+sketch a "your new tier would be X" migration screen so existing users
+aren't surprised when their headline shifts.
+
+---
+
 ## Infra · 2026-05-22 — Nudge Vercel: production stuck due to SHA dedupe across branches
 
 Production stopped at `3b402ea` (Tier 1+2 avatars). Two subsequent

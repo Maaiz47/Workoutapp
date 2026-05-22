@@ -2239,6 +2239,25 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: athlete-side READ access to groups. Removed the trainer-only gate on the home QUICK ACTIONS Groups button; gated '+ NEW GROUP' inside the view with userHasRole(user, 'trainer'). Empty state copy differs by role. Held back: athlete-created groups (needs API change + invite-by-username UI), friend system (not needed per current consent model — accept/decline flow IS the consent gate), self-leave button for non-creator members."
     },
     {
+      "id": "tier-scoring-veteran-fairness",
+      "title": "Tier scoring rework — fix PR plateau + add body composition + leaderboard column refresh",
+      "area": "Tier",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass tier-scoring-veteran-fairness",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "(Deferred design slice — NO code shipped yet.) This is the spec for the next session to implement. User explicitly asked to skip ship tonight and capture design.",
+        "(1) Strength sub-rank rework. REPLACE the existing `scoreFromCount(prCount, 30)` with e1RM TREND over the last 180d. Per exercise, compute the user's best e1RM at the start of the 180d window vs the end of the window. Take the top 6 most-trained exercises in the window. Average their per-exercise % gain. Map (-5%..+15%) to 0..100 with a soft floor at 25 so a flat plateau still scores something (the user explicitly doesn't want maintainers to crash). Rationale: addresses user feedback 'don't want them to plateau because they stopped hitting first-time PRs but stayed consistent and tried to progress'. Veterans adding 1-2kg/quarter score real points; beginners' PR-burst doesn't pin them at 80 forever.",
+        "(2) Body Composition — new 6th sub-rank. Inputs: latest BodyMetric.weightKg, BodyMetric.bodyFatPct, UserProfile.heightCm. Compute BMI = weightKg/(heightCm/100)^2. Score = avg(bmiScore, bfScore). bmiScore: piecewise — peak 100 at BMI 22.5, half-life ~3.5 BMI points either side, floor 0 outside 16-32 range. bfScore: piecewise — peak 100 at BF% ~12% (sex-agnostic v1), drops below 8% (too-lean penalty) and above 22% (low-fit penalty), floor 30 at 30%+ BF. Score current values, NOT trend — trend is too slow to surface a signal monthly. If no BodyMetric on file: contribute 0 to the headline but DON'T penalise — make this sub-rank's weight conditional so a user who hasn't logged body comp doesn't get a deflated headline tier. User feedback: 'how in shape they are is a valuable thing especially to be maintaining'.",
+        "(3) Leaderboard columns. Trainer's INLINE client leaderboard on home (currently SESS/STREAK/PRs/⚡IP) → new spec: `# / CLIENT / Volume (k kg-reps) / Sessions / Tier`. Drop streak/PRs/IP — Volume is the new bottom-line metric per user feedback 'I like the total volume pushed and stuff'. The GlobalLeaderboardView (behind Ranks button) keeps its current shape (score-based ranking is the right summary for global). Default sort on the inline board: Volume desc.",
+        "(4) Ranks ↔ Tier modal: Ranks button stays on home. Tier modal KEEPS the existing '↓ JUMP TO MY LEADERBOARD ROW' + '🌍 GLOBAL TIER LEADERBOARD' links (user confirmed: 'we could have global rankings linked in the tier modal too yes'). Tier modal's primary job is still ladder explanation; the leaderboard links are secondary CTAs.",
+        "(5) Migration story. Feature-flag the new scoring (`SCORING_V2` env var or a UserProfile field). On first login after the new headline lands, show a one-time non-dismissible card: 'Your tier is now X (was Y) — here's why' with a 1-line per sub-rank breakdown. Then auto-dismiss. Keeps user trust through the transition.",
+        "(6) Test plan once shipped: load 3 representative profiles — a 1-month newbie, a 6-month grinder, a 2-year veteran — and verify the new scoring produces sane tier placements (newbie: low Tier 1-2; grinder: mid; vet: high) without anyone collapsing or skyrocketing more than 1 tier from their pre-rework score."
+      ],
+      "notes": "[2026-05-22 <sha7>] Slice 0/N (PLAN ONLY): full spec captured. The 4-part design above represents Claude's best-guess shape — push back on any part you disagree with. Concrete defaults so you don't have to make every call: e1RM trend (option a) for Strength, sex-agnostic BMI+BF% for body comp (defer sex-aware to v2), Volume/Sessions/Tier for client leaderboard columns, keep tier-modal leaderboard CTAs. Feature-flagged rollout. Hold for tomorrow when fresh deploy budget is available."
+    },
+    {
       "id": "home-hub-consolidation",
       "title": "Home dashboard cleanup — Leaderboards/Groups/Clients as nav buttons",
       "area": "Home",
