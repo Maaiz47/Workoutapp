@@ -7,22 +7,31 @@ brief for any Claude session working on IronLog.
 
 At the start of every session, scan the list below. For each unchecked item,
 remind the user in your first response with a short one-liner like:
-"Reminder: still pending — generate the 9 missing stretch form-demo images
-(plan in `public/stretches/README.md`)."
+"Reminder: still pending — generate the 82 image-gen assets (plan in
+`/image-prompts.md` — 30 avatars + 14 stretch frames + 38 exercise frames)."
 
 Once the user says it's done (or "skip", "drop it", "remove the reminder"),
 edit this file to either tick the box ✅ or delete the line entirely. Don't
 re-remind on the same item more than once per session — the goal is gentle
 nudge, not nag.
 
-- [ ] **Generate the 9 missing stretch form-demo images.** Plan lives in
-  `public/stretches/README.md` (ChatGPT image-gen prompts + style guide,
-  ready to paste). Stretches needing demos: `cd-chest-doorway`,
-  `cd-pigeon`, `cd-hamstring-lay`, `cd-lat-stretch`, `cd-glute-pretzel`,
-  `wu-leg-swings`, `wu-scap-shrugs`. After generating, drop the JPG pairs
-  into `/public/stretches/<id>/{0,1}.jpg`, register the ids in
-  `LOCAL_STRETCH_IDS` (`lib/exerciseImages.ts`), commit. Tick this box
-  when done.
+- [ ] **Generate the 82 image-gen assets (one-sitting batch).** Master
+  prompt file is `/image-prompts.md` at repo root. Covers:
+  - **30 avatars** → `/public/avatars/<id>.png`. Tier-progression +
+    rare lucky-drop pool. Picker reads the catalogue from
+    `lib/avatars.ts` — no code change once dropped in.
+  - **14 stretch frames** (7 movements × 2) →
+    `/public/stretches/<id>/{0,1}.png`. Placeholders already shipped;
+    overwriting replaces them. No code change needed.
+  - **38 exercise frames** (19 movements × 2) →
+    `/public/stretches/<id>/{0,1}.png`. Covers the 12 plyometrics not
+    in free-exercise-db + 7 movements that were previously pointing
+    to a semantically wrong DB demo (jumping-jacks, burpees,
+    high-knees, wall-sit, wall-slide, terminal-knee-extension,
+    bird-dog). All 19 are already registered in `LOCAL_STRETCH_IDS`
+    with text-card placeholders; overwriting replaces them.
+  Tick this box when all 82 are dropped in. Vercel auto-deploys on
+  every push to main.
 
 ## Always push to `main`
 

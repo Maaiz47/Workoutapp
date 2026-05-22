@@ -2090,6 +2090,24 @@
         "Avatar art: ChatGPT prompts for all 30 avatars are in /avatars-prompts.md at repo root. Until generated, missing /public/avatars/<id>.png falls back to /ai/avatar-default.png — picker remains functional."
       ],
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
+    },
+    {
+      "id": "form-preview-audit",
+      "title": "Form preview accuracy — exercise picker shows the correct demo for every movement",
+      "area": "Workout",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass form-preview-audit",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open the FORM modal on any exercise (tap the form-preview thumbnail in the plan editor or in-session row).",
+        "Verify the animation alternates two distinct frames every ~900ms.",
+        "Pick each of the following exercises and check the FORM modal shows a relevant START/END placeholder (not a wrong demo): jumping-jacks, burpees, high-knees, wall-sit, wall-slide, terminal-knee-extension, bird-dog. Before this pass these used to show Air_Bike / Mountain_Climbers / Plank / External_Rotation / Lying_Leg_Curls / Dead_Bug demos — wrong movements entirely.",
+        "Pick each of the 12 plyometrics: bear-crawl, broad-jump, elliptical, inchworm, lateral-bounds, lateral-shuffle, plyo-pushup, speed-skaters, split-jumps, squat-thrust, star-jump, tuck-jumps. Before this pass these had no form preview at all; now each shows a 2-frame text-card placeholder with movement cues.",
+        "Pick a 'normal' exercise like barbell-bench-press and verify the demo is still the correct free-exercise-db photo (unchanged behaviour for the 109 correctly-mapped exercises).",
+        "Once real photos are generated (per /image-prompts.md), drop a 0.png/1.png pair into /public/stretches/<id>/ — verify the placeholder is replaced and the FORM modal animates the new photos without any code change."
+      ],
+      "notes": "[2026-05-22 <sha7>] Audited all 109 DB id references against the free-exercise-db manifest (873 canonical exercises). Zero broken links. Found 7 semantically-wrong mappings and 12 missing mappings. Shipped: text-card placeholders for all 26 missing/wrong movements via scripts/generate-stretch-placeholders.ts; registered every id in LOCAL_STRETCH_IDS; removed the 7 wrong DB mappings; consolidated all 56 image-gen prompts into /image-prompts.md. The loader now uses .png for LOCAL_STRETCH_IDS entries. Next slice: real photo replacements (user generating via ChatGPT from /image-prompts.md)."
     }
   ]
 }

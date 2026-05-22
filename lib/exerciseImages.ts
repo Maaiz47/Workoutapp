@@ -5,18 +5,58 @@ function norm(s: string) {
 }
 
 // Locally-hosted custom stretch/warmup demos. Drop frames at
-// /public/stretches/<id>/0.jpg and /1.jpg and add the id below to
+// /public/stretches/<id>/0.png and /1.png and add the id below to
 // override the free-exercise-db lookup. Lets us ship demos for
 // stretches that don't exist in the open library (doorway chest
 // stretch, pigeon pose, figure-four, etc.). See PATCHLOG entry
 // "Stretch form-image plan" for the generation prompts.
+//
+// 2026-05-22: shipped placeholder PNGs for 26 movements via
+// scripts/generate-stretch-placeholders.ts — each pair is a black
+// text card showing START / END instructions. Covers:
+//   • 7 stretches not in the open library
+//   • 12 plyometric / conditioning movements
+//   • 7 movements that previously pointed to an unrelated DB entry
+//     (jumping-jacks, burpees, high-knees, wall-sit, wall-slide,
+//      terminal-knee-extension, bird-dog) — local now takes
+//      precedence over the wrong DB mapping.
+// To replace a pair with real photos, just overwrite the 0.png /
+// 1.png files.
 const LOCAL_STRETCH_IDS = new Set<string>([
-  // populated as we add /public/stretches/<id>/{0,1}.jpg pairs
+  // Stretches / warmups
+  "cd-chest-doorway",
+  "cd-pigeon",
+  "cd-hamstring-lay",
+  "cd-lat-stretch",
+  "cd-glute-pretzel",
+  "wu-leg-swings",
+  "wu-scap-shrugs",
+  // Plyometric / conditioning (no DB mapping)
+  "bear-crawl",
+  "broad-jump",
+  "elliptical",
+  "inchworm",
+  "lateral-bounds",
+  "lateral-shuffle",
+  "plyo-pushup",
+  "speed-skaters",
+  "split-jumps",
+  "squat-thrust",
+  "star-jump",
+  "tuck-jumps",
+  // Previously wrong DB mapping — local placeholder is more accurate
+  "jumping-jacks",
+  "burpees",
+  "high-knees",
+  "wall-sit",
+  "wall-slide",
+  "terminal-knee-extension",
+  "bird-dog",
 ]);
 
 export function getExerciseImageUrls(exerciseId: string, exerciseName?: string): [string, string] | null {
   if (LOCAL_STRETCH_IDS.has(exerciseId)) {
-    return [`/stretches/${exerciseId}/0.jpg`, `/stretches/${exerciseId}/1.jpg`];
+    return [`/stretches/${exerciseId}/0.png`, `/stretches/${exerciseId}/1.png`];
   }
   let dbId = EXERCISE_DB_MAP[exerciseId];
   if (!dbId && exerciseName) {
@@ -281,14 +321,15 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   "ab-rollout":                     "Barbell_Ab_Rollout",
   "toe-touches":                    "Toe_Touchers",
   "dead-bug":                       "Dead_Bug",
-  "bird-dog":                       "Dead_Bug",
+  // bird-dog uses a local placeholder (was wrongly mapped to Dead_Bug,
+  //   which is a different supine exercise).
   "straight-leg-raise":             "Flat_Bench_Lying_Leg_Raise",
   "superman":                       "Superman",
 
   // ── Cardio / Full body ───────────────────────────────────────────────────
-  "jumping-jacks":                  "Air_Bike",
-  "burpees":                        "Mountain_Climbers",
-  "high-knees":                     "Mountain_Climbers",
+  // jumping-jacks, burpees, high-knees — local placeholders (no good
+  //   DB match); previously mapped to Air_Bike / Mountain_Climbers
+  //   which were semantically wrong.
   "jump-rope":                      "Rope_Jumping",
   "pullups":                        "Pullups",
   "rowing-machine":                 "Rowing_Stationary",
@@ -296,11 +337,11 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   "cycling":                        "Bicycling_Stationary",
 
   // ── Misc ─────────────────────────────────────────────────────────────────
-  "wall-sit":                       "Plank",
-  "wall-slide":                     "External_Rotation",
+  // wall-sit, wall-slide, terminal-knee-extension — local placeholders
+  //   (previously mapped to unrelated Plank / External_Rotation /
+  //   Lying_Leg_Curls, which showed the wrong movement entirely).
   "good-morning":                   "Good_Morning",
   "pike-pushup":                    "Pushups",
-  "terminal-knee-extension":        "Lying_Leg_Curls",
 
   // ── Warmups (lib/stretching.ts → ALL_WARMUPS) ───────────────────────────
   // Maps each warmup's `id` to a free-exercise-db model so the FORM
