@@ -3,6 +3,27 @@
 This file is read automatically at session start. Anything below is the canonical
 brief for any Claude session working on IronLog.
 
+## ⏰ Pending reminders to surface
+
+At the start of every session, scan the list below. For each unchecked item,
+remind the user in your first response with a short one-liner like:
+"Reminder: still pending — generate the 9 missing stretch form-demo images
+(plan in `public/stretches/README.md`)."
+
+Once the user says it's done (or "skip", "drop it", "remove the reminder"),
+edit this file to either tick the box ✅ or delete the line entirely. Don't
+re-remind on the same item more than once per session — the goal is gentle
+nudge, not nag.
+
+- [ ] **Generate the 9 missing stretch form-demo images.** Plan lives in
+  `public/stretches/README.md` (ChatGPT image-gen prompts + style guide,
+  ready to paste). Stretches needing demos: `cd-chest-doorway`,
+  `cd-pigeon`, `cd-hamstring-lay`, `cd-lat-stretch`, `cd-glute-pretzel`,
+  `wu-leg-swings`, `wu-scap-shrugs`. After generating, drop the JPG pairs
+  into `/public/stretches/<id>/{0,1}.jpg`, register the ids in
+  `LOCAL_STRETCH_IDS` (`lib/exerciseImages.ts`), commit. Tick this box
+  when done.
+
 ## Always push to `main`
 
 This repo uses direct-to-`main` development. Never open PRs, never create feature
