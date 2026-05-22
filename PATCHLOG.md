@@ -2,6 +2,74 @@
 
 ---
 
+## Feat · 2026-05-22 — Global tier leaderboard + scoring fairness (qa: tier-global-leaderboard, tier-scoring-fairness)
+
+@maaiz: "Is there a tier global leaderboard anywhere? Should
+we have it?" + "Points should be fair to reward sufficient
+rest days and minimise reward for going too hard."
+
+### 1. Global tier leaderboard
+New cross-app ranking surface. Two tabs (🏆 Athletes /
+🤝 Trainers), three lenses (Top 100 / Your tier band /
+Around you ±5).
+
+- **Endpoint**: `GET /api/leaderboard/global?kind=&lens=`
+  iterates all qualifying users, computes their canonical
+  tier score via `computeStatsForUsers` (athletes) or
+  `computeTrainerTier` (trainers), sorts, slices to the
+  requested lens. Athletes need ≥ 5 lifetime sessions to
+  qualify so bots + casual accounts don't pollute the top.
+- **Schema**: `UserProfile.hideFromGlobalLeaderboard
+  Boolean @default(false)` — athlete opt-out. When true,
+  the row shows as `Athlete #<rank>` instead of @username.
+  Trainers can't opt out; their board is intentionally
+  public for client discovery (user direction).
+- **UI**: standalone `GlobalLeaderboardView` in
+  app/page.tsx with kind/lens tabs, meta strip (your rank,
+  total ranked, your tier), and ranked rows colour-coded
+  per tier theme. Entry point: 🌍 GLOBAL TIER LEADERBOARD
+  button in TierInfoModal.
+- **Settings**: new 🌍 GLOBAL BOARD toggle under APP
+  PREFERENCES with a 44×26 iOS-style switch. Hidden for
+  trainers.
+
+### 2. Scoring fairness — adherence over streak
+The consistency sub-rank was 60% lifetime sessions + 40%
+streak. The streak component punished rest days — a user
+training 4×/wk with proper rest would have streak=0 most
+of the week and lose those points. New formula:
+
+```
+consistency = 50% × log(lifetime sessions)
+            + 40% × adherence(sessions in last 4 weeks,
+                              daysPerWeek)
+            + 10% × log(streak)
+```
+
+`adherence` curves to 100 when the user hits exactly their
+weekly target (`daysPerWeek × 4` distinct training days in
+the last 28 days). Above target it DROPS — 150% scores 50,
+200% scores 0. So overtraining loses points; resting on
+schedule earns them.
+
+- New `AthleteStatsForTier.sessionsLast4Weeks` +
+  `daysPerWeek` inputs.
+- `computeStatsForUsers` fetches each user's
+  `UserProfile.daysPerWeek` alongside their logs so the
+  server-side tier matches the client.
+- Detail line under Consistency reads e.g. "16/16 last
+  4wk" when on target, or "28/16 last 4wk (over target —
+  rest!)" if overtrained.
+- Streak kept as a small 10% bonus — every-day grinder
+  vibe still recognised, just not the primary driver.
+
+Existing top-tier users who overtrained may see a one-time
+score dip. That's the intent: hard training without rest
+shouldn't out-score smart training with rest. The path to
+recovery is to actually rest.
+
+---
+
 ## Feat · 2026-05-22 — Trainer tier now includes Discipline (qa: tier-trainer-discipline)
 
 @maaiz: "I want the athlete tier a trainer has to play a

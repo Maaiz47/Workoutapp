@@ -71,6 +71,11 @@ function buildCanonicalTier(s: {
   prCount: number;
   distinctExercises: number;
   monthsOnApp: number;
+  // Optional adherence inputs — passed through to computeAthleteTier
+  // so the consistency sub-rank rewards target-hitting + rest days.
+  // (qa: tier-scoring-fairness)
+  sessionsLast4Weeks?: number;
+  daysPerWeek?: number;
 }): CanonicalTier {
   const breakdown = computeAthleteTier({
     totalSessions: s.totalSessions,
@@ -82,6 +87,8 @@ function buildCanonicalTier(s: {
     hydrationGoalDays: 0,
     sleepLoggedDays: 0,
     energyLoggedDays: 0,
+    sessionsLast4Weeks: s.sessionsLast4Weeks ?? 0,
+    daysPerWeek: s.daysPerWeek ?? 4,
   });
   const t: AnimalTier = breakdown.headline;
   return {
@@ -96,10 +103,22 @@ function buildCanonicalTier(s: {
   };
 }
 
-// `monthsOnApp` is passed by computeStatsForUsers (which has the
-// User.createdAt); single-log callers default it to 0.
-export function computeStatsFromLogs(logs: LogLike[], monthsOnApp: number = 0): LeaderboardMemberStats {
+// `monthsOnApp` + `daysPerWeek` are passed by computeStatsForUsers
+// (which has the User.createdAt + UserProfile.daysPerWeek); single-
+// log callers default to 0 / 4.
+export function computeStatsFromLogs(logs: LogLike[], monthsOnApp: number = 0, daysPerWeek: number = 4): LeaderboardMemberStats {
   const totalSessions = logs.length;
+
+  // Sessions logged in the last 4 weeks — feeds the adherence
+  // dimension of the consistency sub-rank. Counted as DISTINCT days
+  // so doing two sessions in a day still counts as one training
+  // day vs the weekly target. (qa: tier-scoring-fairness)
+  const fourWeeksAgo = Date.now() - 28 * 86400000;
+  const sessionsLast4Weeks = new Set(
+    logs
+      .filter(l => l.date.getTime() >= fourWeeksAgo)
+      .map(l => l.date.toISOString().slice(0, 10))
+  ).size;
 
   // Streak: consecutive days with at least one session, anchored on today/yesterday
   const dateStrings = Array.from(new Set(logs.map(l => l.date.toISOString().slice(0, 10)))).sort().reverse();
@@ -153,6 +172,8 @@ export function computeStatsFromLogs(logs: LogLike[], monthsOnApp: number = 0): 
     prCount,
     distinctExercises,
     monthsOnApp,
+    sessionsLast4Weeks,
+    daysPerWeek,
   });
 
   return {
@@ -224,7 +245,7 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
   // one round-trip. createdAt feeds `monthsOnApp` into the canonical
   // tier computation — without it the "Consistency" sub-rank doesn't
   // get its time-on-app blend right.
-  const [allLogs, allMetrics, users] = await Promise.all([
+  const [allLogs, allMetrics, users, profiles] = await Promise.all([
     prisma.workoutLog.findMany({
       where: groupWorkoutId
         ? { userId: { in: userIds }, groupWorkoutId }
@@ -241,7 +262,17 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
       where: { id: { in: userIds } },
       select: { id: true, createdAt: true },
     }),
+    // Profiles fetched so daysPerWeek feeds the adherence dimension
+    // of the consistency sub-rank. Users without a profile fall back
+    // to 4 days/week (the most common default).
+    // (qa: tier-scoring-fairness)
+    prisma.userProfile.findMany({
+      where: { userId: { in: userIds } },
+      select: { userId: true, daysPerWeek: true },
+    }),
   ]);
+  const dpwByUser = new Map<string, number>();
+  for (const p of profiles) dpwByUser.set(p.userId, p.daysPerWeek);
   const byUser = new Map<string, LogLike[]>();
   for (const log of allLogs) {
     const arr = byUser.get(log.userId) ?? [];
@@ -260,7 +291,7 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
   for (const userId of userIds) {
     const createdAt = createdAtByUser.get(userId);
     const monthsOnApp = createdAt ? (Date.now() - +createdAt) / (30 * 86400000) : 0;
-    const base = computeStatsFromLogs(byUser.get(userId) ?? [], monthsOnApp);
+    const base = computeStatsFromLogs(byUser.get(userId) ?? [], monthsOnApp, dpwByUser.get(userId) ?? 4);
     const body = computeBodyStats(metricsByUser.get(userId) ?? []);
     result.set(userId, { ...base, ...body });
   }

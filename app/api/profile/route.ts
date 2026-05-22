@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
   try {
-    const { targetWeightKg, targetBodyFatPct, hiitPreference, hiitIntensity, cardioPreference, targetSessionMinutes, tierTheme } = await req.json();
+    const { targetWeightKg, targetBodyFatPct, hiitPreference, hiitIntensity, cardioPreference, targetSessionMinutes, tierTheme, hideFromGlobalLeaderboard } = await req.json();
     const profile = await prisma.userProfile.update({
       where: { userId: uid },
       data: {
@@ -32,6 +32,7 @@ export async function PATCH(req: NextRequest) {
         // Whitelist tierTheme to known values so a stray patch can't
         // store junk that breaks `getAthleteTiers`. (qa: tier-themes)
         tierTheme:        tierTheme        !== undefined ? (tierTheme === "simple" ? "simple" : tierTheme === "vivid" ? "vivid" : null) : undefined,
+        hideFromGlobalLeaderboard: hideFromGlobalLeaderboard !== undefined ? !!hideFromGlobalLeaderboard : undefined,
       } as any,
     });
     return json({ profile });

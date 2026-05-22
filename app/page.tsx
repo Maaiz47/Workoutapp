@@ -3058,7 +3058,7 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
 // needs to be inserted into EACH branch's return — there's no
 // single bottom render to attach to.
 function HomeGlobals({
-  user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, trainerBreakdown, tierTheme, onJumpToLeaderboard,
+  user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, trainerBreakdown, tierTheme, onJumpToLeaderboard, onOpenGlobalLeaderboard,
 }: {
   user: { username: string; role: string; extraRoles?: string[] } | null;
   view: string;
@@ -3077,6 +3077,8 @@ function HomeGlobals({
   // first visible leaderboard group. Lets the user jump from the
   // tier explainer straight to their current rank.
   onJumpToLeaderboard?: () => void;
+  // Opens the standalone global tier leaderboard view.
+  onOpenGlobalLeaderboard?: () => void;
 }) {
   const isTrainer = userHasRole(user as any, "trainer");
   // Map the new AnimalTier shape → local TierLite shape so the
@@ -3108,6 +3110,7 @@ function HomeGlobals({
         trainerBreakdown={trainerBreakdown}
         tierTheme={tierTheme}
         onJumpToLeaderboard={onJumpToLeaderboard}
+        onOpenGlobalLeaderboard={onOpenGlobalLeaderboard}
       />
     </>
   );
@@ -3153,6 +3156,7 @@ function TierInfoModal({
   trainerBreakdown,
   tierTheme,
   onJumpToLeaderboard,
+  onOpenGlobalLeaderboard,
 }: {
   open: boolean;
   onClose: () => void;
@@ -3169,6 +3173,9 @@ function TierInfoModal({
   // ladder name set the modal renders. (qa: tier-themes)
   tierTheme: "vivid" | "simple";
   onJumpToLeaderboard?: () => void;
+  // Opens the dedicated global leaderboard view. Closes the modal
+  // and navigates the parent. (qa: tier-global-leaderboard)
+  onOpenGlobalLeaderboard?: () => void;
 }) {
   if (!open) return null;
 
@@ -3315,6 +3322,21 @@ function TierInfoModal({
             }}
           >
             ↓ JUMP TO MY LEADERBOARD ROW
+          </button>
+        )}
+        {onOpenGlobalLeaderboard && (
+          <button
+            onClick={onOpenGlobalLeaderboard}
+            style={{
+              width: "100%", marginTop: 8, padding: "11px 14px",
+              background: "rgba(240,192,64,0.1)",
+              border: "1px solid rgba(240,192,64,0.35)",
+              borderRadius: 12, color: "#f0c040",
+              fontSize: 12, fontWeight: 700, letterSpacing: 2,
+              fontFamily: "'Space Mono', monospace", cursor: "pointer",
+            }}
+          >
+            🌍 GLOBAL TIER LEADERBOARD
           </button>
         )}
 
@@ -3511,6 +3533,108 @@ function TierLadder({
   );
 }
 
+// ─── GLOBAL TIER LEADERBOARD VIEW ─────────────────────────────────────
+// Standalone view: athletes + trainers ranked across the whole app.
+// Three lenses: Top 100 / Your tier band / Around you. Anonymous
+// athletes (opt-out) render as "Athlete #<rank>"; trainers are
+// always public per user direction. Data fetched from
+// /api/leaderboard/global. (qa: tier-global-leaderboard)
+function GlobalLeaderboardView({ onBack, viewerId, tierTheme }: { onBack: () => void; viewerId: string; tierTheme: "vivid" | "simple" }) {
+  const [kind, setKind] = useState<"athlete" | "trainer">("athlete");
+  const [lens, setLens] = useState<"top" | "band" | "around">("top");
+  const [rows, setRows] = useState<any[]>([]);
+  const [meta, setMeta] = useState<{ totalParticipants: number; viewerRank: number | null; viewerTierNum: number | null } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/leaderboard/global?kind=${kind}&lens=${lens}`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        setRows(Array.isArray(data.rows) ? data.rows : []);
+        setMeta(data.meta ?? null);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [kind, lens]);
+
+  const tiers = kind === "athlete" ? getAthleteTiers(tierTheme) : TRAINER_TIERS_NEW;
+  const tierByNum = (n: number) => tiers.find(t => t.tierNum === n) ?? tiers[0];
+
+  return (
+    <div key="globalLeaderboard" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: 80, minHeight: "100dvh", padding: "24px 20px 80px", boxSizing: "border-box" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>GLOBAL · TIER LEADERBOARD</div>
+      </div>
+
+      {/* Kind tabs */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 12 }}>
+        {([{ id: "athlete", label: "🏆 ATHLETES" }, { id: "trainer", label: "🤝 TRAINERS" }] as const).map(t => {
+          const active = kind === t.id;
+          return (
+            <button key={t.id} onClick={() => setKind(t.id as any)} style={{ padding: "10px", borderRadius: 10, background: active ? "rgba(240,192,64,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${active ? "rgba(240,192,64,0.4)" : "rgba(255,255,255,0.08)"}`, color: active ? "#f0c040" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1, cursor: "pointer" }}>{t.label}</button>
+          );
+        })}
+      </div>
+
+      {/* Lens picker */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+        {([{ id: "top", label: "TOP 100" }, { id: "band", label: "YOUR TIER" }, { id: "around", label: "AROUND YOU" }] as const).map(l => {
+          const active = lens === l.id;
+          return (
+            <button key={l.id} onClick={() => setLens(l.id as any)} style={{ padding: "5px 12px", borderRadius: 18, fontSize: 10, fontFamily: "'Space Mono', monospace", letterSpacing: 1, fontWeight: 700, cursor: "pointer", background: active ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${active ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, color: active ? "#4ECDC4" : "rgba(255,255,255,0.4)" }}>{l.label}</button>
+          );
+        })}
+      </div>
+
+      {/* Meta */}
+      {meta && (
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: 11, color: "rgba(255,255,255,0.55)", fontFamily: "'Space Mono', monospace" }}>
+          <div>{meta.totalParticipants} ranked · {kind === "athlete" ? "min 5 sessions to qualify" : "all active trainers"}</div>
+          {meta.viewerRank != null && <div style={{ marginTop: 4 }}>Your rank: <strong style={{ color: "#4ECDC4" }}>#{meta.viewerRank}</strong>{meta.viewerTierNum != null ? ` · ${tierByNum(meta.viewerTierNum).icon} ${tierByNum(meta.viewerTierNum).label}` : ""}</div>}
+        </div>
+      )}
+
+      {/* Rows */}
+      {loading ? (
+        <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: 20 }}>Loading…</div>
+      ) : rows.length === 0 ? (
+        <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: 20 }}>No one's qualified yet — be the first.</div>
+      ) : (
+        <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
+          {rows.map((r: any, i: number) => {
+            const isMe = r.userId === viewerId;
+            const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : null;
+            const tier = tierByNum(r.tierNum);
+            const displayName = r.anonymous ? `Athlete #${r.rank}` : `@${r.username}`;
+            return (
+              <div key={r.userId} style={{ display: "grid", gridTemplateColumns: "32px 1fr 48px 40px", gap: 8, padding: "10px 12px", borderBottom: i < rows.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: isMe ? "rgba(78,205,196,0.05)" : (medal ? "rgba(240,192,64,0.03)" : "transparent"), alignItems: "center" }}>
+                <div style={{ fontSize: 13, color: medal ? undefined : "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{medal ?? `#${r.rank}`}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : displayName}</div>
+                  <div style={{ fontSize: 10, color: tier.color, marginTop: 1 }}>{tier.icon} T{tier.tierNum} · {tier.label}</div>
+                </div>
+                <div style={{ textAlign: "right", fontSize: 13, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>{r.score}</div>
+                <div style={{ textAlign: "right", fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{kind === "athlete" ? `${r.totalSessions} S` : `${r.rosterCount} C`}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ marginTop: 14, fontSize: 10, color: "rgba(255,255,255,0.3)", lineHeight: 1.5 }}>
+        {kind === "athlete"
+          ? "Anonymous? Toggle visibility in Settings → APP PREFERENCES → \"Hide me from global board\". The trainer board is always public."
+          : "Trainer ranks are always public — clients use this board to discover coaches."}
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN ───────────────────────────────────────────────────────────────
 function HomePage() {
   const [user, setUser] = useState<{ id: string; username: string; role: string; extraRoles?: string[]; roleRequest?: string | null; createdAt?: string } | null>(null);
@@ -3644,6 +3768,10 @@ function HomePage() {
         athleteBreakdown={myAthleteBreakdown}
         trainerBreakdown={myTrainerBreakdown}
         tierTheme={tierTheme}
+        onOpenGlobalLeaderboard={() => {
+          setTierModalOpen(false);
+          setView("globalLeaderboard");
+        }}
         onJumpToLeaderboard={() => {
           setTierModalOpen(false);
           setView("home");
@@ -3947,6 +4075,11 @@ function HomePage() {
   // the names + icons on the athlete ladder; tier numbers + score
   // breakpoints are universal. (qa: tier-themes)
   const [tierTheme, setTierTheme] = useState<"vivid" | "simple">("vivid");
+  // Opt-OUT of the global athlete leaderboard. When true, the user's
+  // row on the global board renders as "Athlete #<rank>" not their
+  // username. Trainers can't opt out — their leaderboard is for
+  // client discovery. (qa: tier-global-leaderboard)
+  const [hideFromGlobalLeaderboard, setHideFromGlobalLeaderboard] = useState(false);
   const [saveRoutineName, setSaveRoutineName] = useState("");
   const [savingRoutine, setSavingRoutine] = useState(false);
   const [sharingRoutineId, setSharingRoutineId] = useState<string | null>(null);
@@ -4244,6 +4377,7 @@ function HomePage() {
         if ((p as any).hiitIntensity) setHiitIntensity((p as any).hiitIntensity);
         if ((p as any).cardioPreference) setCardioPreference((p as any).cardioPreference);
         if ((p as any).tierTheme === "simple" || (p as any).tierTheme === "vivid") setTierTheme((p as any).tierTheme);
+        if (typeof (p as any).hideFromGlobalLeaderboard === "boolean") setHideFromGlobalLeaderboard((p as any).hideFromGlobalLeaderboard);
         fetch("/api/plan").then(r => r.json()).then(planData => {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
         });
@@ -5505,6 +5639,16 @@ function HomePage() {
     const monthsOnApp = user.createdAt ? (Date.now() - +new Date(user.createdAt)) / (30 * 86400000) : 0;
     let wl = { hydrationGoalDays: 0, sleepLoggedDays: 0, energyLoggedDays: 0 };
     try { wl = wellnessLast14Days(); } catch {}
+    // Sessions in the last 4 weeks (DISTINCT days) — feeds the new
+    // adherence dimension of the consistency sub-rank. Doing two
+    // sessions in a day still counts as one training day vs target.
+    // (qa: tier-scoring-fairness)
+    const fourWeeksAgo = Date.now() - 28 * 86400000;
+    const last4wDays = new Set<string>();
+    for (const dayId in history) for (const s of history[dayId]) {
+      const ts = s.date ? +new Date(s.date) : 0;
+      if (ts >= fourWeeksAgo) last4wDays.add(new Date(ts).toISOString().slice(0, 10));
+    }
     const stats: AthleteStatsForTier = {
       totalSessions: overall.totalSessions,
       streak: overall.streak,
@@ -5515,9 +5659,11 @@ function HomePage() {
       hydrationGoalDays: wl.hydrationGoalDays,
       sleepLoggedDays: wl.sleepLoggedDays,
       energyLoggedDays: wl.energyLoggedDays,
+      sessionsLast4Weeks: last4wDays.size,
+      daysPerWeek: ob.daysPerWeek || 4,
     };
     return computeAthleteTier(stats, tierTheme);
-  }, [user, history, overall, tierTheme]);
+  }, [user, history, overall, tierTheme, ob.daysPerWeek]);
   const bc: Record<string, string> = { compound: "#2ecc71", isolation: "#74b9ff", cardio: "#FF6B6B" };
 
   const sessionExSuggestions = useMemo(() => {
@@ -9525,6 +9671,9 @@ function HomePage() {
     );
   }
 
+  // ─── GLOBAL TIER LEADERBOARD ────────────────────────────────────────
+  if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} />;
+
   // ─── MESSAGES LIST ──────────────────────────────────────────────────
   if (view === "messages") return (
     <div key="messages" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
@@ -9979,6 +10128,39 @@ function HomePage() {
               })}
             </div>
           </div>
+
+          {/* Global leaderboard privacy toggle.
+              Trainers don't see this — their tier leaderboard is
+              intentionally public for client discovery. (qa:
+              tier-global-leaderboard)
+          */}
+          {!userHasRole(user as any, "trainer") && (
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "16px 20px", marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>🌍 GLOBAL BOARD</div>
+                  <div style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>Hide me from the global tier leaderboard</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 3, lineHeight: 1.5 }}>When on, you appear as &quot;Athlete #&lt;rank&gt;&quot; on the public board. Your tier is still counted, just not linked to your @username.</div>
+                </div>
+                <button
+                  onClick={() => {
+                    const next = !hideFromGlobalLeaderboard;
+                    setHideFromGlobalLeaderboard(next);
+                    fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hideFromGlobalLeaderboard: next }) }).catch(() => {});
+                  }}
+                  style={{
+                    flexShrink: 0,
+                    width: 44, height: 26, borderRadius: 13,
+                    background: hideFromGlobalLeaderboard ? "#4ECDC4" : "rgba(255,255,255,0.15)",
+                    border: "none", cursor: "pointer", position: "relative",
+                  }}
+                  aria-label={hideFromGlobalLeaderboard ? "Anonymous mode on" : "Anonymous mode off"}
+                >
+                  <div style={{ position: "absolute", top: 2, left: hideFromGlobalLeaderboard ? 20 : 2, width: 22, height: 22, borderRadius: "50%", background: "#fff", transition: "left 0.18s ease" }} />
+                </button>
+              </div>
+            </div>
+          )}
 
           </>)}
           {/* ── SECTION: YOUR PROFILE — who you are + your training data.

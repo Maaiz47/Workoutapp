@@ -115,16 +115,61 @@ export type AthleteStatsForTier = {
   hydrationGoalDays?: number;       // days in last 14 where glasses ≥ target
   sleepLoggedDays?: number;         // days in last 14 with a sleep entry
   energyLoggedDays?: number;        // days in last 14 with an energy entry
+  // Adherence inputs — sessions in the last 4 weeks vs the user's
+  // planned daysPerWeek. Lets the consistency sub-rank reward hitting
+  // your target (and resting between sessions) and PENALISE
+  // overtraining. (qa: tier-scoring-fairness)
+  sessionsLast4Weeks?: number;
+  daysPerWeek?: number;             // user's profile.daysPerWeek (3-6 typically)
 };
+
+// Adherence curve — peaks at 100% of weekly target, drops gently
+// past it so overtraining doesn't print extra points. Built for
+// "rest days are part of the plan" — a user training 4/wk with
+// daysPerWeek=4 scores 100; one training 7/wk scores ~50; one
+// training 0/wk scores 0. The drop on the right side is moderate
+// (not punitive) — you can have a heavier week without losing all
+// credit, but you can't farm score by training every single day.
+// (qa: tier-scoring-fairness — @maaiz: "minimise reward for going
+// too hard, reward sufficient rest days")
+function adherenceScore(sessionsLast4Weeks: number, daysPerWeek: number): number {
+  const target4w = Math.max(1, daysPerWeek) * 4;
+  if (sessionsLast4Weeks <= 0) return 0;
+  const ratio = sessionsLast4Weeks / target4w;
+  if (ratio <= 1.0) {
+    // Linear ramp 0 → 100 as user approaches target
+    return Math.round(ratio * 100);
+  }
+  // Past target: each 25% over loses 25 points. 2× target = 0.
+  const excess = ratio - 1.0;
+  return Math.max(0, Math.round(100 - excess * 100));
+}
 
 export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null): TierBreakdown {
   // 5 sub-ranks. Numbers tuned to be motivating in the early game.
+  // Consistency blend:
+  //   50% lifetime sessions (log curve, midpoint 100) — captures
+  //       long-term commitment.
+  //   40% adherence — rewards hitting the weekly target AND resting.
+  //       Caps at 100%; overtraining loses points. (Replaces the old
+  //       streak component which punished rest days.)
+  //   10% streak — kept for the everyday-grinder vibe but de-weighted
+  //       heavily so it's a small bonus, not the main driver.
+  // (qa: tier-scoring-fairness)
+  const adherence = adherenceScore(s.sessionsLast4Weeks ?? 0, s.daysPerWeek ?? 4);
   const consistency = Math.round(
-    0.6 * scoreFromCount(s.totalSessions, 100) +
-    0.4 * scoreFromCount(s.streak, 14)
+    0.5 * scoreFromCount(s.totalSessions, 100) +
+    0.4 * adherence +
+    0.1 * scoreFromCount(s.streak, 14)
   );
   const strength = scoreFromCount(s.prCount, 30);
-  const volume = scoreFromCount(s.totalVolumeKg, 100_000); // 100k kg-reps = ~80
+  // Volume — keep log curve so cumulative work matters, but the
+  // dimension is also softly bounded by the consistency adherence
+  // (a user grinding 20k kg-reps in one cooking week now sits at
+  // ~50% on consistency, which drags the headline). The midpoint
+  // was already at 100k kg-reps (~6mo of solid training) so no
+  // change here.
+  const volume = scoreFromCount(s.totalVolumeKg, 100_000);
   const mastery = scoreFromCount(s.distinctExercises, 25);
   // Habits — weighted blend of hydration goal-hits + sleep/energy logging.
   // Hydration is the heaviest weight (60%) since hitting the daily target
@@ -139,8 +184,17 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
     0.2 * scoreFromCount(en, 10)
   );
 
+  const sessions4w = s.sessionsLast4Weeks ?? 0;
+  const dpw = s.daysPerWeek ?? 4;
+  const target4w = dpw * 4;
+  const adherenceLabel = sessions4w === 0
+    ? `${s.totalSessions} sessions · target ${dpw}/wk`
+    : sessions4w > target4w
+      ? `${s.totalSessions} sessions · ${sessions4w}/${target4w} last 4wk (over target — rest!)`
+      : `${s.totalSessions} sessions · ${sessions4w}/${target4w} last 4wk`;
+
   const subRanks: SubRank[] = [
-    { id: "consistency", label: "Consistency", icon: "🔁", score: consistency, detail: `${s.totalSessions} sessions · ${s.streak}d streak` },
+    { id: "consistency", label: "Consistency", icon: "🔁", score: consistency, detail: adherenceLabel },
     { id: "strength",    label: "Strength",    icon: "💪", score: strength,    detail: `${s.prCount} personal bests` },
     { id: "volume",      label: "Volume",      icon: "📈", score: volume,      detail: `${Math.round(s.totalVolumeKg / 1000)}k kg-reps lifetime` },
     { id: "mastery",     label: "Mastery",     icon: "🏆", score: mastery,     detail: `${s.distinctExercises} distinct exercises` },

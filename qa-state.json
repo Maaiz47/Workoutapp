@@ -1012,6 +1012,44 @@
       "notes": "[2026-05-21] Tier card header completely rebuilt to be obviously a tier system: '🏆 YOUR RANK' + 'TIER N OF 6' explicit header, bigger animal icon (58px) + bigger name (26px in caps), horizontal animal ladder of all 6 tiers (current highlighted/glowing, past coloured, future greyed), explicit OVERALL SCORE row with breakpoint, '5 STATS FEED THIS RANK' label above the sub-rank grid."
     },
     {
+      "id": "tier-scoring-fairness",
+      "title": "Scoring rewards rest days + caps overtraining",
+      "area": "Tiers",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass tier-scoring-fairness",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Set profile.daysPerWeek to 4. Train EXACTLY 4 distinct days a week for 4 weeks. Open Progress → Dashboard and confirm your Consistency sub-rank reads high (~85+) — the adherence dimension is at 100%.",
+        "Same user, train 7 days/week for 4 weeks (overtrain). Verify Consistency DROPS — adherence is now ~150% which the curve scores around 25-50 points. Detail line should read '... (over target — rest!)'.",
+        "Train 0 days for 4 weeks. Verify Consistency drops to whatever lifetime-sessions alone scores (~40-50% of previous if you had a year of training).",
+        "Verify the streak component still exists but is heavily de-weighted (10% of consistency) — a 14-day streak alone won't max consistency anymore.",
+        "Verify the Volume sub-rank is unchanged in its formula (still log curve to 100k kg-reps midpoint) — going harder still earns volume points, but the headline is dragged by consistency adherence.",
+        "Switch profile.daysPerWeek to 6 → adherence target rescales to 24 sessions in 4 weeks. Verify the detail line updates."
+      ],
+      "notes": "[2026-05-22] Shipped: replaced 0.6*sessions + 0.4*streak with 0.5*sessions + 0.4*adherence + 0.1*streak in the consistency sub-rank. Adherence peaks at 100% of weekly target (daysPerWeek * 4 over 4 weeks) and DROPS past that: 150% scores 50, 200% scores 0. Rest days now FEED the score by leaving the user closer to target. Server-side stats compute sessionsLast4Weeks (distinct days) + fetches daysPerWeek from UserProfile to pipe into computeAthleteTier; client memo does the same. (Reported by @maaiz: 'Points should be fair to reward sufficient rest days and minimise reward for going too hard'.)"
+    },
+    {
+      "id": "tier-global-leaderboard",
+      "title": "Global tier leaderboard (cross-app ranking)",
+      "area": "Tiers",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass tier-global-leaderboard",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open the tier explainer modal (tap your tier chip on home). Verify a new 🌍 GLOBAL TIER LEADERBOARD button below the JUMP TO MY ROW button.",
+        "Tap it → standalone 'GLOBAL · TIER LEADERBOARD' view opens with two tabs (🏆 ATHLETES / 🤝 TRAINERS) and three lenses (TOP 100 / YOUR TIER / AROUND YOU).",
+        "Athlete tab + TOP 100 shows up to 100 ranked rows. Rows of users who opted out of public visibility render as 'Athlete #<rank>'; everyone else shows @username. Your own row reads 'YOU' regardless.",
+        "Trainer tab works the same but ALL trainer rows show @username (no anonymous toggle for trainers — public for client discovery).",
+        "YOUR TIER lens filters to only your tier number (e.g. all Tier 4s).",
+        "AROUND YOU lens centers your row with 5 above + 5 below.",
+        "Meta strip shows total ranked + your rank + your tier badge.",
+        "Open Settings → APP PREFERENCES → 🌍 GLOBAL BOARD toggle. Flip it ON. Reload the global view → verify your row shows as 'Athlete #<rank>' (except 'YOU' on your own viewer)."
+      ],
+      "notes": "[2026-05-22] Shipped: GET /api/leaderboard/global?kind=athlete|trainer&lens=top|band|around. Athletes ranked by computeStatsForUsers tier score; min 5 sessions to qualify (bots + casual filter). Trainers ranked by computeTrainerTier breakdown (5-dim including Discipline). Schema field UserProfile.hideFromGlobalLeaderboard (default false) lets athletes opt out; trainers can't (per user direction). Standalone view GlobalLeaderboardView in app/page.tsx with kind/lens tabs + meta header. Wired from TierInfoModal via a new onOpenGlobalLeaderboard callback. Settings toggle added in APP PREFERENCES, hidden for trainers. (Reported by @maaiz: 'Is there a tier global leaderboard anywhere? Should we have it?')"
+    },
+    {
       "id": "tier-trainer-discipline",
       "title": "Trainer tier includes Discipline sub-rank (own athlete score)",
       "area": "Tiers",

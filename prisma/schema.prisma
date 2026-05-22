@@ -125,6 +125,12 @@ model UserProfile {
   // Trainer ladder ignores this — same labels everywhere.
   // (qa: tier-themes)
   tierTheme        String?
+  // Opt-OUT of the global athlete leaderboard. When true, the user's
+  // row on the global board shows as "Athlete #<rank>" instead of
+  // @username. Trainers don't get this toggle — the trainer
+  // leaderboard is intentionally public-facing (clients use it to
+  // pick coaches). (qa: tier-global-leaderboard)
+  hideFromGlobalLeaderboard Boolean @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
