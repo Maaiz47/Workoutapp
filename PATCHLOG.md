@@ -2,6 +2,23 @@
 
 ---
 
+## Assets · 2026-05-22 — Final 3 form frames → 82/82 image-gen complete ✅ (qa: exercise-local-images)
+
+User uploaded the last 3 missing exercise frames to Drive root.
+Pulled via the Drive MCP, identified each visually, placed.
+
+- `public/stretches/wu-scap-shrugs/0.png` ← arms-relaxed standing portrait
+- `public/stretches/wu-scap-shrugs/1.png` ← shoulders-shrugged-up portrait
+- `public/stretches/broad-jump/1.png` ← airborne mid-leap (pairs with the
+  loaded squat at frame 0 shipped in the original batch)
+
+That closes the image-gen arc: **30/30 avatars + 52/52 exercise
+frames + the splash hero = 82/82 user-facing assets all live.**
+
+CLAUDE.md reminder ticked complete.
+
+---
+
 ## Polish · 2026-05-22 — Splash hero live + avatar picker UX + home chip strip + music/quit separation (qa: splash-polish, profile-avatars, home-hub-singleline, workout-session-start)
 
 User flagged four concerns; bundled into one push.

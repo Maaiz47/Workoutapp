@@ -15,19 +15,12 @@ edit this file to either tick the box ✅ or delete the line entirely. Don't
 re-remind on the same item more than once per session — the goal is gentle
 nudge, not nag.
 
-- [ ] **Image-gen assets — 79/82 shipped (30/30 avatars ✅), 3 form
-  frames still pending.** All 30 avatars now in
-  `/public/avatars/<id>.png`. The 3 remaining are exercise frames the
-  user has on their laptop — they'll drop them in soon. When they do,
-  use the same Drive-pull / route flow.
-
-  Still pending:
-  - **3 exercise frames** → `/public/stretches/<id>/<frame>.png`:
-    - `wu-scap-shrugs/0.png` (arms hanging at sides, neutral)
-    - `wu-scap-shrugs/1.png` (shoulders shrugged up at top)
-    - `broad-jump/1.png` (airborne / landed forward jump)
-
-  Master prompt file is `/image-prompts.md` at repo root for reference.
+- [x] **Image-gen assets — 82/82 shipped ✅** (2026-05-22). All 30
+  avatars + all 52 exercise/stretch frames live in `/public/`. Pulled
+  in three batches via Drive → Drive MCP base64 decode → identify
+  → place. Avatars are at `/public/avatars/<id>.png`; exercise pairs
+  at `/public/stretches/<id>/{0,1}.png`. Splash hero (chrome barbell)
+  also landed at `/public/ai/splash-hero.png`.
 
 ## Always push to `main`
 
