@@ -5577,13 +5577,28 @@ function HomePage() {
         // postWithQueue: stashes the body in localStorage if offline /
         // network errors, replays via drainQueue() on the next online
         // event. The user never sees a lost session.
-        const saveResult = await postWithQueue("/api/workout", { dayId: activeDay.id, duration: adjustedDuration, sets: finalLog, intensityPoints: sessionIP });
+        // Tag the save with `wasSuggested` so the server can award a
+        // small tier-score bonus when the user actually logs the
+        // algorithmically-recommended day. (qa: suggestion-bonus)
+        const wasSuggested = !!(suggestedNext && activeDay && suggestedNext.id === activeDay.id);
+        const saveResult = await postWithQueue("/api/workout", { dayId: activeDay.id, duration: adjustedDuration, sets: finalLog, intensityPoints: sessionIP, wasSuggested });
         // Random rare reward — server may return a lucky drop payload.
         // Schedule the celebration overlay for after the session-complete
         // animation so we don't interrupt the existing celebration.
         // (qa: random-rare-rewards)
         if (saveResult.ok && saveResult.data?.luckyDrop) {
           setPendingLuckyDrop(saveResult.data.luckyDrop);
+        }
+        // Suggested-workout bonus celebration — quieter than lucky
+        // drop (deterministic reward, not surprise) but still
+        // surfaces so the user knows the carrot worked.
+        // (qa: suggestion-bonus)
+        if (saveResult.ok && saveResult.data?.suggestionBonus > 0) {
+          setPendingLuckyDrop({
+            kind: "score-bonus",
+            amount: saveResult.data.suggestionBonus,
+            flavour: `🎯 Smart pick — +${saveResult.data.suggestionBonus} for following the suggested day.`,
+          });
         }
         const res = await fetch("/api/workout");
         const data = await res.json();
@@ -5864,6 +5879,94 @@ function HomePage() {
   // exercise picker and the popover with "last logged" + bonus info.
   // Recomputed only when history changes. (qa: adaptive-exercise-rewards)
   const exerciseRecencies = useMemo(() => computeExerciseRecencies(history), [history]);
+
+  // Suggested-next day — picks the day with the oldest "last logged"
+  // date, avoiding back-to-back same-pattern days. Hoisted to a memo
+  // here (not inside the grid IIFE) so the workout-save handler can
+  // ALSO read it and tag the POST with `wasSuggested` for the +1
+  // tier-score bonus. Recomputes when history or plan changes.
+  // (qa: suggestion-bonus)
+  const suggestedNext = useMemo((): { id: string; reason: string } | null => {
+    const plan = customPlan ? customPlan.map(planDayToWorkoutDay) : (WORKOUT_DATA as any[]);
+    if (!plan || plan.length === 0) return null;
+    const lastByDay: Record<string, string> = {};
+    for (const [dayId, sessions] of Object.entries(history)) {
+      for (const s of sessions as any[]) {
+        const dt = String(s.date ?? "");
+        if (!lastByDay[dayId] || dt > lastByDay[dayId]) lastByDay[dayId] = dt;
+      }
+    }
+    const classify = (day: any): "push" | "pull" | "legs" | "core" | "cardio" | "mobility" | "mixed" => {
+      const buckets: Record<string, number> = { push: 0, pull: 0, legs: 0, core: 0, cardio: 0, mobility: 0 };
+      const muscles: string[] = [];
+      const exs = (day.sections?.flatMap?.((s: any) => s.exercises) ?? day.exercises ?? []) as any[];
+      for (const ex of exs) {
+        const lib = (EXERCISES as any[]).find((e: any) => e.id === (ex.exerciseId ?? ex.id));
+        const pm: string[] = lib?.primaryMuscles ?? ex.primaryMuscles ?? [];
+        const sm: string[] = lib?.secondaryMuscles ?? ex.secondaryMuscles ?? [];
+        for (const m of [...pm, ...sm]) muscles.push(m);
+      }
+      for (const m of muscles) {
+        if (["chest", "shoulders", "triceps"].includes(m)) buckets.push++;
+        else if (["back", "biceps", "lats", "forearms", "rear delts"].includes(m)) buckets.pull++;
+        else if (["quads", "hamstrings", "glutes", "calves", "hips"].includes(m)) buckets.legs++;
+        else if (m === "core" || m === "spine") buckets.core++;
+        else if (m === "cardio") buckets.cardio++;
+      }
+      const t = String(day.title ?? "").toLowerCase();
+      if (t.includes("push")) buckets.push += 5;
+      if (t.includes("pull")) buckets.pull += 5;
+      if (t.includes("leg") || t.includes("lower")) buckets.legs += 5;
+      if (t.includes("cardio") || t.includes("conditioning") || t.includes("hiit")) buckets.cardio += 5;
+      if (t.includes("mobility") || t.includes("recovery") || t.includes("stretch")) buckets.mobility += 5;
+      if (t.includes("core") || t.includes("abs")) buckets.core += 5;
+      if (t.includes("arms")) { buckets.pull += 2; buckets.push += 2; }
+      const sorted = Object.entries(buckets).sort((a, b) => b[1] - a[1]);
+      if (sorted[0][1] === 0) return "mixed";
+      const total = sorted.reduce((s, [, v]) => s + v, 0);
+      if (sorted[0][1] / total >= 0.4) return sorted[0][0] as any;
+      return "mixed";
+    };
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const yesterdayIso = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    let recentPattern: string | null = null;
+    let recentDayTitle: string | null = null;
+    for (const [dayId, date] of Object.entries(lastByDay)) {
+      if (date === todayIso || date === yesterdayIso) {
+        const recentDay = plan.find((d: any) => d.id === dayId);
+        if (recentDay) { recentPattern = classify(recentDay); recentDayTitle = recentDay.title; break; }
+      }
+    }
+    const scored = plan.map((d: any) => {
+      const last = lastByDay[d.id];
+      const lastTs = last ? new Date(last + "T12:00:00").getTime() : 0;
+      const daysSince = last ? Math.floor((Date.now() - lastTs) / 86400000) : 999;
+      const pattern = classify(d);
+      const matchesRecent = recentPattern && pattern === recentPattern && pattern !== "mixed" && pattern !== "mobility";
+      let score = -daysSince;
+      if (matchesRecent) score += 200;
+      if (!last) score -= 0.5;
+      return { day: d, score, pattern, last, daysSince };
+    });
+    scored.sort((a, b) => a.score - b.score);
+    const top = scored[0];
+    if (!top) return null;
+    const last = top.last;
+    const isFirstTime = Object.values(history).every(arr => (arr as any[]).length === 0);
+    const daysSince = last ? top.daysSince : null;
+    const reason = isFirstTime
+      ? "Start here — build the habit."
+      : !last
+        ? "Never logged this one — keep the split balanced."
+        : recentPattern && top.pattern !== recentPattern && recentDayTitle
+          ? `${recentDayTitle.split(" — ")[0]} was last — flipping muscle group${daysSince ? `, ${daysSince}d since` : ""}.`
+          : daysSince === 0
+            ? "Freshest slot if you've got another in you."
+            : daysSince === 1
+              ? "Done yesterday — most rotated day."
+              : `Last done ${daysSince}d ago — most overdue.`;
+    return { id: top.day.id, reason };
+  }, [customPlan, history]);
 
   // Canonical athlete-tier breakdown for the visitor. Computed once
   // from the visitor's full local stats so every surface — welcome
@@ -8079,92 +8182,6 @@ function HomePage() {
         {planNote && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 14, fontStyle: "italic", lineHeight: 1.5 }}>{planNote}</div>}
         {(() => {
           const plan = customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA;
-          // Suggested-next overlay — picks the day with the oldest
-          // "last logged" date, avoiding back-to-back same-pattern
-          // days, then we decorate that card's render below with a
-          // ▶ SUGGESTED chip + a brighter border. Hidden while a
-          // session is in progress so the screen doesn't push a
-          // second workout mid-session. (qa: home-polish-v2)
-          const suggestedNext = ((): { id: string; reason: string } | null => {
-            if (started || !plan || plan.length === 0) return null;
-            const lastByDay: Record<string, string> = {};
-            for (const [dayId, sessions] of Object.entries(history)) {
-              for (const s of sessions as any[]) {
-                const dt = String(s.date ?? "");
-                if (!lastByDay[dayId] || dt > lastByDay[dayId]) lastByDay[dayId] = dt;
-              }
-            }
-            const classify = (day: any): "push" | "pull" | "legs" | "core" | "cardio" | "mobility" | "mixed" => {
-              const buckets: Record<string, number> = { push: 0, pull: 0, legs: 0, core: 0, cardio: 0, mobility: 0 };
-              const muscles: string[] = [];
-              const exs = (day.sections?.flatMap?.((s: any) => s.exercises) ?? day.exercises ?? []) as any[];
-              for (const ex of exs) {
-                const lib = (EXERCISES as any[]).find((e: any) => e.id === (ex.exerciseId ?? ex.id));
-                const pm: string[] = lib?.primaryMuscles ?? ex.primaryMuscles ?? [];
-                const sm: string[] = lib?.secondaryMuscles ?? ex.secondaryMuscles ?? [];
-                for (const m of [...pm, ...sm]) muscles.push(m);
-              }
-              for (const m of muscles) {
-                if (["chest", "shoulders", "triceps"].includes(m)) buckets.push++;
-                else if (["back", "biceps", "lats", "forearms", "rear delts"].includes(m)) buckets.pull++;
-                else if (["quads", "hamstrings", "glutes", "calves", "hips"].includes(m)) buckets.legs++;
-                else if (m === "core" || m === "spine") buckets.core++;
-                else if (m === "cardio") buckets.cardio++;
-              }
-              const t = String(day.title ?? "").toLowerCase();
-              if (t.includes("push")) buckets.push += 5;
-              if (t.includes("pull")) buckets.pull += 5;
-              if (t.includes("leg") || t.includes("lower")) buckets.legs += 5;
-              if (t.includes("cardio") || t.includes("conditioning") || t.includes("hiit")) buckets.cardio += 5;
-              if (t.includes("mobility") || t.includes("recovery") || t.includes("stretch")) buckets.mobility += 5;
-              if (t.includes("core") || t.includes("abs")) buckets.core += 5;
-              if (t.includes("arms")) { buckets.pull += 2; buckets.push += 2; }
-              const sorted = Object.entries(buckets).sort((a, b) => b[1] - a[1]);
-              if (sorted[0][1] === 0) return "mixed";
-              const total = sorted.reduce((s, [, v]) => s + v, 0);
-              if (sorted[0][1] / total >= 0.4) return sorted[0][0] as any;
-              return "mixed";
-            };
-            const todayIso = new Date().toISOString().slice(0, 10);
-            const yesterdayIso = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-            let recentPattern: string | null = null;
-            let recentDayTitle: string | null = null;
-            for (const [dayId, date] of Object.entries(lastByDay)) {
-              if (date === todayIso || date === yesterdayIso) {
-                const recentDay = plan.find((d: any) => d.id === dayId);
-                if (recentDay) { recentPattern = classify(recentDay); recentDayTitle = recentDay.title; break; }
-              }
-            }
-            const scored = plan.map((d: any) => {
-              const last = lastByDay[d.id];
-              const lastTs = last ? new Date(last + "T12:00:00").getTime() : 0;
-              const daysSince = last ? Math.floor((Date.now() - lastTs) / 86400000) : 999;
-              const pattern = classify(d);
-              const matchesRecent = recentPattern && pattern === recentPattern && pattern !== "mixed" && pattern !== "mobility";
-              let score = -daysSince;
-              if (matchesRecent) score += 200;
-              if (!last) score -= 0.5;
-              return { day: d, score, pattern, last, daysSince };
-            });
-            scored.sort((a, b) => a.score - b.score);
-            const top = scored[0];
-            if (!top) return null;
-            const last = top.last;
-            const isFirstTime = Object.values(history).every(arr => (arr as any[]).length === 0);
-            const daysSince = last ? top.daysSince : null;
-            const reason = isFirstTime
-              ? "Start here — build the habit."
-              : !last
-                ? "Never logged this one — keep the split balanced."
-                : recentPattern && top.pattern !== recentPattern && recentDayTitle
-                  ? `${recentDayTitle.split(" — ")[0]} was last — flipping muscle group${daysSince ? `, ${daysSince}d since` : ""}.`
-                  : daysSince === 0
-                    ? "Freshest slot if you've got another in you."
-                    : daysSince === 1
-                      ? "Done yesterday — most rotated day."
-                      : `Last done ${daysSince}d ago — most overdue.`;
-            return { id: top.day.id, reason };
-          })();
           const twoCol = plan.length >= 4;
           // Dynamic card heights. With only 1-3 days the user gets BIG
           // cards filling the remaining viewport instead of leaving dead

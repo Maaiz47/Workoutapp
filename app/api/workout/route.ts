@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     const uid = req.cookies.get("ironlog-uid")?.value;
     if (!uid) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { dayId, duration, sets, intensityPoints, groupWorkoutId } = await req.json();
+    const { dayId, duration, sets, intensityPoints, groupWorkoutId, wasSuggested } = await req.json();
     if (!dayId || !sets) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
     // If a groupWorkoutId was supplied, validate the user actually has
@@ -133,6 +133,31 @@ export async function POST(req: NextRequest) {
     const log = await prisma.workoutLog.create({
       data: { userId: uid, dayId, duration: duration || "00:00:00", sets, intensityPoints: typeof intensityPoints === 'number' ? intensityPoints : 0, ...(tagId ? { groupWorkoutId: tagId } : {}) },
     });
+
+    // Suggested-workout bonus — +1 to tierScoreBonus when the user
+    // logs the algorithmically-suggested "NEXT UP" day. Same +20
+    // lifetime cap as lucky drops (shared bucket). 20h cooldown so
+    // a daily lifter can earn one per day. (qa: suggestion-bonus)
+    let suggestionBonusAwarded = 0;
+    try {
+      if (wasSuggested === true) {
+        const profile = await prisma.userProfile.findUnique({ where: { userId: uid } });
+        if (profile) {
+          const now = Date.now();
+          const cooldownOk = !profile.lastSuggestionBonusAt || (now - profile.lastSuggestionBonusAt.getTime() >= 20 * 60 * 60 * 1000);
+          const capOk = (profile.tierScoreBonus ?? 0) < 20;
+          if (cooldownOk && capOk) {
+            await prisma.userProfile.update({
+              where: { userId: uid },
+              data: { tierScoreBonus: { increment: 1 }, lastSuggestionBonusAt: new Date() },
+            });
+            suggestionBonusAwarded = 1;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Suggestion bonus award failed:", e);
+    }
 
     // Random rare reward roll. Most sessions return null; when it
     // fires we persist the change and ship the drop payload back to
@@ -172,7 +197,7 @@ export async function POST(req: NextRequest) {
       console.error("Lucky drop roll failed:", e);
     }
 
-    return NextResponse.json({ success: true, id: log.id, luckyDrop: drop });
+    return NextResponse.json({ success: true, id: log.id, luckyDrop: drop, suggestionBonus: suggestionBonusAwarded });
   } catch (e) {
     console.error("Workout POST error:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

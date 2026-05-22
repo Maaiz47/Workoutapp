@@ -2,6 +2,51 @@
 
 ---
 
+## Feat · 2026-05-22 — Suggested-workout bonus (qa: suggestion-bonus)
+
+@maaiz: "Doing suggested workouts can give a slight tier point bonus."
+
+### Slice 1/N — +1 tier-score bonus when you log the suggested day
+
+- New field `UserProfile.lastSuggestionBonusAt` (cooldown tracker).
+- `suggestedNext` picker hoisted from the grid IIFE into a
+  component-level `useMemo` so both the day-card render AND the
+  workout-save handler can read it.
+- Workout-save flow now computes `wasSuggested = suggestedNext?.id
+  === activeDay?.id` and passes it to `POST /api/workout`.
+- Server: when `wasSuggested === true`, increment
+  `tierScoreBonus` by +1 (subject to: 20h cooldown via
+  `lastSuggestionBonusAt`, and the existing +20 lifetime cap
+  shared with lucky drops).
+- Returns `{ suggestionBonus: 1 }` in the response when awarded.
+- Client reuses the lucky-drop celebration overlay with the
+  message "🎯 Smart pick — +1 for following the suggested day."
+  Quieter than a lucky drop (no surprise factor) but still gives
+  the dopamine hit.
+
+### Why the existing infrastructure handles it
+
+The +1 lands in the SAME `tierScoreBonus` bucket as lucky drops,
+which already flows through `lib/leaderboardStats.ts ::
+buildCanonicalTier` and gets blended into the headline athlete
+score on every leaderboard surface. No tier-formula changes
+needed.
+
+### Carrots a user can stack
+
+- 20% chance per session → lucky drop (+1..+5)
+- 100% chance once per 20h → suggestion bonus (+1)
+- Combined cap: +20 lifetime
+A user who follows the plan EVERY day will fill the +20 bucket in
+~20 days. A user who never follows it and never gets a lucky drop
+sits at +0. The score difference is meaningful but not
+overwhelming (+20 on a 100-point scale = ~1 tier rung at the
+margins).
+
+(qa: suggestion-bonus)
+
+---
+
 ## Fix · 2026-05-22 — Suggested-next moves onto the day card (qa: home-suggested-overlay)
 
 User screenshot showed the standalone "▶ SUGGESTED NEXT · Leg Day —

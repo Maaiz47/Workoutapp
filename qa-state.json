@@ -2092,6 +2092,26 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     },
     {
+      "id": "suggestion-bonus",
+      "title": "Suggested-workout bonus — +1 tier score when you log the recommended day",
+      "area": "Workout",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass suggestion-bonus",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open the app on Home (not mid-session). Note which day has the '▶ NEXT UP' chip.",
+        "Tap that day → START a session → log at least one set → FINISH the session.",
+        "On finish, verify the celebration overlay includes a '🎯 Smart pick — +1 for following the suggested day.' card (in addition to any normal PR / milestone overlays).",
+        "Open Settings or the tier info modal. Verify your headline athlete tier score went UP by 1 from before the session (in addition to any normal score change from the session itself).",
+        "Log another session within 20 hours on the same suggested day. Verify NO additional suggestion-bonus celebration fires (cooldown — same 20h gate as a daily-lifter cadence).",
+        "Wait > 20h (or update lastSuggestionBonusAt in DB). Tap the suggested day, finish a session — verify the +1 fires again.",
+        "Tap a NON-suggested day. Finish a session. Verify NO suggestion-bonus celebration (wasSuggested=false case).",
+        "Spam suggested-day sessions for 21 consecutive days. Verify the lifetime cap (+20 shared with lucky drops) caps further awards. The 21st session should not receive the bonus."
+      ],
+      "notes": "[2026-05-22 <sha7>] Slice 1/N: schema adds UserProfile.lastSuggestionBonusAt; suggestedNext picker hoisted to component-level useMemo so the workout-save flow can tag wasSuggested. /api/workout POST awards +1 when wasSuggested=true, subject to 20h cooldown + +20 lifetime cap (shared bucket with lucky drops). Celebration reuses the lucky-drop overlay with a '🎯 Smart pick' flavour. No tier-formula change — the bonus rides through the existing tierScoreBonus channel into buildCanonicalTier."
+    },
+    {
       "id": "home-suggested-overlay",
       "title": "Suggested-next workout — rendered as overlay on the matching day card",
       "area": "Home",
