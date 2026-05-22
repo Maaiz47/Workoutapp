@@ -2,6 +2,51 @@
 
 ---
 
+## Feature · 2026-05-21 — Trainer ⇄ Client Stats tab + form previews on warmups/cooldowns/stretches (qa: tier-trainer-keeps-athlete, workout-warmup, settings-identity-tiers)
+
+### Trainer client view — new STATS tab
+Trainers used to only see SPLIT / HISTORY / PROFILE for each
+client. Zero graphs, zero summary metrics — they had to scroll
+session history to gauge anything. New STATS tab (default landing
+tab) surfaces what they actually need:
+- Headline canonical athlete tier (icon + label + score) — same
+  one the client sees on their own dashboard, server-side via
+  `computeStatsForUsers`.
+- Stat tiles: sessions / streak / this-week count / avg time
+  (with green/amber/red against the client's `targetSessionMinutes`).
+- 28-day activity strip (one cell per day, intensity-coloured).
+- **Volume × Muscle heatmap** — reuses the existing component
+  with the client's plan + bodyweight, so the trainer sees
+  identical numbers to the client.
+- Top 6 PRs with date.
+- Body metrics inline trend: weight + body-fat % line plots with
+  start → end labels and signed delta.
+- Empty-state when the client hasn't logged anything yet.
+
+Schema / API:
+- `/api/trainer/clients/[clientId]` now ships
+  `bodyMetrics[]` + canonical `stats.tier` (via
+  `computeStatsForUsers`) so the frontend has everything it
+  needs in a single round-trip.
+
+### Form previews on warmups / cooldowns / stretches
+The `FORM` button + thumbnail tap on stretch rows already
+existed, but tapping opened a modal with generic cues + no
+muscles because:
+- `getFormCues()` only looked in `lib/formCues.ts`, missing the
+  inline `cues[]` arrays in `lib/stretching.ts`.
+- `lookupExMuscles()` only looked in the main `EXERCISES`
+  library, missing stretch `primaryMuscles`.
+
+Fix:
+- `getFormCues()` now falls back to `findStretchById()` by id
+  AND scans `ALL_WARMUPS + ALL_COOLDOWNS` by normalised name.
+- `lookupExMuscles()` does the same. So tapping FORM on
+  "Cat-Cow" or "Doorway Chest Stretch" now shows the actual
+  cues and target muscles instead of the generic fallback.
+
+---
+
 ## QA fixes · 2026-05-21 — Soreness history + Volume × Muscle bodyweight credit + Target session time editor (qa: progress-volume-heatmap, onboarding-profile-setup, settings-identity-tiers)
 
 ### Soreness table — remembers + shows trend

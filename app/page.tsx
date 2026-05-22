@@ -1871,7 +1871,15 @@ function lookupExMuscles(name: string): { muscles: string[]; secondaryMuscles: s
   const key = n(name);
   let found = EXERCISES.find(e => n(e.name) === key);
   if (!found) found = EXERCISES.find(e => key.includes(n(e.name)) || n(e.name).includes(key));
-  return { muscles: found?.primaryMuscles ?? [], secondaryMuscles: found?.secondaryMuscles ?? [] };
+  if (found) return { muscles: found.primaryMuscles ?? [], secondaryMuscles: found.secondaryMuscles ?? [] };
+  // Stretch lookup — warmup / cooldown rows don't live in the
+  // EXERCISES library, so resolve them via lib/stretching.ts. Lets
+  // the FORM modal show muscles + cues for stretches too. (qa: form
+  // previews on warmups/cooldowns/stretches)
+  const stretches = [...ALL_WARMUPS, ...ALL_COOLDOWNS];
+  const sHit = stretches.find(s => n(s.name) === key || key.includes(n(s.name)) || n(s.name).includes(key));
+  if (sHit) return { muscles: sHit.primaryMuscles ?? [], secondaryMuscles: [] };
+  return { muscles: [], secondaryMuscles: [] };
 }
 
 // ─── SESSION RECAP CARD ────────────────────────────────────────────────
@@ -3726,7 +3734,7 @@ function HomePage() {
   const [activeClient, setActiveClient] = useState<{ id: string; username: string } | null>(null);
   const [clientData, setClientData] = useState<{ profile: any; history: Record<string, any[]>; plan: any } | null>(null);
   const [clientDataLoading, setClientDataLoading] = useState(false);
-  const [clientDetailTab, setClientDetailTab] = useState<"split" | "history" | "profile">("split");
+  const [clientDetailTab, setClientDetailTab] = useState<"stats" | "split" | "history" | "profile">("stats");
   const [openClientSession, setOpenClientSession] = useState<string | null>(null);
   const [editingPlan, setEditingPlan] = useState(false);
   const [editedPlanDays, setEditedPlanDays] = useState<any[] | null>(null);
@@ -8061,7 +8069,7 @@ function HomePage() {
 
         {/* Tabs */}
         <div style={{ display: "flex", gap: 0, padding: "16px 20px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          {(["split", "history", "profile"] as const).map(tab => (
+          {(["stats", "split", "history", "profile"] as const).map(tab => (
             <button key={tab} onClick={() => setClientDetailTab(tab)} style={{
               flex: 1, padding: "10px 0", background: "none", border: "none",
               borderBottom: clientDetailTab === tab ? "2px solid #4ECDC4" : "2px solid transparent",
@@ -8078,6 +8086,238 @@ function HomePage() {
         )}
 
         {/* ─── SPLIT TAB ─── */}
+        {/* ─── STATS TAB ──────────────────────────────────────────────
+            Trainer-facing summary of how the client is actually
+            performing — sessions/streak/avg-time vs target, canonical
+            athlete tier, top PRs, Volume × Muscle (with bodyweight
+            credit), 28-day activity, and weight/BF trend. Reuses the
+            VolumeHeatmap component the client sees on their own
+            Progress dashboard. (qa: user — "Show graphs and metrics
+            of clients to trainers when they are checking on their
+            clients") */}
+        {!clientDataLoading && clientDetailTab === "stats" && (
+          <div className="fade-in" style={{ padding: "16px 20px 0" }}>
+            {(() => {
+              const cd = clientData as any;
+              if (!cd) return <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>No data yet.</div>;
+              const histAll = (cd.history ?? {}) as Record<string, any[]>;
+              const allLogs: any[] = Object.values(histAll).flat();
+              const totalSessions = allLogs.length;
+              // Streak (consecutive days, anchored on today/yesterday)
+              const datesDesc = Array.from(new Set(allLogs.map(l => l.date))).sort().reverse();
+              const today = new Date().toISOString().slice(0, 10);
+              const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+              let streak = 0;
+              if (datesDesc[0] === today || datesDesc[0] === yesterday) {
+                streak = 1;
+                for (let i = 1; i < datesDesc.length; i++) {
+                  const diff = Math.round((+new Date(datesDesc[i - 1]) - +new Date(datesDesc[i])) / 86400000);
+                  if (diff === 1) streak++; else break;
+                }
+              }
+              // This week count (last 7 days inc. today)
+              const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+              const thisWeek = new Set(allLogs.filter(l => l.date >= weekAgo).map(l => l.date)).size;
+              // Avg duration parse (HH:MM:SS)
+              const durations = allLogs.map(l => l.duration).filter(Boolean) as string[];
+              const avgMinutes = durations.length > 0
+                ? Math.round(durations.reduce((sum, d) => {
+                    const parts = d.split(":").map(Number);
+                    const mins = parts.length === 3 ? parts[0] * 60 + parts[1] : parts.length === 2 ? parts[0] + parts[1] / 60 : 0;
+                    return sum + mins;
+                  }, 0) / durations.length)
+                : 0;
+              const targetMins = cd.profile?.targetSessionMinutes ?? 45;
+              const avgDelta = avgMinutes - targetMins;
+              const avgColor = !avgMinutes ? "rgba(255,255,255,0.4)" : avgDelta <= 5 ? "#2ecc71" : avgDelta <= 15 ? "#FFB74D" : "#FF6B6B";
+
+              const tier = cd.stats?.tier;
+              const tierLabel = tier?.label ?? "—";
+              const tierIcon = tier?.icon ?? "🐱";
+              const tierColor = tier?.color ?? "rgba(255,255,255,0.4)";
+              const tierBg = tier?.bg ?? "rgba(255,255,255,0.04)";
+              const tierBorder = tier?.border ?? "rgba(255,255,255,0.1)";
+              const tierScore = tier?.score ?? 0;
+
+              // Top PRs (max weight per exercise, weight > 0)
+              const prs: Record<string, { weight: number; reps: number; date: string }> = {};
+              for (const s of allLogs) {
+                const sets = (s.sets ?? {}) as Record<string, { weight: number; reps: number }>;
+                for (const [k, v] of Object.entries(sets)) {
+                  if (!v || !v.weight || !v.reps) continue;
+                  const parts = k.split("-"); const last = parts[parts.length - 1];
+                  const isDrop = /^d\d+$/.test(last) && parts.length >= 3;
+                  if (isDrop) { parts.pop(); parts.pop(); } else { parts.pop(); }
+                  const eid = parts.join("-");
+                  if (!prs[eid] || v.weight > prs[eid].weight) prs[eid] = { weight: v.weight, reps: v.reps, date: s.date };
+                }
+              }
+              const topPRs = Object.entries(prs).sort((a, b) => b[1].weight - a[1].weight).slice(0, 6);
+              const exNameLookup = (eid: string): string => {
+                if (cd.plan?.days) for (const d of cd.plan.days) for (const e of (d.exercises ?? [])) if ((e.exerciseId ?? e.id) === eid) return e.name;
+                for (const d of WORKOUT_DATA) for (const s of d.sections) for (const e of s.exercises) if (e.id === eid) return e.name;
+                const lib = (EXERCISES as any[]).find((x: any) => x.id === eid);
+                return lib?.name ?? eid;
+              };
+
+              // 28-day activity strip
+              const calendarDays: { iso: string; active: boolean; intensity: number }[] = [];
+              for (let i = 27; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                const iso = d.toISOString().slice(0, 10);
+                const day = allLogs.filter(l => l.date === iso);
+                let intensity = 0;
+                for (const s of day) {
+                  const sets = (s.sets ?? {}) as Record<string, any>;
+                  for (const k in sets) intensity += (sets[k]?.weight ?? 0) * (sets[k]?.reps ?? 0);
+                }
+                calendarDays.push({ iso, active: day.length > 0, intensity });
+              }
+              const maxIntensity = Math.max(...calendarDays.map(d => d.intensity), 1);
+
+              // Body metrics for chart
+              const metrics: { date: string; weightKg: number | null; bodyFatPct: number | null }[] = cd.bodyMetrics ?? [];
+              const wPts = metrics.filter(m => m.weightKg != null) as { date: string; weightKg: number }[];
+              const bfPts = metrics.filter(m => m.bodyFatPct != null) as { date: string; bodyFatPct: number }[];
+
+              return (
+                <>
+                  {/* Headline tier + score */}
+                  {tier && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: tierBg, border: `1px solid ${tierBorder}`, borderRadius: 14, marginBottom: 12 }}>
+                      <div style={{ fontSize: 36, lineHeight: 1, filter: `drop-shadow(0 0 8px ${tierColor})` }}>{tierIcon}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>ATHLETE TIER</div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: tierColor, letterSpacing: -0.3 }}>{tierLabel.toUpperCase()}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", marginTop: 2 }}>{tierScore} / 100 PTS</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Headline stat tiles */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 12 }}>
+                    {[
+                      { label: "SESSIONS", value: String(totalSessions), color: "#A29BFE" },
+                      { label: "STREAK", value: `${streak}d`, color: "#FF6B6B" },
+                      { label: "THIS WK", value: `${thisWeek}`, color: thisWeek >= 3 ? "#2ecc71" : "#FFB74D" },
+                      { label: "AVG TIME", value: avgMinutes ? `${avgMinutes}m` : "—", color: avgColor },
+                    ].map(s => (
+                      <div key={s.label} style={{ padding: "10px 6px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, textAlign: "center" }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: s.color, fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>{s.value}</div>
+                        <div style={{ fontSize: 8, color: s.color, letterSpacing: 1.5, marginTop: 4, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Target vs actual session time */}
+                  {avgMinutes > 0 && (
+                    <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>AVG / TARGET</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: avgColor, fontFamily: "'Space Mono', monospace" }}>
+                          {avgMinutes}m / {targetMins}m {avgDelta > 0 ? `(+${avgDelta}m)` : avgDelta < 0 ? `(${avgDelta}m)` : "(on target)"}
+                        </span>
+                      </div>
+                      <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${Math.min(100, Math.round((avgMinutes / Math.max(1, targetMins)) * 100))}%`, background: `linear-gradient(90deg, ${avgColor}aa, ${avgColor})` }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 28-day activity strip */}
+                  <div style={{ padding: "12px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>LAST 28 DAYS</span>
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{calendarDays.filter(d => d.active).length} trained</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(28, 1fr)", gap: 2 }}>
+                      {calendarDays.map((d, i) => {
+                        const ratio = d.intensity / maxIntensity;
+                        const bg = d.active
+                          ? `rgba(255,107,107,${0.25 + ratio * 0.6})`
+                          : "rgba(255,255,255,0.04)";
+                        return <div key={i} title={`${d.iso}${d.active ? ` · ${Math.round(d.intensity).toLocaleString()} kg-reps` : " · rest"}`} style={{ aspectRatio: "1 / 1", borderRadius: 2, background: bg }} />;
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Volume × Muscle heatmap — reuses the same component
+                      the client sees on their own dashboard so the
+                      trainer reads exactly what their client reads. */}
+                  <VolumeHeatmap history={histAll} customPlan={cd.plan?.days ?? null} bodyweightKg={cd.profile?.weightKg ?? 70} />
+
+                  {/* Top PRs */}
+                  {topPRs.length > 0 && (
+                    <div style={{ padding: "12px 14px", background: "linear-gradient(180deg, rgba(240,192,64,0.05), rgba(255,255,255,0.02))", border: "1px solid rgba(240,192,64,0.18)", borderRadius: 12, marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, color: "#f0c040", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 10 }}>🏆 TOP PRs</div>
+                      {topPRs.map(([eid, pr]) => (
+                        <div key={eid} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "6px 0", borderTop: "1px dashed rgba(255,255,255,0.05)" }}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{exNameLookup(eid)}</div>
+                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace" }}>{pr.date}</div>
+                          </div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>
+                            {pr.weight}<span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>kg</span> × {pr.reps}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Body metrics trend — simple inline line plot */}
+                  {(wPts.length >= 2 || bfPts.length >= 2) && (
+                    <div style={{ padding: "12px 14px", background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 12, marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, color: "#4ECDC4", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 10 }}>📈 BODY METRICS</div>
+                      {wPts.length >= 2 && (() => {
+                        const ws = wPts.map(p => p.weightKg);
+                        const min = Math.min(...ws), max = Math.max(...ws);
+                        const range = Math.max(0.1, max - min);
+                        const w0 = wPts[0].weightKg, wN = wPts[wPts.length - 1].weightKg;
+                        const delta = +(wN - w0).toFixed(1);
+                        return (
+                          <div style={{ marginBottom: 10 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>
+                              <span>WEIGHT · {wPts[0].date} → {wPts[wPts.length-1].date}</span>
+                              <span style={{ color: delta < 0 ? "#4ECDC4" : delta > 0 ? "#a29bfe" : "#fff" }}>{w0}kg → {wN}kg {delta > 0 ? `(+${delta})` : delta < 0 ? `(${delta})` : ""}</span>
+                            </div>
+                            <svg width="100%" height="40" viewBox={`0 0 ${wPts.length - 1} 40`} preserveAspectRatio="none" style={{ display: "block" }}>
+                              <polyline fill="none" stroke="#4ECDC4" strokeWidth="0.8" points={wPts.map((p, i) => `${i},${40 - ((p.weightKg - min) / range) * 36 - 2}`).join(" ")} />
+                            </svg>
+                          </div>
+                        );
+                      })()}
+                      {bfPts.length >= 2 && (() => {
+                        const bs = bfPts.map(p => p.bodyFatPct);
+                        const min = Math.min(...bs), max = Math.max(...bs);
+                        const range = Math.max(0.1, max - min);
+                        const b0 = bfPts[0].bodyFatPct, bN = bfPts[bfPts.length - 1].bodyFatPct;
+                        const delta = +(bN - b0).toFixed(1);
+                        return (
+                          <div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>
+                              <span>BODY FAT % · {bfPts[0].date} → {bfPts[bfPts.length-1].date}</span>
+                              <span style={{ color: delta < 0 ? "#4ECDC4" : delta > 0 ? "#a29bfe" : "#fff" }}>{b0}% → {bN}% {delta > 0 ? `(+${delta})` : delta < 0 ? `(${delta})` : ""}</span>
+                            </div>
+                            <svg width="100%" height="40" viewBox={`0 0 ${bfPts.length - 1} 40`} preserveAspectRatio="none" style={{ display: "block" }}>
+                              <polyline fill="none" stroke="#a29bfe" strokeWidth="0.8" points={bfPts.map((p, i) => `${i},${40 - ((p.bodyFatPct - min) / range) * 36 - 2}`).join(" ")} />
+                            </svg>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {totalSessions === 0 && (
+                    <div style={{ textAlign: "center", padding: "32px 16px", color: "rgba(255,255,255,0.35)", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
+                      No workouts logged yet. Stats fill in once they start training.
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
+
         {!clientDataLoading && clientDetailTab === "split" && (
           <div className="fade-in" style={{ padding: "16px 20px 0" }}>
             {proposalSent && (

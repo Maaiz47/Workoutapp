@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../../lib/prisma";
+import { computeStatsForUsers } from "../../../../../lib/leaderboardStats";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
@@ -14,13 +15,13 @@ export async function GET(req: NextRequest, { params }: { params: { clientId: st
     });
     if (!rel) return json({ error: "Not your client" }, 403);
 
-    const [client, profile, logs, plan] = await Promise.all([
-      prisma.user.findUnique({ where: { id: params.clientId }, select: { username: true } }),
+    const [client, profile, logs, plan, bodyMetrics, statsMap] = await Promise.all([
+      prisma.user.findUnique({ where: { id: params.clientId }, select: { username: true, createdAt: true } }),
       prisma.userProfile.findUnique({ where: { userId: params.clientId } }),
       prisma.workoutLog.findMany({
         where: { userId: params.clientId },
         orderBy: { date: "desc" },
-        take: 100,
+        take: 200,
       }),
       prisma.workoutPlan.findUnique({
         where: { userId: params.clientId },
@@ -31,6 +32,18 @@ export async function GET(req: NextRequest, { params }: { params: { clientId: st
           },
         },
       }),
+      // Body metric trend — weight + BF% over time. Powers the Stats
+      // tab's body chart so trainers can see weight cuts/gains at a
+      // glance. (qa: trainer client metrics)
+      prisma.bodyMetric.findMany({
+        where: { userId: params.clientId },
+        select: { date: true, weightKg: true, bodyFatPct: true },
+        orderBy: { date: "asc" },
+      }),
+      // Canonical athlete-tier breakdown via computeStatsForUsers so
+      // the trainer sees the same headline tier the client sees on
+      // their own dashboard.
+      computeStatsForUsers([params.clientId]),
     ]);
 
     if (!client) return json({ error: "Client not found" }, 404);
@@ -46,7 +59,21 @@ export async function GET(req: NextRequest, { params }: { params: { clientId: st
       });
     }
 
-    return json({ username: client.username, profile, history, plan });
+    const stats = statsMap.get(params.clientId) ?? null;
+
+    return json({
+      username: client.username,
+      createdAt: client.createdAt,
+      profile,
+      history,
+      plan,
+      bodyMetrics: bodyMetrics.map(m => ({
+        date: m.date.toISOString().slice(0, 10),
+        weightKg: m.weightKg,
+        bodyFatPct: m.bodyFatPct,
+      })),
+      stats,
+    });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);
   }

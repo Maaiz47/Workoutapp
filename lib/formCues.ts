@@ -696,11 +696,30 @@ const GENERIC_CUES = [
 // Lookup by ID first, then by normalised name match, then a generic fallback.
 export function getFormCues(exerciseId?: string, exerciseName?: string): string[] {
   if (exerciseId && FORM_CUES[exerciseId]) return FORM_CUES[exerciseId];
+  // Stretches keep their cues inline in lib/stretching.ts (they're
+  // structured differently from the main exercise library). Bridge
+  // them in here so the FORM modal works on warmup/cooldown rows
+  // too. (qa: maaiz — "Add form previews like exercise previews
+  // and help text to cooldowns warmups stretches")
+  if (exerciseId) {
+    try {
+      const { findStretchById } = require("./stretching") as typeof import("./stretching");
+      const s = findStretchById(exerciseId);
+      if (s && Array.isArray(s.cues) && s.cues.length > 0) return s.cues;
+    } catch {}
+  }
   if (exerciseName) {
     const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
     const key = norm(exerciseName);
     const match = Object.keys(FORM_CUES).find(k => norm(k) === key || key.includes(norm(k)) || norm(k).includes(key));
     if (match) return FORM_CUES[match];
+    // Fallback: scan the stretch library by normalised name.
+    try {
+      const { ALL_WARMUPS, ALL_COOLDOWNS } = require("./stretching") as typeof import("./stretching");
+      const all = [...ALL_WARMUPS, ...ALL_COOLDOWNS];
+      const hit = all.find(x => norm(x.name) === key || key.includes(norm(x.name)) || norm(x.name).includes(key));
+      if (hit && Array.isArray(hit.cues) && hit.cues.length > 0) return hit.cues;
+    } catch {}
   }
   return GENERIC_CUES;
 }
