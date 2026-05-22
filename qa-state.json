@@ -2092,6 +2092,24 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     },
     {
+      "id": "tier-decay",
+      "title": "Recency-weighted Mastery — distinct exercises last 180d feeds tier score",
+      "area": "Progress",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass tier-decay",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress > Dashboard, scroll to the athlete tier card. Find the Mastery sub-rank row.",
+        "Verify the detail line reads e.g. '12 distinct exercises (last 6mo) · 38 lifetime' (or just 'N distinct exercises' if you have zero history that's >180d old).",
+        "Verify Mastery sub-rank score reflects the RECENT count: a user with 38 lifetime exercises but only 5 in the last 180d should see Mastery score reflect the 5, not the 38.",
+        "Open the tier info modal (tap a tier badge). Athlete sub-rank breakdown panel should show the same Mastery score + detail line.",
+        "Log a new exercise you've never trained (or haven't in 6+ months). Refresh the dashboard. Verify the 'last 6mo' count increased by 1.",
+        "Backwards-compat: a legacy caller of computeAthleteTier that doesn't pass `recentDistinctExercises` should still work — Mastery falls back to `distinctExercises` (lifetime). Test by checking the global leaderboard /api/leaderboard/global response — it should still include tier rows for every qualified user."
+      ],
+      "notes": "[2026-05-22 <sha7>] Slice 1/N: recency-weighted Mastery. AthleteStatsForTier gets optional `recentDistinctExercises`; computeAthleteTier uses it when provided (falls back to lifetime). computeStatsFromLogs walks logs with a 180d gate and emits both counts. LeaderboardMemberStats now includes recentDistinctExercises. All three visitor-breakdown call sites in app/page.tsx updated to compute the recent set. Mastery sub-rank detail line shows both numbers when both are available. Next slices to consider after soak: Volume blend (60% lifetime + 40% rolling 90d), PR age softening."
+    },
+    {
       "id": "global-leaderboard-entry",
       "title": "Global leaderboard — discoverable entry point on home",
       "area": "Home",

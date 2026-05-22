@@ -35,6 +35,10 @@ export interface LeaderboardMemberStats {
   // want to display "distinct exercises trained" or "months on app"
   // don't have to recompute.
   distinctExercises: number;
+  // Distinct exercises trained in the last 180 days. Feeds the
+  // Mastery sub-rank for tier scoring; lifetime `distinctExercises`
+  // is kept for display alongside. (qa: tier-decay)
+  recentDistinctExercises: number;
   monthsOnApp: number;
   // Canonical athlete tier (computed via computeAthleteTier). Always
   // present; new users land at Kitten with score 0.
@@ -70,6 +74,9 @@ function buildCanonicalTier(s: {
   totalVolumeKg: number;
   prCount: number;
   distinctExercises: number;
+  // 180-day distinct-exercise count for the Mastery sub-rank. Optional
+  // because legacy callers may not pass it. (qa: tier-decay)
+  recentDistinctExercises?: number;
   monthsOnApp: number;
   // Optional adherence inputs — passed through to computeAthleteTier
   // so the consistency sub-rank rewards target-hitting + rest days.
@@ -88,6 +95,7 @@ function buildCanonicalTier(s: {
     totalVolumeKg: s.totalVolumeKg,
     prCount: s.prCount,
     distinctExercises: s.distinctExercises,
+    recentDistinctExercises: s.recentDistinctExercises,
     monthsOnApp: s.monthsOnApp,
     hydrationGoalDays: 0,
     sleepLoggedDays: 0,
@@ -158,10 +166,18 @@ export function computeStatsFromLogs(logs: LogLike[], monthsOnApp: number = 0, d
   // (optionally followed by "-d<dropNum>" for drop sets) so the
   // same exercise across different set numbers collapses to one
   // entry in `distinctEx`.
+  //
+  // `recentDistinctEx` is the 180d-window cut of the same set —
+  // feeds the Mastery sub-rank so a user stuck in a rut loses
+  // mastery score until they re-broaden their training. Lifetime
+  // count is kept for display ("X lifetime"). (qa: tier-decay)
   const prs: Record<string, { weight: number; reps: number }> = {};
   const distinctEx = new Set<string>();
+  const recentDistinctEx = new Set<string>();
+  const oneEightyDaysAgo = Date.now() - 180 * 86400000;
   let totalVolume = 0;
   for (const log of logs) {
+    const isRecent = log.date.getTime() >= oneEightyDaysAgo;
     const sets = (log.sets ?? {}) as Record<string, { weight?: number; reps?: number; skipped?: boolean } | null>;
     for (const [k, v] of Object.entries(sets)) {
       if (!v || v.skipped) continue;
@@ -173,7 +189,10 @@ export function computeStatsFromLogs(logs: LogLike[], monthsOnApp: number = 0, d
       const isDropSet = /^d\d+$/.test(last) && parts.length >= 3;
       if (isDropSet) { parts.pop(); parts.pop(); } else { parts.pop(); }
       const eid = parts.join("-");
-      if (eid) distinctEx.add(eid);
+      if (eid) {
+        distinctEx.add(eid);
+        if (isRecent) recentDistinctEx.add(eid);
+      }
       if (!prs[eid] || w > prs[eid].weight || (w === prs[eid].weight && r > prs[eid].reps)) {
         prs[eid] = { weight: w, reps: r };
       }
@@ -183,11 +202,13 @@ export function computeStatsFromLogs(logs: LogLike[], monthsOnApp: number = 0, d
   const totalIntensityPoints = logs.reduce((sum, l) => sum + (l.intensityPoints ?? 0), 0);
   const prCount = Object.keys(prs).length;
   const distinctExercises = distinctEx.size;
+  const recentDistinctExercises = recentDistinctEx.size;
   const tier = buildCanonicalTier({
     totalSessions, streak,
     totalVolumeKg: totalVolume,
     prCount,
     distinctExercises,
+    recentDistinctExercises,
     monthsOnApp,
     sessionsLast4Weeks,
     daysPerWeek,
@@ -202,6 +223,7 @@ export function computeStatsFromLogs(logs: LogLike[], monthsOnApp: number = 0, d
     totalIntensityPoints,
     lastSession: logs[0]?.date.toISOString().slice(0, 10) ?? null,
     distinctExercises,
+    recentDistinctExercises,
     monthsOnApp,
     tier,
     // Body metrics filled in by computeStatsForUsers — placeholder values

@@ -108,7 +108,13 @@ export type AthleteStatsForTier = {
   streak: number;
   totalVolumeKg: number;     // sum of weight × reps across all sets
   prCount: number;
-  distinctExercises: number; // exercises the user has logged at least once
+  distinctExercises: number; // exercises the user has logged at least once (lifetime)
+  // Distinct exercises trained in the last 180 days. Feeds the Mastery
+  // sub-rank instead of lifetime so a user stuck in a rut (same 5
+  // exercises for years) loses Mastery score until they vary again.
+  // Optional — falls back to `distinctExercises` (lifetime) for legacy
+  // callers that haven't passed the recent count yet. (qa: tier-decay)
+  recentDistinctExercises?: number;
   monthsOnApp: number;
   // Habits sub-rank inputs — all derived from the wellness trackers.
   // Optional so legacy callers still work; default to 0 if absent.
@@ -170,7 +176,15 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   // was already at 100k kg-reps (~6mo of solid training) so no
   // change here.
   const volume = scoreFromCount(s.totalVolumeKg, 100_000);
-  const mastery = scoreFromCount(s.distinctExercises, 25);
+  // Mastery — distinct exercises trained in the last 180 days
+  // (recency-weighted) instead of lifetime. Forces variety: a user
+  // who's done the same 5 exercises for years loses Mastery score
+  // even though their lifetime distinct count is high. Legacy
+  // callers that haven't migrated still pass `distinctExercises`
+  // and the field is undefined → falls back so we don't break them.
+  // (qa: tier-decay)
+  const masteryCount = s.recentDistinctExercises ?? s.distinctExercises;
+  const mastery = scoreFromCount(masteryCount, 25);
   // Habits — weighted blend of hydration goal-hits + sleep/energy logging.
   // Hydration is the heaviest weight (60%) since hitting the daily target
   // is a concrete behaviour. Sleep + energy logging both rewarded for the
@@ -197,7 +211,7 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
     { id: "consistency", label: "Consistency", icon: "🔁", score: consistency, detail: adherenceLabel },
     { id: "strength",    label: "Strength",    icon: "💪", score: strength,    detail: `${s.prCount} personal bests` },
     { id: "volume",      label: "Volume",      icon: "📈", score: volume,      detail: `${Math.round(s.totalVolumeKg / 1000)}k kg-reps lifetime` },
-    { id: "mastery",     label: "Mastery",     icon: "🏆", score: mastery,     detail: `${s.distinctExercises} distinct exercises` },
+    { id: "mastery",     label: "Mastery",     icon: "🏆", score: mastery,     detail: s.recentDistinctExercises != null ? `${masteryCount} distinct exercises (last 6mo) · ${s.distinctExercises} lifetime` : `${s.distinctExercises} distinct exercises` },
     { id: "habits",      label: "Habits",      icon: "💧", score: habits,      detail: `${hg}d hydration · ${sl}d sleep · ${en}d energy (last 14)` },
   ];
 

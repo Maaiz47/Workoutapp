@@ -5980,12 +5980,19 @@ function HomePage() {
   const myAthleteBreakdown = useMemo(() => {
     if (!user) return null;
     const distinctEx = new Set<string>();
+    const recentDistinctEx = new Set<string>();
+    const oneEightyDaysAgo = Date.now() - 180 * 86400000;
     let totalVolume = 0;
     for (const dayId in history) for (const s of history[dayId]) {
+      const sessionTs = s.date ? +new Date(s.date) : 0;
+      const isRecent = sessionTs >= oneEightyDaysAgo;
       const sets = (s.sets ?? {}) as Record<string, any>;
       for (const k in sets) {
         const exKey = k.replace(/-\d+(-d\d+)?$/, "");
-        if (exKey) distinctEx.add(exKey);
+        if (exKey) {
+          distinctEx.add(exKey);
+          if (isRecent) recentDistinctEx.add(exKey);
+        }
         const v = sets[k];
         if (v && !v.skipped) totalVolume += (v.weight ?? 0) * (v.reps ?? 0);
       }
@@ -6009,6 +6016,7 @@ function HomePage() {
       totalVolumeKg: totalVolume,
       prCount: Object.keys(overall.exercisePRs).length,
       distinctExercises: distinctEx.size,
+      recentDistinctExercises: recentDistinctEx.size,
       monthsOnApp,
       hydrationGoalDays: wl.hydrationGoalDays,
       sleepLoggedDays: wl.sleepLoggedDays,
@@ -11542,11 +11550,18 @@ function HomePage() {
                 only in Pure Mode. Previously gated to role === "user". */}
             {!deGamified && (() => {
               const distinctEx = new Set<string>();
+              const recentDistinctEx = new Set<string>();
+              const oneEightyDaysAgo = Date.now() - 180 * 86400000;
               for (const dayId in history) for (const s of history[dayId]) {
                 const sets = (s.sets ?? {}) as Record<string, any>;
+                const sessionTs = s.date ? +new Date(s.date) : 0;
+                const isRecent = sessionTs >= oneEightyDaysAgo;
                 for (const k in sets) {
                   const exKey = k.replace(/-\d+(-d\d+)?$/, "");
-                  if (exKey) distinctEx.add(exKey);
+                  if (exKey) {
+                    distinctEx.add(exKey);
+                    if (isRecent) recentDistinctEx.add(exKey);
+                  }
                 }
               }
               const monthsOnApp = user.createdAt ? (Date.now() - +new Date(user.createdAt)) / (30 * 86400000) : 0;
@@ -11563,6 +11578,7 @@ function HomePage() {
                 totalVolumeKg: totalVolume,
                 prCount: Object.keys(overall.exercisePRs).length,
                 distinctExercises: distinctEx.size,
+                recentDistinctExercises: recentDistinctEx.size,
                 monthsOnApp,
                 hydrationGoalDays: wl.hydrationGoalDays,
                 sleepLoggedDays: wl.sleepLoggedDays,

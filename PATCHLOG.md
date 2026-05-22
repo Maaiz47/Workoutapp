@@ -2,6 +2,61 @@
 
 ---
 
+## Feat · 2026-05-22 — Recency-weighted Mastery (qa: tier-decay)
+
+@maaiz approved shipping just the highest-impact decay change.
+
+### What changed
+
+Mastery sub-rank now uses **distinct exercises trained in the last
+180 days**, not lifetime. A user stuck in a 5-exercise rut for a
+year loses Mastery score until they vary again. Returning users
+(2-month break) barely feel it — 6-month window is forgiving by
+design.
+
+### Why this one
+
+- Solves the rut problem (the only way the old system rewarded
+  variety was through career breadth, which lifelong lifters
+  could coast on).
+- Aligns with the existing adaptive-recency engine that already
+  classifies per-exercise recency for the picker dots. Same
+  philosophy: variety = freshness.
+- Bounded blast radius — only Mastery's input changes; the
+  other 4 sub-ranks are untouched. A returning user re-builds
+  Mastery score quickly because the curve hits 80 at just
+  ~25 distinct exercises (midpoint).
+
+### Implementation
+
+- `AthleteStatsForTier` gets a new optional input
+  `recentDistinctExercises`. When provided, Mastery uses it;
+  otherwise falls back to lifetime so legacy callers don't
+  break.
+- `computeStatsFromLogs` (server-side, used for leaderboard
+  rows) walks logs once with a 180d gate and emits both
+  lifetime + recent counts. Recent feeds Mastery score; lifetime
+  is kept on `LeaderboardMemberStats.distinctExercises` for
+  callers that display it.
+- Mastery detail line now reads
+  `"X distinct exercises (last 6mo) · Y lifetime"` when the
+  recent count is provided, so users see both numbers.
+- All three places in `app/page.tsx` that compute the visitor's
+  own breakdown (the canonical memo, the milestone-up trigger,
+  the Progress dashboard tier card) updated to compute the
+  recent set alongside lifetime.
+
+### What's still in play (next slices if needed)
+
+- Volume blend (60% lifetime + 40% rolling 90d). Will revisit
+  after Mastery soaks for a week or two.
+- PR softening with age. Lower priority; current PR count is
+  already a relatively small driver of the headline.
+
+(qa: tier-decay)
+
+---
+
 ## Fix · 2026-05-22 — Surface the global leaderboard on home (qa: global-leaderboard-entry)
 
 @maaiz: "I'm not seeing any global leaderboards placed anywhere,
