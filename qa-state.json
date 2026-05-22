@@ -2092,6 +2092,26 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     },
     {
+      "id": "vercel-ignore-deploys",
+      "title": "Vercel ignoreCommand skips deploys for runtime-invisible commits",
+      "area": "Infrastructure",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass vercel-ignore-deploys",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Verify vercel.json exists at repo root with `ignoreCommand: \"bash scripts/vercel-should-skip.sh\"`.",
+        "Verify scripts/vercel-should-skip.sh exists and is executable (`ls -la` should show -rwxr-xr-x).",
+        "Make a test commit that ONLY touches CLAUDE.md (or any safe-set file). Push to main.",
+        "On the Vercel dashboard, verify the deploy for that commit shows status 'Canceled' (or similar) with the message 'Build skipped' — quota should NOT be consumed.",
+        "Make a test commit that touches app/page.tsx (or any non-safe file). Push to main.",
+        "Verify a normal deploy fires for that commit (quota DOES count).",
+        "Make a mixed commit (safe + non-safe). Push. Verify deploy fires (any non-safe change triggers deploy).",
+        "Edge case: first deploy after enabling this — the script proceeds (exits 1) when VERCEL_GIT_PREVIOUS_SHA is empty so initial deploys never get accidentally skipped."
+      ],
+      "notes": "[2026-05-22 <sha7>] Safe-set: qa-comments/**, scripts/**, CLAUDE.md, README.md, image-prompts.md, public/stretches/README.md, public/avatars/README.md, .gitignore. Conservative on purpose — files like qa-state.json + PATCHLOG.md + qa-processed.json all DO require redeploy because they're read at runtime by API routes. Locally smoke-tested the regex with synthetic diffs."
+    },
+    {
       "id": "image-batch-script",
       "title": "Image-batch unpack helper — bulk-import zip or folder into /public/",
       "area": "Trainer",

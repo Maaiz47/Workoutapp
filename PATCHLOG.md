@@ -2,6 +2,63 @@
 
 ---
 
+## Infra · 2026-05-22 — Vercel ignoreCommand + deploy-frugality discipline (qa: vercel-ignore-deploys)
+
+@maaiz: hit the Vercel deploy limit again. Two fixes — server-side
+guardrail + behavioral change documented for future sessions.
+
+### Server-side: `vercel.json` ignoreCommand
+
+New `vercel.json` wires `ignoreCommand` to
+`scripts/vercel-should-skip.sh`. The script runs on every Vercel
+build and:
+
+- Diffs against `$VERCEL_GIT_PREVIOUS_SHA` (the last successfully
+  deployed commit).
+- If every changed file matches a "safe-set" pattern → exit 0 →
+  Vercel cancels the deploy (no quota burn).
+- If ANY file is outside the safe set → exit 1 → deploy proceeds.
+
+Safe-set (runtime-invisible files) — auto-skip:
+- `qa-comments/**` (audit mirrors written by the live app, never
+  read at runtime)
+- `scripts/**` (dev-only helpers, not bundled)
+- `CLAUDE.md`, `README.md`, `image-prompts.md`
+- `public/stretches/README.md`, `public/avatars/README.md`
+- `.gitignore`
+
+NOT safe (still triggers deploy): `qa-state.json` (read by
+`/api/qa`), `qa-processed.json` (read by `/api/qa/comment`),
+`PATCHLOG.md` (read by `/api/version`), `prisma/schema.prisma`,
+`app/**`, `lib/**`, `public/avatars/*.png`, `public/stretches/<id>/*.png`,
+`package.json`, etc.
+
+Conservative on purpose — false-positive deploys cost quota,
+false-negative skips cost a missing feature.
+
+### Behavior: CLAUDE.md discipline section
+
+New "Deploy frugality — bundle work before pushing" section in
+CLAUDE.md so every future Claude session reads the rule on
+session start:
+
+- Bundle related slices into one push, not push-between-micro-
+  iterations.
+- Combine independent slices when both are low-risk and ready.
+- Trust the ignoreCommand; don't try to push pure-docs commits to
+  trigger a "real" deploy.
+- User saying "ship it" / "push to main" overrides batching.
+
+### Smoke-tested locally
+
+Verified the regex with two synthetic diffs:
+- `CLAUDE.md` + `qa-comments/abc.json` + `scripts/foo.ts` → SKIP
+- `CLAUDE.md` + `app/page.tsx` → PROCEED
+
+(qa: vercel-ignore-deploys)
+
+---
+
 ## Polish · 2026-05-22 — Splash duration bump + image-batch unpack helper (qa: splash-polish, image-batch-script)
 
 Two small wins in one commit:

@@ -38,6 +38,34 @@ nudge, not nag.
 This repo uses direct-to-`main` development. Never open PRs, never create feature
 branches, unless the user explicitly asks. Vercel auto-deploys `main` on every push.
 
+## Deploy frugality — bundle work before pushing
+
+Vercel free tier caps daily deploys and the user has hit the limit before. Be
+deliberate about what triggers a deploy:
+
+1. **Bundle related work into ONE push.** If you're iterating on a slice (code
+   change → polish → typo fix → commit message tweak), make multiple commits
+   locally but defer `git push` until the slice is genuinely done. One push, one
+   deploy. Don't push between micro-iterations.
+2. **Combine independent slices when sensible.** Two small unrelated changes the
+   user asked for in the same conversation can ride one commit + one push if
+   they're both ready and both low-risk. Add multiple `(qa: ...)` tags in the
+   PATCHLOG entry.
+3. **Use `vercel.json`'s `ignoreCommand`.** Commits that only touch
+   `qa-comments/`, `scripts/`, `CLAUDE.md`, `README.md`, `image-prompts.md`,
+   `public/stretches/README.md`, `public/avatars/README.md`, or `.gitignore`
+   automatically skip the deploy (no quota burn). DON'T bypass this — it's
+   tuned to match what actually has runtime impact. See
+   `scripts/vercel-should-skip.sh` for the exact regex.
+4. **Files that DO need a redeploy** (don't get false-positive comfort from the
+   ignore script): `qa-state.json`, `qa-processed.json`, `PATCHLOG.md`,
+   `prisma/schema.prisma`, anything in `app/`, `lib/`, `public/avatars/*.png`,
+   `public/stretches/<id>/*.png`, `package.json`. These ARE bundled / read at
+   runtime so changes need to ship.
+5. **When the user says "ship it" / "push to main" / "commit"**, that means
+   push now. Don't accumulate further. Their explicit ship signal overrides
+   the batching rule.
+
 ## How to invoke QA processing
 
 If the user says any of the following in a new session, run the **QA processing
