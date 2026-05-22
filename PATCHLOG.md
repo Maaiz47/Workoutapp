@@ -2,6 +2,45 @@
 
 ---
 
+## Fix · 2026-05-21 — Share routines reliability + per-set marking for warmups/cooldowns/stretches (qa: workout-warmup, workout-set-logging)
+
+### Share routines — case-insensitive lookup + dedupe + clearer errors
+- Username lookup now strips leading `@` and falls back to a
+  case-insensitive match if the exact-lowercase lookup misses
+  (catches legacy accounts that registered before the auth
+  route forced lowercase).
+- Dedupe: if the same routine (by name + sender) was shared
+  with the same recipient in the last 7 days, the second send
+  returns `{ ok: true, deduped: true }` instead of creating a
+  duplicate row.
+- Errors are now specific: `Routine not found`,
+  `Not your routine`, `No user @x. Check the spelling.`,
+  `Can't share with yourself`. The 500 catch logs to the
+  server console with the prisma error.
+- Trainer multi-share aggregates results across the loop —
+  previously only the LAST attempt's status surfaced. Now
+  reads e.g. `Sent to 3, 1 already had it, 1 failed (No user
+  @x. Check the spelling.)`.
+
+### Per-set marking for warmups / cooldowns / stretches
+- `warmupDone` (per-exercise boolean) replaced with
+  `warmupSetState` (per-set state: done / skipped / pending,
+  keyed `${exId}-${setNum}`).
+- Single-set warmups: row tap still cycles pending → done →
+  skipped → pending (no behaviour change for the common
+  case).
+- Multi-set warmups (e.g. 2×15 band pull-aparts): tap row to
+  expand; the panel shows one chip per set with the cycle
+  behaviour, plus `✓ ALL DONE` / `↷ SKIP ALL` shortcuts.
+- Row header shows `0/2 · TAP` instead of `TAP TO MARK DONE`
+  when there are multiple sets so the count is visible
+  inline.
+- "Done" fade-out applies once every set has any state
+  (done or skipped) — the row clears when you've actually
+  triaged it, not before.
+
+---
+
 ## Feature · 2026-05-21 — Cardio tracking (time + incline + speed) + animated stretch icons in FORM modal (qa: workout-warmup, workout-set-logging)
 
 ### Cardio tracking
@@ -43,8 +82,8 @@ library has no photos for stretches. Now:
 - Falls back to the existing "NO FORM DEMO" placeholder only
   for ids that aren't stretches AND have no library photo.
 
-(qa: maaiz — "There's no icons for warm ups cool down and
-stretches. Also no animation")
+Reported by @maaiz — "There's no icons for warm ups cool down
+and stretches. Also no animation".
 
 ---
 

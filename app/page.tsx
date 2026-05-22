@@ -3618,7 +3618,14 @@ function HomePage() {
   const [obDir, setObDir] = useState<"forward" | "back">("forward");
   const [history, setHistory] = useState<Record<string, any[]>>({});
   const [openHist, setOpenHist] = useState<string | null>(null);
-  const [warmupDone, setWarmupDone] = useState<Record<string, boolean>>({});
+  // Per-set state for non-trackable exercises (warmups, cooldowns,
+  // stretches). Keys: `${exId}-${setNum}`. Per-set granularity
+  // because some warmups have multiple sets (e.g. 2×15 band pull-
+  // aparts) and the user wants to mark each one done or skipped
+  // individually. (qa: maaiz — "There's sets of warm ups or
+  // stretch or cool down, want to be able to mark each set done
+  // or skip")
+  const [warmupSetState, setWarmupSetState] = useState<Record<string, "done" | "skipped">>({});
   const [pendingDrop, setPendingDrop] = useState<{ exId: string; setNum: number; dropNum: number } | null>(null);
   const [dropWInput, setDropWInput] = useState("");
   const [dropRInput, setDropRInput] = useState("");
@@ -4867,7 +4874,7 @@ function HomePage() {
   const goTo = (v: string, dir: "forward" | "back" = "forward") => { setViewDir(dir); setView(v); };
   const goBack = () => goTo("home", "back");
   const shownPBs = useRef<Map<string, number>>(new Map());
-  const openDay = (d: WorkoutDay) => { setActiveDay(d); goTo("workout"); setLog({}); setExpanded(null); setStarted(false); setDeloadActive(false); setShowDeloadBanner(false); setWarmupDone({}); shownPBs.current.clear(); };
+  const openDay = (d: WorkoutDay) => { setActiveDay(d); goTo("workout"); setLog({}); setExpanded(null); setStarted(false); setDeloadActive(false); setShowDeloadBanner(false); setWarmupSetState({}); shownPBs.current.clear(); };
   const begin = () => {
     setStarted(true);
     timer.startT();
@@ -7586,14 +7593,36 @@ function HomePage() {
                           if (shareClientIds.length === 0) return;
                           setSharingLoading(true); setShareResult(null);
                           const usernames = shareClientIds.map(id => clients.find((c: any) => c.id === id)?.username).filter(Boolean) as string[];
-                          let lastResult = "";
+                          // Aggregate results across the loop —
+                          // previously only the last attempt's
+                          // status surfaced, so a single late
+                          // failure made all sends look broken.
+                          // (qa: maaiz — "Sharing saved routines
+                          // don't seem to be working")
+                          const sent: string[] = [];
+                          const deduped: string[] = [];
+                          const failed: Array<{ u: string; err: string }> = [];
                           for (const uname of usernames) {
-                            const res = await fetch(`/api/routines/${r.id}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toUsername: uname }) });
-                            const data = await res.json();
-                            lastResult = data.ok ? `Sent to ${usernames.length} client${usernames.length > 1 ? "s" : ""}` : (data.error ?? "Failed");
+                            try {
+                              const res = await fetch(`/api/routines/${r.id}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toUsername: uname }) });
+                              const data = await res.json().catch(() => ({}));
+                              if (res.ok && data.ok) {
+                                if (data.deduped) deduped.push(uname);
+                                else sent.push(uname);
+                              } else {
+                                failed.push({ u: uname, err: data.error ?? `HTTP ${res.status}` });
+                              }
+                            } catch (err: any) {
+                              failed.push({ u: uname, err: err?.message ?? "Network" });
+                            }
                           }
-                          setSharingLoading(false); setShareResult(lastResult); setShareClientIds([]);
-                          if (lastResult.startsWith("Sent")) setTimeout(() => { setSharingRoutineId(null); setShareResult(null); }, 2000);
+                          let msg = "";
+                          if (sent.length) msg += `Sent to ${sent.length}`;
+                          if (deduped.length) msg += `${msg ? ", " : ""}${deduped.length} already had it`;
+                          if (failed.length) msg += `${msg ? ", " : ""}${failed.length} failed (${failed[0].err}${failed.length > 1 ? "…" : ""})`;
+                          if (!msg) msg = "No results";
+                          setSharingLoading(false); setShareResult(msg); setShareClientIds([]);
+                          if (failed.length === 0) setTimeout(() => { setSharingRoutineId(null); setShareResult(null); }, 2500);
                         }} disabled={sharingLoading || shareClientIds.length === 0}
                           style={{ width: "100%", padding: "9px", background: shareClientIds.length > 0 ? "#4ECDC4" : "rgba(255,255,255,0.07)", border: "none", borderRadius: 8, color: shareClientIds.length > 0 ? "#000" : "rgba(255,255,255,0.2)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: shareClientIds.length > 0 ? "pointer" : "default", fontFamily: "'Space Mono', monospace" }}>
                           {sharingLoading ? "…" : shareClientIds.length > 0 ? `SEND TO ${shareClientIds.length} CLIENT${shareClientIds.length > 1 ? "S" : ""}` : "SELECT CLIENTS ABOVE"}
@@ -11743,7 +11772,18 @@ function HomePage() {
                 const isExp = expanded === ex.id;
                 const hasDrop = pendingDrop?.exId === ex.id;
                 const { weight: lw, reps: lr } = lastSessionBest(ex.id);
-                const wuDone = !trackable && warmupDone[ex.id];
+                // Whole-exercise "done" only when every set has a
+                // state (done OR skipped). Used to fade the row out.
+                const wuSetsCount = Math.max(1, ex.sets || 1);
+                let wuDoneCount = 0, wuSkipCount = 0;
+                if (!trackable) {
+                  for (let i = 1; i <= wuSetsCount; i++) {
+                    const s = warmupSetState[`${ex.id}-${i}`];
+                    if (s === "done") wuDoneCount++;
+                    else if (s === "skipped") wuSkipCount++;
+                  }
+                }
+                const wuDone = !trackable && (wuDoneCount + wuSkipCount) >= wuSetsCount;
                 const exIsDropSet = isDropSetMode(ex);
                 // Legacy `dropCount` retained for the few places that still
                 // reason about how many drops are in the chain, but the flow
@@ -11803,7 +11843,20 @@ function HomePage() {
                 return (
                   <div key={ex.id} className="fade-in">
                     <div onClick={() => {
-                      if (!trackable) { setWarmupDone(prev => ({ ...prev, [ex.id]: !prev[ex.id] })); return; }
+                      if (!trackable) {
+                        // Single-set warmup → tap toggles the
+                        // single set's done/pending state for
+                        // backward compat (one-tap quick mark).
+                        // Multi-set warmup → expand the row so the
+                        // per-set chip panel surfaces.
+                        if (wuSetsCount <= 1) {
+                          const key = `${ex.id}-1`;
+                          setWarmupSetState(prev => ({ ...prev, [key]: prev[key] === "done" ? "skipped" as const : prev[key] === "skipped" ? undefined as any : "done" as const }));
+                        } else {
+                          setExpanded(isExp ? null : ex.id);
+                        }
+                        return;
+                      }
                       if (allDone) return;
                       setManualBW(false);
                       setBwAddWeight(isBW && lw > 0);
@@ -11948,7 +12001,13 @@ function HomePage() {
                             }} style={{ background: "rgba(255,230,109,0.1)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 6, color: "#FFE66D", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>⟳ UNGROUP</button>
                           ))}
                           {(allDone || wuDone) && <span style={{ fontSize: 16, color: "#2ecc71" }}>✓</span>}
-                          {!trackable && !wuDone && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>TAP TO MARK DONE</span>}
+                          {!trackable && !wuDone && (
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                              {wuSetsCount > 1
+                                ? `${wuDoneCount + wuSkipCount}/${wuSetsCount} · TAP`
+                                : "TAP TO MARK DONE"}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>
@@ -12050,6 +12109,76 @@ function HomePage() {
                         inputs. The regular weight/reps block below
                         is gated on `!isCardioExercise(ex)` so they
                         don't both render. */}
+                    {/* Per-set chip panel for non-trackable warmups
+                        / cooldowns / stretches with multiple sets.
+                        Each set gets a tappable chip that cycles
+                        pending → done → skipped → pending. (qa:
+                        maaiz) */}
+                    {isExp && !trackable && wuSetsCount > 1 && (() => {
+                      return (
+                        <div className="fade-in" style={{ padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>SETS · TAP TO MARK</span>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace" }}>{wuDoneCount}/{wuSetsCount} DONE{wuSkipCount > 0 ? ` · ${wuSkipCount} SKIPPED` : ""}</span>
+                          </div>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {Array.from({ length: wuSetsCount }).map((_, i) => {
+                              const setNum = i + 1;
+                              const key = `${ex.id}-${setNum}`;
+                              const state = warmupSetState[key];
+                              const color = state === "done" ? "#2ecc71" : state === "skipped" ? "#FF6B6B" : "rgba(255,255,255,0.45)";
+                              const bg = state === "done" ? "rgba(46,204,113,0.12)" : state === "skipped" ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)";
+                              const border = state === "done" ? "rgba(46,204,113,0.35)" : state === "skipped" ? "rgba(255,107,107,0.3)" : "rgba(255,255,255,0.1)";
+                              const label = state === "done" ? "✓ DONE" : state === "skipped" ? "↷ SKIP" : "·";
+                              return (
+                                <button
+                                  key={setNum}
+                                  onClick={() => {
+                                    setWarmupSetState(prev => {
+                                      const cur = prev[key];
+                                      const next = { ...prev };
+                                      if (!cur) next[key] = "done";
+                                      else if (cur === "done") next[key] = "skipped";
+                                      else delete next[key];
+                                      return next;
+                                    });
+                                  }}
+                                  style={{
+                                    minWidth: 56, padding: "8px 10px",
+                                    background: bg, border: `1px solid ${border}`, borderRadius: 8,
+                                    color, fontSize: 11, fontWeight: 700, letterSpacing: 1,
+                                    fontFamily: "'Space Mono', monospace", cursor: "pointer",
+                                  }}
+                                >
+                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 1 }}>SET {setNum}</div>
+                                  <div>{label}</div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {/* Quick actions */}
+                          <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                            <button
+                              onClick={() => setWarmupSetState(prev => {
+                                const next = { ...prev };
+                                for (let i = 1; i <= wuSetsCount; i++) next[`${ex.id}-${i}`] = "done";
+                                return next;
+                              })}
+                              style={{ flex: 1, padding: "6px", background: "rgba(46,204,113,0.08)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 6, color: "#2ecc71", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                            >✓ ALL DONE</button>
+                            <button
+                              onClick={() => setWarmupSetState(prev => {
+                                const next = { ...prev };
+                                for (let i = 1; i <= wuSetsCount; i++) next[`${ex.id}-${i}`] = "skipped";
+                                return next;
+                              })}
+                              style={{ flex: 1, padding: "6px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.22)", borderRadius: 6, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                            >↷ SKIP ALL</button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {isExp && trackable && ns && !hasDrop && isCardioExercise(ex) && (() => {
                       const isTM = isTreadmillExercise(ex);
                       const lastC = lastCardioSession(ex.id);
