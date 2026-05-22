@@ -7163,34 +7163,108 @@ function HomePage() {
               if (!lastByDay[dayId] || d > lastByDay[dayId]) lastByDay[dayId] = d;
             }
           }
-          // Pick the day that's been done least recently (or never).
-          // Sort: never-done first, then oldest last-done first. Ties
-          // resolved by plan order so the user's first choice
-          // matches the visible day order in the grid.
-          const ranked = [...plan].sort((a: any, b: any) => {
-            const la = lastByDay[a.id] ?? "";
-            const lb = lastByDay[b.id] ?? "";
-            if (la !== lb) return la.localeCompare(lb); // empty string sorts before any iso date
-            return 0;
+
+          // Classify a day by movement pattern from its exercise list
+          // + title fallback. Two days with the same pattern (e.g.
+          // Pull Width + Pull Thickness, both PULL) shouldn't be
+          // suggested back-to-back — biceps + lats need recovery.
+          // (qa: maaiz — "we don't think we should be suggesting two
+          // pull days back to back")
+          const classify = (day: any): "push" | "pull" | "legs" | "core" | "cardio" | "mobility" | "mixed" => {
+            const buckets: Record<string, number> = { push: 0, pull: 0, legs: 0, core: 0, cardio: 0, mobility: 0 };
+            const muscles: string[] = [];
+            const exs = (day.sections?.flatMap?.((s: any) => s.exercises) ?? day.exercises ?? []) as any[];
+            for (const ex of exs) {
+              const lib = (EXERCISES as any[]).find((e: any) => e.id === (ex.exerciseId ?? ex.id));
+              const pm: string[] = lib?.primaryMuscles ?? ex.primaryMuscles ?? [];
+              const sm: string[] = lib?.secondaryMuscles ?? ex.secondaryMuscles ?? [];
+              for (const m of [...pm, ...sm]) muscles.push(m);
+            }
+            for (const m of muscles) {
+              if (["chest", "shoulders", "triceps"].includes(m)) buckets.push++;
+              else if (["back", "biceps", "lats", "forearms", "rear delts"].includes(m)) buckets.pull++;
+              else if (["quads", "hamstrings", "glutes", "calves", "hips"].includes(m)) buckets.legs++;
+              else if (m === "core" || m === "spine") buckets.core++;
+              else if (m === "cardio") buckets.cardio++;
+            }
+            // Title-based fallback for ambiguous days
+            const t = String(day.title ?? "").toLowerCase();
+            if (t.includes("push")) buckets.push += 5;
+            if (t.includes("pull")) buckets.pull += 5;
+            if (t.includes("leg") || t.includes("lower")) buckets.legs += 5;
+            if (t.includes("cardio") || t.includes("conditioning") || t.includes("hiit")) buckets.cardio += 5;
+            if (t.includes("mobility") || t.includes("recovery") || t.includes("stretch")) buckets.mobility += 5;
+            if (t.includes("core") || t.includes("abs")) buckets.core += 5;
+            if (t.includes("arms")) { buckets.pull += 2; buckets.push += 2; }
+            const sorted = Object.entries(buckets).sort((a, b) => b[1] - a[1]);
+            if (sorted[0][1] === 0) return "mixed";
+            // If top is at least 60% of the sum, classify as that pattern; else mixed.
+            const total = sorted.reduce((s, [, v]) => s + v, 0);
+            if (sorted[0][1] / total >= 0.4) return sorted[0][0] as any;
+            return "mixed";
+          };
+
+          // Pattern of the very last logged session (so we can avoid
+          // doubling up). Only counts sessions in the last 2 days —
+          // beyond that, muscles have recovered.
+          const todayIso = new Date().toISOString().slice(0, 10);
+          const yesterdayIso = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+          let recentPattern: string | null = null;
+          let recentDayTitle: string | null = null;
+          for (const [dayId, date] of Object.entries(lastByDay)) {
+            if (date === todayIso || date === yesterdayIso) {
+              const recentDay = plan.find((d: any) => d.id === dayId);
+              if (recentDay) {
+                recentPattern = classify(recentDay);
+                recentDayTitle = recentDay.title;
+                break;
+              }
+            }
+          }
+
+          // Score each candidate. Lower = better.
+          // 1. Older last-done is better (matches user mental model).
+          // 2. Heavy penalty for matching the recent pattern (avoid
+          //    back-to-back push/pull/legs).
+          // 3. Slight bonus for never-done so beginners cover all
+          //    days.
+          const scored = plan.map((d: any) => {
+            const last = lastByDay[d.id];
+            const lastTs = last ? new Date(last + "T12:00:00").getTime() : 0;
+            const daysSince = last ? Math.floor((Date.now() - lastTs) / 86400000) : 999;
+            const pattern = classify(d);
+            const matchesRecent = recentPattern && pattern === recentPattern && pattern !== "mixed" && pattern !== "mobility";
+            // Score: lower wins. daysSince inverted (more days = lower score).
+            // Same-pattern penalty: +200 (effectively pushes them
+            // behind every other candidate unless ALL candidates
+            // match the recent pattern).
+            let score = -daysSince;
+            if (matchesRecent) score += 200;
+            // Never-done tiebreaker (preferred over recently-done)
+            if (!last) score -= 0.5;
+            return { day: d, score, pattern, last, daysSince, matchesRecent };
           });
-          const suggested = ranked[0];
-          if (!suggested) return null;
-          const last = lastByDay[suggested.id];
+          scored.sort((a, b) => a.score - b.score);
+          const top = scored[0];
+          if (!top) return null;
+          const suggested = top.day;
+          const last = top.last;
           const totalLoggedDays = Object.keys(lastByDay).length;
-          // Days since last logged (any day) — used for the
-          // "Start at Day 1" first-time copy.
           const isFirstTime = Object.values(history).every(arr => (arr as any[]).length === 0);
-          const lastDate = last ? new Date(last + "T12:00:00") : null;
-          const daysSince = lastDate ? Math.max(0, Math.floor((Date.now() - +lastDate) / 86400000)) : null;
+          const daysSince = last ? top.daysSince : null;
+          // Build the reason copy with awareness of the recent
+          // session's pattern so the user gets a meaningful WHY.
           const reason = isFirstTime
             ? "Brand new — start here. Build the habit one rep at a time."
             : !last
               ? `You've never logged this day. ${totalLoggedDays > 0 ? "Slot it in to keep the split balanced." : "Start here."}`
-              : daysSince === 0
-                ? "Logged today — but if you've got another session in you, this is the freshest slot."
-                : daysSince === 1
-                  ? "Done yesterday. Most-rotated day in your split."
-                  : `Last done ${daysSince} days ago — the most overdue day in your plan.`;
+              : recentPattern && top.pattern !== recentPattern && recentDayTitle
+                ? `${recentDayTitle.split(" — ")[0]} was last session — flipping muscle group so back/biceps/legs/etc can recover.${daysSince ? ` ${daysSince}d since you last did this one.` : ""}`
+                : daysSince === 0
+                  ? "Logged today — but if you've got another session in you, this is the freshest slot."
+                  : daysSince === 1
+                    ? "Done yesterday. Most-rotated day in your split."
+                    : `Last done ${daysSince} days ago — the most overdue day in your plan.`;
           return (
             <button
               onClick={() => {

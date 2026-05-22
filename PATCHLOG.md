@@ -2,6 +2,33 @@
 
 ---
 
+## Fix · 2026-05-21 — Suggested Next Workout avoids back-to-back same-pattern days (qa: home-polish-v2)
+
+User flagged: suggestion offered a Pull Day (Thickness) the day
+after a Pull Day (Width). Two pull days in a row — back / biceps
+get no recovery. The old picker only looked at "oldest last-done"
+and ignored movement pattern.
+
+- New `classify(day)` derives a movement pattern (push / pull /
+  legs / core / cardio / mobility / mixed) from the day's
+  exercise list (using `EXERCISES.primaryMuscles` +
+  `secondaryMuscles`) with a title-keyword fallback. Top bucket
+  wins if it's at least 40% of the muscle hits; otherwise mixed.
+- Picker now checks the most recent session (today or yesterday)
+  and identifies its pattern.
+- Each candidate day is scored: lower = better. Older last-done
+  reduces score; +200 penalty if its pattern matches the recent
+  session's pattern (skips push-after-push, pull-after-pull,
+  legs-after-legs). Mixed / mobility days bypass the penalty
+  since they're recovery-friendly. Never-done gets a small
+  preference.
+- Reason copy adapts: when we deliberately skip a same-pattern
+  candidate, the card reads "Push Day was last session —
+  flipping muscle group so back/biceps/legs/etc can recover.
+  Nd since you last did this one."
+
+---
+
 ## Fix · 2026-05-21 — Add-day picker UX + bootstrap-collision fix (qa: home-polish-v2)
 
 ### "Couldn't add day. Try again in a moment."
