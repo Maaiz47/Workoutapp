@@ -161,6 +161,12 @@ export type TrainerStatsForTier = {
   clientsWithActiveStreak: number;// # with a streak ≥ 7d
   totalClientPRs: number;         // PRs across the trainer's whole roster (lifetime)
   totalClientVolumeKg: number;    // volume across the whole roster (lifetime)
+  // Trainer's OWN athlete headline score (0-100). A trainer slacking
+  // on their personal training shouldn't ladder up — practising what
+  // you preach matters. Optional for legacy callers; defaults to 0 if
+  // omitted, which DOES drag the headline (intentional). (qa:
+  // tier-trainer-discipline)
+  selfAthleteScore?: number;
 };
 
 export function computeTrainerTier(s: TrainerStatsForTier): TierBreakdown {
@@ -174,12 +180,21 @@ export function computeTrainerTier(s: TrainerStatsForTier): TierBreakdown {
     0.5 * scoreFromCount(s.totalClientPRs, 200) +
     0.5 * scoreFromCount(s.totalClientVolumeKg, 500_000)
   );
+  // Discipline = the trainer's OWN athlete headline (0-100). The
+  // headline already aggregates their personal consistency, strength,
+  // volume, mastery, and habits — using it as a single dimension
+  // means a trainer who lifts hard and stays consistent gets credit,
+  // while one who doesn't train at all caps around 80/100 average
+  // (4 strong client-side dims + 0 discipline → headline 64,
+  // about Tier 3).
+  const discipline = Math.max(0, Math.min(100, Math.round(s.selfAthleteScore ?? 0)));
 
   const subRanks: SubRank[] = [
     { id: "roster",      label: "Roster",      icon: "👥", score: roster,      detail: `${s.rosterCount} active clients` },
     { id: "progression", label: "Progression", icon: "🚀", score: progression, detail: `${s.clientsWithRecentPR}/${s.rosterCount} clients hit a PR last 30d` },
     { id: "retention",   label: "Retention",   icon: "🔁", score: retention,   detail: `${s.clientsWithActiveStreak}/${s.rosterCount} clients on a streak` },
     { id: "reach",       label: "Reach",       icon: "⭐", score: reach,       detail: `${s.totalClientPRs} PRs · ${Math.round(s.totalClientVolumeKg / 1000)}k kg-reps total` },
+    { id: "discipline",  label: "Discipline",  icon: "🏋", score: discipline,  detail: `Your own athlete score · ${discipline}/100` },
   ];
 
   const headlineScore = Math.round(subRanks.reduce((sum, r) => sum + r.score, 0) / subRanks.length);

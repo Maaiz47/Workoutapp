@@ -1012,6 +1012,24 @@
       "notes": "[2026-05-21] Tier card header completely rebuilt to be obviously a tier system: '🏆 YOUR RANK' + 'TIER N OF 6' explicit header, bigger animal icon (58px) + bigger name (26px in caps), horizontal animal ladder of all 6 tiers (current highlighted/glowing, past coloured, future greyed), explicit OVERALL SCORE row with breakpoint, '5 STATS FEED THIS RANK' label above the sub-rank grid."
     },
     {
+      "id": "tier-trainer-discipline",
+      "title": "Trainer tier includes Discipline sub-rank (own athlete score)",
+      "area": "Tiers",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass tier-trainer-discipline",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "As a trainer with at least one client, open the tier explainer modal (tap your tier chip on home). Verify the 🎯 YOUR TRAINER SUB-RANKS panel now shows FIVE bars (was 4): Roster, Progression, Retention, Reach, AND Discipline (🏋 icon).",
+        "Discipline detail line should read 'Your own athlete score · N/100' where N matches your headline athlete score on Progress → Dashboard. If you're slacking on your personal training, this number is low.",
+        "Path-to-next callout should correctly identify Discipline as the lowest sub-rank if it is the lowest.",
+        "Headline tier score is now the AVG of 5 sub-ranks (was 4). Expect existing trainer tiers to drop by ~10-15 points overall — that's intentional: a trainer who never trains themselves shouldn't sit at Pro/Elite.",
+        "Train yourself (log sessions, set PRs) and refresh — verify your trainer headline ticks UP as your athlete score climbs.",
+        "Edge case: brand-new trainer with 0 clients should still see Discipline as a meaningful dimension — if their own athlete score is e.g. 40, their trainer headline should be ≥ ~8 (40/5)."
+      ],
+      "notes": "[2026-05-22] Shipped: added selfAthleteScore to TrainerStatsForTier; new Discipline sub-rank in computeTrainerTier averaging into the headline. Server endpoint /api/trainer/me/tier now also fetches the trainer's own computeStatsForUsers([uid]) result and passes the canonical score in. Trainer tier surfaces (modal, Settings IDENTITY, leaderboard) all read the same 5-dim breakdown. (Reported by @maaiz: 'I want the athlete tier a trainer has to play a role in the trainer tier — they can't be slacking and be a good trainer'.)"
+    },
+    {
       "id": "tier-trainer-keeps-athlete",
       "title": "Trainers see their athlete tier on Progress dashboard too",
       "area": "Progress",

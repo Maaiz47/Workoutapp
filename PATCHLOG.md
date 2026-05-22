@@ -2,6 +2,55 @@
 
 ---
 
+## Feat · 2026-05-22 — Trainer tier now includes Discipline (qa: tier-trainer-discipline)
+
+@maaiz: "I want the athlete tier a trainer has to play a
+role in the trainer tier — they can't be slacking and be a
+good trainer."
+
+### What changed
+Added a 5th sub-rank to the trainer tier breakdown:
+**Discipline** — driven by the trainer's OWN athlete
+headline score (0-100). The trainer ladder headline is now
+the average of 5 sub-ranks (was 4):
+
+- 👥 Roster — active client count
+- 🚀 Progression — % of clients with a recent PR
+- 🔁 Retention — % on an active streak
+- ⭐ Reach — total client PRs + volume
+- 🏋 Discipline — **NEW** the trainer's own athlete score
+
+### Why it matters
+A trainer with a big roster + great client progress but no
+personal training would previously sit at Pro/Elite. Now
+their Discipline dim is 0, dragging the headline down by
+1/5 of the missing points — caps them around mid-Pro at
+best. Top trainer tiers require actually training yourself,
+which is the design intent.
+
+### Server pipeline
+`/api/trainer/me/tier` now also calls
+`computeStatsForUsers([trainerUid])` and passes the
+returned canonical athlete score into `computeTrainerTier`
+as `selfAthleteScore`. Same pipeline as every other tier
+surface, so the number a trainer sees in their Discipline
+dim matches the headline on their personal Progress
+dashboard exactly.
+
+### Existing trainers
+This is a one-time tier-score drop for trainers who weren't
+training themselves. Earned milestone badges stay (the
+celebration system uses `>=` tier checks, not exact match).
+The path to recovery is simple: train and the score climbs.
+
+### Tier name redesign (Tier 1-3) — still pending
+Spotter (Tier 1) is approved. Tier 2 and 3 names still being
+decided — leaving the existing Rookie/Coach lineup in place
+until the names are confirmed. The Discipline sub-rank ships
+independently of the name change.
+
+---
+
 ## Feat · 2026-05-22 — Athlete tier theme system + ladder redesign (qa: tier-themes)
 
 @maaiz: "Rework the athlete tier names: Kitten → Fox → Big

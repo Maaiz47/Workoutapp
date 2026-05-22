@@ -60,12 +60,24 @@ export async function GET(req: NextRequest) {
       if ((s.streak ?? 0) >= 7) clientsWithActiveStreak++;
     }
 
+    // Trainer's OWN athlete score for the Discipline sub-rank. Fetched
+    // through the same canonical pipeline as everyone else so the
+    // trainer doesn't get a different score than they'd see on their
+    // athlete dashboard — practising what you preach is non-negotiable
+    // to ladder up. (qa: tier-trainer-discipline)
+    let selfAthleteScore = 0;
+    try {
+      const selfStats = await computeStatsForUsers([uid]);
+      selfAthleteScore = selfStats.get(uid)?.tier?.score ?? 0;
+    } catch {}
+
     const stats: TrainerStatsForTier = {
       rosterCount: clientIds.length,
       clientsWithRecentPR,
       clientsWithActiveStreak,
       totalClientPRs,
       totalClientVolumeKg,
+      selfAthleteScore,
     };
     const breakdown = computeTrainerTier(stats);
     return json({ breakdown, stats });
