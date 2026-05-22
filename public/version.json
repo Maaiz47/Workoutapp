@@ -1,5 +1,5 @@
 {
-  "version": "2026.05.22.10",
-  "commit": "b79b818",
-  "note": "QA pass (3 items) + tier theme system & 6-tier athlete redesign"
+  "version": "2026.05.22.11",
+  "commit": "51df27c",
+  "note": "trainer tier: Discipline sub-rank + 6-tier lineup (Spotter -> Hall of Fame)"
 }
