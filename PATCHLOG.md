@@ -2,6 +2,57 @@
 
 ---
 
+## Fix · 2026-05-22 — Tier info modal: canonical trainer ladder + athlete sub-rank breakdown (qa: tier-explainability)
+
+User flagged two issues on the "Two ladders, one app" modal:
+
+1. **Trainer ladder was lying.** Showed "Spotter 0+ clients →
+   Strategist 2+ clients → Pro 5+ clients → Master 10+ clients →
+   Legend 18+ clients → Hall of Fame 30+ clients" — but the YOU
+   badge said "49 PTS" and the progress bar said "+0 PTS → MASTER ·
+   49/10 PTS". The thresholds (legacy client counts) didn't match
+   the metric (canonical headline 0–100 score). User saw nonsense.
+
+2. **Athlete ladder was vague.** Showed "Lion · 57 PTS · +13 PTS →
+   GORILLA" with the tier list but no explanation of WHY the score
+   was 57 / which sub-rank to push.
+
+### Fix
+
+- **Trainer ladder** now uses `TRAINER_TIERS_NEW_LITE` (the
+  canonical score-based ladder from `lib/tiers.ts`) instead of the
+  legacy client-count fallback `TRAINER_TIERS`. Thresholds now read
+  Spotter 0+ pts → Strategist 15+ → Pro 30+ → Master 50+ → Legend
+  70+ → Hall of Fame 88+ — matching the actual computation.
+- Trainer unit subtitle updated to "raw trainer score (0–100). Five
+  sub-ranks feed it." (was "more active clients unlocks the next
+  tier" — true for the loading-state fallback only).
+- `unitWord` for the trainer ladder switched from `"clients"` to
+  `"pts"` so the misleading "1 PT = 1 CLIENT" footer line stops
+  rendering.
+- **Athlete sub-rank breakdown panel** added directly under the
+  athlete ladder, mirroring the existing trainer-sub-rank panel:
+  five rows (Consistency / Strength / Volume / Mastery / Habits)
+  with `X/100` scores, progress bars, and the same "Path to next"
+  callout pointing at the weakest dimension. Reuses
+  `athleteBreakdown.subRanks` (already computed by
+  `computeAthleteTier` for the Progress dashboard) — modal just
+  needed it forwarded as a prop.
+
+### What the user sees now
+
+- Trainer at headline 49 → correctly highlighted as **Pro** (30+
+  pts), with "+1 PTS → MASTER" instead of nonsense "+0 PTS / 49/10
+  PTS".
+- Athlete at headline 57 → still Lion, but now sees five sub-rank
+  bars so they know exactly which dimension to grind (likely
+  Habits, given hydration/sleep/energy default low until they start
+  logging wellness).
+
+(qa: tier-explainability)
+
+---
+
 ## Fix · 2026-05-22 — Form-preview audit + 26 local placeholders (qa: form-preview-audit)
 
 Audited every entry in `EXERCISE_DB_MAP` against the actual

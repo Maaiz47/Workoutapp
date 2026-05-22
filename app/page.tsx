@@ -3232,9 +3232,10 @@ function HomeGlobals({
         athleteTier={athleteTier}
         trainerTier={trainerTier}
         athleteUnit="raw athlete score (0–100). Five sub-ranks feed it."
-        trainerUnit="more active clients unlocks the next tier"
+        trainerUnit="raw trainer score (0–100). Five sub-ranks feed it."
         athleteRaw={athleteBreakdown?.headlineScore ?? 0}
-        trainerRaw={trainerBreakdown?.headlineScore ?? clients.length}
+        trainerRaw={trainerBreakdown?.headlineScore ?? 0}
+        athleteBreakdown={athleteBreakdown}
         trainerBreakdown={trainerBreakdown}
         tierTheme={tierTheme}
         onJumpToLeaderboard={onJumpToLeaderboard}
@@ -3281,7 +3282,7 @@ function TierInfoModal({
   athleteTier, trainerTier,
   athleteUnit, trainerUnit,
   athleteRaw, trainerRaw,
-  trainerBreakdown,
+  athleteBreakdown, trainerBreakdown,
   tierTheme,
   onJumpToLeaderboard,
   onOpenGlobalLeaderboard,
@@ -3292,10 +3293,11 @@ function TierInfoModal({
   isTrainer: boolean;
   athleteTier: TierLite | null;   // current tier the visitor sits at (if any)
   trainerTier: TierLite | null;
-  athleteUnit: string;       // "sessions" / "score" — what feeds the rank
-  trainerUnit: string;       // "clients"
-  athleteRaw: number;        // user's raw session count for the athlete ladder
-  trainerRaw: number;        // user's raw client count for the trainer ladder
+  athleteUnit: string;       // human-readable "what feeds this rank"
+  trainerUnit: string;       // human-readable "what feeds this rank"
+  athleteRaw: number;        // user's headline athlete score (0-100)
+  trainerRaw: number;        // user's headline trainer score (0-100)
+  athleteBreakdown: TierBreakdown | null;
   trainerBreakdown: TierBreakdown | null;
   // Athlete tier theme — "vivid" (default) | "simple". Drives which
   // ladder name set the modal renders. (qa: tier-themes)
@@ -3375,14 +3377,51 @@ function TierInfoModal({
           currentRaw={athleteRaw}
         />
 
+        {/* Athlete sub-rank breakdown — same shape as the trainer one
+            below. Shows the user WHY their headline is what it is +
+            which dimension is the cheapest to push next. Renders only
+            when we have the local breakdown loaded.
+            (qa: tier-explainability) */}
+        {isAthlete && athleteBreakdown && (
+          <div style={{
+            marginTop: 0, marginBottom: 16, padding: "12px 14px",
+            background: "rgba(240,192,64,0.05)",
+            border: "1px solid rgba(240,192,64,0.2)",
+            borderRadius: 12,
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 3, color: "#f0c040", fontFamily: "'Space Mono', monospace", marginBottom: 10 }}>
+              🎯 YOUR ATHLETE SUB-RANKS · HEADLINE {athleteBreakdown.headlineScore}/100
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {athleteBreakdown.subRanks.map(r => (
+                <div key={r.id}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                    <div style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{r.icon} {r.label}</div>
+                    <div style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(240,192,64,0.85)", fontWeight: 700 }}>{r.score}/100</div>
+                  </div>
+                  <div style={{ height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden", marginBottom: 3 }}>
+                    <div style={{ width: `${Math.max(2, r.score)}%`, height: "100%", background: "linear-gradient(90deg, #f0c040, #f97316)" }} />
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{r.detail}</div>
+                </div>
+              ))}
+            </div>
+            {athleteBreakdown.focusNext && (
+              <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(78,205,196,0.07)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+                <strong style={{ color: "#4ECDC4" }}>↑ Path to next:</strong> {athleteBreakdown.focusNext.label.toLowerCase()} is your lowest sub-rank ({athleteBreakdown.focusNext.score}/100) — pushing it up is the cheapest way to bump your headline toward the next tier.
+              </div>
+            )}
+          </div>
+        )}
+
         <TierLadder
           title="TRAINER LADDER"
           subtitle={`Earned by growing your roster + helping clients progress · ${trainerUnit}`}
-          tiers={TRAINER_TIERS}
+          tiers={TRAINER_TIERS_NEW_LITE}
           accent="#4ECDC4"
           highlight={trainerTier?.label ?? null}
           isParticipant={isTrainer}
-          unitWord="clients"
+          unitWord="pts"
           currentRaw={trainerRaw}
         />
 
