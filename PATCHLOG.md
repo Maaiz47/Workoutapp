@@ -2,6 +2,21 @@
 
 ---
 
+## Fix · 2026-05-22 — Tricep rope pushdown form image now shows the rope (qa: workout-set-logging)
+
+Reported by @maaiz: the FORM modal for `Tricep Rope Pushdowns`
+was animating the angled-bar attachment, not the rope. Same
+class of bug as the cable-fly mismap below — the
+free-exercise-db has a separate
+`Triceps_Pushdown_-_Rope_Attachment` model. Remapped `a4` and
+added rope-named overrides (`Rope Pushdown`,
+`Rope Pushdowns`, `Tricep Rope Pushdown`,
+`Rope Tricep Pushdown`, `Triceps Rope Pushdown`,
+`Rope Triceps Pushdown`) → all now hit the rope image. Plain
+`Tricep Pushdown` without "Rope" still maps to the bar image.
+
+---
+
 ## Fix · 2026-05-22 — Active workout row de-cramped + correct cable-fly image (qa: workout-set-logging)
 
 ### Exercise row no longer truncates the name
