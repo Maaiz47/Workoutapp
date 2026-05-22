@@ -2,6 +2,49 @@
 
 ---
 
+## QA fixes · 2026-05-21 — Soreness history + Volume × Muscle bodyweight credit + Target session time editor (qa: progress-volume-heatmap, onboarding-profile-setup, settings-identity-tiers)
+
+### Soreness table — remembers + shows trend
+The soreness table was an opt-in 1–5 picker per muscle that looked
+empty after every reload AND offered no view of whether soreness
+was creeping up or down for a muscle over time.
+- Already remembered today's pick in localStorage (`ironlog-soreness-v1`)
+  — confirmed it now hydrates on mount so today's rating shows on refresh.
+- Each muscle row now renders a 14-day sparkline (mini bars, height
+  scales with rating, colour by heat band) to the LEFT of the
+  rating buttons.
+- A trend chip next to the sparkline shows the delta vs the last
+  logged entry (`↑n` red, `↓n` green, `=` muted). Tooltip on the
+  chip surfaces the previous logging date + rating.
+- Added two helpers in `lib/wellness.ts`:
+  `readSorenessHistory(muscle, days)` and `readSorenessLast(muscle)`.
+
+### Volume × Muscle — Core stops reading "skipped" for bodyweight work
+Hanging Leg Raises (and other bodyweight movements) were logged
+with `weight: 0`, so `0 × reps = 0` volume — core / abs surfaces
+read "skipped" even after weeks of training.
+- `volumeByMuscle()` in `lib/performance.ts` now takes a
+  `bodyweightKg` arg. When a set has zero weight but positive
+  reps it falls back to `max(1, bodyweightKg || 70)` so the
+  movement contributes. The VolumeHeatmap passes the user's
+  `ob.weightKg` (defaults to 70 kg if missing).
+
+### Target session time — editable post-onboarding + actual vs goal
+Onboarding step 8 already collects a target duration (30/45/60/90+)
+but there was no way to change it afterwards, and nothing surfaced
+how the user's actual avg time compared to that goal.
+- New `⏱ TARGET SESSION TIME` card in Settings → TRAINING (above
+  the HIIT card). Same chip row as onboarding; tapping a chip
+  saves immediately via `POST /api/profile`.
+- Live actual-vs-target readout below the chips: `Your avg m /
+  target m (+N over | -N under | on target)` with a coloured
+  progress bar (green ≤ 5 m over, amber ≤ 15 m over, red beyond).
+- Empty-state copy when no completed sessions yet.
+- Footnote flags that plan-tailoring (auto supersets / drop sets
+  / HIIT for tight windows) is the next slice.
+
+---
+
 ## Polish · 2026-05-21 — Welcome card split into separate profile + tiers boxes (qa: tier-pills-clarity)
 
 The hero welcome card was a single button (avatar + name + tier

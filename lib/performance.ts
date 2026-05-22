@@ -145,10 +145,19 @@ export function shouldSuggestDeload(opts: {
 // lifted that hit that primary muscle in the given window. Walks every
 // logged set, looks up the exercise's primaryMuscles, and credits the
 // volume to each of them.
+//
+// `bodyweightKg` lets the caller pass the user's current body weight
+// so bodyweight movements (where the logged weight is 0 — e.g.
+// hanging leg raises, pull-ups) still contribute volume. Without it,
+// a tester who hammers core every session via HLR would see "core
+// skipped" because 0 × reps = 0. (qa: progress-volume-heatmap —
+// maaiz: "I did not skip core - I do hanging leg raises every
+// session but core says skipped")
 export function volumeByMuscle(
   history: Record<string, any[]>,
   exerciseMuscles: Record<string, string[]>,
   windowDays: number = 14,
+  bodyweightKg: number = 0,
 ): Record<string, number> {
   const cutoff = new Date(Date.now() - windowDays * 86400000).toISOString().slice(0, 10);
   const totals: Record<string, number> = {};
@@ -165,7 +174,15 @@ export function volumeByMuscle(
         if (!s || s.skipped) continue;
         const exKey = k.replace(/-\d+(-d\d+)?$/, "");
         const muscles = exerciseMuscles[exKey] ?? [];
-        const vol = (s.weight ?? 0) * (s.reps ?? 0);
+        const reps = s.reps ?? 0;
+        const rawWeight = s.weight ?? 0;
+        // Bodyweight fallback: zero added weight + positive reps =
+        // assume user moved their bodyweight. Use a conservative
+        // default (70 kg) when we don't know the user's actual mass.
+        const effectiveWeight = rawWeight > 0
+          ? rawWeight
+          : (reps > 0 ? Math.max(1, bodyweightKg || 70) : 0);
+        const vol = effectiveWeight * reps;
         for (const m of muscles) {
           totals[m] = (totals[m] ?? 0) + vol;
         }

@@ -18,7 +18,7 @@ import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
-import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
+import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap } from "../lib/challenges";
 import { isDeGamified, setDeGamified, pickTodayQuest, QuestState, isFullStackDay, recordFullStackDay, fullStackDayCount, checkBalancedWeek, recordBalancedWeek, detectNewHidden, HiddenState, HiddenAchievement } from "../lib/gamification";
 import { postWithQueue, drainQueue, queueCount } from "../lib/offlineSync";
@@ -738,22 +738,66 @@ function WellnessCard() {
             </div>
           </div>
 
-          {/* Soreness — opt-in per muscle */}
+          {/* Soreness — opt-in per muscle. Today's pick stays
+              selected when the user reloads; previously the row
+              looked empty after a refresh even though the data was
+              there. Each row also shows a 14-day sparkline + a
+              trend chip (↑ / ↓ / =) so you can spot whether a
+              muscle is creeping more sore over time. (qa: maaiz —
+              "doesn't remember the last entry or show history") */}
           <div style={{ padding: "10px 12px", background: "rgba(253,203,110,0.04)", border: "1px solid rgba(253,203,110,0.15)", borderRadius: 10, marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: "#fdcb6e", fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>💢 SORENESS (OPTIONAL)</div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>Tap a number 1-5 next to a muscle. Cycles off when you tap the same value.</div>
-            {MUSCLES.map(m => (
-              <div key={m} style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", flex: 1, textTransform: "capitalize" }}>{m}</span>
-                {[1, 2, 3, 4, 5].map(r => {
-                  const active = soreness[m] === r;
-                  const heat = r <= 2 ? "#a78bfa" : r <= 3 ? "#fdcb6e" : "#FF6B6B";
-                  return (
-                    <button key={r} onClick={() => toggleSore(m, r)} style={{ width: 22, height: 22, padding: 0, background: active ? heat : "rgba(255,255,255,0.04)", border: `1px solid ${active ? heat : "rgba(255,255,255,0.08)"}`, borderRadius: 4, color: active ? "#000" : "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{r}</button>
-                  );
-                })}
-              </div>
-            ))}
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>Tap 1-5 — same value taps cycle it off. Sparkline shows last 14 days. ↑/↓ vs last logged.</div>
+            {MUSCLES.map(m => {
+              const todayR = soreness[m] ?? 0;
+              const hist = readSorenessHistory(m, 14); // index 0 = today
+              const last = readSorenessLast(m); // most recent prior non-zero
+              const todayHeat = todayR <= 2 ? "#a78bfa" : todayR <= 3 ? "#fdcb6e" : "#FF6B6B";
+              const trendDelta = last ? (todayR > 0 ? todayR - last.rating : 0) : 0;
+              return (
+                <div key={m} style={{ marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", width: 64, flexShrink: 0, textTransform: "capitalize" }}>{m}</span>
+                    {/* Mini sparkline — newest on the right so it
+                        reads like a normal timeline. Each pip is a
+                        day; height = rating / 5. Zero days are a
+                        faint dot. */}
+                    <div style={{
+                      display: "flex", alignItems: "flex-end", gap: 1,
+                      width: 50, height: 18, flexShrink: 0,
+                      padding: "2px 1px",
+                      background: "rgba(255,255,255,0.025)",
+                      borderRadius: 3,
+                    }}>
+                      {hist.slice().reverse().map((d, di) => {
+                        const heat = d.rating === 0
+                          ? "rgba(255,255,255,0.12)"
+                          : d.rating <= 2 ? "#a78bfa"
+                          : d.rating <= 3 ? "#fdcb6e"
+                          : "#FF6B6B";
+                        const h = d.rating === 0 ? 2 : Math.max(3, (d.rating / 5) * 14);
+                        return <div key={di} title={`${d.iso}: ${d.rating || "—"}`} style={{ width: 2, height: h, background: heat, borderRadius: 1 }} />;
+                      })}
+                    </div>
+                    {/* Trend chip vs the last logged entry. */}
+                    <div style={{
+                      width: 30, flexShrink: 0, textAlign: "center",
+                      fontSize: 9, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5,
+                      color: trendDelta > 0 ? "#FF6B6B" : trendDelta < 0 ? "#2ecc71" : "rgba(255,255,255,0.35)",
+                    }} title={last ? `Last entry ${last.iso}: ${last.rating}/5` : "No prior entries"}>
+                      {!last || todayR === 0 ? "—" : trendDelta > 0 ? `↑${trendDelta}` : trendDelta < 0 ? `↓${Math.abs(trendDelta)}` : "="}
+                    </div>
+                    {[1, 2, 3, 4, 5].map(r => {
+                      const active = todayR === r;
+                      const heat = r <= 2 ? "#a78bfa" : r <= 3 ? "#fdcb6e" : "#FF6B6B";
+                      return (
+                        <button key={r} onClick={() => toggleSore(m, r)} style={{ width: 22, height: 22, padding: 0, background: active ? heat : "rgba(255,255,255,0.04)", border: `1px solid ${active ? heat : "rgba(255,255,255,0.08)"}`, borderRadius: 4, color: active ? "#000" : "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{r}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Injuries */}
@@ -1016,7 +1060,7 @@ function ExerciseMetricChart({ stats, color }: { stats: Array<{ date: string; av
 // against the user's own max group in the window so the picture is
 // always relative to the user's training.
 import { volumeByMuscle } from "../lib/performance";
-function VolumeHeatmap({ history, customPlan }: { history: Record<string, any[]>; customPlan: any[] | null }) {
+function VolumeHeatmap({ history, customPlan, bodyweightKg }: { history: Record<string, any[]>; customPlan: any[] | null; bodyweightKg: number }) {
   // Build the exerciseId → primaryMuscles map so the aggregation can
   // credit volume to the right groups. CRITICAL: WORKOUT_DATA uses
   // short IDs ("b1", "b3", "a7"…) that aren't in the EXERCISES
@@ -1062,7 +1106,7 @@ function VolumeHeatmap({ history, customPlan }: { history: Record<string, any[]>
     return m;
   }, [customPlan]);
   const [windowDays, setWindowDays] = useState<7 | 14 | 30>(14);
-  const totals = useMemo(() => volumeByMuscle(history, muscleMap, windowDays), [history, muscleMap, windowDays]);
+  const totals = useMemo(() => volumeByMuscle(history, muscleMap, windowDays, bodyweightKg), [history, muscleMap, windowDays, bodyweightKg]);
   const muscles = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "calves", "core"];
   const maxV = Math.max(...muscles.map(m => totals[m] ?? 0), 1);
   return (
@@ -9248,6 +9292,89 @@ function HomePage() {
               role upgrade live here. ── */}
           <SettingsSectionHeader label="TRAINING" icon="🏋️" color="rgba(255,140,66,0.75)" />
 
+          {/* Target session duration — editable post-onboarding so
+              users can change it without rebuilding their plan. Live
+              comparison against actual avg session time so they can
+              see if they're staying inside their window. The plan
+              generator (slice 2) will read this to scale exercise
+              count / supersets / drop sets. (qa: maaiz — "no where
+              to enter my target session time" + "want to see actual
+              avg time compared against the goal session time") */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 12, fontFamily: "'Space Mono', monospace" }}>⏱ TARGET SESSION TIME</div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+              {[
+                { mins: 30, label: "30m", desc: "Quick" },
+                { mins: 45, label: "45m", desc: "Standard" },
+                { mins: 60, label: "60m", desc: "Full" },
+                { mins: 90, label: "90m+", desc: "Long" },
+              ].map(opt => {
+                const sel = (ob.targetSessionMinutes ?? 45) === opt.mins;
+                return (
+                  <button
+                    key={opt.mins}
+                    onClick={() => {
+                      setOb(o => ({ ...o, targetSessionMinutes: opt.mins }));
+                      // Persist immediately so the change survives
+                      // without a Save Profile step.
+                      fetch("/api/profile", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ ...ob, targetSessionMinutes: opt.mins, targetAreas: ob.targetAreas, equipment: ob.equipment.filter(e => e !== "multi_gym") }),
+                      }).catch(() => {});
+                    }}
+                    style={{
+                      flex: 1, padding: "10px 0", borderRadius: 10,
+                      background: sel ? "rgba(255,140,66,0.12)" : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${sel ? "rgba(255,140,66,0.4)" : "rgba(255,255,255,0.07)"}`,
+                      color: sel ? "#FF8C42" : "rgba(255,255,255,0.5)",
+                      cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{opt.label}</div>
+                    <div style={{ fontSize: 9, color: sel ? "rgba(255,140,66,0.7)" : "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{opt.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Actual avg vs target — pulls overall.avgMinutes from
+                history. Green when you're under or matching the
+                target, amber when you're going slightly over, red
+                when significantly over. */}
+            {(() => {
+              const target = ob.targetSessionMinutes ?? 45;
+              const actual = overall.avgMinutes;
+              if (!actual || actual <= 0) {
+                return (
+                  <div style={{ padding: "8px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, fontSize: 11, color: "rgba(255,255,255,0.45)" }}>
+                    No completed sessions yet — log a workout to see your average vs target.
+                  </div>
+                );
+              }
+              const diff = actual - target;
+              const color = diff <= 5 ? "#2ecc71" : diff <= 15 ? "#FFB74D" : "#FF6B6B";
+              const pct = Math.min(150, Math.round((actual / target) * 100));
+              return (
+                <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>YOUR AVG / TARGET</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color, fontFamily: "'Space Mono', monospace" }}>
+                      {actual}m / {target}m {diff > 0 ? `(+${diff}m)` : diff < 0 ? `(${diff}m)` : "(on target)"}
+                    </span>
+                  </div>
+                  <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden", position: "relative" }}>
+                    <div style={{ position: "absolute", inset: 0, width: "100%", display: "flex" }}>
+                      <div style={{ width: `${Math.min(100, pct)}%`, background: `linear-gradient(90deg, ${color}99, ${color})`, transition: "width 0.4s" }} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>
+                    Plan-tailoring (auto supersets / drop sets / HIIT for tight windows) coming next pass.
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
           {/* HIIT Training Preferences */}
           <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 16, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT TRAINING</div>
@@ -9596,7 +9723,7 @@ function HomePage() {
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
             {!deGamified && <ChallengesCard history={history} />}
             <WellnessCard />
-            <VolumeHeatmap history={history} customPlan={customPlan} />
+            <VolumeHeatmap history={history} customPlan={customPlan} bodyweightKg={parseFloat(ob.weightKg || "0") || 70} />
             {/* Tier Card — multi-dim ladder. Hidden when de-gamify is on.
                 Headline animal tier comes
                 from the average of 4 sub-rank bars (Consistency · Strength

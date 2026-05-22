@@ -76,6 +76,45 @@ export function writeSorenessToday(muscle: string, rating: number): void {
   } catch {}
 }
 
+// Read the per-muscle soreness history for the last N days,
+// most-recent-first. Returns an array of {iso, rating} where rating is
+// missing/0 when nothing was logged that day. Used by the soreness
+// table to show whether each muscle's soreness is trending up or
+// down over time (qa: maaiz — "doesn't remember the last entry or
+// show history of last entry to see if the soreness per body part
+// is going up or down over time").
+export function readSorenessHistory(muscle: string, days: number = 14): Array<{ iso: string; rating: number }> {
+  try {
+    const m = JSON.parse(localStorage.getItem(SORENESS_KEY) ?? "{}");
+    const out: Array<{ iso: string; rating: number }> = [];
+    const today = new Date();
+    for (let i = 0; i < days; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().slice(0, 10);
+      const day = m[iso] ?? {};
+      out.push({ iso, rating: typeof day[muscle] === "number" ? day[muscle] : 0 });
+    }
+    return out;
+  } catch { return []; }
+}
+
+// Most-recent non-zero rating for a muscle BEFORE today (so the user
+// can compare today's pick against their last actual entry). Returns
+// null if there's nothing logged yet.
+export function readSorenessLast(muscle: string): { iso: string; rating: number } | null {
+  try {
+    const m = JSON.parse(localStorage.getItem(SORENESS_KEY) ?? "{}");
+    const todayKey = todayIso();
+    const dates = Object.keys(m).filter(k => k < todayKey).sort().reverse();
+    for (const iso of dates) {
+      const r = m[iso]?.[muscle];
+      if (typeof r === "number" && r > 0) return { iso, rating: r };
+    }
+    return null;
+  } catch { return null; }
+}
+
 // ── INJURY LOG ───────────────────────────────────────────────────────
 // Persistent list of currently-active injuries. Each is a body part
 // (matches the muscle-group taxonomy) plus a start date and an optional
