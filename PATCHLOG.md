@@ -2,6 +2,51 @@
 
 ---
 
+## Fix · 2026-05-22 — Stop "Reached Monkey" popping for users already at Tiger (qa: milestones-celebrations)
+
+@maaiz: finished a session and got a "Reached Monkey
+milestone" popup despite being TIGER on the leaderboard +
+home tier display, AND having been Tiger before the session
+started.
+
+### Root cause
+Tier milestones (`tier-monkey`, `tier-fox`, `tier-tiger`,
+`tier-lion`, `tier-gorilla`) each check `athleteTierLabel
+=== <self> OR any higher tier`, so a Tiger user passes the
+check for Monkey AND Fox AND Tiger simultaneously. The old
+`detectNewMilestones()` returned ALL passing-and-not-yet-
+achieved milestones, queueing celebrations for every step
+below the user's current rank. If the user had never had a
+tier milestone in their achieved list (because they reached
+Tiger before the milestone system landed, or cleared
+localStorage), the next session save would fire
+"Reached Monkey" first — misleading.
+
+### Fix
+`detectNewMilestones()` now returns
+`{ celebrate: Milestone[], silentlyAchieved: string[] }`.
+When multiple tier milestones unlock in the same pass, only
+the HIGHEST tier goes into `celebrate`; the rest go into
+`silentlyAchieved` — the caller marks them achieved so the
+badges land in the user's collection (correctly — they HAVE
+earned the right to be called Monkey/Fox since they're
+Tiger), but no popups fire for the intermediate ranks. Next
+session for the @maaiz scenario surfaces "Reached Tiger"
+correctly, and Monkey+Fox quietly join the badge gallery.
+
+Non-tier milestones (consistency, strength, behaviour,
+anniversary) keep the all-fire-at-once behaviour as before
+— it makes sense to celebrate "First PR" and "10 sessions"
+in the same overlay queue.
+
+### Existing badges left intact
+Users who already received the misleading "Reached Monkey"
+keep that achievement in their list — they earned the badge
+on merit (being at or above Monkey tier), it was just the
+popup label that was wrong. No backfill needed.
+
+---
+
 ## Feat · 2026-05-22 — Varied core exercise per day in every generated plan (qa: plan-rebuild)
 
 @maaiz: "Want variations of core exercises in a routine being

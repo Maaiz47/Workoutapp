@@ -5078,11 +5078,12 @@ function HomePage() {
               athleteTierLabel: newBreakdown.headline.label,
             };
             const achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
-            const newOnes = detectNewMilestones(mState, achieved);
-            if (newOnes.length > 0) {
-              for (const m of newOnes) achieved.add(m.id);
+            const { celebrate, silentlyAchieved } = detectNewMilestones(mState, achieved);
+            if (celebrate.length > 0 || silentlyAchieved.length > 0) {
+              for (const m of celebrate) achieved.add(m.id);
+              for (const id of silentlyAchieved) achieved.add(id);
               localStorage.setItem(MILESTONE_STORAGE_KEY, JSON.stringify(Array.from(achieved)));
-              setMilestoneQueue(q => [...q, ...newOnes]);
+              if (celebrate.length > 0) setMilestoneQueue(q => [...q, ...celebrate]);
             }
           } catch {}
         }

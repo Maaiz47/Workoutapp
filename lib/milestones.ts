@@ -71,15 +71,50 @@ export const MILESTONES: Milestone[] = [
   { id: "tier-gorilla",  label: "Reached Gorilla",          body: "Top of the food chain. Absolute unit.",                 icon: "🦍", category: "tier", requirement: "Reach the Gorilla tier (headline tier score ≥ 90).", check: s => s.athleteTierLabel === "Gorilla" },
 ];
 
-// Walk the milestone list against the current state. Returns the IDs that
-// crossed since the last check (i.e. newly achieved). Caller persists.
-export function detectNewMilestones(state: MilestoneState, alreadyAchieved: Set<string>): Milestone[] {
-  const out: Milestone[] = [];
+// Tier milestone order — used to dedupe retroactive unlocks. If a user
+// jumped straight to Tiger without ever holding the Monkey/Fox
+// milestones, all lower-tier checks pass at once. We want to celebrate
+// the HIGHEST tier they've actually reached, not pop notifications for
+// every step below it. (qa: reported by @maaiz — Tiger user got
+// "Reached Monkey" after a routine session.)
+const TIER_ORDER = ["tier-monkey", "tier-fox", "tier-tiger", "tier-lion", "tier-gorilla"];
+
+// Walk the milestone list against the current state.
+// - `celebrate`: milestones that should pop a celebration overlay.
+// - `silentlyAchieved`: milestone IDs to add to the achieved list
+//   without showing a celebration (used for lower-tier badges when a
+//   user retroactively qualifies for several tiers at once — we want
+//   the badges in their collection without the misleading popups).
+export function detectNewMilestones(
+  state: MilestoneState,
+  alreadyAchieved: Set<string>
+): { celebrate: Milestone[]; silentlyAchieved: string[] } {
+  const candidates: Milestone[] = [];
   for (const m of MILESTONES) {
     if (alreadyAchieved.has(m.id)) continue;
-    if (m.check(state)) out.push(m);
+    if (m.check(state)) candidates.push(m);
   }
-  return out;
+
+  const tierCandidates = candidates.filter(m => m.category === "tier");
+  const nonTierCandidates = candidates.filter(m => m.category !== "tier");
+
+  if (tierCandidates.length <= 1) {
+    return { celebrate: candidates, silentlyAchieved: [] };
+  }
+
+  // Multiple tier milestones unlocked in the same pass — keep only
+  // the highest, silently mark the rest as achieved.
+  let highest: Milestone = tierCandidates[0];
+  let highestIdx = TIER_ORDER.indexOf(highest.id);
+  for (const m of tierCandidates) {
+    const idx = TIER_ORDER.indexOf(m.id);
+    if (idx > highestIdx) { highestIdx = idx; highest = m; }
+  }
+  const silentlyAchieved = tierCandidates.filter(m => m.id !== highest.id).map(m => m.id);
+  return {
+    celebrate: [...nonTierCandidates, highest],
+    silentlyAchieved,
+  };
 }
 
 // localStorage key — bump if the schema of stored entries ever changes

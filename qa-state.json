@@ -1294,16 +1294,17 @@
       "area": "Progress",
       "introduced": "2026-05-21",
       "introducedBy": "QA pass tier-clarity",
-      "lastTested": "2026-05-21",
+      "lastTested": "2026-05-22",
       "status": "regression-retest",
       "steps": [
         "Log your first ever session — verify a 🎉 'Welcome to IRONLOG' celebration card appears, plus '✅ First session logged' fires in the same queue",
         "Tap to dismiss — verify the next milestone in the queue appears (the queue counter shows '· N MORE')",
         "Hit other thresholds in subsequent sessions (10 sessions, first PR, first superset, first drop set, first deload accepted, 7-day streak, 30 days on app, etc.) — verify each fires exactly once",
         "Reload the app after dismissing — verify previously-shown milestones DO NOT re-fire (persisted in localStorage.ironlog-milestones-v1 as an array of milestone ids)",
-        "Verify a tier-up milestone fires when crossing into a new animal tier (e.g. 'Reached Fox' when the headline score crosses 30)"
+        "Verify a tier-up milestone fires when crossing into a new animal tier (e.g. 'Reached Fox' when the headline score crosses 30)",
+        "TIER RETROACTIVE CHECK: as a TIGER user who has never had any tier milestone in achieved (clear localStorage.ironlog-milestones-v1 first), finish a session. Verify the popup says 'Reached Tiger' (NOT 'Reached Monkey' or 'Reached Fox'), and lower-tier badges (tier-monkey, tier-fox) ARE silently added to the achieved list — open the milestone gallery and confirm Monkey + Fox + Tiger all show as earned but only Tiger triggered a popup."
       ],
-      "notes": "[2026-05-21] Shipped lib/milestones.ts with 25+ milestone definitions across 5 categories (anniversary, consistency, strength, behaviour, tier). Each has an id, label, body, icon, and a check() function against MilestoneState. detectNewMilestones(state, achievedSet) returns just the newly-crossed ones — caller persists. Achieved IDs stored in localStorage.ironlog-milestones-v1. Celebration overlay is a queue-based modal: tap to drain, full-screen splash with icon + label + body + tap-to-continue counter. Triggered after every session save."
+      "notes": "[2026-05-22] Fixed: when a user qualifies for multiple tier milestones at once (e.g. Tiger user never had Monkey/Fox achievements), detectNewMilestones now returns only the HIGHEST tier as celebrate and the rest as silentlyAchieved. Caller marks all as achieved but only pops the highest in the celebration queue. Stops the 'You reached Monkey' surprise for users who are actually Tiger. Reported by @maaiz.\n[2026-05-21] Shipped lib/milestones.ts with 25+ milestone definitions across 5 categories (anniversary, consistency, strength, behaviour, tier). Each has an id, label, body, icon, and a check() function against MilestoneState. detectNewMilestones(state, achievedSet) returns just the newly-crossed ones — caller persists. Achieved IDs stored in localStorage.ironlog-milestones-v1. Celebration overlay is a queue-based modal: tap to drain, full-screen splash with icon + label + body + tap-to-continue counter. Triggered after every session save."
     },
     {
       "id": "profile-modality-mix",
