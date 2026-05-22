@@ -76,6 +76,11 @@ function buildCanonicalTier(s: {
   // (qa: tier-scoring-fairness)
   sessionsLast4Weeks?: number;
   daysPerWeek?: number;
+  // Cumulative lucky-drop tier score bonus. Added on top of the
+  // computed headline so rare random rewards actually move the
+  // metric users care about. Capped on the source side.
+  // (qa: random-rare-rewards)
+  tierScoreBonus?: number;
 }): CanonicalTier {
   const breakdown = computeAthleteTier({
     totalSessions: s.totalSessions,
@@ -90,7 +95,19 @@ function buildCanonicalTier(s: {
     sessionsLast4Weeks: s.sessionsLast4Weeks ?? 0,
     daysPerWeek: s.daysPerWeek ?? 4,
   });
-  const t: AnimalTier = breakdown.headline;
+  const bonus = Math.max(0, s.tierScoreBonus ?? 0);
+  const blendedScore = Math.min(100, breakdown.headlineScore + bonus);
+  // Re-resolve the tier if the bonus pushed us up a rung. Theme isn't
+  // available here (single-source-of-truth lives on the visitor's
+  // profile in the page-level computeAthleteTier call) — but the
+  // tier IDX is what every surface uses to render the label, so
+  // recompute against ATHLETE_TIERS (vivid) which has the same minima
+  // as every other theme.
+  let resolvedIdx = ATHLETE_TIERS.findIndex(x => x.label === breakdown.headline.label);
+  for (let i = ATHLETE_TIERS.length - 1; i >= 0; i--) {
+    if (blendedScore >= ATHLETE_TIERS[i].min) { resolvedIdx = i; break; }
+  }
+  const t: AnimalTier = ATHLETE_TIERS[resolvedIdx];
   return {
     label: t.label,
     icon: t.icon,
@@ -98,15 +115,15 @@ function buildCanonicalTier(s: {
     bg: t.bg,
     border: t.border,
     min: t.min,
-    score: breakdown.headlineScore,
-    idx: ATHLETE_TIERS.findIndex(x => x.label === t.label),
+    score: blendedScore,
+    idx: resolvedIdx,
   };
 }
 
 // `monthsOnApp` + `daysPerWeek` are passed by computeStatsForUsers
 // (which has the User.createdAt + UserProfile.daysPerWeek); single-
 // log callers default to 0 / 4.
-export function computeStatsFromLogs(logs: LogLike[], monthsOnApp: number = 0, daysPerWeek: number = 4): LeaderboardMemberStats {
+export function computeStatsFromLogs(logs: LogLike[], monthsOnApp: number = 0, daysPerWeek: number = 4, tierScoreBonus: number = 0): LeaderboardMemberStats {
   const totalSessions = logs.length;
 
   // Sessions logged in the last 4 weeks — feeds the adherence
@@ -174,6 +191,7 @@ export function computeStatsFromLogs(logs: LogLike[], monthsOnApp: number = 0, d
     monthsOnApp,
     sessionsLast4Weeks,
     daysPerWeek,
+    tierScoreBonus,
   });
 
   return {
@@ -268,11 +286,15 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
     // (qa: tier-scoring-fairness)
     prisma.userProfile.findMany({
       where: { userId: { in: userIds } },
-      select: { userId: true, daysPerWeek: true },
+      select: { userId: true, daysPerWeek: true, tierScoreBonus: true },
     }),
   ]);
   const dpwByUser = new Map<string, number>();
-  for (const p of profiles) dpwByUser.set(p.userId, p.daysPerWeek);
+  const bonusByUser = new Map<string, number>();
+  for (const p of profiles) {
+    dpwByUser.set(p.userId, p.daysPerWeek);
+    bonusByUser.set(p.userId, p.tierScoreBonus ?? 0);
+  }
   const byUser = new Map<string, LogLike[]>();
   for (const log of allLogs) {
     const arr = byUser.get(log.userId) ?? [];
@@ -291,7 +313,7 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
   for (const userId of userIds) {
     const createdAt = createdAtByUser.get(userId);
     const monthsOnApp = createdAt ? (Date.now() - +createdAt) / (30 * 86400000) : 0;
-    const base = computeStatsFromLogs(byUser.get(userId) ?? [], monthsOnApp, dpwByUser.get(userId) ?? 4);
+    const base = computeStatsFromLogs(byUser.get(userId) ?? [], monthsOnApp, dpwByUser.get(userId) ?? 4, bonusByUser.get(userId) ?? 0);
     const body = computeBodyStats(metricsByUser.get(userId) ?? []);
     result.set(userId, { ...base, ...body });
   }

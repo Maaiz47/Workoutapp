@@ -131,9 +131,41 @@ model UserProfile {
   // leaderboard is intentionally public-facing (clients use it to
   // pick coaches). (qa: tier-global-leaderboard)
   hideFromGlobalLeaderboard Boolean @default(false)
+  // Selected profile avatar id (matches an id in lib/avatars.ts). Null
+  // = use the default initial-letter chip. Avatars are unlocked either
+  // via tier progression (deterministic) or via the random "lucky
+  // drop" pool (probabilistic — see lib/avatars.ts).
+  // (qa: profile-avatars)
+  avatarId         String?
+  // Cumulative "lucky" tier-score bonus earned from random rare rewards.
+  // Added to the headline athlete score so the lottery-style drops feel
+  // real on the same metric the user cares about (no parallel XP/coin
+  // currency). Persists, never goes down. Capped at +20 lifetime so it
+  // can't dominate the score. (qa: random-rare-rewards)
+  tierScoreBonus   Int      @default(0)
+  // ISO timestamp (ms) of the last lucky drop. Used to enforce a 24h
+  // cooldown so users can't farm sessions for drops. Null = never.
+  lastLuckyDropAt  DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One-row-per-unlock record of an avatar a user has earned. `source`
+// is "tier" for deterministic tier-threshold unlocks and "lucky" for
+// random rare-pool drops. `tier` is set only for tier-source rows so
+// we know which rung minted it.
+// (qa: profile-avatars, random-rare-rewards)
+model UserAvatarUnlock {
+  id         String   @id @default(cuid())
+  userId     String
+  avatarId   String
+  source     String   // "tier" | "lucky"
+  tier       Int?     // 1-6 when source="tier"
+  unlockedAt DateTime @default(now())
+
+  @@unique([userId, avatarId])
+  @@index([userId])
 }
 
 model WorkoutPlan {
@@ -328,6 +360,7 @@ model LeaderboardGroup {
   members        LeaderboardGroupMember[]
   invites        LeaderboardGroupInvite[]
   workout        GroupWorkout?
+  challenges     GroupChallenge[]
 
   @@index([createdBy])
 }
@@ -352,6 +385,36 @@ model GroupWorkout {
   group         LeaderboardGroup             @relation(fields: [groupId], references: [id], onDelete: Cascade)
   subscriptions GroupWorkoutSubscription[]
   workoutLogs   WorkoutLog[]
+}
+
+// Per-group challenge — opt-in by group leader, runs for a window,
+// every member contributes to a single shared progress bar. Metric
+// types mirror lib/challenges.ts so the catalogue stays one source
+// of truth. Progress is recomputed on read from member WorkoutLogs
+// (no cached counter — keeps the data correct after edits/deletes).
+// (qa: group-challenges)
+model GroupChallenge {
+  id         String           @id @default(cuid())
+  groupId    String
+  createdBy  String           // userId of the group leader who started it
+  // "total_reps" | "total_sessions" | "total_volume_kg" | "exercise_distinct"
+  metric     String
+  target     Int
+  title      String
+  // Optional comma-separated exercise-substring filter for reps/volume metrics.
+  // Lets a group run e.g. "1000 push-ups together this month".
+  exerciseSubstrings String?
+  startedAt  DateTime         @default(now())
+  endsAt     DateTime
+  // "active" | "completed" | "expired" — auto-derived at read time
+  // but persisted so historical state is preserved.
+  state      String           @default("active")
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  group      LeaderboardGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([groupId, state])
 }
 
 // Per-user subscription to a GroupWorkout. Auto-created at workout-set

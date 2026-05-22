@@ -2,6 +2,115 @@
 
 ---
 
+## Feat · 2026-05-22 — Adaptive rewards + group challenges + lucky drops (qa: adaptive-exercise-rewards, group-challenges, random-rare-rewards, profile-avatars)
+
+@maaiz on the next-features design call: ship the three motivational
+gimmicks but fold them INTO the tier ladder — no separate XP/coins.
+Avatars instead of cosmetic-shop currency. Use existing profile focus
+fields where personalisation matters; don't add a new class-picker.
+
+Three concurrent slices land in this pass:
+
+### Slice 1/N — Adaptive exercise rewards
+The variety nudge users actually see right now is a coloured dot on
+the plan-editor exercise browser:
+
+- `lib/adaptiveRewards.ts` computes per-exercise recency from the
+  user's existing workout history. Tiers:
+  - **Never logged** → blue dot, 1.30× multiplier
+  - **Neglected (14+d)** → blue dot, 1.25×
+  - **Cooling (8-13d)** → pale blue, 1.10×
+  - **Baseline (4-7d)** → no dot, 1.00×
+  - **Warm (0-3d)** → amber, 0.90×
+  - **Over-trained (3×/7d)** → red, 0.75×
+- Plan editor picker (`app/page.tsx` ~6862) renders the dot next
+  to each exercise name. Tap opens a popover with last-logged
+  date, status headline, and the bonus/dampener text. Tapping the
+  row itself (anywhere else) still adds the exercise — only the dot
+  is its own button.
+- Slice 1 is **client-only metadata** — the multiplier doesn't yet
+  alter the tier score formula. A later slice can blend it into
+  the volume sub-rank if it tests well. The in-session "add
+  exercise" picker (~13387) gets its dot in slice 2.
+
+### Slice 1/N — Group challenges with shared progress
+- Prisma `GroupChallenge` model (groupId, createdBy, metric,
+  target, title, optional exerciseSubstrings, startedAt, endsAt,
+  state) plus cascade-delete on group removal.
+- API: `POST/GET/DELETE /api/leaderboard/groups/[id]/challenges`.
+  POST is leader-only (createdBy check). GET enriches each row
+  with computed `progress`, per-member contribution map,
+  `myContribution`, and derived state (active/completed/expired).
+  Progress recomputed on every read from member WorkoutLogs in
+  the window — no cached counter so edits stay correct.
+- UI: 🎯 CHALLENGES card on each group's panel. Active challenges
+  show a shared yellow progress bar with `progress/target unit`,
+  days left, your contribution line. Leader sees + START button
+  → inline form (title, metric dropdown, target, days,
+  optional exercise filter). Leader can also CANCEL active ones.
+  Non-leaders see read-only with progress + their contribution.
+- Metrics supported: total_reps, total_sessions,
+  total_volume_kg, exercise_distinct. Optional
+  `exerciseSubstrings` (CSV) restricts reps/volume to matching
+  exercises so a group can run e.g. "1000 pushup reps together".
+
+### Slice 1/N — Random rare rewards (lucky drops + avatars)
+- Prisma additions: `UserProfile.avatarId`,
+  `UserProfile.tierScoreBonus` (Int, default 0, capped at +20
+  lifetime), `UserProfile.lastLuckyDropAt`, and `UserAvatarUnlock`
+  model (userId+avatarId unique, source `"tier"|"lucky"`,
+  optional tier).
+- `lib/avatars.ts` catalogue defines 30 avatars: 20
+  tier-progression unlocks (3-4 per tier 1-6) + 10
+  lucky-drop-only avatars with weighted rarity (clover at weight
+  25 down to mythic at weight 1).
+- `lib/luckyDrops.ts` drives the roll: 20% per-session
+  eligibility, gated by a 24h cooldown. 35% of fired drops are
+  rare avatars (when any unlockable remain), the rest are
+  +1..+5 tier-score bonuses. Once all rare avatars are owned the
+  pool falls back to score bonuses.
+- `/api/workout` POST now rolls after persisting the WorkoutLog
+  and returns `{ luckyDrop }` in the response. `postWithQueue`
+  was extended to expose the response body so the client can
+  surface the celebration.
+- `/api/avatars` GET returns inventory (auto-backfills tier
+  unlocks the user qualifies for) + tier idx + tierScoreBonus.
+  PATCH equips an unlocked avatar id (or null to clear).
+- UI: avatar in Settings > IDENTITY card is now a button — tap
+  to open the picker. Grid shows all 30 avatars with locked
+  silhouettes for ones not yet earned (TIER N hint or RARE
+  badge for lucky-only). Tap to equip; image updates immediately.
+- Lucky drop celebration overlay (purple-tinted for avatars,
+  green for score bonuses) renders after session save. Shows
+  the flavour string from `lib/luckyDrops.ts`.
+- `lib/leaderboardStats.ts` now blends `tierScoreBonus` into
+  every canonical tier score, so the lottery actually moves the
+  metric users care about — same ladder, no parallel currency.
+
+### Avatar art — deliverable for @maaiz
+`/avatars-prompts.md` (NEW at repo root) has ChatGPT prompts for
+every one of the 30 avatars with a unified dark-mode style guide.
+User generates → drops the resulting PNGs into `/public/avatars/`
+keyed by avatar id (e.g. `/public/avatars/starter-spark.png`).
+Missing files fall back to `/ai/avatar-default.png` automatically,
+so the picker is functional immediately even with zero art
+generated.
+
+### qa-state.json items added
+`adaptive-exercise-rewards`, `group-challenges`,
+`random-rare-rewards`, `profile-avatars`. All four start at
+`regression-retest` with full multi-step QA scripts.
+
+### Tutorial
+No new tutorial step this pass — the lucky drop overlay is
+self-explanatory at the moment of award, the avatar picker
+discovers itself via the ✎ badge on the IDENTITY chip, and
+adaptive recency dots are discoverable from the existing picker.
+Once the avatars have art and the system has soaked for a week,
+we can revisit and add a "Lucky drops & avatars" step.
+
+---
+
 ## Feat · 2026-05-22 — QA steps individually commentable (qa: qa-per-step-comments-v2)
 
 @maaiz: "Full qa system still isn't how I intended.

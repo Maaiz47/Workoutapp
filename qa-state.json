@@ -2007,6 +2007,89 @@
         "Trainer accepts an invite to a group that already has a workout — verify the trainer also gets an auto-subscription"
       ],
       "notes": "[2026-05-21] Slice 2/N: trainer + member UI on top of slice 1 API. Added a 🏋 SHARED WORKOUT panel inside each active group's trainer modal — '+ SET GROUP WORKOUT' opens a name/description form that pushes the trainer's current customPlan as the routine. Once set, the panel shows SYNC (re-push the trainer's current plan) and REMOVE buttons. Pre-fetch wired so the trainer/member panel knows the workout state immediately when the group panel opens. On My Leaderboards (member view): each group card with a workout now shows a 🏋 GROUP ROUTINE banner with APPLY button (or ✓ APPLIED · LEAVE) and an ALL SESSIONS / 🏋 GROUP ONLY toggle. When GROUP ONLY is on, the rankings list is filtered to members who've activated and uses the API-computed groupSessions/groupIntensity columns. Next slice: render the group's days alongside the personal plan on Home with ▣ GROUP badge + tag the WorkoutLog with groupWorkoutId at session save when the active day belongs to an activated group workout.\n[2026-05-21] Slice 1/N: schema + API + auto-subscription wiring. Shipped Prisma models GroupWorkout (groupId @unique, name, description, days Json, createdBy, timestamps) and GroupWorkoutSubscription (userId+groupWorkoutId @@unique, activated, joinedAt, activatedAt) with WorkoutLog.groupWorkoutId optional FK (onDelete SetNull). API: GET/PUT/DELETE /api/leaderboard/groups/[id]/workout (PUT is trainer-only and auto-creates subscriptions for every current member; DELETE preserves WorkoutLogs). POST/DELETE /api/leaderboard/groups/[id]/workout/apply for members to flip activated. Existing /api/leaderboard/groups/[id]/members POST and /invite PATCH auto-create subscriptions when new members are added or join. /api/workout POST accepts `groupWorkoutId` and validates the caller has an activated subscription before persisting the tag. /api/leaderboard/mine now exposes per-group workout summary + groupSessions/groupVolume/groupIntensity/groupStreak per member (computed by computeStatsForUsers(ids, groupWorkoutId))."
+    },
+    {
+      "id": "adaptive-exercise-rewards",
+      "title": "Adaptive exercise rewards — per-exercise recency signal in picker",
+      "area": "Workout",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass adaptive-rewards",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Log in as a returning user with several different exercises in workout history",
+        "Open Customise plan → tap a day → tap + Add Exercise to open the exercise browser",
+        "Verify a small coloured dot appears next to certain exercise names (blue = neglected/never, amber = recently trained, red = over-trained 3+ times in 7d). Exercises trained 4-7d ago show no dot (baseline).",
+        "Tap the dot — verify the variety popover opens with the exercise name, headline status ('Neglected'/'Cooling down'/etc), 'days since last logged' detail line, and a NEXT SESSION line showing the bonus or dampener (+25%/+30%/0/-25% etc).",
+        "Close the popover, verify the picker still works — tapping the row itself (not the dot) still adds the exercise to the day.",
+        "Visit Workout > New Exercise > Add. Check the dots appear for a brand-new user who has never logged anything (should be a blue 'never' dot on every exercise)."
+      ],
+      "notes": "[2026-05-22 <sha7>] Slice 1/N: client-only recency signal. Shipped lib/adaptiveRewards.ts (computeExerciseRecencies + recencyForExercise + recencyDotColor) derived from the existing workout history. Recency tiers: never (1.30x), neglected 14+d (1.25x), cooling 8-13d (1.10x), baseline 4-7d (1.00x), warm 0-3d (0.90x), over-trained 3×/7d (0.75x). Dot rendered in the plan-editor exercise browser (app/page.tsx ~6862); tap opens a popover with details. Next slice: surface dots in the in-session 'add exercise' picker (~13387) and the trainer client picker; later slice can blend multiplier into the volume sub-rank if it tests well."
+    },
+    {
+      "id": "group-challenges",
+      "title": "Group challenges — leader-started shared progress bar",
+      "area": "Progress",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass group-challenges",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Log in as a trainer who is the creator of a leaderboard group with ≥ 2 members",
+        "Open the group's panel (My Leaderboards > tap group name)",
+        "Find the 🎯 CHALLENGES card. As leader, verify a + START button is visible.",
+        "Tap + START — fill in: title ('Pushup Pile'), metric ('Total reps'), target (1000), durationDays (30), exerciseSubstrings ('pushup,push-up'). Submit.",
+        "POST /api/leaderboard/groups/<id>/challenges with the same payload — verify a GroupChallenge row is created with state='active', startedAt=now, endsAt=now+30d.",
+        "Verify the challenge card now shows on the panel with progress bar at 0%, 30d LEFT, target and metric units.",
+        "Log in as a different member of the same group. Log a workout that includes pushups (logged via Today's Workout > Save).",
+        "Refresh /api/leaderboard/groups/<id>/challenges as that member. Verify response includes the challenge with progress > 0, myContribution > 0, perMember map containing both userIds.",
+        "Back as the leader, refresh and verify the progress bar moved.",
+        "Cancel the challenge as leader — verify DELETE removes the GroupChallenge row and the card disappears.",
+        "Non-leader members should NOT see the + START button. Verify by logging in as a non-creator member."
+      ],
+      "notes": "[2026-05-22 <sha7>] Slice 1/N: schema + API + UI. Shipped Prisma GroupChallenge model (groupId, createdBy, metric, target, title, exerciseSubstrings?, startedAt, endsAt, state) with cascade-delete on group removal. API: POST/GET/DELETE /api/leaderboard/groups/[id]/challenges. POST is leader-only (createdBy check), GET returns enriched payload with computed `progress`, `perMember`, `myContribution`, derived `state`. Progress recomputed on every read from member WorkoutLogs in the window — no cached counter so edits/deletes stay correct. UI: 🎯 CHALLENGES card on each group panel showing active + recent completed challenges with shared progress bar, 'You: N' contribution row, and a leader-only + START form. Next slice: completion celebration overlay when target hit, multiple concurrent challenges UI polish, per-member contribution leaderboard view."
+    },
+    {
+      "id": "random-rare-rewards",
+      "title": "Random rare rewards — lucky tier-score bumps + rare avatar drops",
+      "area": "Workout",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass random-rare-rewards",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Log in as any user.",
+        "Log workouts repeatedly. Approximately 1 in 5 sessions should trigger a lucky drop (subject to the 24h cooldown — only one drop per 24h period regardless of how many sessions).",
+        "When a drop fires, a celebration overlay should appear after the session-complete animation showing either: a '🍀 LUCKY DROP +N score' card OR a '🎁 LUCKY DROP <avatar name>' card.",
+        "Tap the overlay to dismiss. Verify a follow-up reload of the user's tier shows the score bonus has been added (UserProfile.tierScoreBonus incremented).",
+        "If the drop was an avatar — open Settings > IDENTITY > tap the avatar circle to open the picker. Verify the rare avatar appears in the picker as unlocked (purple-bordered RARE label).",
+        "Tap the avatar in the picker — verify it equips (avatar in IDENTITY card updates immediately).",
+        "Save another workout within 24h — verify NO new drop fires (cooldown).",
+        "Wait > 24h (or update lastLuckyDropAt manually in DB) — verify drops can fire again.",
+        "Spam-log 30 sessions — verify lifetime tier score bonus caps at +20 (MAX_LIFETIME_BONUS in lib/luckyDrops.ts).",
+        "Once all rare avatars are owned, verify lucky drops only return score-bonus rewards (avatar pool exhausted)."
+      ],
+      "notes": "[2026-05-22 <sha7>] Slice 1/N: schema + lib + API + roll wiring + minimal UI. Shipped Prisma fields UserProfile.avatarId, tierScoreBonus (default 0, capped at +20 lifetime), lastLuckyDropAt, and UserAvatarUnlock model (userId+avatarId @@unique, source 'tier'|'lucky', tier?). lib/avatars.ts catalogue: 20 tier-unlocked avatars (3-4 per tier) + 10 lucky-pool rare avatars with weighted rarity. lib/luckyDrops.ts: 20% roll chance subject to 24h cooldown; 35% of fired drops are avatars (when unlocked left), rest are score-bonus +1..+5. /api/workout POST rolls + persists drop on success and returns it in the JSON response. /api/avatars GET returns inventory (auto-backfills tier-source unlocks the user qualifies for) + PATCH equips. UI: avatar picker modal opens from Settings > IDENTITY tap, shows unlocked vs locked grid with RARE/TIER labels. Lucky drop celebration overlay rendered after session save. Next slice: ChatGPT-generated avatar art (prompts in /avatars-prompts.md — user to drop 30 PNGs into /public/avatars/ as they're generated), profile-card stat showing 'lucky score bonus' on Settings, leaderboard avatar thumbnails."
+    },
+    {
+      "id": "profile-avatars",
+      "title": "Profile avatars — unlocked via tier progression",
+      "area": "Settings",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass random-rare-rewards",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Log in as a user at tier 1 (Kitten/Bronze, score 0-14).",
+        "Open Settings > IDENTITY > tap the avatar chip (top-left circle with ✎ badge).",
+        "Verify the picker modal opens. Verify the Tier 1 starter avatars (Starter Spark, Quiet Dawn, Seedling) are unlocked; all higher tier avatars show 🔒 with reduced opacity.",
+        "Tap an unlocked tier-1 avatar — verify it equips and the IDENTITY card shows the new image. PATCH /api/avatars body { avatarId: '<id>' } returns success.",
+        "Tap 'Default' in the picker — verify it un-equips back to the gradient default.",
+        "Advance to tier 2 (Fox/Silver, score 15+). GET /api/avatars — verify the tier-2 avatars are now in tierUnlocked (backfilled server-side from UserAvatarUnlock).",
+        "Verify locked tier-3+ avatars show their unlock hint on hover/tap (`title` attribute: 'Unlocks at Tier N').",
+        "Avatar art: ChatGPT prompts for all 30 avatars are in /avatars-prompts.md at repo root. Until generated, missing /public/avatars/<id>.png falls back to /ai/avatar-default.png — picker remains functional."
+      ],
+      "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     }
   ]
 }

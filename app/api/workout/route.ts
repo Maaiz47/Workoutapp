@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { rollLuckyDrop } from "../../../lib/luckyDrops";
 
 // Re-link any workout logs whose dayId no longer exists in the user's current
 // plan. Happens after a saved-routine restore (which deletes + recreates the
@@ -133,7 +134,45 @@ export async function POST(req: NextRequest) {
       data: { userId: uid, dayId, duration: duration || "00:00:00", sets, intensityPoints: typeof intensityPoints === 'number' ? intensityPoints : 0, ...(tagId ? { groupWorkoutId: tagId } : {}) },
     });
 
-    return NextResponse.json({ success: true, id: log.id });
+    // Random rare reward roll. Most sessions return null; when it
+    // fires we persist the change and ship the drop payload back to
+    // the client so it can show a celebration overlay.
+    // (qa: random-rare-rewards)
+    let drop = null;
+    try {
+      const profile = await prisma.userProfile.findUnique({ where: { userId: uid } });
+      if (profile) {
+        const existingLuckyUnlocks: { avatarId: string }[] = await (prisma as any).userAvatarUnlock.findMany({
+          where: { userId: uid, source: "lucky" },
+          select: { avatarId: true },
+        });
+        drop = rollLuckyDrop({
+          currentBonus: profile.tierScoreBonus ?? 0,
+          ownedLuckyAvatarIds: new Set(existingLuckyUnlocks.map(u => u.avatarId)),
+          lastDropAt: profile.lastLuckyDropAt ? profile.lastLuckyDropAt.getTime() : null,
+        });
+        if (drop) {
+          if (drop.kind === "score-bonus") {
+            await prisma.userProfile.update({
+              where: { userId: uid },
+              data: { tierScoreBonus: { increment: drop.amount }, lastLuckyDropAt: new Date() },
+            });
+          } else if (drop.kind === "avatar") {
+            await (prisma as any).userAvatarUnlock.create({
+              data: { userId: uid, avatarId: drop.avatar.id, source: "lucky" },
+            });
+            await prisma.userProfile.update({
+              where: { userId: uid },
+              data: { lastLuckyDropAt: new Date() },
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Lucky drop roll failed:", e);
+    }
+
+    return NextResponse.json({ success: true, id: log.id, luckyDrop: drop });
   } catch (e) {
     console.error("Workout POST error:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

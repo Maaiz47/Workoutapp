@@ -20,6 +20,8 @@ import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState,
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState } from "../lib/challenges";
+import { computeExerciseRecencies, recencyForExercise, recencyDotColor, ExerciseRecency } from "../lib/adaptiveRewards";
+import { findAvatar, AVATARS, Avatar } from "../lib/avatars";
 import { isDeGamified, setDeGamified, pickTodayQuest, QuestState, isFullStackDay, recordFullStackDay, fullStackDayCount, checkBalancedWeek, recordBalancedWeek, detectNewHidden, HiddenState, HiddenAchievement } from "../lib/gamification";
 import { postWithQueue, drainQueue, queueCount } from "../lib/offlineSync";
 import { TIPS, pickDailyTip, TipContext, ProTip } from "../lib/proTips";
@@ -3820,6 +3822,26 @@ function HomePage() {
   // session save. Stacks newly-achieved entries in a queue so multiple
   // hitting in one session each get their moment.
   const [milestoneQueue, setMilestoneQueue] = useState<MilestoneAward[]>([]);
+  // Lucky-drop celebration — surfaced after a workout save when the
+  // server's lucky-drop roll fires. Shape mirrors lib/luckyDrops.ts.
+  // (qa: random-rare-rewards)
+  const [pendingLuckyDrop, setPendingLuckyDrop] = useState<
+    | { kind: "score-bonus"; amount: number; flavour: string }
+    | { kind: "avatar"; avatar: Avatar; flavour: string }
+    | null
+  >(null);
+  // Profile avatar — selected id (null = default chip). Inventory is
+  // fetched lazily when the picker opens. (qa: profile-avatars)
+  const [currentAvatarId, setCurrentAvatarId] = useState<string | null>(null);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const [avatarInventory, setAvatarInventory] = useState<{
+    selected: string | null;
+    tierUnlocked: Avatar[];
+    luckyUnlocked: Avatar[];
+    all: Avatar[];
+    tier: number;
+    tierScoreBonus: number;
+  } | null>(null);
   // Weekly recap — shown on the first home open on/after Sunday. Modal
   // displays sessions / total volume / top exercise / approximate PRs.
   // Marked seen for the current ISO week so it only fires once.
@@ -4107,6 +4129,12 @@ function HomePage() {
   // payload by groupId so the trainer can re-open without re-fetching.
   const [openGroupWorkoutId, setOpenGroupWorkoutId] = useState<string | null>(null);
   const [groupWorkoutCache, setGroupWorkoutCache] = useState<Record<string, any>>({});
+  // Group challenges per group — fetched lazily when a group is opened.
+  // Shape: { challenges: GroupChallenge[], isLeader: boolean }.
+  // (qa: group-challenges)
+  const [groupChallengesCache, setGroupChallengesCache] = useState<Record<string, any>>({});
+  const [groupChallengesLoading, setGroupChallengesLoading] = useState(false);
+  const [newChallengeForm, setNewChallengeForm] = useState<{ groupId: string | null; title: string; metric: string; target: string; durationDays: string; exerciseSubstrings: string }>({ groupId: null, title: "", metric: "total_reps", target: "1000", durationDays: "30", exerciseSubstrings: "" });
   const [groupWorkoutLoading, setGroupWorkoutLoading] = useState(false);
   const [groupWorkoutSaving, setGroupWorkoutSaving] = useState(false);
   const [groupWorkoutName, setGroupWorkoutName] = useState("");
@@ -4231,6 +4259,10 @@ function HomePage() {
   const [rebuildMode, setRebuildMode] = useState(false);
 
   const [formPreview, setFormPreview] = useState<{ id: string; name: string; muscles: string[]; secondaryMuscles?: string[] } | null>(null);
+  // Recency popover — shows last-logged + bonus available when the user
+  // taps the small status dot in the exercise picker.
+  // (qa: adaptive-exercise-rewards)
+  const [recencyPopover, setRecencyPopover] = useState<{ exerciseId: string; exerciseName: string; anchorRect?: DOMRect | null } | null>(null);
   // Stretch picker: when set to "warmup" or "cooldown", shows a sheet
   // listing the stretching library filtered to that kind. Tapping an
   // entry appends it to the current editing day with the right `kind`.
@@ -4521,6 +4553,7 @@ function HomePage() {
         if ((p as any).cardioPreference) setCardioPreference((p as any).cardioPreference);
         if ((p as any).tierTheme === "simple" || (p as any).tierTheme === "vivid") setTierTheme((p as any).tierTheme);
         if (typeof (p as any).hideFromGlobalLeaderboard === "boolean") setHideFromGlobalLeaderboard((p as any).hideFromGlobalLeaderboard);
+        if (typeof (p as any).avatarId === "string" || (p as any).avatarId === null) setCurrentAvatarId((p as any).avatarId ?? null);
         fetch("/api/plan").then(r => r.json()).then(planData => {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
         });
@@ -5505,7 +5538,14 @@ function HomePage() {
         // postWithQueue: stashes the body in localStorage if offline /
         // network errors, replays via drainQueue() on the next online
         // event. The user never sees a lost session.
-        await postWithQueue("/api/workout", { dayId: activeDay.id, duration: adjustedDuration, sets: finalLog, intensityPoints: sessionIP });
+        const saveResult = await postWithQueue("/api/workout", { dayId: activeDay.id, duration: adjustedDuration, sets: finalLog, intensityPoints: sessionIP });
+        // Random rare reward — server may return a lucky drop payload.
+        // Schedule the celebration overlay for after the session-complete
+        // animation so we don't interrupt the existing celebration.
+        // (qa: random-rare-rewards)
+        if (saveResult.ok && saveResult.data?.luckyDrop) {
+          setPendingLuckyDrop(saveResult.data.luckyDrop);
+        }
         const res = await fetch("/api/workout");
         const data = await res.json();
         if (!data.error) {
@@ -5780,6 +5820,11 @@ function HomePage() {
   };
 
   const overall = useMemo(() => getOverallStats(history), [history]);
+
+  // Per-exercise recency status — drives the coloured dot in the
+  // exercise picker and the popover with "last logged" + bonus info.
+  // Recomputed only when history changes. (qa: adaptive-exercise-rewards)
+  const exerciseRecencies = useMemo(() => computeExerciseRecencies(history), [history]);
 
   // Canonical athlete-tier breakdown for the visitor. Computed once
   // from the visitor's full local stats so every surface — welcome
@@ -6873,7 +6918,23 @@ function HomePage() {
                             );
                           })()}
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}{alreadyIn && !browserSupersetMode ? <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginLeft: 6, fontFamily: "'Space Mono', monospace" }}>IN PLAN</span> : ""}</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</span>
+                              {(() => {
+                                const r = recencyForExercise(ex.id, exerciseRecencies);
+                                const dot = recencyDotColor(r.status);
+                                if (!dot) return null;
+                                return (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setRecencyPopover({ exerciseId: ex.id, exerciseName: ex.name }); }}
+                                    title={r.label}
+                                    style={{ width: 8, height: 8, borderRadius: "50%", background: dot, border: "none", padding: 0, cursor: "pointer", flexShrink: 0, boxShadow: `0 0 4px ${dot}` }}
+                                    aria-label={`${ex.name} recency: ${r.label}`}
+                                  />
+                                );
+                              })()}
+                              {alreadyIn && !browserSupersetMode ? <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginLeft: 6, fontFamily: "'Space Mono', monospace" }}>IN PLAN</span> : null}
+                            </div>
                             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
                               <span style={{ color: "#FF6644" }}>{ex.primaryMuscles.join(" · ")}</span>
                               {ex.secondaryMuscles.length > 0 && <span style={{ color: "rgba(255,255,255,0.25)" }}> · {ex.secondaryMuscles.join(" · ")}</span>}
@@ -7016,6 +7077,104 @@ function HomePage() {
             </div>
           </div>
         )}
+
+        {avatarPickerOpen && (() => {
+          // Lazy-fetch inventory on open. (qa: profile-avatars)
+          if (!avatarInventory) {
+            fetch("/api/avatars").then(r => r.json()).then((data) => {
+              if (!data.error) {
+                setAvatarInventory(data);
+                if (typeof data.selected === "string" || data.selected === null) setCurrentAvatarId(data.selected);
+              }
+            }).catch(() => {});
+          }
+          const unlockedIds = new Set([
+            ...(avatarInventory?.tierUnlocked ?? []).map(a => a.id),
+            ...(avatarInventory?.luckyUnlocked ?? []).map(a => a.id),
+          ]);
+          const all = avatarInventory?.all ?? AVATARS;
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 460, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }} onClick={() => setAvatarPickerOpen(false)}>
+              <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto", background: "rgba(15,15,18,0.98)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, padding: 18, color: "#fff" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, letterSpacing: 3, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>AVATAR</div>
+                  <button onClick={() => setAvatarPickerOpen(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 18, cursor: "pointer" }}>✕</button>
+                </div>
+                {!avatarInventory ? (
+                  <div style={{ textAlign: "center", padding: "30px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Loading…</div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>Current tier: <span style={{ color: "#FFE66D" }}>{avatarInventory.tier}/6</span> · Lucky bonus: <span style={{ color: "#34d399" }}>+{avatarInventory.tierScoreBonus}</span> score</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                      <button onClick={async () => {
+                        try {
+                          await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: null }) });
+                          setCurrentAvatarId(null);
+                          setAvatarInventory(inv => inv ? { ...inv, selected: null } : inv);
+                        } catch {}
+                      }} style={{ background: currentAvatarId === null ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${currentAvatarId === null ? "rgba(78,205,196,0.45)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: "pointer", color: "#fff" }}>
+                        <img src="/ai/avatar-default.png" alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} />
+                        <div style={{ fontSize: 10, fontWeight: 600 }}>Default</div>
+                      </button>
+                      {all.map((av: Avatar) => {
+                        const isUnlocked = unlockedIds.has(av.id);
+                        const isSelected = currentAvatarId === av.id;
+                        const isLucky = av.source === "lucky";
+                        return (
+                          <button key={av.id} disabled={!isUnlocked} onClick={async () => {
+                            if (!isUnlocked) return;
+                            try {
+                              const res = await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: av.id }) });
+                              if (res.ok) {
+                                setCurrentAvatarId(av.id);
+                                setAvatarInventory(inv => inv ? { ...inv, selected: av.id } : inv);
+                              }
+                            } catch {}
+                          }} title={isUnlocked ? av.flavour : `${av.source === "tier" ? `Unlocks at Tier ${av.tier}` : "Rare drop — keep training!"}`} style={{ background: isSelected ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.45)" : isLucky ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.35, position: "relative", color: "#fff", textAlign: "left" }}>
+                            <img src={`/avatars/${av.id}.png`} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4, filter: isUnlocked ? "none" : "grayscale(1) brightness(0.6)" }} onError={e => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
+                            <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{av.name}</div>
+                            <div style={{ fontSize: 8, color: isLucky ? "#a855f7" : av.source === "tier" ? "#FFE66D" : "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 1, fontFamily: "'Space Mono', monospace" }}>{isLucky ? "RARE" : `TIER ${av.tier}`}</div>
+                            {!isUnlocked && <div style={{ position: "absolute", top: 6, right: 6, fontSize: 12 }}>🔒</div>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {recencyPopover && (() => {
+          const r = recencyForExercise(recencyPopover.exerciseId, exerciseRecencies);
+          const dot = recencyDotColor(r.status) ?? "#94a3b8";
+          const headline = r.status === "neglected" ? "Neglected"
+            : r.status === "cooling" ? "Cooling down"
+            : r.status === "baseline" ? "Steady"
+            : r.status === "warm" ? "Recently trained"
+            : r.status === "over-trained" ? "Over-trained"
+            : "Never tried";
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 450, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setRecencyPopover(null)}>
+              <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 320, background: "rgba(20,20,24,0.98)", border: `1px solid ${dot}`, borderRadius: 16, padding: "20px 18px", color: "#fff" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: dot, boxShadow: `0 0 8px ${dot}` }}/>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>VARIETY SIGNAL</div>
+                </div>
+                <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4 }}>{recencyPopover.exerciseName}</div>
+                <div style={{ fontSize: 13, color: dot, fontWeight: 600, marginBottom: 10 }}>{headline}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, marginBottom: 10 }}>{r.label}</div>
+                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 12px", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, marginBottom: 3, fontFamily: "'Space Mono', monospace" }}>NEXT SESSION</div>
+                  <div style={{ color: r.multiplier > 1 ? "#34d399" : r.multiplier < 1 ? "#fbbf24" : "rgba(255,255,255,0.7)", fontWeight: 600 }}>{r.bonusText}</div>
+                </div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.5, marginTop: 12 }}>Variety nudges help your tier score reflect balanced training. Mix up exercises to keep the signal positive.</div>
+                <button onClick={() => setRecencyPopover(null)} style={{ width: "100%", marginTop: 14, padding: "10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>CLOSE</button>
+              </div>
+            </div>
+          );
+        })()}
 
         {formPreview && (() => {
           const urls = getExerciseImageUrls(formPreview.id, formPreview.name);
@@ -7464,6 +7623,42 @@ function HomePage() {
           Suppressed under de-gamify mode but still persists IDs so unhiding
           later doesn't dump 20 popups at once. */}
       <AnimatePresence>
+        {pendingLuckyDrop && (() => {
+          const isAvatar = pendingLuckyDrop.kind === "avatar";
+          const tint = isAvatar ? "#a855f7" : "#34d399";
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPendingLuckyDrop(null)}
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 9100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(10px)", cursor: "pointer" }}
+            >
+              <motion.div
+                initial={{ scale: 0.85, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 240, damping: 22 }}
+                style={{ maxWidth: 340, width: "100%", background: `linear-gradient(135deg, ${tint}33, rgba(0,0,0,0.4))`, border: `1px solid ${tint}88`, borderRadius: 20, padding: 28, textAlign: "center", boxShadow: `0 24px 60px ${tint}55` }}
+              >
+                <div style={{ fontSize: 68, lineHeight: 1, marginBottom: 12 }}>{isAvatar ? "🎁" : "🍀"}</div>
+                <div style={{ fontSize: 10, color: tint, letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>LUCKY DROP</div>
+                {isAvatar && pendingLuckyDrop.kind === "avatar" ? (
+                  <>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 6, lineHeight: 1.2 }}>{pendingLuckyDrop.avatar.name}</div>
+                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 14, lineHeight: 1.5 }}>{pendingLuckyDrop.avatar.flavour}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>NEW RARE AVATAR · CHECK SETTINGS TO EQUIP</div>
+                  </>
+                ) : pendingLuckyDrop.kind === "score-bonus" ? (
+                  <>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: "#fff", marginBottom: 6 }}>+{pendingLuckyDrop.amount} score</div>
+                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 14, lineHeight: 1.5 }}>{pendingLuckyDrop.flavour}</div>
+                  </>
+                ) : null}
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>TAP TO CONTINUE</div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
         {!deGamified && milestoneQueue.length > 0 && (() => {
           const m = milestoneQueue[0];
           return (
@@ -8502,6 +8697,14 @@ function HomePage() {
                           setGroupWorkoutCache(p => ({ ...p, [grp.id]: data }));
                         } catch {} finally { setGroupWorkoutLoading(false); }
                       }
+                      if (opening && !groupChallengesCache[grp.id]) {
+                        setGroupChallengesLoading(true);
+                        try {
+                          const res = await fetch(`/api/leaderboard/groups/${grp.id}/challenges`);
+                          const data = await res.json();
+                          if (!data.error) setGroupChallengesCache(p => ({ ...p, [grp.id]: data }));
+                        } catch {} finally { setGroupChallengesLoading(false); }
+                      }
                     }} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{grp.name}</div>
@@ -8533,6 +8736,119 @@ function HomePage() {
                               </button>
                             </div>
                           ) : null;
+                        })()}
+                        {/* ── Group Challenges ── opt-in by group leader.
+                            Shared progress bar across all members.
+                            (qa: group-challenges) */}
+                        {(() => {
+                          const cache = groupChallengesCache[grp.id];
+                          const challenges = (cache?.challenges ?? []) as any[];
+                          const isLeader = !!cache?.isLeader;
+                          const isCreating = newChallengeForm.groupId === grp.id;
+                          const activeOnes = challenges.filter(c => c.state === "active");
+                          const completedOnes = challenges.filter(c => c.state === "completed");
+                          return (
+                            <div style={{ marginBottom: 14, padding: 10, background: "rgba(255,230,109,0.04)", border: "1px solid rgba(255,230,109,0.14)", borderRadius: 10 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                <span style={{ fontSize: 14 }}>🎯</span>
+                                <div style={{ fontSize: 10, color: "#FFE66D", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>CHALLENGES</div>
+                                <div style={{ flex: 1, height: 1, background: "rgba(255,230,109,0.1)" }} />
+                                {isLeader && !isCreating && (
+                                  <button onClick={() => setNewChallengeForm({ groupId: grp.id, title: "", metric: "total_reps", target: "1000", durationDays: "30", exerciseSubstrings: "" })} style={{ padding: "3px 9px", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 6, color: "#FFE66D", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>+ START</button>
+                                )}
+                              </div>
+
+                              {activeOnes.length === 0 && completedOnes.length === 0 && !isCreating && (
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center", padding: "8px 0" }}>{isLeader ? "Start a group challenge — push the team together." : "Group leader hasn't set one yet."}</div>
+                              )}
+
+                              {activeOnes.map((c: any) => {
+                                const pct = Math.min(100, Math.round((c.progress / c.target) * 100));
+                                const endsAt = new Date(c.endsAt);
+                                const daysLeft = Math.max(0, Math.ceil((endsAt.getTime() - Date.now()) / 86400000));
+                                const unit = c.metric === "total_volume_kg" ? "kg" : c.metric === "total_sessions" ? "sessions" : c.metric === "exercise_distinct" ? "exercises" : "reps";
+                                return (
+                                  <div key={c.id} style={{ marginBottom: 8, padding: 10, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,230,109,0.18)", borderRadius: 8 }}>
+                                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
+                                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{c.title}</div>
+                                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>{daysLeft}d LEFT</div>
+                                    </div>
+                                    <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", marginBottom: 4 }}>
+                                      <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg, #FFE66D, #f0c040)" }}/>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "rgba(255,255,255,0.55)" }}>
+                                      <span>{c.progress.toLocaleString()} / {c.target.toLocaleString()} {unit}</span>
+                                      <span>You: {(c.myContribution ?? 0).toLocaleString()}</span>
+                                    </div>
+                                    {isLeader && (
+                                      <button onClick={async () => {
+                                        if (!confirm("Cancel this challenge?")) return;
+                                        try {
+                                          const res = await fetch(`/api/leaderboard/groups/${grp.id}/challenges`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challengeId: c.id }) });
+                                          if (res.ok) {
+                                            setGroupChallengesCache(prev => ({ ...prev, [grp.id]: { ...prev[grp.id], challenges: prev[grp.id].challenges.filter((x: any) => x.id !== c.id) } }));
+                                          }
+                                        } catch {}
+                                      }} style={{ marginTop: 6, padding: "3px 8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "#FF6B6B", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>CANCEL</button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+
+                              {completedOnes.length > 0 && (
+                                <div style={{ marginTop: 6 }}>
+                                  {completedOnes.slice(0, 2).map((c: any) => (
+                                    <div key={c.id} style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", padding: "4px 0", display: "flex", justifyContent: "space-between" }}>
+                                      <span>✓ {c.title}</span><span style={{ color: "#34d399" }}>completed</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {isCreating && (
+                                <div style={{ marginTop: 8, padding: 10, background: "rgba(0,0,0,0.35)", borderRadius: 8, border: "1px solid rgba(255,230,109,0.18)" }}>
+                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>NEW CHALLENGE</div>
+                                  <input value={newChallengeForm.title} onChange={e => setNewChallengeForm(f => ({ ...f, title: e.target.value }))} placeholder="Title (e.g. Pushup Pile)" style={{ width: "100%", padding: "8px 10px", marginBottom: 6, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 12, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
+                                  <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                                    <select value={newChallengeForm.metric} onChange={e => setNewChallengeForm(f => ({ ...f, metric: e.target.value }))} style={{ flex: 1, padding: "7px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11 }}>
+                                      <option value="total_reps">Total reps</option>
+                                      <option value="total_sessions">Total sessions</option>
+                                      <option value="total_volume_kg">Total volume (kg)</option>
+                                      <option value="exercise_distinct">Distinct exercises</option>
+                                    </select>
+                                    <input value={newChallengeForm.target} onChange={e => setNewChallengeForm(f => ({ ...f, target: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="Target" style={{ width: 80, padding: "7px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, outline: "none", boxSizing: "border-box" }} />
+                                    <input value={newChallengeForm.durationDays} onChange={e => setNewChallengeForm(f => ({ ...f, durationDays: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="Days" style={{ width: 50, padding: "7px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, outline: "none", boxSizing: "border-box" }} />
+                                  </div>
+                                  {(newChallengeForm.metric === "total_reps" || newChallengeForm.metric === "total_volume_kg") && (
+                                    <input value={newChallengeForm.exerciseSubstrings} onChange={e => setNewChallengeForm(f => ({ ...f, exerciseSubstrings: e.target.value }))} placeholder="Optional: limit to exercises matching (e.g. pushup,squat)" style={{ width: "100%", padding: "7px 8px", marginBottom: 6, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
+                                  )}
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button onClick={async () => {
+                                      if (!newChallengeForm.title.trim() || !newChallengeForm.target) return;
+                                      try {
+                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/challenges`, {
+                                          method: "POST", headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({
+                                            title: newChallengeForm.title.trim(),
+                                            metric: newChallengeForm.metric,
+                                            target: Number(newChallengeForm.target),
+                                            durationDays: Number(newChallengeForm.durationDays) || 30,
+                                            exerciseSubstrings: newChallengeForm.exerciseSubstrings.trim() || undefined,
+                                          })
+                                        });
+                                        const data = await res.json();
+                                        if (res.ok && data.challenge) {
+                                          setGroupChallengesCache(prev => ({ ...prev, [grp.id]: { ...prev[grp.id], challenges: [data.challenge, ...(prev[grp.id]?.challenges ?? [])] } }));
+                                          setNewChallengeForm({ groupId: null, title: "", metric: "total_reps", target: "1000", durationDays: "30", exerciseSubstrings: "" });
+                                        }
+                                      } catch {}
+                                    }} style={{ flex: 1, padding: "8px", background: "rgba(255,230,109,0.18)", border: "1px solid rgba(255,230,109,0.4)", borderRadius: 6, color: "#FFE66D", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>START</button>
+                                    <button onClick={() => setNewChallengeForm({ groupId: null, title: "", metric: "total_reps", target: "1000", durationDays: "30", exerciseSubstrings: "" })} style={{ padding: "8px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>CANCEL</button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
                         })()}
                         {/* Group leaderboard — 4 view modes, all ranked
                             within the group only (never global). */}
@@ -10343,7 +10659,17 @@ function HomePage() {
           <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 12 }}>IDENTITY</div>
             <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, marginBottom: 14 }}>
-              <img src="/ai/avatar-default.png" alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.3), 0 6px 18px rgba(255,107,107,0.18)" }} />
+              {(() => {
+                const selectedId = currentAvatarId;
+                const av = selectedId ? findAvatar(selectedId) : null;
+                const src = av ? `/avatars/${av.id}.png` : "/ai/avatar-default.png";
+                return (
+                  <button onClick={() => setAvatarPickerOpen(true)} title="Change avatar" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", position: "relative" }}>
+                    <img src={src} alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.3), 0 6px 18px rgba(255,107,107,0.18)" }} onError={(e) => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
+                    <span style={{ position: "absolute", bottom: -2, right: -2, width: 18, height: 18, borderRadius: "50%", background: "#4ECDC4", border: "2px solid #0a0a0c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#000", fontWeight: 800 }}>✎</span>
+                  </button>
+                );
+              })()}
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>

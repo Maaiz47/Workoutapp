@@ -31,7 +31,7 @@ export function queueCount(): number { return readQueue().length; }
 // POST that queues on failure. The caller awaits the network attempt;
 // on failure we stash and return { ok: false, queued: true }. If the
 // network reports success we don't queue.
-export async function postWithQueue(endpoint: string, body: any): Promise<{ ok: boolean; queued: boolean }> {
+export async function postWithQueue(endpoint: string, body: any): Promise<{ ok: boolean; queued: boolean; data?: any }> {
   // Optimistic check — if navigator says we're offline, skip the network
   // attempt and queue immediately.
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
@@ -48,7 +48,9 @@ export async function postWithQueue(endpoint: string, body: any): Promise<{ ok: 
       enqueue({ endpoint, body, method: "POST" });
       return { ok: false, queued: true };
     }
-    return { ok: true, queued: false };
+    let data: any;
+    try { data = await r.json(); } catch {}
+    return { ok: true, queued: false, data };
   } catch {
     enqueue({ endpoint, body, method: "POST" });
     return { ok: false, queued: true };
