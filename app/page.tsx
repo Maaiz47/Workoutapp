@@ -6689,7 +6689,10 @@ function HomePage() {
         // Quest pill (~52 + 14 margin) + YOUR SPLIT row (~36 + 14
         // margin) + cards + a 12px breathing buffer above the bottom
         // safe area so the last row doesn't kiss the home indicator.
-        const belowHero = 66 + 50 + cardsH + 12;
+        // 66 = quest pill + margin, 84 = suggested next workout
+        // card (text + START button + margin), 50 = YOUR SPLIT
+        // header row, cardsH = grid, 12 = buffer above safe area.
+        const belowHero = 66 + 84 + 50 + cardsH + 12;
         return {
           position: "relative" as const,
           height: `clamp(170px, calc(100dvh - ${belowHero}px - env(safe-area-inset-bottom, 0px)), 320px)`,
@@ -6967,6 +6970,85 @@ function HomePage() {
                 </div>
               )}
             </>
+          );
+        })()}
+
+        {/* Suggested next workout — picks the day with the oldest
+            "last logged" date (or unused). Helps new users get
+            started AND returning users avoid skipping the same day
+            repeatedly. Tap → openDay + begin() so it's a one-tap
+            start. (qa: user — "Show a suggested next workout in the
+            main page based on their past history and data") */}
+        {(() => {
+          const plan = customPlan ? customPlan.map(planDayToWorkoutDay) : (WORKOUT_DATA as any[]);
+          if (!plan || plan.length === 0) return null;
+          // Newest log date per day id from history.
+          const lastByDay: Record<string, string> = {};
+          for (const [dayId, sessions] of Object.entries(history)) {
+            for (const s of sessions as any[]) {
+              const d = String(s.date ?? "");
+              if (!lastByDay[dayId] || d > lastByDay[dayId]) lastByDay[dayId] = d;
+            }
+          }
+          // Pick the day that's been done least recently (or never).
+          // Sort: never-done first, then oldest last-done first. Ties
+          // resolved by plan order so the user's first choice
+          // matches the visible day order in the grid.
+          const ranked = [...plan].sort((a: any, b: any) => {
+            const la = lastByDay[a.id] ?? "";
+            const lb = lastByDay[b.id] ?? "";
+            if (la !== lb) return la.localeCompare(lb); // empty string sorts before any iso date
+            return 0;
+          });
+          const suggested = ranked[0];
+          if (!suggested) return null;
+          const last = lastByDay[suggested.id];
+          const totalLoggedDays = Object.keys(lastByDay).length;
+          // Days since last logged (any day) — used for the
+          // "Start at Day 1" first-time copy.
+          const isFirstTime = Object.values(history).every(arr => (arr as any[]).length === 0);
+          const lastDate = last ? new Date(last + "T12:00:00") : null;
+          const daysSince = lastDate ? Math.max(0, Math.floor((Date.now() - +lastDate) / 86400000)) : null;
+          const reason = isFirstTime
+            ? "Brand new — start here. Build the habit one rep at a time."
+            : !last
+              ? `You've never logged this day. ${totalLoggedDays > 0 ? "Slot it in to keep the split balanced." : "Start here."}`
+              : daysSince === 0
+                ? "Logged today — but if you've got another session in you, this is the freshest slot."
+                : daysSince === 1
+                  ? "Done yesterday. Most-rotated day in your split."
+                  : `Last done ${daysSince} days ago — the most overdue day in your plan.`;
+          return (
+            <button
+              onClick={() => {
+                const wd = suggested as any;
+                openDay(wd);
+                setExpandingDay(null);
+                setTimeout(() => begin(), 0);
+              }}
+              style={{
+                width: "100%", boxSizing: "border-box",
+                marginBottom: 14, padding: "14px 16px",
+                background: `linear-gradient(135deg, ${suggested.color}1f, rgba(10,10,18,0.4))`,
+                border: `1px solid ${suggested.color}44`,
+                borderRadius: 14, cursor: "pointer", textAlign: "left",
+                boxShadow: `0 4px 18px -8px ${suggested.color}55, inset 0 1px 0 rgba(255,255,255,0.04)`,
+                fontFamily: "'DM Sans', sans-serif",
+                display: "flex", alignItems: "center", gap: 12,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: suggested.color, fontFamily: "'Space Mono', monospace" }}>▶ SUGGESTED NEXT</span>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· {suggested.label}</span>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: -0.2, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{suggested.title}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.4 }}>{reason}</div>
+              </div>
+              <div style={{ padding: "10px 14px", background: suggested.gradient, borderRadius: 10, color: "#fff", fontSize: 11, fontWeight: 800, letterSpacing: 2, fontFamily: "'Space Mono', monospace", flexShrink: 0, boxShadow: `0 4px 12px -4px ${suggested.color}aa` }}>
+                START ▸
+              </div>
+            </button>
           );
         })()}
 

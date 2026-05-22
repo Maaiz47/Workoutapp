@@ -2,6 +2,25 @@
 
 ---
 
+## Feature · 2026-05-21 — Suggested Next Workout card on home (qa: home-polish-v2)
+
+New `▶ SUGGESTED NEXT` card above the YOUR SPLIT grid that picks
+the day the user should do next based on their history:
+- Newest log per day id is computed from `history`.
+- Days are ranked by oldest last-done (never-done = empty string,
+  which sorts first), tie-broken by plan order.
+- The top-ranked day is surfaced as a card showing the day label,
+  title, and a one-liner reason — "Brand new — start here" for
+  first-time users, "Never logged this day" for partial logs, or
+  "Last done N days ago — the most overdue day in your plan" for
+  regular returning users.
+- One-tap START button that calls `openDay()` + `begin()`, skipping
+  the prep screen (same flow as the day-card START on the grid).
+- Hero auto-size constant adjusted (+84 px) so the card doesn't
+  push the last grid row below the bottom UI when scrolled to top.
+
+---
+
 ## Fix · 2026-05-21 — Volume × Muscle scales bodyweight by movement load coefficient (qa: progress-volume-heatmap)
 
 Crediting full bodyweight for every bodyweight rep was wildly over-
