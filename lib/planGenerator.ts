@@ -26,6 +26,11 @@ export interface UserProfileInput {
   //   "mixed"       — alternates steady + intervals over the plan
   // Appended in addition to the strength split.
   cardioPreference?: string | null;
+  // Target session length in minutes (~30-90). Used to tighten the
+  // plan when the user has a short window — auto-pair isolation
+  // accessories into supersets, mark the last working set as a drop
+  // set on certain compounds — so the prescribed work still fits.
+  targetSessionMinutes?: number | null;
 }
 
 export interface GeneratedExercise {
@@ -36,6 +41,8 @@ export interface GeneratedExercise {
   rest: number;
   notes?: string;
   kind?: "warmup" | "main" | "cooldown";
+  groupId?: string;
+  groupType?: string;
 }
 
 export interface GeneratedDay {
@@ -732,6 +739,52 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
     planNote += " HIIT circuits added as finishers to each training day.";
   } else if (profile.hiitPreference === "dedicated_day") {
     planNote += " Dedicated HIIT day included for maximum fat-burning.";
+  }
+
+  // ── Target session length tightening ────────────────────────────────
+  // When the user has a tight session window (< 40 min), pair the last
+  // two ISOLATION accessories of each strength day into a superset so
+  // they run concurrently — saves ~3-4 min/day. For very tight windows
+  // (<= 30 min), also mark the FINAL working set of the heaviest
+  // compound as a drop set (single drop, no extra rounds) so the user
+  // gets quality intensity without extra time. Cardio days untouched.
+  // (qa: onboarding-profile-setup)
+  const tgt = profile.targetSessionMinutes ?? 45;
+  if (tgt < 40) {
+    let pairedCount = 0;
+    let droppedCount = 0;
+    for (const day of finalDays) {
+      if (day.focus.includes("cardio")) continue;
+      const isolations = day.exercises.filter(e => {
+        const ex = EXERCISES.find(x => x.id === e.exerciseId);
+        return ex?.type === "isolation" && !e.groupId;
+      });
+      if (isolations.length >= 2) {
+        const a = isolations[isolations.length - 2];
+        const b = isolations[isolations.length - 1];
+        const gid = `tight-${day.title.replace(/\s+/g, "-")}-${pairedCount}`;
+        a.groupId = gid;
+        a.groupType = "superset";
+        b.groupId = gid;
+        b.groupType = "superset";
+        a.notes = (a.notes ? a.notes + " · " : "") + "Auto-paired (tight session)";
+        b.notes = (b.notes ? b.notes + " · " : "") + "Auto-paired (tight session)";
+        pairedCount++;
+      }
+      if (tgt <= 30) {
+        const heavyCompound = day.exercises.find(e => {
+          const ex = EXERCISES.find(x => x.id === e.exerciseId);
+          return ex?.type === "compound" && !e.groupId;
+        });
+        if (heavyCompound && !heavyCompound.notes?.includes("Drop set")) {
+          heavyCompound.notes = (heavyCompound.notes ? heavyCompound.notes + " · " : "") + "Drop set on final working set (tight session)";
+          droppedCount++;
+        }
+      }
+    }
+    if (pairedCount > 0) {
+      planNote += ` Tightened for your ${tgt}-min window — last two isolations auto-paired as supersets${tgt <= 30 ? " and drop-set notes added to top compounds" : ""}.`;
+    }
   }
 
   // Modality opt-ins. Empty list (legacy) defaults to ["strength"] —

@@ -3053,7 +3053,7 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
 // needs to be inserted into EACH branch's return — there's no
 // single bottom render to attach to.
 function HomeGlobals({
-  user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown,
+  user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, onJumpToLeaderboard,
 }: {
   user: { username: string; role: string; extraRoles?: string[] } | null;
   view: string;
@@ -3065,6 +3065,11 @@ function HomeGlobals({
   // surface (welcome card pill, Settings IDENTITY, TierInfoModal,
   // leaderboard "you" row) renders the SAME tier.
   athleteBreakdown: TierBreakdown | null;
+  // Optional callback wired from HomePage — closes the tier modal,
+  // navigates to home view, scrolls to the user's "YOU" row in the
+  // first visible leaderboard group. Lets the user jump from the
+  // tier explainer straight to their current rank.
+  onJumpToLeaderboard?: () => void;
 }) {
   const isTrainer = userHasRole(user as any, "trainer");
   // Map the new AnimalTier shape → local TierLite shape so the
@@ -3087,6 +3092,7 @@ function HomeGlobals({
         trainerUnit="more active clients unlocks the next tier"
         athleteRaw={athleteBreakdown?.headlineScore ?? 0}
         trainerRaw={clients.length}
+        onJumpToLeaderboard={onJumpToLeaderboard}
       />
     </>
   );
@@ -3126,6 +3132,7 @@ function TierInfoModal({
   athleteTier, trainerTier,
   athleteUnit, trainerUnit,
   athleteRaw, trainerRaw,
+  onJumpToLeaderboard,
 }: {
   open: boolean;
   onClose: () => void;
@@ -3137,6 +3144,7 @@ function TierInfoModal({
   trainerUnit: string;       // "clients"
   athleteRaw: number;        // user's raw session count for the athlete ladder
   trainerRaw: number;        // user's raw client count for the trainer ladder
+  onJumpToLeaderboard?: () => void;
 }) {
   if (!open) return null;
 
@@ -3230,6 +3238,22 @@ function TierInfoModal({
           weakest dimension to focus next)? Open <strong>Progress →
           Dashboard</strong> — same ladder, full breakdown.
         </div>
+
+        {onJumpToLeaderboard && (
+          <button
+            onClick={onJumpToLeaderboard}
+            style={{
+              width: "100%", marginTop: 10, padding: "11px 14px",
+              background: "rgba(78,205,196,0.12)",
+              border: "1px solid rgba(78,205,196,0.35)",
+              borderRadius: 12, color: "#4ECDC4",
+              fontSize: 12, fontWeight: 700, letterSpacing: 2,
+              fontFamily: "'Space Mono', monospace", cursor: "pointer",
+            }}
+          >
+            ↓ JUMP TO MY LEADERBOARD ROW
+          </button>
+        )}
 
         {/* How to earn points — explicit recipe per sub-rank so the
             tester can answer "how do I move up?" without leaving the
@@ -3555,6 +3579,17 @@ function HomePage() {
         tierModalOpen={tierModalOpen}
         setTierModalOpen={setTierModalOpen}
         athleteBreakdown={myAthleteBreakdown}
+        onJumpToLeaderboard={() => {
+          setTierModalOpen(false);
+          setView("home");
+          // Defer the scroll until the home view has rendered. The
+          // YOU row in the first leaderboard group carries
+          // id="lb-you-row" — first match wins. (qa: tier-info-modal)
+          setTimeout(() => {
+            const el = document.getElementById("lb-you-row");
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 350);
+        }}
       />
     );
   });
@@ -3824,6 +3859,10 @@ function HomePage() {
   const [showSavedList, setShowSavedList] = useState(false);
   const [showSaveRoutine, setShowSaveRoutine] = useState(false);
   const [showHiitPrompt, setShowHiitPrompt] = useState(false);
+  // Shown after the HIIT prompt closes (regardless of HIIT choice) so
+  // new users opt into a dedicated cardio day during onboarding rather
+  // than only via Settings post-hoc. (qa: plan-cardio-day)
+  const [showCardioPrompt, setShowCardioPrompt] = useState(false);
   const [showEmailSignupPrompt, setShowEmailSignupPrompt] = useState(false);
   const [hiitPreference, setHiitPreference] = useState("");
   const [hiitIntensity, setHiitIntensity] = useState("moderate");
@@ -4921,9 +4960,21 @@ function HomePage() {
     setHiitPreference(pref);
     setHiitIntensity(intensity);
     setShowHiitPrompt(false);
-    if (pref === "none") return;
+    // Defer plan regeneration until after the cardio prompt resolves
+    // — they both save then a single regenerate covers both choices.
     try {
       await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hiitPreference: pref, hiitIntensity: intensity }) });
+    } catch {}
+    setShowCardioPrompt(true);
+  };
+
+  const applyCardioChoice = async (pref: string) => {
+    setCardioPreference(pref);
+    setShowCardioPrompt(false);
+    try {
+      await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cardioPreference: pref }) });
+      // Single plan regenerate covers BOTH the HIIT and cardio
+      // choices the user just made.
       const planRes = await fetch("/api/plan", { method: "POST" });
       const planData = await planRes.json();
       if (planData.plan?.days?.length) { setCustomPlan(planData.plan.days); setPlanNote(planData.planNote || ""); }
@@ -8171,7 +8222,7 @@ function HomePage() {
                                     );
                                     if (lbMode === "sessions") {
                                       return (
-                                        <div key={m.userId} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 38px 38px 38px" }}>
+                                        <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 38px 38px 38px" }}>
                                           {nameCell}
                                           <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: "#a29bfe" }}>{m.totalSessions}</div></div>
                                           <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: m.streak >= 3 ? "#FF6B6B" : "#fff" }}>{m.streak}</div></div>
@@ -8183,7 +8234,7 @@ function HomePage() {
                                       const wc = m.weightChangeKg;
                                       const wcColor = wc == null ? "rgba(255,255,255,0.3)" : wc < 0 ? "#4ECDC4" : wc > 0 ? "#a29bfe" : "rgba(255,255,255,0.5)";
                                       return (
-                                        <div key={m.userId} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 56px 60px" }}>
+                                        <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 56px 60px" }}>
                                           {nameCell}
                                           <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{m.weightCurrent != null ? `${m.weightCurrent}kg` : "—"}</div></div>
                                           <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: wcColor, fontFamily: "'Space Mono', monospace" }}>{wc == null ? "—" : `${wc > 0 ? "+" : ""}${wc}kg`}</div></div>
@@ -8194,7 +8245,7 @@ function HomePage() {
                                       const dc = m.bfChangePct;
                                       const dcColor = dc == null ? "rgba(255,255,255,0.3)" : dc < 0 ? "#4ECDC4" : dc > 0 ? "#FF6B6B" : "rgba(255,255,255,0.5)";
                                       return (
-                                        <div key={m.userId} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 56px 60px" }}>
+                                        <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 56px 60px" }}>
                                           {nameCell}
                                           <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{m.bfCurrent != null ? `${m.bfCurrent}%` : "—"}</div></div>
                                           <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: dcColor, fontFamily: "'Space Mono', monospace" }}>{dc == null ? "—" : `${dc > 0 ? "+" : ""}${dc}%`}</div></div>
@@ -8203,7 +8254,7 @@ function HomePage() {
                                     }
                                     // bf-now
                                     return (
-                                      <div key={m.userId} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 80px" }}>
+                                      <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 80px" }}>
                                         {nameCell}
                                         <div style={{ textAlign: "right" }}><div style={{ fontSize: 14, fontWeight: 700, color: m.bfCurrent != null ? "#f0c040" : "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{m.bfCurrent != null ? `${m.bfCurrent}%` : "—"}</div></div>
                                       </div>
@@ -9281,6 +9332,35 @@ function HomePage() {
                 <div style={{ fontSize: 12, color: "rgba(255,140,66,0.5)", fontWeight: 400 }}>A separate HIIT & conditioning session</div>
               </button>
               <button onClick={() => applyHiitChoice("none", hiitIntensity)} style={{ padding: "14px 20px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", textAlign: "left" }}>Not now — I'll add it later from settings</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cardio Day prompt — shown right after the HIIT prompt closes
+          during onboarding. Independent of HIIT choice; a user can
+          add HIIT finishers AND a dedicated cardio day, or neither. */}
+      {showCardioPrompt && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.96)", zIndex: 600, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28 }}>
+          <div style={{ width: "100%", maxWidth: 380 }}>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, letterSpacing: 4, color: "#4ECDC4", marginBottom: 14 }}>🏃 CARDIO DAY</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 8, lineHeight: 1.3 }}>Add a dedicated cardio day?</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.7, marginBottom: 24 }}>One full session per week focused on conditioning, on top of your strength split. Equipment auto-picked from your profile ({ob.location === "gym" ? "treadmill / bike / rower" : "jump rope / jumping jacks / mountain climbers"}).</div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button onClick={() => applyCardioChoice("steady")} style={{ padding: "14px 18px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.35)", borderRadius: 14, color: "#4ECDC4", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>🚶 Steady-State</div>
+                <div style={{ fontSize: 12, color: "rgba(78,205,196,0.65)", fontWeight: 400 }}>30 min easy LISS — conversational pace. Best for fat loss + recovery.</div>
+              </button>
+              <button onClick={() => applyCardioChoice("intervals")} style={{ padding: "14px 18px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 14, color: "rgba(78,205,196,0.85)", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>⚡ Intervals</div>
+                <div style={{ fontSize: 12, color: "rgba(78,205,196,0.55)", fontWeight: 400 }}>10×1 min hard / 1 min easy. Best for conditioning + time efficiency.</div>
+              </button>
+              <button onClick={() => applyCardioChoice("mixed")} style={{ padding: "14px 18px", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 14, color: "rgba(78,205,196,0.7)", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>🔀 Mixed</div>
+                <div style={{ fontSize: 12, color: "rgba(78,205,196,0.5)", fontWeight: 400 }}>Warm-up + 8×45 sec intervals + cooldown. Balanced.</div>
+              </button>
+              <button onClick={() => applyCardioChoice("none")} style={{ padding: "14px 20px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, color: "rgba(255,255,255,0.3)", fontSize: 13, cursor: "pointer", textAlign: "left" }}>Skip — I'll add one later from settings</button>
             </div>
           </div>
         </div>

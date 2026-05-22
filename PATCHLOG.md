@@ -2,6 +2,55 @@
 
 ---
 
+## Feat · 2026-05-22 — Pending backlog clear (parts 1–3) (qa: plan-cardio-day, onboarding-profile-setup, tier-info-modal)
+
+Working the deferred slice-2 / next-pass items @maaiz
+flagged. Items 1-3 of 5 done this pass.
+
+### 1. Cardio day onboarding prompt (slice 2 of plan-cardio-day)
+The cardio day field was editable in Settings → TRAINING
+last pass but not surfaced during onboarding — new users
+went through the HIIT prompt and never saw the cardio
+question. Now: after the HIIT prompt closes (any selection),
+a second prompt opens with the same shape: 4 options
+(Steady-State / Intervals / Mixed / Skip) each with a 1-line
+description. Choosing one PATCHes the profile and
+regenerates the plan once at the end (HIIT save was
+deferred to share the same regenerate call).
+
+### 2. targetSessionMinutes → planGenerator tightening
+`profile.targetSessionMinutes` was saved + shown vs. actual
+since the previous slice, but planGenerator ignored it.
+Now: a post-process step at the end of plan generation
+inspects the target and tightens for short windows:
+- `< 40 min` → auto-pair the last TWO isolation accessories
+  of each strength day into a superset (groupId +
+  groupType="superset", notes "Auto-paired (tight session)"
+  on both). Saves ~3-4 min per day of run-time.
+- `<= 30 min` → ALSO add a "Drop set on final working set
+  (tight session)" note to the day's heaviest compound
+  (just a textual nudge — drop-set mode itself stays
+  user-controlled).
+- `>= 40 min` → no change (default).
+The planNote appended for the user reads e.g. "Tightened
+for your 30-min window — last two isolations auto-paired
+as supersets and drop-set notes added to top compounds."
+
+### 3. TierInfoModal "Jump to my leaderboard row" deep-link
+The tier explainer modal had a "Open Progress → Dashboard"
+hint but no direct way to see where you actually rank.
+Added a new `↓ JUMP TO MY LEADERBOARD ROW` button below the
+hint. Tap → closes the modal, navigates home, scrolls to
+the YOU row (`id="lb-you-row"`) in the first leaderboard
+group via `scrollIntoView({ behavior: "smooth", block:
+"center" })`. Wired the callback through HomeGlobals →
+TierInfoModal so the modal stays generic (no view-coupling).
+
+Items 4 (trainer multi-dim server-side tier) and 5 (/qa
+per-step comments) coming next.
+
+---
+
 ## Feat · 2026-05-22 — Dedicated cardio day opt-in (qa: plan-cardio-day)
 
 @maaiz: "A lot of people like to have a fully cardio day,

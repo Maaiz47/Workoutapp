@@ -145,6 +145,7 @@ export async function POST(req: NextRequest) {
       hiitIntensity: (profile as any).hiitIntensity ?? null,
       modalities: (profile as any).modalities ?? [],
       cardioPreference: (profile as any).cardioPreference ?? null,
+      targetSessionMinutes: (profile as any).targetSessionMinutes ?? null,
     };
 
     const generated = generatePlan(input);
