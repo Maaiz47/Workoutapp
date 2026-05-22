@@ -8726,29 +8726,30 @@ function HomePage() {
           ))}
         </div>
       )}
+      {/* Hub buttons — single row, fits any viewport. Used to be a
+          2-col grid under a "QUICK ACTIONS" header; the icons + short
+          labels are self-explanatory so the header is gone. Each
+          button is flex:1 with minWidth:0 so they share width
+          evenly and labels truncate on extremely narrow screens.
+          (qa: home-hub-singleline) */}
       <div style={{ padding: "20px 20px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-          <span style={{ fontSize: 18, lineHeight: 1 }}>⚡</span>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>QUICK ACTIONS</div>
-          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <button className="card-hover nav-btn" onClick={() => goTo("messages")} style={{ position: "relative", padding: "18px 14px", background: unreadCount > 0 ? "rgba(78,205,196,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${unreadCount > 0 ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box" }}>
+        <div style={{ display: "flex", flexWrap: "nowrap", gap: 6, justifyContent: "center", maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
+          <button className="card-hover nav-btn" onClick={() => goTo("messages")} title="Messages" style={{ position: "relative", flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: unreadCount > 0 ? "rgba(78,205,196,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${unreadCount > 0 ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box" }}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>💬</span>
-            <span>Messages</span>
-            {unreadCount > 0 && <span style={{ position: "absolute", top: 8, right: 8, background: "#4ECDC4", color: "#000", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Messages</span>
+            {unreadCount > 0 && <span style={{ position: "absolute", top: 4, right: 4, background: "#4ECDC4", color: "#000", borderRadius: 10, padding: "1px 6px", fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
           </button>
-          <button className="card-hover nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} style={{ padding: "18px 14px", background: "rgba(255,107,107,0.04)", border: "1px solid rgba(255,107,107,0.14)", borderRadius: 14, color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box" }}>
+          <button className="card-hover nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} title="Progress" style={{ flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: "rgba(255,107,107,0.04)", border: "1px solid rgba(255,107,107,0.14)", borderRadius: 12, color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box" }}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>📊</span>
-            <span>Progress</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Progress</span>
           </button>
           {/* Leaderboards — opens GlobalLeaderboardView (athletes +
               trainers, app-wide). Visible to all roles. Used to live
               behind the TierInfoModal; now first-class.
               (qa: home-hub-consolidation) */}
-          <button className="card-hover nav-btn" onClick={() => goTo("globalLeaderboard")} style={{ padding: "18px 14px", background: "rgba(240,192,64,0.05)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 14, color: "#f0c040", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box" }}>
+          <button className="card-hover nav-btn" onClick={() => goTo("globalLeaderboard")} title="Leaderboards" style={{ flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: "rgba(240,192,64,0.05)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 12, color: "#f0c040", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box" }}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>🏆</span>
-            <span>Leaderboards</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Ranks</span>
           </button>
           {/* Groups — opens the dedicated Groups view. Visible to
               everyone; athletes see groups they're members of (e.g.
@@ -8756,17 +8757,17 @@ function HomePage() {
               also see groups they created/joined. Empty state
               explains how to get invited if you're not in any.
               (qa: home-hub-consolidation, athlete-groups-view) */}
-          <button className="card-hover nav-btn" onClick={() => goTo("groupsHub")} style={{ padding: "18px 14px", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 14, color: "#4ECDC4", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box" }}>
+          <button className="card-hover nav-btn" onClick={() => goTo("groupsHub")} title="Groups" style={{ flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 12, color: "#4ECDC4", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box" }}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>🏝️</span>
-            <span>Groups</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Groups</span>
           </button>
           {/* Clients — opens the dedicated Clients view, trainer-only.
               Used to be inline on home. (qa: home-hub-consolidation) */}
           {userHasRole(user, "trainer") && (
-            <button className="card-hover nav-btn" onClick={() => goTo("clientsHub")} style={{ padding: "18px 14px", background: "rgba(168,85,247,0.05)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 14, color: "#a855f7", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box", position: "relative" }}>
+            <button className="card-hover nav-btn" onClick={() => goTo("clientsHub")} title="Clients" style={{ flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: "rgba(168,85,247,0.05)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 12, color: "#a855f7", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box", position: "relative" }}>
               <span style={{ fontSize: 22, lineHeight: 1 }}>👥</span>
-              <span>Clients</span>
-              {clients.length > 0 && <span style={{ position: "absolute", top: 8, right: 8, background: "rgba(168,85,247,0.2)", color: "#a855f7", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{clients.length}</span>}
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Clients</span>
+              {clients.length > 0 && <span style={{ position: "absolute", top: 4, right: 4, background: "rgba(168,85,247,0.2)", color: "#a855f7", borderRadius: 10, padding: "1px 6px", fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{clients.length}</span>}
             </button>
           )}
         </div>

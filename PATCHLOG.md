@@ -2,6 +2,52 @@
 
 ---
 
+## Polish · 2026-05-22 — Home hub: single-row + contributors on /qa (qa: home-hub-singleline, contributions-on-qa-board)
+
+@maaiz: "The quick actions need to be dynamically changing to fit
+in one line on mobile, centered on desktop. They also don't need
+a quick actions label as the buttons are self explanatory."
+
+Plus: "I can't see Amanii's image contributions added to the QA
+leaderboard. She did some heavy lifting there."
+
+### Hub buttons → single row
+
+- Section header (⚡ + "QUICK ACTIONS" + divider) removed. Icons
+  + labels are self-explanatory.
+- Layout switched from 2-col grid to flex row. Each button
+  `flex: 1 1 0` with `minWidth: 0` so they share space evenly
+  and labels truncate gracefully on very narrow viewports.
+- Padding reduced (12px vertical, 6px horizontal) and label
+  fontsize trimmed (12px → 11px) so 5 buttons fit on a 380-390px
+  mobile viewport without wrap.
+- "Leaderboards" shortened to "Ranks" since the 🏆 icon already
+  carries the meaning — the rest of the labels stayed.
+- Container `maxWidth: 480` + `margin: auto` centres the row on
+  desktop.
+- Badge counters (Messages unread, Clients count) repositioned
+  to the new tighter button corners.
+
+### Contributors leaderboard visible on /qa
+
+- Added a new `ContributorsLeaderboard` section to `/qa`, right
+  below the FEEDBACK LEADERBOARD. Surfaces lib/contributions.ts
+  entries filtered to non-QA-feedback kinds (asset-generation,
+  code, design, other) — so heavy lifters like Amanii (80 image
+  assets) get credit on the QA board too, not only in Settings →
+  Contributors.
+- Pure-QA testers are NOT duplicated here (they already get
+  visibility on the FEEDBACK LEADERBOARD above).
+- Sorted by non-QA contribution count, medals for top 3.
+- Each row lists the contributor's kinds with their per-kind
+  count chips (e.g. 🎨 ART ×80 "Generated all 80 image assets…").
+- Helper text under the header points future contributors at
+  `lib/contributions.ts` for additions.
+
+(qa: home-hub-singleline, contributions-on-qa-board)
+
+---
+
 ## Feat · 2026-05-22 — Athletes can view their groups (qa: athlete-groups-view)
 
 @maaiz: "Yes let athletes have a group section too for their groups.

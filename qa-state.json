@@ -2092,6 +2092,45 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     },
     {
+      "id": "home-hub-singleline",
+      "title": "Home hub buttons — single row, centered, no section header",
+      "area": "Home",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass home-hub-singleline",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open the app on mobile (or set viewport ~390px wide).",
+        "Scroll to the bottom hub section. Verify the '⚡ QUICK ACTIONS' header (with icon + divider) is GONE.",
+        "Verify the nav buttons render in a single row, no wrap. For athletes: 3 buttons (Messages, Progress, Ranks). For trainers: 5 buttons (Messages, Progress, Ranks, Groups, Clients).",
+        "Verify each button shows: emoji icon (22px), short label (11px) below. Labels: Messages, Progress, Ranks (was 'Leaderboards'), Groups, Clients.",
+        "Verify badges still display: Messages unread count, Clients count.",
+        "On desktop (viewport > 480px), verify the buttons remain centered horizontally (the row maxes at 480px and centers).",
+        "Tap each button — verify it navigates to the correct view (messages / progress / globalLeaderboard / groupsHub / clientsHub)."
+      ],
+      "notes": "[2026-05-22 <sha7>] Layout switched grid → flex with flex:1 1 0 on each button and minWidth:0 so labels truncate on extremely narrow viewports instead of wrapping. Padding trimmed, label fontsize 12→11. 'Leaderboards' label shortened to 'Ranks' since the 🏆 icon carries the meaning. Container maxWidth:480 + margin auto centers on desktop."
+    },
+    {
+      "id": "contributions-on-qa-board",
+      "title": "Contributors leaderboard visible on /qa dashboard",
+      "area": "QA",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass contributions-on-qa-board",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open /qa as an admin or via direct URL.",
+        "Scroll past the per-area health bars and the FEEDBACK LEADERBOARD section.",
+        "Verify a new '🏅 CONTRIBUTORS' card renders directly below the FEEDBACK LEADERBOARD.",
+        "Header shows: 🏅 CONTRIBUTORS · {N} PEOPLE · {M} CONTRIBS ▲/▼ collapse toggle.",
+        "Verify @Amanii appears at rank #1 (🥇) with 80 contributions, kind chip '🎨 ART ×80', description text: 'Generated all 80 image assets — 30 profile avatars (tier-unlocked + lucky-drop pool) and 50 form-demo frames…'.",
+        "Verify pure-QA testers (who only have qa-feedback contributions) DO NOT appear in this section — they're already credited on the FEEDBACK LEADERBOARD above.",
+        "Tap the header to collapse/expand the section.",
+        "To add a new contributor: edit lib/contributions.ts → append to CONTRIBUTORS array → no code change needed in /qa."
+      ],
+      "notes": "[2026-05-22 <sha7>] ContributorsLeaderboard component added to app/qa/page.tsx. Filters lib/contributions.ts to contributors with non-qa-feedback kinds (asset-generation, code, design, other). Sorted desc by non-QA total. Reuses the existing rankBadge helper for medals. Helper text points future contributors at the source file for additions."
+    },
+    {
       "id": "athlete-groups-view",
       "title": "Athletes can view their groups via the Groups nav button",
       "area": "Home",

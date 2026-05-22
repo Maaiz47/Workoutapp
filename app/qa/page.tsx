@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import MascotSplash from "./MascotSplash";
+import { CONTRIBUTORS, totalContributions, kindLabel, Contributor, Contribution } from "@/lib/contributions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -614,6 +615,104 @@ function Leaderboard({ comments }: { comments: Comment[] }) {
               </div>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Contributors leaderboard ─────────────────────────────────────────────
+// Surfaces lib/contributions.ts entries that fall OUTSIDE the QA-feedback
+// stream — image asset generation, code, design, etc. Sits right below the
+// FEEDBACK LEADERBOARD so heavy-lifters like Amanii (80 image assets) get
+// visible credit on the dashboard, not just in Settings → Contributors.
+// (qa: contributions-on-qa-board)
+function ContributorsLeaderboard() {
+  const [open, setOpen] = useState(true);
+  // Filter to contributors who have at least one non-QA contribution.
+  // (Pure-QA testers already get visibility on the FEEDBACK LEADERBOARD
+  // above; no need to double-count them here.)
+  const rows = CONTRIBUTORS
+    .map(c => {
+      const otherContribs = c.contributions.filter(co => co.kind !== "qa-feedback");
+      const otherTotal = otherContribs.reduce((s, x) => s + (x.count ?? 1), 0);
+      return { contributor: c, otherContribs, otherTotal, totalAll: totalContributions(c) };
+    })
+    .filter(r => r.otherContribs.length > 0)
+    .sort((a, b) => b.otherTotal - a.otherTotal);
+
+  if (rows.length === 0) return null;
+
+  const grandTotal = rows.reduce((s, r) => s + r.otherTotal, 0);
+
+  return (
+    <div style={{
+      marginBottom: 18,
+      background: "linear-gradient(180deg, rgba(168,85,247,0.06) 0%, rgba(255,255,255,0.02) 100%)",
+      border: "1px solid rgba(168,85,247,0.2)",
+      borderRadius: 12,
+      overflow: "hidden",
+    }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: "100%", padding: "14px 16px", background: "transparent",
+          border: "none", color: "#fff", display: "flex", alignItems: "center",
+          justifyContent: "space-between", cursor: "pointer",
+          fontFamily: "'Space Mono', monospace",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>🏅</span>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, color: "#a855f7" }}>CONTRIBUTORS</span>
+        </span>
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>
+          {rows.length} {rows.length === 1 ? "PERSON" : "PEOPLE"} · {grandTotal} CONTRIBS {open ? "▲" : "▼"}
+        </span>
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 12px 14px" }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1, padding: "0 4px 10px", lineHeight: 1.5 }}>
+            Asset generation, code, design — credits for non-feedback work. To add a contributor, edit
+            <code style={{ background: "rgba(255,255,255,0.04)", padding: "1px 5px", borderRadius: 3, fontSize: 10, margin: "0 4px" }}>lib/contributions.ts</code>
+            and append to CONTRIBUTORS.
+          </div>
+          {rows.map((r, idx) => {
+            const badge = rankBadge(idx);
+            return (
+              <div key={r.contributor.username} style={{
+                display: "flex", alignItems: "flex-start", gap: 10,
+                padding: "12px 8px",
+                borderTop: "1px solid rgba(255,255,255,0.05)",
+              }}>
+                <div style={{
+                  flexShrink: 0, width: 36, textAlign: "center",
+                  fontSize: idx < 3 ? 18 : 12,
+                  fontWeight: 700, fontFamily: "'Space Mono', monospace",
+                  color: badge.color, paddingTop: 2,
+                }}>{badge.emoji}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: "'DM Sans', sans-serif" }}>@{r.contributor.displayName}</span>
+                    <span style={{ fontSize: 10, color: "#a855f7", fontFamily: "'Space Mono', monospace", fontWeight: 700, letterSpacing: 1 }}>{r.otherTotal} CONTRIBS</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {r.otherContribs.map((co: Contribution, i: number) => {
+                      const k = kindLabel(co.kind);
+                      return (
+                        <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: k.color, background: `${k.color}1a`, border: `1px solid ${k.color}44`, borderRadius: 4, padding: "2px 7px", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{k.icon} {k.label}</span>
+                          {co.count != null && co.count > 1 && <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", fontFamily: "'Space Mono', monospace" }}>×{co.count}</span>}
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>{co.description}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1590,6 +1689,7 @@ export default function QAPage() {
         {/* Leaderboard — points + counts per tester. Hidden during searches. */}
         {!q && <DashboardMetrics items={allItems} comments={comments} />}
         {!q && <Leaderboard comments={comments} />}
+        {!q && <ContributorsLeaderboard />}
 
         {/* General catch-all threads — General Notes + User Feedback
             (floating pill + SEND FEEDBACK). Both have synthetic items
