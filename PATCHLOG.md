@@ -2,6 +2,45 @@
 
 ---
 
+## Fix · 2026-05-22 — Active workout sessions survive a refresh (qa: workout-set-logging)
+
+Reported by @maaiz: a user lost their session mid-workout to
+what looked like a browser/PWA refresh. Investigated and
+found a real bug — the old `begin()` wrote
+`localStorage["ironlog-session"]` once with `log: {}` and
+never updated it. As the user logged sets, the React `log`
+state changed but the localStorage copy stayed empty. On
+refresh the restore effect at the top of HomePage loaded the
+saved session and hydrated `setLog(session.log || {})` →
+empty log → progress gone.
+
+### Fix
+- New `useEffect` watches `[log, warmupSetState, sessionIP]`
+  (alongside `user`, `activeDay`, `started`) and flushes the
+  full state to localStorage on every change. Start time is
+  read from the previous record so it never resets.
+- The restore effect now also rehydrates `warmupSetState` and
+  `sessionIP`, so per-set warmup/cooldown marks and intensity
+  points survive the reload, not just the lifting log.
+- After a restore, a brief "Session restored · N sets saved"
+  banner shows above the home screen with the elapsed time
+  (`Started 12 min ago`) so the user knows their progress is
+  intact and the timer is running off the original start.
+- Belt-and-braces: a `beforeunload` listener fires while a
+  session is active, so the browser/PWA shows its native
+  "Leave site?" confirm if the user accidentally hits reload
+  or close. The listener is removed when the session ends.
+
+### Why this hadn't surfaced sooner
+The `edit a logged set` path (line ~5128) explicitly re-wrote
+`log` into localStorage, so editing kept the saved copy in
+sync. The normal `logSet` path didn't. So the bug only bit
+when a refresh happened between logging and editing — easy
+to miss in QA, brutal when it happens to a real user
+mid-workout.
+
+---
+
 ## Fix · 2026-05-22 — Tricep rope pushdown form image now shows the rope (qa: workout-set-logging)
 
 Reported by @maaiz: the FORM modal for `Tricep Rope Pushdowns`

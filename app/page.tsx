@@ -4140,11 +4140,64 @@ function HomePage() {
       if (!day) { localStorage.removeItem("ironlog-session"); return; }
       setActiveDay(day);
       setLog(session.log || {});
+      setWarmupSetState(session.warmupSetState || {});
+      setSessionIP(typeof session.sessionIP === "number" ? session.sessionIP : 0);
       setStarted(true);
       timer.resumeT(session.startTime);
+      // Show a brief "session restored" banner so the user knows
+      // their progress survived the refresh / app reload.
+      const mins = Math.max(0, Math.floor((Date.now() - session.startTime) / 60000));
+      const ageStr = mins < 1 ? "just now" : mins < 60 ? `${mins} min ago` : `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+      const setCount = Object.keys(session.log || {}).length;
+      setResumeOverlay({
+        title: setCount > 0 ? `Session restored · ${setCount} set${setCount === 1 ? "" : "s"} saved` : "Session restored",
+        ageStr,
+      });
       // Stay on home — the active card will show the live session
     } catch { try { localStorage.removeItem("ironlog-session"); } catch {} }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Persist active-session state on every change ─────────────────────
+  // Previously begin() wrote { log: {} } once and never updated; if the
+  // user refreshed mid-session the restore loaded an empty log. Now
+  // every change to log / warmupSetState / sessionIP flushes to
+  // localStorage so a refresh is non-destructive. (qa: workout-set-logging)
+  useEffect(() => {
+    if (!user || !activeDay || !started) return;
+    try {
+      const prev = localStorage.getItem("ironlog-session");
+      let startTime = Date.now();
+      if (prev) {
+        try {
+          const p = JSON.parse(prev);
+          if (typeof p.startTime === "number") startTime = p.startTime;
+        } catch {}
+      }
+      localStorage.setItem("ironlog-session", JSON.stringify({
+        userId: user.id,
+        dayId: activeDay.id,
+        dayData: activeDay,
+        startTime,
+        log,
+        warmupSetState,
+        sessionIP,
+      }));
+    } catch {}
+  }, [user, activeDay, started, log, warmupSetState, sessionIP]);
+
+  // ── Tab-close / refresh guard ─────────────────────────────────────────
+  // Browser shows its native "Leave site?" confirm if the user tries to
+  // close the tab or hit reload mid-session. Belt-and-braces on top of
+  // the localStorage persistence above.
+  useEffect(() => {
+    if (!started || !activeDay) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [started, activeDay]);
 
   useEffect(() => {
     if (!formPreview) return;
