@@ -2,7 +2,73 @@
 
 ---
 
+## Feat · 2026-05-22 — Dedicated cardio day opt-in (qa: plan-cardio-day)
+
+@maaiz: "A lot of people like to have a fully cardio day,
+make it a part of profile/initial questions asked to use in
+the building routine to have a cardio day or not, and what
+they should do."
+
+### Slice 1 — schema + planGenerator + Settings UI
+
+- **Schema:** `UserProfile.cardioPreference String?` — null/"none"
+  | "steady" | "intervals" | "mixed". Applied via `prisma db
+  push` on next Vercel deploy.
+- **/api/profile PATCH + POST:** accept and persist
+  `cardioPreference`.
+- **planGenerator:** new `buildDedicatedCardioDay(profile,
+  style)` emits one of three day shapes:
+  - `steady` → 1 exercise × 30 min easy LISS, conversational
+    pace, ~6/10 effort. Title "Cardio — Steady".
+  - `intervals` → 10 sets × 1 min HARD (8–9/10) + 60s easy,
+    3 min easy cooldown. Title "Cardio — Intervals".
+  - `mixed` → 10 min easy warm-up + 8×45 sec hard / 45 sec
+    easy + 5 min easy cooldown. Title "Cardio — Mixed".
+  Equipment chosen from `preferredCardioIds(profile)` — gym
+  users get treadmill / cycling / rower, home users get
+  jump rope / jumping jacks / mountain climbers.
+  Appended in addition to the strength split, skipped if
+  the fat-loss auto-cardio day was already added so the
+  user doesn't end up with two.
+- **Settings UI:** new 🏃 CARDIO DAY block in TRAINING
+  section (right under HIIT). Four chips
+  (None / Steady-State / Intervals / Mixed) with one-line
+  descriptions of what each contains. Auto-saves on tap,
+  helper line tells the user to rebuild their plan to
+  apply.
+
+### Slice 2 — deferred to next pass
+
+Surfacing the same prompt mid-onboarding (currently it's
+only post-hoc in Settings + ↺ REBUILD WEEKLY PLAN). The
+HIIT prompt screen is a good shape to copy — likely added
+right after the HIIT step in the onboarding flow.
+
+---
+
 ## Fix · 2026-05-22 — Stop "Reached Monkey" popping for users already at Tiger (qa: milestones-celebrations)
+
+Hot take: the prior commit silently swallowed lower-tier
+milestones to avoid the misleading popup. @maaiz course-
+corrected — we should celebrate every tier the user
+crossed, but each one should clearly say whether it's a
+"passed" tier (retroactive, the user is currently higher)
+or the "current" tier they just hit. So the previous
+silent-swallow has been replaced with explicit tagging.
+
+### What changed (revised)
+- `detectNewMilestones()` now returns `MilestoneAward[]` —
+  each milestone augmented with `tierBadge: "current" |
+  "passed" | undefined` for tier ones.
+- Caller orders tier milestones low→high in the queue, so a
+  Tiger user who just unlocked all three sees Monkey
+  (PASSED) → Fox (PASSED) → Tiger (CURRENT) as a ladder
+  climb, with the actual current rank as the finale.
+- Celebration overlay shows a green `✓ CURRENT TIER` chip
+  when the tier matches the user's headline, and a faint
+  `↑ PASSED TIER` chip for retroactive unlocks. Both still
+  pop as full celebration cards — no badges are silently
+  marked any more.
 
 @maaiz: finished a session and got a "Reached Monkey
 milestone" popup despite being TIGER on the leaderboard +

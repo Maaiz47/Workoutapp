@@ -19,6 +19,13 @@ export interface UserProfileInput {
   // Training modalities the user opted into. Defaults to ["strength"]
   // when empty (legacy). Recognised: strength | calisthenics | recovery | cardio.
   modalities?: string[];
+  // Dedicated cardio day preference. Recognised:
+  //   null / "none" — no cardio day
+  //   "steady"      — LISS day (30–40 min easy steady)
+  //   "intervals"   — interval day (work / rest blocks)
+  //   "mixed"       — alternates steady + intervals over the plan
+  // Appended in addition to the strength split.
+  cardioPreference?: string | null;
 }
 
 export interface GeneratedExercise {
@@ -349,6 +356,72 @@ function buildCardioDay(profile: UserProfileInput, used: Set<string>): Generated
   return { title: "Cardio & Conditioning", subtitle: "HIIT · Core", focus: "cardio, core", exercises: exs };
 }
 
+// Pick the user's preferred cardio modality based on equipment +
+// location. Falls back to bodyweight cardio for home users without
+// machines. Returns a single ordered list of exercise ids to use in
+// the cardio day below.
+function preferredCardioIds(profile: UserProfileInput): string[] {
+  if (profile.location === "gym" || profile.equipment.includes("machine")) {
+    return ["rowing-machine", "cycling", "treadmill"];
+  }
+  if (profile.equipment.includes("bodyweight") || profile.location === "home") {
+    return ["jump-rope", "jumping-jacks", "high-knees", "mountain-climbers"];
+  }
+  return ["mountain-climbers", "burpees", "high-knees"];
+}
+
+// Build a DEDICATED cardio day (separate from the fat-loss
+// auto-cardio above). Style depends on the user's cardioPreference:
+//   "steady"    — single LISS block, ~30 min of one modality
+//   "intervals" — 10×1min hard / 1min easy
+//   "mixed"     — 10 min steady warm-up + 8 intervals + 5 min cooldown
+// Equipment picked from preferredCardioIds (gym → treadmill / bike /
+// rower; home → jump rope / jumping jacks / etc.).
+// (qa: plan-cardio-day)
+function buildDedicatedCardioDay(profile: UserProfileInput, style: "steady" | "intervals" | "mixed"): GeneratedDay {
+  const ids = preferredCardioIds(profile);
+  const primary = ids[0];
+  const secondary = ids[1] ?? ids[0];
+  const exs: GeneratedExercise[] = [];
+
+  if (style === "steady") {
+    const ex = EXERCISES.find(e => e.id === primary);
+    if (ex) exs.push({
+      exerciseId: primary, name: ex.name, sets: 1, reps: "30 min",
+      rest: 0,
+      notes: "Steady pace — conversational. Should feel ~6/10 effort the whole way through.",
+    });
+    return { title: "Cardio — Steady", subtitle: "LISS · 30 min", focus: "cardio", exercises: exs };
+  }
+
+  if (style === "intervals") {
+    const ex = EXERCISES.find(e => e.id === primary);
+    if (ex) exs.push({
+      exerciseId: primary, name: ex.name, sets: 10, reps: "1 min hard",
+      rest: 60,
+      notes: "10 rounds: 1 min HARD (8–9/10 effort) + 1 min easy. Wrap with 3 min easy cooldown.",
+    });
+    return { title: "Cardio — Intervals", subtitle: "10×1 / 1 · ~22 min", focus: "cardio", exercises: exs };
+  }
+
+  // mixed
+  const warm = EXERCISES.find(e => e.id === primary);
+  if (warm) exs.push({
+    exerciseId: primary, name: warm.name, sets: 1, reps: "10 min",
+    rest: 0, notes: "Warm-up — easy pace.",
+  });
+  const block = EXERCISES.find(e => e.id === secondary);
+  if (block) exs.push({
+    exerciseId: secondary, name: block.name, sets: 8, reps: "45 sec hard",
+    rest: 45, notes: "8 rounds: 45 sec HARD + 45 sec easy.",
+  });
+  if (warm) exs.push({
+    exerciseId: primary, name: warm.name, sets: 1, reps: "5 min",
+    rest: 0, notes: "Cooldown — very easy pace.",
+  });
+  return { title: "Cardio — Mixed", subtitle: "Warm-up · Intervals · Cooldown", focus: "cardio", exercises: exs };
+}
+
 // ── Split selector ──────────────────────────────────────────────────────────
 
 function decideDays(profile: UserProfileInput): number {
@@ -562,6 +635,21 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
 
   if (hasFatLoss && profile.daysPerWeek > days) {
     planDays.push(buildCardioDay(profile, new Set()));
+  }
+
+  // ── Dedicated cardio day (user-opted via profile) ───────────────────
+  // Appended in ADDITION to the strength split. So a user with a 5-day
+  // PPLPP split who toggles cardioPreference="steady" gets 6 days.
+  // Skip if a fat-loss cardio day was already added above to avoid
+  // doubling up. (qa: plan-cardio-day)
+  const cardioPref = profile.cardioPreference;
+  const alreadyHasCardio = planDays.some(d => d.focus.includes("cardio"));
+  if (cardioPref && cardioPref !== "none" && !alreadyHasCardio) {
+    const style: "steady" | "intervals" | "mixed" =
+      cardioPref === "intervals" ? "intervals" :
+      cardioPref === "mixed" ? "mixed" :
+      "steady";
+    planDays.push(buildDedicatedCardioDay(profile, style));
   }
 
   // ── Core finisher (varied across days) ──────────────────────────────

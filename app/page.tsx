@@ -16,7 +16,7 @@ import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutor
 import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTargetReps, detectPlateau, shouldSuggestDeload } from "../lib/performance";
 import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown } from "../lib/tiers";
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
-import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone } from "../lib/milestones";
+import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap } from "../lib/challenges";
@@ -3482,7 +3482,7 @@ function HomePage() {
   // Celebration overlay state — fires when a new milestone crosses on
   // session save. Stacks newly-achieved entries in a queue so multiple
   // hitting in one session each get their moment.
-  const [milestoneQueue, setMilestoneQueue] = useState<Milestone[]>([]);
+  const [milestoneQueue, setMilestoneQueue] = useState<MilestoneAward[]>([]);
   // Weekly recap — shown on the first home open on/after Sunday. Modal
   // displays sessions / total volume / top exercise / approximate PRs.
   // Marked seen for the current ISO week so it only fires once.
@@ -3827,6 +3827,11 @@ function HomePage() {
   const [showEmailSignupPrompt, setShowEmailSignupPrompt] = useState(false);
   const [hiitPreference, setHiitPreference] = useState("");
   const [hiitIntensity, setHiitIntensity] = useState("moderate");
+  // Dedicated cardio day preference. "" / "none" = no cardio day.
+  // "steady" | "intervals" | "mixed" = different cardio styles
+  // appended to the strength split. Hydrated from profile on load,
+  // editable in Settings → TRAINING. (qa: plan-cardio-day)
+  const [cardioPreference, setCardioPreference] = useState("");
   const [saveRoutineName, setSaveRoutineName] = useState("");
   const [savingRoutine, setSavingRoutine] = useState(false);
   const [sharingRoutineId, setSharingRoutineId] = useState<string | null>(null);
@@ -4116,6 +4121,7 @@ function HomePage() {
         if (p.targetBodyFatPct) setGoalBf(p.targetBodyFatPct.toString());
         if ((p as any).hiitPreference) setHiitPreference((p as any).hiitPreference);
         if ((p as any).hiitIntensity) setHiitIntensity((p as any).hiitIntensity);
+        if ((p as any).cardioPreference) setCardioPreference((p as any).cardioPreference);
         fetch("/api/plan").then(r => r.json()).then(planData => {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
         });
@@ -5078,12 +5084,18 @@ function HomePage() {
               athleteTierLabel: newBreakdown.headline.label,
             };
             const achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
-            const { celebrate, silentlyAchieved } = detectNewMilestones(mState, achieved);
-            if (celebrate.length > 0 || silentlyAchieved.length > 0) {
-              for (const m of celebrate) achieved.add(m.id);
-              for (const id of silentlyAchieved) achieved.add(id);
+            const newOnes = detectNewMilestones(mState, achieved);
+            if (newOnes.length > 0) {
+              for (const m of newOnes) achieved.add(m.id);
               localStorage.setItem(MILESTONE_STORAGE_KEY, JSON.stringify(Array.from(achieved)));
-              if (celebrate.length > 0) setMilestoneQueue(q => [...q, ...celebrate]);
+              // Tier milestones ordered low→high so the celebration
+              // queue feels like a ladder climb — Monkey (PASSED) →
+              // Fox (PASSED) → Tiger (CURRENT) — leaving the user
+              // staring at their actual current rank last.
+              const tierOrder = ["tier-monkey", "tier-fox", "tier-tiger", "tier-lion", "tier-gorilla"];
+              const tiered = newOnes.filter(m => m.category === "tier").sort((a, b) => tierOrder.indexOf(a.id) - tierOrder.indexOf(b.id));
+              const nonTier = newOnes.filter(m => m.category !== "tier");
+              setMilestoneQueue(q => [...q, ...nonTier, ...tiered]);
             }
           } catch {}
         }
@@ -6984,8 +6996,17 @@ function HomePage() {
               >
                 <div style={{ fontSize: 72, lineHeight: 1, marginBottom: 14, filter: "drop-shadow(0 4px 12px rgba(240,192,64,0.4))" }}>{m.icon}</div>
                 <div style={{ fontSize: 10, color: "#f0c040", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>MILESTONE UNLOCKED</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 10, lineHeight: 1.2 }}>{m.label}</div>
-                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.5, marginBottom: 18 }}>{m.body}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 6, lineHeight: 1.2 }}>{m.label}</div>
+                {/* Tier-rank badge — shows whether this is the user's
+                    CURRENT tier or one they've already passed (helps
+                    when several tiers unlock retroactively for a user
+                    who jumped past them). */}
+                {m.tierBadge && (
+                  <div style={{ display: "inline-block", marginBottom: 10, padding: "3px 10px", fontSize: 9, fontWeight: 800, letterSpacing: 2, fontFamily: "'Space Mono', monospace", borderRadius: 4, color: m.tierBadge === "current" ? "#2ecc71" : "rgba(255,255,255,0.55)", background: m.tierBadge === "current" ? "rgba(46,204,113,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${m.tierBadge === "current" ? "rgba(46,204,113,0.4)" : "rgba(255,255,255,0.15)"}` }}>
+                    {m.tierBadge === "current" ? "✓ CURRENT TIER" : "↑ PASSED TIER"}
+                  </div>
+                )}
+                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.5, marginBottom: 18, marginTop: m.tierBadge ? 0 : 0 }}>{m.body}</div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>TAP TO CONTINUE{milestoneQueue.length > 1 ? ` · ${milestoneQueue.length - 1} MORE` : ""}</div>
               </motion.div>
             </motion.div>
@@ -10173,6 +10194,36 @@ function HomePage() {
                 })}
               </div>
             </div>
+          </div>
+
+          {/* Dedicated Cardio Day Preferences */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>🏃 CARDIO DAY</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, marginBottom: 14 }}>Adds a dedicated cardio session to your weekly plan, on top of your strength split. Equipment auto-picked from your profile (gym → treadmill/bike/rower, home → jump rope / jumping jacks).</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {[
+                { id: "none",      label: "None",            desc: "Strength only, no cardio day" },
+                { id: "steady",    label: "Steady-State",    desc: "30 min easy LISS — conversational pace" },
+                { id: "intervals", label: "Intervals",       desc: "10×1 min hard / 1 min easy — ~22 min total" },
+                { id: "mixed",     label: "Mixed",           desc: "10 min warm-up + 8×45 sec intervals + 5 min cooldown" },
+              ].map(opt => {
+                const sel = (cardioPreference || "none") === opt.id;
+                return (
+                  <button key={opt.id} onClick={() => {
+                    const newPref = opt.id;
+                    setCardioPreference(newPref);
+                    fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cardioPreference: newPref }) }).catch(() => {});
+                  }} style={{ padding: "10px 14px", background: sel ? "rgba(78,205,196,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(78,205,196,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 10, color: sel ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{opt.label}</div>
+                      <div style={{ fontSize: 11, color: sel ? "rgba(78,205,196,0.55)" : "rgba(255,255,255,0.25)", marginTop: 2 }}>{opt.desc}</div>
+                    </div>
+                    {sel && <span style={{ color: "#4ECDC4" }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 10, fontStyle: "italic" }}>Rebuild your plan after changing this to see the cardio day appear.</div>
           </div>
 
           {/* Trainer upgrade — request flow */}

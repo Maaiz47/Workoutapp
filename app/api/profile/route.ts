@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
   try {
-    const { targetWeightKg, targetBodyFatPct, hiitPreference, hiitIntensity } = await req.json();
+    const { targetWeightKg, targetBodyFatPct, hiitPreference, hiitIntensity, cardioPreference, targetSessionMinutes } = await req.json();
     const profile = await prisma.userProfile.update({
       where: { userId: uid },
       data: {
@@ -27,6 +27,8 @@ export async function PATCH(req: NextRequest) {
         targetBodyFatPct: targetBodyFatPct !== undefined ? (targetBodyFatPct ? parseFloat(targetBodyFatPct) : null) : undefined,
         hiitPreference:   hiitPreference   !== undefined ? hiitPreference   : undefined,
         hiitIntensity:    hiitIntensity    !== undefined ? hiitIntensity    : undefined,
+        cardioPreference: cardioPreference !== undefined ? cardioPreference : undefined,
+        targetSessionMinutes: targetSessionMinutes !== undefined ? (Number(targetSessionMinutes) || null) : undefined,
       } as any,
     });
     return json({ profile });
@@ -41,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { dob, gender, heightCm, weightKg, bodyFatPct, goals, fitnessLevel, location, equipment, equipmentHome, equipmentGym, daysPerWeek, targetArea, targetAreas, modalities, targetSessionMinutes } = body;
+    const { dob, gender, heightCm, weightKg, bodyFatPct, goals, fitnessLevel, location, equipment, equipmentHome, equipmentGym, daysPerWeek, targetArea, targetAreas, modalities, targetSessionMinutes, cardioPreference } = body;
 
     // Support both goals[] (new) and goal string (legacy)
     const goalsArr: string[] = Array.isArray(goals) && goals.length > 0 ? goals : body.goal ? [body.goal] : [];
@@ -77,6 +79,7 @@ export async function POST(req: NextRequest) {
         ...((targetAreas !== undefined) && { targetAreas: targetAreas || [] } as any),
         ...((modalities !== undefined) && { modalities: Array.isArray(modalities) ? modalities : [] } as any),
         ...((targetSessionMinutes !== undefined) && { targetSessionMinutes: Number(targetSessionMinutes) || null } as any),
+        ...((cardioPreference !== undefined) && { cardioPreference: cardioPreference || null } as any),
       },
       update: {
         heightCm: parseFloat(heightCm),
@@ -94,6 +97,7 @@ export async function POST(req: NextRequest) {
         ...((targetAreas !== undefined) && { targetAreas: targetAreas || [] } as any),
         ...((modalities !== undefined) && { modalities: Array.isArray(modalities) ? modalities : [] } as any),
         ...((targetSessionMinutes !== undefined) && { targetSessionMinutes: Number(targetSessionMinutes) || null } as any),
+        ...((cardioPreference !== undefined) && { cardioPreference: cardioPreference || null } as any),
       },
     });
 

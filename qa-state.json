@@ -444,6 +444,26 @@
       "notes": "[2026-05-22] Updated: planGenerator now sprinkles a varied core finisher onto every generated day (rotating through anti-extension, loaded flexion, rotation, hip flexion patterns). Default WORKOUT_DATA also updated — push1 keeps Hanging Leg Raises, but pull1/legs/push2/pull2 now use Cable Crunch / Plank / Russian Twists / Bicycle Crunches respectively. Image mappings (`b8`, `c7`, `d7`, `e7`) repointed accordingly. (Reported by @maaiz)"
     },
     {
+      "id": "plan-cardio-day",
+      "title": "Dedicated cardio day preference",
+      "area": "Plan",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass cardio-day-opt-in",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → scroll to the new 🏃 CARDIO DAY block (below HIIT TRAINING). Verify four options: None (default), Steady-State, Intervals, Mixed — each with a one-line description.",
+        "Tap 'Steady-State' — verify the chip flips to active state (cyan), auto-saves (no spinner needed), and the helper line below reads 'Rebuild your plan after changing this to see the cardio day appear.'",
+        "Settings → ↺ REBUILD MY WEEKLY PLAN → Generate. Verify a new day appears at the END of the plan titled 'Cardio — Steady' / subtitle 'LISS · 30 min', containing ONE exercise (treadmill or rower for gym users, jump rope for home), 1 set × 30 min, notes about conversational pace.",
+        "Repeat with 'Intervals' selected: rebuilt plan shows 'Cardio — Intervals' day with one exercise, 10 sets × 1 min hard, 60s rest, notes about 1 min HARD + 1 min easy + 3 min easy cooldown.",
+        "Repeat with 'Mixed' selected: rebuilt plan shows 'Cardio — Mixed' day with THREE exercises: warm-up (10 min easy), interval block (8 sets × 45s hard, 45s rest), cooldown (5 min very easy).",
+        "Set cardioPreference to 'None' → rebuild → verify NO cardio day in the plan.",
+        "Cross-check: if the user has goals=fat_loss AND daysPerWeek > split days, the existing fat-loss auto-cardio day should still appear once. cardioPreference should NOT double up if a cardio day already exists for that reason.",
+        "Reload the app — verify the previously-saved cardio preference is hydrated and the selected chip stays highlighted."
+      ],
+      "notes": "[2026-05-22] Slice 1 shipped: added cardioPreference field (Prisma schema + /api/profile PATCH/POST + planGenerator wiring + Settings UI). buildDedicatedCardioDay() in lib/planGenerator.ts emits steady/intervals/mixed variants with equipment picked from profile (gym → treadmill/bike/rower, home → jump rope / jumping jacks / mountain climbers). Plan generator appends the day in addition to the strength split and the fat-loss auto-cardio. (Reported by @maaiz — 'A lot of people like to have a fully cardio day, make it a part of profile/initial questions'.)\nSlice 2 pending: surface the same prompt during onboarding flow (currently only editable post-hoc in Settings)."
+    },
+    {
       "id": "plan-hiit-preference",
       "title": "HIIT preference — auto-save + plan effect",
       "area": "Plan",

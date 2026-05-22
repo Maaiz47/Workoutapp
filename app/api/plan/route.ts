@@ -144,6 +144,7 @@ export async function POST(req: NextRequest) {
       hiitPreference: (profile as any).hiitPreference ?? null,
       hiitIntensity: (profile as any).hiitIntensity ?? null,
       modalities: (profile as any).modalities ?? [],
+      cardioPreference: (profile as any).cardioPreference ?? null,
     };
 
     const generated = generatePlan(input);

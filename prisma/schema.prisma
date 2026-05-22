@@ -106,6 +106,15 @@ model UserProfile {
   // windows, and allow more isolation work for longer windows.
   // 45 = "Standard" baseline. (qa: onboarding-profile-setup)
   targetSessionMinutes Int?
+  // Dedicated cardio day preference. Recognised values:
+  //   null / "none" — no dedicated cardio day (default)
+  //   "steady"      — one steady-state LISS day (30–40 min easy pace)
+  //   "intervals"   — one interval day (10×1min hard / 1min easy)
+  //   "mixed"       — alternates steady + intervals each week
+  // The day is appended in addition to the strength split, so a user
+  // with 4 strength days + cardioPreference becomes a 5-day plan.
+  // (qa: plan-cardio-day)
+  cardioPreference String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
