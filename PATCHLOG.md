@@ -2,6 +2,52 @@
 
 ---
 
+## Feature · 2026-05-21 — Cardio tracking (time + incline + speed) + animated stretch icons in FORM modal (qa: workout-warmup, workout-set-logging)
+
+### Cardio tracking
+Cardio machines (treadmill, bike, rower, elliptical, sprint, etc.)
+used to be trackable only as weight × reps — meaningless for
+duration-based work. Now:
+- `logSet()` accepts an `opts.cardio` payload `{ minutes,
+  incline?, speed?, distance? }`. Cardio sets store `weight: 0`,
+  `reps: 0`, `cardio: true` + the fields, so volume calculations
+  correctly skip them.
+- `isCardioExercise(ex)` detects via `ex.type === "cardio"` OR
+  name match (treadmill / bike / rower / elliptical / cardio /
+  jog / run / sprint). `isTreadmillExercise(ex)` is a subset.
+- The active-workout expanded panel swaps in a cardio block
+  when the row is cardio: MIN + (treadmill only: INCLINE %) +
+  KM/H inputs, plus `★ USE SUGGESTION` and `REPEAT LAST` chips
+  for one-tap fill.
+- `lastCardioSession(eid)` walks history for the most recent
+  cardio set of that exercise. `suggestCardio()` proposes the
+  next session: first-time defaults (treadmill: 15 min @ 2% @
+  6 km/h, others: 12 min); returning users get +1 min, with a
+  +1% incline bump every time minutes crosses 20.
+- Session Recap (Progress > History calendar tap) and the
+  per-routine Progress history both render cardio sets as
+  `Nmin · X% · Ykm/h` instead of "0 reps".
+
+### Stretch icons + animation in FORM modal
+Tapping FORM on a warmup / cooldown / stretch row used to show
+"NO FORM DEMO" on a flat placeholder image because the EXERCISES
+library has no photos for stretches. Now:
+- The two FORM modals (customise + active workout) check
+  `findStretchById(formPreview.id)` first.
+- If a stretch matches, render its emoji icon (already shipped
+  in `lib/stretching.ts` per stretch) at 110-120 px on a
+  yellow→teal radial-gradient backdrop, with a bobbing /
+  scaling keyframe animation and a softly pulsing glow ring.
+- Below the icon: `WARMUP · 10 each leg` (kind + reps) so the
+  modal still communicates what the stretch is.
+- Falls back to the existing "NO FORM DEMO" placeholder only
+  for ids that aren't stretches AND have no library photo.
+
+(qa: maaiz — "There's no icons for warm ups cool down and
+stretches. Also no animation")
+
+---
+
 ## Fix · 2026-05-21 — Suggested Next Workout avoids back-to-back same-pattern days (qa: home-polish-v2)
 
 User flagged: suggestion offered a Pull Day (Thickness) the day

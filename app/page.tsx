@@ -1929,11 +1929,11 @@ function DaySessionRecap({
           return dayId;
         })();
         const rawSets = (session.sets ?? {}) as Record<string, { weight: number; reps: number }>;
-        const byEx: Record<string, { name: string; sets: { sn: string; weight: number; reps: number }[] }> = {};
+        const byEx: Record<string, { name: string; sets: { sn: string; weight: number; reps: number; cardio?: boolean; minutes?: number; incline?: number; speed?: number }[] }> = {};
         for (const [k, v] of Object.entries(rawSets)) {
           const { eid, setNum: sn } = parseSetKey(k);
           if (!byEx[eid]) byEx[eid] = { name: findExName(eid), sets: [] };
-          byEx[eid].sets.push({ sn, weight: v.weight, reps: v.reps });
+          byEx[eid].sets.push({ sn, weight: v.weight, reps: v.reps, cardio: (v as any).cardio, minutes: (v as any).minutes, incline: (v as any).incline, speed: (v as any).speed });
         }
         for (const ex of Object.values(byEx)) ex.sets.sort((a, b) => Number(a.sn) - Number(b.sn));
         return (
@@ -1966,7 +1966,9 @@ function DaySessionRecap({
                         fontFamily: "'Space Mono', monospace",
                         display: "inline-flex", alignItems: "center", gap: 6,
                       }}>
-                        <span>{set.weight > 0 ? `${set.weight}kg × ${set.reps}` : `${set.reps} reps`}</span>
+                        <span>{set.cardio
+                          ? `${set.minutes ?? 0}min${set.incline ? ` · ${set.incline}%` : ""}${set.speed ? ` · ${set.speed}km/h` : ""}`
+                          : set.weight > 0 ? `${set.weight}kg × ${set.reps}` : `${set.reps} reps`}</span>
                         {prev && (
                           <span style={{
                             fontSize: 9, color: deltaColor, letterSpacing: 0.5,
@@ -3462,6 +3464,14 @@ function HomePage() {
   const [log, setLog] = useState<Record<string, { weight: number; reps: number; skipped?: boolean; rpe?: number; note?: string }>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
   const [wInput, setWInput] = useState("");
+  // Cardio set inputs — used when the expanded exercise is a cardio
+  // machine (treadmill, bike, rower, elliptical). Separate state so
+  // weight/reps stay untouched. (qa: maaiz — "record how long
+  // treadmill actually done for cardio tracking and if any incline
+  // was used")
+  const [cardioMinutes, setCardioMinutes] = useState("");
+  const [cardioIncline, setCardioIncline] = useState("");
+  const [cardioSpeed, setCardioSpeed] = useState("");
   const [rInput, setRInput] = useState("");
   // Effort/RPE input for the in-progress set (1-10 scale). null = not set.
   // Resets between sets the same way wInput/rInput do.
@@ -5081,17 +5091,89 @@ function HomePage() {
     } catch {}
   };
 
-  const logSet = (eid: string, sn: number, w: string, r: string, dropNum?: number, opts?: { rpe?: number | null; note?: string | null }) => {
+  const logSet = (eid: string, sn: number, w: string, r: string, dropNum?: number, opts?: { rpe?: number | null; note?: string | null; cardio?: { minutes?: number; incline?: number; speed?: number; distance?: number } }) => {
     const key = typeof dropNum === "number" && dropNum > 0 ? `${eid}-${sn}-d${dropNum}` : `${eid}-${sn}`;
     const entry: any = { weight: parseFloat(w) || 0, reps: parseInt(r) || 0 };
     if (opts?.rpe != null) entry.rpe = opts.rpe;
     if (opts?.note != null && opts.note.trim()) entry.note = opts.note.trim();
+    if (opts?.cardio) {
+      // Cardio sets keep weight=0 reps=0 (so volumeByMuscle correctly
+      // skips them) and carry the actual session details in a
+      // `cardio` sub-object. History / recap / session view code
+      // checks for this flag and renders time + incline + speed
+      // instead of weight × reps.
+      entry.cardio = true;
+      if (typeof opts.cardio.minutes === "number" && !isNaN(opts.cardio.minutes)) entry.minutes = opts.cardio.minutes;
+      if (typeof opts.cardio.incline === "number" && !isNaN(opts.cardio.incline)) entry.incline = opts.cardio.incline;
+      if (typeof opts.cardio.speed === "number" && !isNaN(opts.cardio.speed)) entry.speed = opts.cardio.speed;
+      if (typeof opts.cardio.distance === "number" && !isNaN(opts.cardio.distance)) entry.distance = opts.cardio.distance;
+    }
     const newLog = { ...log, [key]: entry };
     setLog(newLog);
     try {
       const saved = localStorage.getItem("ironlog-session");
       if (saved) { const s = JSON.parse(saved); s.log = newLog; localStorage.setItem("ironlog-session", JSON.stringify(s)); }
     } catch {}
+  };
+
+  // Identify cardio-machine exercises so the active workout swaps
+  // its weight/reps inputs for time + incline + speed inputs. Match
+  // by ex.type AND by name (treadmill/bike/rower/elliptical/etc)
+  // because warmup entries in WORKOUT_DATA also use the cardio type
+  // but might not have a library entry to look up.
+  const isCardioExercise = (ex: any): boolean => {
+    if (!ex) return false;
+    if (ex.type === "cardio") return true;
+    const n = String(ex.name ?? "").toLowerCase();
+    return /treadmill|bike|cycling|rower|rowing|elliptical|stair|stairmaster|cardio|jog|run\b|sprint/i.test(n);
+  };
+  const isTreadmillExercise = (ex: any): boolean => {
+    const n = String(ex.name ?? "").toLowerCase();
+    return /treadmill|jog|run\b|sprint/i.test(n);
+  };
+
+  // Last cardio session for an exercise — used both to render
+  // "last:" copy and to suggest the next session (small progressive
+  // overload bump on time or incline).
+  const lastCardioSession = (eid: string): { minutes?: number; incline?: number; speed?: number; distance?: number } | null => {
+    let best: { ts: number; entry: any } | null = null;
+    for (const dayId in history) {
+      for (const s of history[dayId] as any[]) {
+        const sets = (s.sets ?? {}) as Record<string, any>;
+        for (const k in sets) {
+          const setEntry = sets[k];
+          if (!setEntry || !setEntry.cardio) continue;
+          const parts = k.split("-"); const last = parts[parts.length - 1];
+          const isDrop = /^d\d+$/.test(last) && parts.length >= 3;
+          if (isDrop) { parts.pop(); parts.pop(); } else { parts.pop(); }
+          const exKey = parts.join("-");
+          if (exKey !== eid) continue;
+          const ts = new Date(s.date).getTime();
+          if (!best || ts > best.ts) best = { ts, entry: setEntry };
+        }
+      }
+    }
+    return best ? { minutes: best.entry.minutes, incline: best.entry.incline, speed: best.entry.speed, distance: best.entry.distance } : null;
+  };
+
+  const suggestCardio = (last: { minutes?: number; incline?: number; speed?: number } | null, isTreadmill: boolean): { minutes: number; incline: number; speed: number; reason: string } => {
+    if (!last) {
+      // First-time defaults — moderate pace, low incline.
+      return { minutes: isTreadmill ? 15 : 12, incline: isTreadmill ? 2 : 0, speed: isTreadmill ? 6 : 0, reason: "First session — start easy, focus on form + breathing." };
+    }
+    // Cycle the progression: alternate +1 min and +1% incline (or +0.5 km/h speed)
+    // so the user advances on one axis at a time. Cap minutes at 60.
+    const mins = Math.min(60, (last.minutes ?? 0) + 1);
+    const inc = Math.min(15, (last.incline ?? 0) + (mins >= 20 ? 1 : 0));
+    const spd = last.speed ?? 0;
+    return {
+      minutes: mins,
+      incline: inc,
+      speed: spd,
+      reason: inc > (last.incline ?? 0)
+        ? `Last: ${last.minutes ?? "?"}min · ${last.incline ?? 0}% · ${last.speed ?? "?"}km/h. Bumping incline +1% for an extra grind.`
+        : `Last: ${last.minutes ?? "?"}min · ${last.incline ?? 0}% · ${last.speed ?? "?"}km/h. One more minute today.`,
+    };
   };
 
   // Patch an already-logged set (used by the long-press note modal +
@@ -6405,12 +6487,36 @@ function HomePage() {
                         <img key={urls[formFrame]} src={urls[formFrame]} alt={formPreview.name} style={{ width: "100%", display: "block", minHeight: 220, objectFit: "cover" }} onError={() => setFormImgError(true)} />
                         <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{formFrame === 0 ? "START" : "END"}</div>
                       </div>
-                    ) : (
-                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", position: "relative" }}>
-                        <img src="/ai/form-fallback.jpg" alt="" style={{ width: "100%", display: "block", objectFit: "cover" }} />
-                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 0 14px", background: "linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.7))", color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>NO FORM DEMO</div>
-                      </div>
-                    )}
+                    ) : (() => {
+                      // Same stretch-icon-with-animation fallback as
+                      // the other form modal — keeps stretches from
+                      // hitting the bare "NO FORM DEMO" placeholder.
+                      const stretch = findStretchById(formPreview.id);
+                      if (stretch?.icon) {
+                        return (
+                          <div style={{
+                            position: "relative", background: "linear-gradient(180deg, rgba(255,230,109,0.06), rgba(78,205,196,0.06))",
+                            borderRadius: 14, overflow: "hidden",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            minHeight: 220,
+                          }}>
+                            <div aria-hidden style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, rgba(255,230,109,0.08) 0%, transparent 60%)", animation: "stretch-glow 4s ease-in-out infinite" }} />
+                            <div style={{ fontSize: 110, lineHeight: 1, position: "relative", animation: "stretch-bob 2.6s ease-in-out infinite", filter: "drop-shadow(0 10px 22px rgba(0,0,0,0.4))" }}>{stretch.icon}</div>
+                            <div style={{ position: "absolute", bottom: 10, left: 0, right: 0, textAlign: "center", fontSize: 10, letterSpacing: 2, color: "rgba(255,255,255,0.45)", fontFamily: "'Space Mono', monospace" }}>{(stretch.kind ?? "stretch").toUpperCase()} · {stretch.reps}</div>
+                            <style>{`
+                              @keyframes stretch-bob { 0%,100% { transform: translateY(0) scale(1) rotate(-2deg); } 50% { transform: translateY(-6px) scale(1.06) rotate(2deg); } }
+                              @keyframes stretch-glow { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+                            `}</style>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", position: "relative" }}>
+                          <img src="/ai/form-fallback.jpg" alt="" style={{ width: "100%", display: "block", objectFit: "cover" }} />
+                          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 0 14px", background: "linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.7))", color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>NO FORM DEMO</div>
+                        </div>
+                      );
+                    })()}
                     {(() => {
                       const cues = getFormCues(formPreview.id, formPreview.name);
                       if (!cues) return null;
@@ -10831,7 +10937,7 @@ function HomePage() {
                     </div>
                     <div>
                       {(() => {
-                        const byEx: Record<string, { name: string; sets: { sn: string; w: number; r: number }[] }> = {};
+                        const byEx: Record<string, { name: string; sets: { sn: string; w: number; r: number; cardio?: boolean; minutes?: number; incline?: number; speed?: number }[] }> = {};
                         for (const [k, v] of Object.entries(s.sets as Record<string, { weight: number; reps: number }>)) {
                           const { eid, setNum: sn } = parseSetKey(k);
                           if (!byEx[eid]) byEx[eid] = { name: findExName(eid), sets: [] };
@@ -10844,7 +10950,9 @@ function HomePage() {
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                               {ex.sets.map(set => (
                                 <div key={set.sn} style={{ fontSize: 10, color: "#fff", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 7px", fontFamily: "'Space Mono', monospace" }}>
-                                  {set.w > 0 ? `${set.w}kg × ${set.r}` : `${set.r} reps`}
+                                  {set.cardio
+                                    ? `${set.minutes ?? 0}min${set.incline ? ` · ${set.incline}%` : ""}${set.speed ? ` · ${set.speed}km/h` : ""}`
+                                    : set.w > 0 ? `${set.w}kg × ${set.r}` : `${set.r} reps`}
                                 </div>
                               ))}
                             </div>
@@ -11410,15 +11518,61 @@ function HomePage() {
                           <div style={{ width: 6, height: 6, borderRadius: "50%", background: formFrame === 1 ? "#fff" : "rgba(255,255,255,0.25)", transition: "background 0.3s" }}/>
                         </div>
                       </div>
-                    ) : (
-                      <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", position: "relative" }}>
-                        <img src="/ai/form-fallback.jpg" alt="" style={{ width: "100%", display: "block", objectFit: "cover" }} />
-                        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", padding: "0 16px 14px", background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.75))", gap: 4 }}>
-                          <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>NO FORM DEMO</div>
-                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Search YouTube for &ldquo;{formPreview.name} form&rdquo;</div>
+                    ) : (() => {
+                      // Stretch / warmup / cooldown rows don't have
+                      // photo demos, but lib/stretching.ts ships an
+                      // emoji icon per stretch. Show the icon big
+                      // with a gentle scale animation so the modal
+                      // doesn't read "NO FORM DEMO" on every stretch
+                      // tap. (qa: maaiz — "no icons for warm ups
+                      // cool down and stretches. Also no animation")
+                      const stretch = findStretchById(formPreview.id);
+                      if (stretch?.icon) {
+                        return (
+                          <div style={{
+                            position: "relative", background: "linear-gradient(180deg, rgba(255,230,109,0.06), rgba(78,205,196,0.06))",
+                            borderRadius: 14, overflow: "hidden",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            minHeight: 240,
+                          }}>
+                            <div aria-hidden style={{
+                              position: "absolute", inset: 0,
+                              background: "radial-gradient(circle at center, rgba(255,230,109,0.08) 0%, transparent 60%)",
+                              animation: "stretch-glow 4s ease-in-out infinite",
+                            }} />
+                            <div style={{
+                              fontSize: 120, lineHeight: 1, position: "relative",
+                              animation: "stretch-bob 2.6s ease-in-out infinite",
+                              filter: "drop-shadow(0 10px 22px rgba(0,0,0,0.4))",
+                            }}>{stretch.icon}</div>
+                            <div style={{
+                              position: "absolute", bottom: 10, left: 0, right: 0, textAlign: "center",
+                              fontSize: 10, letterSpacing: 2, color: "rgba(255,255,255,0.45)",
+                              fontFamily: "'Space Mono', monospace",
+                            }}>{(stretch.kind ?? "stretch").toUpperCase()} · {stretch.reps}</div>
+                            <style>{`
+                              @keyframes stretch-bob {
+                                0%,100% { transform: translateY(0) scale(1) rotate(-2deg); }
+                                50% { transform: translateY(-6px) scale(1.06) rotate(2deg); }
+                              }
+                              @keyframes stretch-glow {
+                                0%,100% { opacity: 0.6; }
+                                50% { opacity: 1; }
+                              }
+                            `}</style>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, overflow: "hidden", position: "relative" }}>
+                          <img src="/ai/form-fallback.jpg" alt="" style={{ width: "100%", display: "block", objectFit: "cover" }} />
+                          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", padding: "0 16px 14px", background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.75))", gap: 4 }}>
+                            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>NO FORM DEMO</div>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Search YouTube for &ldquo;{formPreview.name} form&rdquo;</div>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                     {(() => {
                       const cues = getFormCues(formPreview.id, formPreview.name);
                       if (!cues) return null;
@@ -11654,6 +11808,20 @@ function HomePage() {
                       setManualBW(false);
                       setBwAddWeight(isBW && lw > 0);
                       setExpanded(isExp ? null : ex.id);
+                      // Cardio prefill — drop into time / incline /
+                      // speed inputs with a small progressive bump
+                      // over the last session. (qa: maaiz —
+                      // "suggest speed, incline and time for
+                      // treadmill and other cardio machines based on
+                      // user data")
+                      if (isCardioExercise(ex)) {
+                        const lastC = lastCardioSession(ex.id);
+                        const sug = suggestCardio(lastC, isTreadmillExercise(ex));
+                        setCardioMinutes(String(sug.minutes));
+                        setCardioIncline(isTreadmillExercise(ex) ? String(sug.incline) : "");
+                        setCardioSpeed(sug.speed ? String(sug.speed) : "");
+                        return;
+                      }
                       // Prefer real prior-session values; otherwise fall back to a
                       // computed suggested starting set so the user isn't staring
                       // at "0". The SUGGESTED tag below the input makes the
@@ -11876,8 +12044,119 @@ function HomePage() {
                       </div>
                     )}
 
+                    {/* Cardio set input — swaps in for cardio
+                        machines (treadmill / bike / rower /
+                        elliptical / etc) with time / incline / speed
+                        inputs. The regular weight/reps block below
+                        is gated on `!isCardioExercise(ex)` so they
+                        don't both render. */}
+                    {isExp && trackable && ns && !hasDrop && isCardioExercise(ex) && (() => {
+                      const isTM = isTreadmillExercise(ex);
+                      const lastC = lastCardioSession(ex.id);
+                      const sug = suggestCardio(lastC, isTM);
+                      return (
+                        <div className="fade-in" style={{ padding: "14px 16px", background: "rgba(255,140,66,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                          <div style={{ fontSize: 11, color: "rgba(255,140,66,0.85)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 6 }}>
+                            ⚡ CARDIO — SET {ns} of {ex.sets}
+                          </div>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.4, marginBottom: 12 }}>
+                            {sug.reason}
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: isTM ? "1fr 1fr 1fr" : "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                            {/* MINUTES */}
+                            <div>
+                              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>MIN</div>
+                              <input
+                                type="number" inputMode="numeric" step="1" min="0"
+                                value={cardioMinutes}
+                                onChange={e => setCardioMinutes(e.target.value)}
+                                style={{ width: "100%", boxSizing: "border-box", background: "#111", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "10px 12px", fontSize: 17, fontFamily: "'Space Mono', monospace", textAlign: "center" }}
+                              />
+                            </div>
+                            {/* INCLINE (treadmill only) */}
+                            {isTM && (
+                              <div>
+                                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>INCLINE %</div>
+                                <input
+                                  type="number" inputMode="decimal" step="0.5" min="0" max="15"
+                                  value={cardioIncline}
+                                  onChange={e => setCardioIncline(e.target.value)}
+                                  style={{ width: "100%", boxSizing: "border-box", background: "#111", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "10px 12px", fontSize: 17, fontFamily: "'Space Mono', monospace", textAlign: "center" }}
+                                />
+                              </div>
+                            )}
+                            {/* SPEED */}
+                            <div>
+                              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>{isTM ? "KM/H" : "INTENSITY"}</div>
+                              <input
+                                type="number" inputMode="decimal" step="0.5" min="0"
+                                value={cardioSpeed}
+                                onChange={e => setCardioSpeed(e.target.value)}
+                                placeholder={isTM ? "e.g. 6" : "level"}
+                                style={{ width: "100%", boxSizing: "border-box", background: "#111", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "10px 12px", fontSize: 17, fontFamily: "'Space Mono', monospace", textAlign: "center" }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Quick-bump chips — tap to apply the
+                              suggestion in one tap. */}
+                          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+                            <button
+                              onClick={() => {
+                                setCardioMinutes(String(sug.minutes));
+                                if (isTM) setCardioIncline(String(sug.incline));
+                                if (sug.speed) setCardioSpeed(String(sug.speed));
+                              }}
+                              style={{ padding: "5px 10px", background: "rgba(255,140,66,0.1)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 14, color: "#FF8C42", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                            >★ USE SUGGESTION</button>
+                            {lastC && (
+                              <button
+                                onClick={() => {
+                                  setCardioMinutes(lastC.minutes ? String(lastC.minutes) : "");
+                                  if (isTM) setCardioIncline(lastC.incline != null ? String(lastC.incline) : "");
+                                  if (lastC.speed) setCardioSpeed(String(lastC.speed));
+                                }}
+                                style={{ padding: "5px 10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, color: "rgba(255,255,255,0.6)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                              >REPEAT LAST</button>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              const mins = parseFloat(cardioMinutes);
+                              const inc = parseFloat(cardioIncline);
+                              const spd = parseFloat(cardioSpeed);
+                              if (!mins || mins <= 0) return;
+                              logSet(ex.id, ns, "0", "0", undefined, {
+                                cardio: {
+                                  minutes: mins,
+                                  incline: isNaN(inc) ? undefined : inc,
+                                  speed: isNaN(spd) ? undefined : spd,
+                                },
+                              });
+                              setCardioMinutes(""); setCardioIncline(""); setCardioSpeed("");
+                              if (ns + 1 > ex.sets) setExpanded(null);
+                              if (ex.rest) rest.start(ex.rest, () => setNewPBs([]));
+                            }}
+                            disabled={!parseFloat(cardioMinutes)}
+                            style={{
+                              width: "100%", padding: "13px",
+                              background: parseFloat(cardioMinutes) ? "linear-gradient(135deg, #FF8C42, #ee5a24)" : "rgba(255,140,66,0.18)",
+                              color: parseFloat(cardioMinutes) ? "#fff" : "rgba(255,255,255,0.5)",
+                              border: "none", borderRadius: 10,
+                              fontSize: 13, fontWeight: 800, letterSpacing: 2,
+                              fontFamily: "'Space Mono', monospace",
+                              cursor: parseFloat(cardioMinutes) ? "pointer" : "not-allowed",
+                              minHeight: 48,
+                            }}
+                          >LOG CARDIO SET {ns}</button>
+                        </div>
+                      );
+                    })()}
+
                     {/* Regular set input */}
-                    {isExp && trackable && ns && !hasDrop && (
+                    {isExp && trackable && ns && !hasDrop && !isCardioExercise(ex) && (
                       <div className="fade-in" style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                         {(() => {
                           const cues = getFormCues(ex.id, ex.name);
