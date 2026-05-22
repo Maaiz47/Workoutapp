@@ -8058,160 +8058,12 @@ function HomePage() {
           );
         })()}
 
-        {/* Suggested next workout — picks the day with the oldest
-            "last logged" date (or unused). Helps new users get
-            started AND returning users avoid skipping the same day
-            repeatedly. Tap → openDay + begin() so it's a one-tap
-            start. Hidden while a session is in progress so the
-            screen doesn't taunt the user with a SECOND workout
-            during their first. (qa: home-polish-v2 — @maaiz: "Gray
-            out the other sessions while a session is active") */}
-        {!started && (() => {
-          const plan = customPlan ? customPlan.map(planDayToWorkoutDay) : (WORKOUT_DATA as any[]);
-          if (!plan || plan.length === 0) return null;
-          // Newest log date per day id from history.
-          const lastByDay: Record<string, string> = {};
-          for (const [dayId, sessions] of Object.entries(history)) {
-            for (const s of sessions as any[]) {
-              const d = String(s.date ?? "");
-              if (!lastByDay[dayId] || d > lastByDay[dayId]) lastByDay[dayId] = d;
-            }
-          }
-
-          // Classify a day by movement pattern from its exercise list
-          // + title fallback. Two days with the same pattern (e.g.
-          // Pull Width + Pull Thickness, both PULL) shouldn't be
-          // suggested back-to-back — biceps + lats need recovery.
-          // (qa: maaiz — "we don't think we should be suggesting two
-          // pull days back to back")
-          const classify = (day: any): "push" | "pull" | "legs" | "core" | "cardio" | "mobility" | "mixed" => {
-            const buckets: Record<string, number> = { push: 0, pull: 0, legs: 0, core: 0, cardio: 0, mobility: 0 };
-            const muscles: string[] = [];
-            const exs = (day.sections?.flatMap?.((s: any) => s.exercises) ?? day.exercises ?? []) as any[];
-            for (const ex of exs) {
-              const lib = (EXERCISES as any[]).find((e: any) => e.id === (ex.exerciseId ?? ex.id));
-              const pm: string[] = lib?.primaryMuscles ?? ex.primaryMuscles ?? [];
-              const sm: string[] = lib?.secondaryMuscles ?? ex.secondaryMuscles ?? [];
-              for (const m of [...pm, ...sm]) muscles.push(m);
-            }
-            for (const m of muscles) {
-              if (["chest", "shoulders", "triceps"].includes(m)) buckets.push++;
-              else if (["back", "biceps", "lats", "forearms", "rear delts"].includes(m)) buckets.pull++;
-              else if (["quads", "hamstrings", "glutes", "calves", "hips"].includes(m)) buckets.legs++;
-              else if (m === "core" || m === "spine") buckets.core++;
-              else if (m === "cardio") buckets.cardio++;
-            }
-            // Title-based fallback for ambiguous days
-            const t = String(day.title ?? "").toLowerCase();
-            if (t.includes("push")) buckets.push += 5;
-            if (t.includes("pull")) buckets.pull += 5;
-            if (t.includes("leg") || t.includes("lower")) buckets.legs += 5;
-            if (t.includes("cardio") || t.includes("conditioning") || t.includes("hiit")) buckets.cardio += 5;
-            if (t.includes("mobility") || t.includes("recovery") || t.includes("stretch")) buckets.mobility += 5;
-            if (t.includes("core") || t.includes("abs")) buckets.core += 5;
-            if (t.includes("arms")) { buckets.pull += 2; buckets.push += 2; }
-            const sorted = Object.entries(buckets).sort((a, b) => b[1] - a[1]);
-            if (sorted[0][1] === 0) return "mixed";
-            // If top is at least 60% of the sum, classify as that pattern; else mixed.
-            const total = sorted.reduce((s, [, v]) => s + v, 0);
-            if (sorted[0][1] / total >= 0.4) return sorted[0][0] as any;
-            return "mixed";
-          };
-
-          // Pattern of the very last logged session (so we can avoid
-          // doubling up). Only counts sessions in the last 2 days —
-          // beyond that, muscles have recovered.
-          const todayIso = new Date().toISOString().slice(0, 10);
-          const yesterdayIso = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-          let recentPattern: string | null = null;
-          let recentDayTitle: string | null = null;
-          for (const [dayId, date] of Object.entries(lastByDay)) {
-            if (date === todayIso || date === yesterdayIso) {
-              const recentDay = plan.find((d: any) => d.id === dayId);
-              if (recentDay) {
-                recentPattern = classify(recentDay);
-                recentDayTitle = recentDay.title;
-                break;
-              }
-            }
-          }
-
-          // Score each candidate. Lower = better.
-          // 1. Older last-done is better (matches user mental model).
-          // 2. Heavy penalty for matching the recent pattern (avoid
-          //    back-to-back push/pull/legs).
-          // 3. Slight bonus for never-done so beginners cover all
-          //    days.
-          const scored = plan.map((d: any) => {
-            const last = lastByDay[d.id];
-            const lastTs = last ? new Date(last + "T12:00:00").getTime() : 0;
-            const daysSince = last ? Math.floor((Date.now() - lastTs) / 86400000) : 999;
-            const pattern = classify(d);
-            const matchesRecent = recentPattern && pattern === recentPattern && pattern !== "mixed" && pattern !== "mobility";
-            // Score: lower wins. daysSince inverted (more days = lower score).
-            // Same-pattern penalty: +200 (effectively pushes them
-            // behind every other candidate unless ALL candidates
-            // match the recent pattern).
-            let score = -daysSince;
-            if (matchesRecent) score += 200;
-            // Never-done tiebreaker (preferred over recently-done)
-            if (!last) score -= 0.5;
-            return { day: d, score, pattern, last, daysSince, matchesRecent };
-          });
-          scored.sort((a, b) => a.score - b.score);
-          const top = scored[0];
-          if (!top) return null;
-          const suggested = top.day;
-          const last = top.last;
-          const totalLoggedDays = Object.keys(lastByDay).length;
-          const isFirstTime = Object.values(history).every(arr => (arr as any[]).length === 0);
-          const daysSince = last ? top.daysSince : null;
-          // Build the reason copy with awareness of the recent
-          // session's pattern so the user gets a meaningful WHY.
-          const reason = isFirstTime
-            ? "Brand new — start here. Build the habit one rep at a time."
-            : !last
-              ? `You've never logged this day. ${totalLoggedDays > 0 ? "Slot it in to keep the split balanced." : "Start here."}`
-              : recentPattern && top.pattern !== recentPattern && recentDayTitle
-                ? `${recentDayTitle.split(" — ")[0]} was last session — flipping muscle group so back/biceps/legs/etc can recover.${daysSince ? ` ${daysSince}d since you last did this one.` : ""}`
-                : daysSince === 0
-                  ? "Logged today — but if you've got another session in you, this is the freshest slot."
-                  : daysSince === 1
-                    ? "Done yesterday. Most-rotated day in your split."
-                    : `Last done ${daysSince} days ago — the most overdue day in your plan.`;
-          return (
-            <button
-              onClick={() => {
-                const wd = suggested as any;
-                openDay(wd);
-                setExpandingDay(null);
-                setTimeout(() => begin(), 0);
-              }}
-              style={{
-                width: "100%", boxSizing: "border-box",
-                marginBottom: 14, padding: "14px 16px",
-                background: `linear-gradient(135deg, ${suggested.color}1f, rgba(10,10,18,0.4))`,
-                border: `1px solid ${suggested.color}44`,
-                borderRadius: 14, cursor: "pointer", textAlign: "left",
-                boxShadow: `0 4px 18px -8px ${suggested.color}55, inset 0 1px 0 rgba(255,255,255,0.04)`,
-                fontFamily: "'DM Sans', sans-serif",
-                display: "flex", alignItems: "center", gap: 12,
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: suggested.color, fontFamily: "'Space Mono', monospace" }}>▶ SUGGESTED NEXT</span>
-                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· {suggested.label}</span>
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: -0.2, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{suggested.title}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.4 }}>{reason}</div>
-              </div>
-              <div style={{ padding: "10px 14px", background: suggested.gradient, borderRadius: 10, color: "#fff", fontSize: 11, fontWeight: 800, letterSpacing: 2, fontFamily: "'Space Mono', monospace", flexShrink: 0, boxShadow: `0 4px 12px -4px ${suggested.color}aa` }}>
-                START ▸
-              </div>
-            </button>
-          );
-        })()}
+        {/* Suggested-next is now rendered as an OVERLAY on the
+            matching day card below — not a standalone banner. The
+            picking logic moved into the grid IIFE so it shares the
+            `plan` const. (qa: home-polish-v2 — @maaiz: "Suggested
+            next to be shown overlaid on the card, not as its own
+            announcement taking up too much space") */}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>YOUR SPLIT</div>
@@ -8227,6 +8079,92 @@ function HomePage() {
         {planNote && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 14, fontStyle: "italic", lineHeight: 1.5 }}>{planNote}</div>}
         {(() => {
           const plan = customPlan ? customPlan.map(planDayToWorkoutDay) : WORKOUT_DATA;
+          // Suggested-next overlay — picks the day with the oldest
+          // "last logged" date, avoiding back-to-back same-pattern
+          // days, then we decorate that card's render below with a
+          // ▶ SUGGESTED chip + a brighter border. Hidden while a
+          // session is in progress so the screen doesn't push a
+          // second workout mid-session. (qa: home-polish-v2)
+          const suggestedNext = ((): { id: string; reason: string } | null => {
+            if (started || !plan || plan.length === 0) return null;
+            const lastByDay: Record<string, string> = {};
+            for (const [dayId, sessions] of Object.entries(history)) {
+              for (const s of sessions as any[]) {
+                const dt = String(s.date ?? "");
+                if (!lastByDay[dayId] || dt > lastByDay[dayId]) lastByDay[dayId] = dt;
+              }
+            }
+            const classify = (day: any): "push" | "pull" | "legs" | "core" | "cardio" | "mobility" | "mixed" => {
+              const buckets: Record<string, number> = { push: 0, pull: 0, legs: 0, core: 0, cardio: 0, mobility: 0 };
+              const muscles: string[] = [];
+              const exs = (day.sections?.flatMap?.((s: any) => s.exercises) ?? day.exercises ?? []) as any[];
+              for (const ex of exs) {
+                const lib = (EXERCISES as any[]).find((e: any) => e.id === (ex.exerciseId ?? ex.id));
+                const pm: string[] = lib?.primaryMuscles ?? ex.primaryMuscles ?? [];
+                const sm: string[] = lib?.secondaryMuscles ?? ex.secondaryMuscles ?? [];
+                for (const m of [...pm, ...sm]) muscles.push(m);
+              }
+              for (const m of muscles) {
+                if (["chest", "shoulders", "triceps"].includes(m)) buckets.push++;
+                else if (["back", "biceps", "lats", "forearms", "rear delts"].includes(m)) buckets.pull++;
+                else if (["quads", "hamstrings", "glutes", "calves", "hips"].includes(m)) buckets.legs++;
+                else if (m === "core" || m === "spine") buckets.core++;
+                else if (m === "cardio") buckets.cardio++;
+              }
+              const t = String(day.title ?? "").toLowerCase();
+              if (t.includes("push")) buckets.push += 5;
+              if (t.includes("pull")) buckets.pull += 5;
+              if (t.includes("leg") || t.includes("lower")) buckets.legs += 5;
+              if (t.includes("cardio") || t.includes("conditioning") || t.includes("hiit")) buckets.cardio += 5;
+              if (t.includes("mobility") || t.includes("recovery") || t.includes("stretch")) buckets.mobility += 5;
+              if (t.includes("core") || t.includes("abs")) buckets.core += 5;
+              if (t.includes("arms")) { buckets.pull += 2; buckets.push += 2; }
+              const sorted = Object.entries(buckets).sort((a, b) => b[1] - a[1]);
+              if (sorted[0][1] === 0) return "mixed";
+              const total = sorted.reduce((s, [, v]) => s + v, 0);
+              if (sorted[0][1] / total >= 0.4) return sorted[0][0] as any;
+              return "mixed";
+            };
+            const todayIso = new Date().toISOString().slice(0, 10);
+            const yesterdayIso = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+            let recentPattern: string | null = null;
+            let recentDayTitle: string | null = null;
+            for (const [dayId, date] of Object.entries(lastByDay)) {
+              if (date === todayIso || date === yesterdayIso) {
+                const recentDay = plan.find((d: any) => d.id === dayId);
+                if (recentDay) { recentPattern = classify(recentDay); recentDayTitle = recentDay.title; break; }
+              }
+            }
+            const scored = plan.map((d: any) => {
+              const last = lastByDay[d.id];
+              const lastTs = last ? new Date(last + "T12:00:00").getTime() : 0;
+              const daysSince = last ? Math.floor((Date.now() - lastTs) / 86400000) : 999;
+              const pattern = classify(d);
+              const matchesRecent = recentPattern && pattern === recentPattern && pattern !== "mixed" && pattern !== "mobility";
+              let score = -daysSince;
+              if (matchesRecent) score += 200;
+              if (!last) score -= 0.5;
+              return { day: d, score, pattern, last, daysSince };
+            });
+            scored.sort((a, b) => a.score - b.score);
+            const top = scored[0];
+            if (!top) return null;
+            const last = top.last;
+            const isFirstTime = Object.values(history).every(arr => (arr as any[]).length === 0);
+            const daysSince = last ? top.daysSince : null;
+            const reason = isFirstTime
+              ? "Start here — build the habit."
+              : !last
+                ? "Never logged this one — keep the split balanced."
+                : recentPattern && top.pattern !== recentPattern && recentDayTitle
+                  ? `${recentDayTitle.split(" — ")[0]} was last — flipping muscle group${daysSince ? `, ${daysSince}d since` : ""}.`
+                  : daysSince === 0
+                    ? "Freshest slot if you've got another in you."
+                    : daysSince === 1
+                      ? "Done yesterday — most rotated day."
+                      : `Last done ${daysSince}d ago — most overdue.`;
+            return { id: top.day.id, reason };
+          })();
           const twoCol = plan.length >= 4;
           // Dynamic card heights. With only 1-3 days the user gets BIG
           // cards filling the remaining viewport instead of leaving dead
@@ -8242,6 +8180,7 @@ function HomePage() {
               {plan.map((d, i) => {
                 const isActive = started && activeDay?.id === d.id;
                 const isLocked = started && activeDay?.id !== d.id;
+                const isSuggested = !started && suggestedNext?.id === d.id;
                 const img = workoutImageFor(d.title);
                 return (
                   <div
@@ -8276,10 +8215,14 @@ function HomePage() {
                         height: dynamicHeight,
                         position: "relative",
                         overflow: "hidden",
-                        border: isActive ? `1px solid ${d.color}70` : `1px solid ${d.color}22`,
+                        border: isActive ? `1px solid ${d.color}70`
+                              : isSuggested ? `1px solid ${d.color}80`
+                              : `1px solid ${d.color}22`,
                         boxShadow: isActive
                           ? `0 0 28px ${d.color}35, 0 8px 32px rgba(0,0,0,0.55)`
-                          : `0 6px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
+                          : isSuggested
+                            ? `0 0 20px ${d.color}55, 0 6px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`
+                            : `0 6px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
                       }}>
                       {/* Background image */}
                       {img ? (
@@ -8298,6 +8241,17 @@ function HomePage() {
                       {/* Active badge */}
                       {isActive && (
                         <span style={{ position: "absolute", top: 14, right: 14, fontSize: 9, fontWeight: 700, letterSpacing: 2, color: d.color, background: `${d.color}28`, border: `1px solid ${d.color}60`, borderRadius: 6, padding: "3px 8px", backdropFilter: "blur(6px)" }}>ACTIVE</span>
+                      )}
+                      {/* Suggested-next chip — overlays on top of the
+                          card whose pick our algorithm thinks is the
+                          best next workout. Replaces the ex-standalone
+                          banner above YOUR SPLIT so we're not eating
+                          120px of vertical space on home. Tap on the
+                          card still opens the day; auto-start behaviour
+                          dropped — user taps START on the next screen
+                          like any other day. (qa: home-polish-v2) */}
+                      {isSuggested && (
+                        <span style={{ position: "absolute", top: 14, right: 14, fontSize: 9, fontWeight: 800, letterSpacing: 1.5, color: d.color, background: "rgba(0,0,0,0.62)", border: `1px solid ${d.color}80`, borderRadius: 6, padding: "3px 9px", backdropFilter: "blur(6px)", fontFamily: "'Space Mono', monospace", boxShadow: `0 0 10px ${d.color}55` }}>▶ NEXT UP</span>
                       )}
                       {/* Bottom text block */}
                       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: twoCol ? "10px 12px 12px 14px" : "12px 16px 16px 20px" }}>

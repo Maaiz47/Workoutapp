@@ -2092,6 +2092,26 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     },
     {
+      "id": "home-suggested-overlay",
+      "title": "Suggested-next workout — rendered as overlay on the matching day card",
+      "area": "Home",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass home-suggested-overlay",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open the app on Home (not mid-session).",
+        "Verify there is NO standalone 'SUGGESTED NEXT' banner card above YOUR SPLIT — the previous big card with title + reason + START button is gone.",
+        "Scan the YOUR SPLIT grid. Exactly ONE day card should have a '▶ NEXT UP' chip in the top-right corner (in the day's accent colour) and a brighter border + subtle outer glow.",
+        "Verify the suggested day picked makes sense: longest gap since last logged, AND not the same movement pattern (push/pull/legs) as your most recent session if any session was in the last 2 days.",
+        "Tap the suggested card — verify it opens the day with the normal expanding-card animation (no auto-start; user manually taps START on the next screen).",
+        "Start a workout. Return to Home. Verify the NEXT UP chip is HIDDEN while a session is in progress (we don't taunt the user with a second workout mid-session). The active card shows its ACTIVE chip instead.",
+        "Finish the session. Return to Home. NEXT UP chip should reappear, on whichever day is now most overdue.",
+        "Brand-new user (zero history): verify NEXT UP highlights any one day with a 'Start here — build the habit.' reason (visible in dev tools via the suggestedNext object even though the reason text isn't rendered on-card)."
+      ],
+      "notes": "[2026-05-22 <sha7>] Replaces home-polish-v2 standalone-card. Picking logic stayed the same (oldest last-logged + same-pattern penalty + first-time bias) but moved into the grid IIFE so it shares `plan`. Day card receives an isSuggested flag and renders a '▶ NEXT UP' chip top-right + stronger border + outer glow. Auto-start-on-tap dropped to keep the suggested card behaviourally identical to other cards — user taps card → opens day → taps START."
+    },
+    {
       "id": "tier-explainability",
       "title": "Tier info modal — both ladders show real metric + sub-rank breakdown",
       "area": "Progress",

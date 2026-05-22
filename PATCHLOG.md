@@ -2,6 +2,42 @@
 
 ---
 
+## Fix · 2026-05-22 — Suggested-next moves onto the day card (qa: home-suggested-overlay)
+
+User screenshot showed the standalone "▶ SUGGESTED NEXT · Leg Day —
+Foundation · {reason} · START ▸" banner eating ~120px of vertical
+space between the welcome card and YOUR SPLIT. The same day was
+ALSO rendered just below in the split grid — visually a duplicate.
+
+@maaiz: "Suggested next to be shown overlaid on the card, not as
+its own announcement taking up too much space."
+
+### Fix
+
+- Deleted the standalone banner block above YOUR SPLIT (~150 LOC
+  of JSX + picking logic).
+- Moved the same picking logic (oldest-last-logged + back-to-back
+  pattern penalty + first-time bias) into the grid IIFE so it
+  shares the `plan` const — single source of truth, no recompute.
+- Day card render now reads `isSuggested = !started &&
+  suggestedNext?.id === d.id` and decorates the matching card with:
+  - A `▶ NEXT UP` chip in the day's accent colour, top-right
+    (where the ACTIVE chip lives during a session — they're
+    mutually exclusive: ACTIVE only fires `started`, NEXT UP only
+    fires `!started`, so no overlap).
+  - Stronger border (`${d.color}80` vs `${d.color}22`) and a
+    subtle `0 0 20px ${d.color}55` outer glow so the suggested
+    card pops without being garish.
+- The auto-start-on-tap convenience of the old banner is dropped
+  — tapping the suggested card opens the day with the normal
+  expanding animation, user taps START on the next screen like
+  any other day. One extra tap, but the home screen is no longer
+  cluttered with a duplicate announcement.
+
+(qa: home-suggested-overlay)
+
+---
+
 ## Fix · 2026-05-22 — Tier info modal: canonical trainer ladder + athlete sub-rank breakdown (qa: tier-explainability)
 
 User flagged two issues on the "Two ladders, one app" modal:
