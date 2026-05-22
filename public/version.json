@@ -1,5 +1,5 @@
 {
-  "version": "2026.05.22.11",
-  "commit": "51df27c",
-  "note": "trainer tier: Discipline sub-rank + 6-tier lineup (Spotter -> Hall of Fame)"
+  "version": "2026.05.22.12",
+  "commit": "630023a",
+  "note": "global tier leaderboard + scoring fairness (adherence over streak)"
 }
