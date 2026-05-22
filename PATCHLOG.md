@@ -2,6 +2,50 @@
 
 ---
 
+## Feat · 2026-05-22 — Athletes can view their groups (qa: athlete-groups-view)
+
+@maaiz: "Yes let athletes have a group section too for their groups.
+Can they make groups with other athletes? Maybe we do need a friend
+system."
+
+### Slice 1/N — Athletes get the Groups button
+
+- The Groups nav button in QUICK ACTIONS is now visible to ALL
+  roles (was trainer-only). Athletes who've been added to a group
+  via a trainer's "+ ADD CLIENTS" flow can now find that group
+  from the home hub.
+- "+ NEW GROUP" inside the Groups view stays trainer-gated for
+  now (slice 2 of this arc unlocks athlete-created groups).
+- Empty state for athletes reworded:
+  - Trainers see: "No groups yet — create one above"
+  - Athletes see: "You're not in any groups yet. Ask a trainer to
+    add you to one of theirs, or accept an invite when you receive
+    one."
+- The rest of the view's actions (group leaderboard view modes,
+  group-workout apply, group challenges contribute) all work for
+  athletes — they were already gated correctly per action (creator
+  checks, API-side trainer checks).
+
+### Held back for follow-up slices
+
+- **Athlete-created groups.** Requires (a) removing the
+  "trainers only" check on POST /api/leaderboard/groups, (b) a
+  new invite-by-username UI for athletes (current trainer
+  invite-trainer flow only invites trainers). API-side change is
+  small but the UI is non-trivial.
+- **Friend system.** My take: not needed YET. The existing
+  invite/accept gate is the consent mechanism. Adding friends
+  adds another layer that could become friction. Revisit if/when
+  athletes-create-groups is shipped and we see actual user-to-user
+  invite abuse.
+- **Self-leave button for athlete members.** Group members can
+  toggle includeInRank but can't currently remove themselves
+  entirely. Worth adding in slice 2.
+
+(qa: athlete-groups-view)
+
+---
+
 ## Feat · 2026-05-22 — Home dashboard consolidation: Leaderboards + Groups + Clients as nav buttons (qa: home-hub-consolidation)
 
 @maaiz: "Maybe all leaderboards can be organised into one leaderboard

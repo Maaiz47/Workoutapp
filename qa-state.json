@@ -2092,6 +2092,26 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     },
     {
+      "id": "athlete-groups-view",
+      "title": "Athletes can view their groups via the Groups nav button",
+      "area": "Home",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass athlete-groups-view",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Log in as an ATHLETE (non-trainer) who has been added to ≥ 1 group via a trainer's '+ ADD CLIENTS' flow.",
+        "Open home, scroll to QUICK ACTIONS. Verify the 🏝️ Groups button is now visible (was trainer-only previously).",
+        "Tap Groups. Verify the Groups view loads, showing the groups the athlete is a member of.",
+        "Verify the athlete can: see the group's leaderboard, toggle 'include me in ranking', see the group's shared workout (if any), tap APPLY to subscribe to the group workout, see/contribute to active group challenges.",
+        "Verify the athlete CANNOT: see a '+ NEW GROUP' button (trainer-only for now), create a new group via the API (POST /api/leaderboard/groups returns 403 'Trainers only').",
+        "Log in as an athlete with NO group memberships. Tap Groups. Verify the empty state reads: 'You're not in any groups yet. Ask a trainer to add you to one of theirs, or accept an invite when you receive one.'",
+        "Log in as a TRAINER. Tap Groups. Verify the '+ NEW GROUP' button IS visible and the empty state reads: 'No groups yet — create one above'.",
+        "Back/swipe-back from the Groups view returns to home for both roles."
+      ],
+      "notes": "[2026-05-22 <sha7>] Slice 1/N: athlete-side READ access to groups. Removed the trainer-only gate on the home QUICK ACTIONS Groups button; gated '+ NEW GROUP' inside the view with userHasRole(user, 'trainer'). Empty state copy differs by role. Held back: athlete-created groups (needs API change + invite-by-username UI), friend system (not needed per current consent model — accept/decline flow IS the consent gate), self-leave button for non-creator members."
+    },
+    {
       "id": "home-hub-consolidation",
       "title": "Home dashboard cleanup — Leaderboards/Groups/Clients as nav buttons",
       "area": "Home",

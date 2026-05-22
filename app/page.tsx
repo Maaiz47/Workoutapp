@@ -8750,16 +8750,16 @@ function HomePage() {
             <span style={{ fontSize: 22, lineHeight: 1 }}>🏆</span>
             <span>Leaderboards</span>
           </button>
-          {/* Groups — opens the dedicated Groups view (was inline on
-              home, now consolidated). Trainer-only since athletes
-              don't currently see groups on home in the original
-              layout. (qa: home-hub-consolidation) */}
-          {userHasRole(user, "trainer") && (
-            <button className="card-hover nav-btn" onClick={() => goTo("groupsHub")} style={{ padding: "18px 14px", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 14, color: "#4ECDC4", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box" }}>
-              <span style={{ fontSize: 22, lineHeight: 1 }}>🏝️</span>
-              <span>Groups</span>
-            </button>
-          )}
+          {/* Groups — opens the dedicated Groups view. Visible to
+              everyone; athletes see groups they're members of (e.g.
+              added by a trainer's "+ ADD CLIENTS" flow), trainers
+              also see groups they created/joined. Empty state
+              explains how to get invited if you're not in any.
+              (qa: home-hub-consolidation, athlete-groups-view) */}
+          <button className="card-hover nav-btn" onClick={() => goTo("groupsHub")} style={{ padding: "18px 14px", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 14, color: "#4ECDC4", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box" }}>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>🏝️</span>
+            <span>Groups</span>
+          </button>
           {/* Clients — opens the dedicated Clients view, trainer-only.
               Used to be inline on home. (qa: home-hub-consolidation) */}
           {userHasRole(user, "trainer") && (
@@ -9712,10 +9712,14 @@ function HomePage() {
                   ))}
                 </div>
               )}
-              {/* Create group button */}
-              <button onClick={() => setShowLbGroupCreate(s => !s)} style={{ width: "100%", padding: "10px 14px", marginBottom: 8, background: showLbGroupCreate ? "rgba(255,107,107,0.1)" : "rgba(78,205,196,0.08)", border: `1px solid ${showLbGroupCreate ? "rgba(255,107,107,0.3)" : "rgba(78,205,196,0.2)"}`, borderRadius: 10, color: showLbGroupCreate ? "#FF6B6B" : "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
-                {showLbGroupCreate ? "CANCEL" : "+ NEW GROUP"}
-              </button>
+              {/* Create group button — trainer-only for now. Slice 2
+                  of the athlete-groups arc will unlock athlete-created
+                  groups with invite-by-username. (qa: athlete-groups-view) */}
+              {userHasRole(user, "trainer") && (
+                <button onClick={() => setShowLbGroupCreate(s => !s)} style={{ width: "100%", padding: "10px 14px", marginBottom: 8, background: showLbGroupCreate ? "rgba(255,107,107,0.1)" : "rgba(78,205,196,0.08)", border: `1px solid ${showLbGroupCreate ? "rgba(255,107,107,0.3)" : "rgba(78,205,196,0.2)"}`, borderRadius: 10, color: showLbGroupCreate ? "#FF6B6B" : "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                  {showLbGroupCreate ? "CANCEL" : "+ NEW GROUP"}
+                </button>
+              )}
               {showLbGroupCreate && (
                 <div className="fade-in" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
                   <input value={lbGroupName} onChange={e => setLbGroupName(e.target.value)} placeholder="Group name (e.g. Strength Squad)" style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#fff", fontSize: 14, padding: "10px 12px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
@@ -9741,7 +9745,11 @@ function HomePage() {
               {lbGroupsLoading ? (
                 <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "16px 0" }}>Loading…</div>
               ) : lbGroups.length === 0 ? (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "16px 0" }}>No groups yet — create one above</div>
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 13, padding: "20px 12px" }}>
+                  {userHasRole(user, "trainer")
+                    ? "No groups yet — create one above"
+                    : "You're not in any groups yet. Ask a trainer to add you to one of theirs, or accept an invite when you receive one."}
+                </div>
               ) : (
                 lbGroups.map(grp => (
                   <div key={grp.id} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
