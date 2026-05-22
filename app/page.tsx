@@ -449,17 +449,22 @@ function parseSetKey(key: string): { eid: string; setNum: string; dropNum: numbe
 }
 
 // ── Tier systems ─────────────────────────────────────────────────────────────
-// Athlete tier is now imported from lib/tiers.ts (ATHLETE_TIERS,
-// computeAthleteTier — the canonical 0–100 score ladder used
-// everywhere). Trainer tier remains the local TRAINER_TIERS below
-// (client-count based) until the server can ship full multi-dim
-// trainer stats.
+// Athlete tier comes from lib/tiers.ts (computeAthleteTier — the
+// canonical 0-100 score ladder). Trainer tier ALSO comes from lib/
+// tiers.ts now (computeTrainerTier with 5 sub-ranks including
+// Discipline). The local TRAINER_TIERS array below is the
+// client-count-based FALLBACK used until /api/trainer/me/tier
+// responds — kept name-aligned with the canonical 6-tier ladder
+// (Spotter → Hall of Fame) so the loading-state badge doesn't
+// flash a different label. Mins are roster counts, not scores.
 
 const TRAINER_TIERS = [
-  { label: "Rookie", emoji: "🏅", min: 0,  color: "#A29BFE", bg: "rgba(162,155,254,0.10)", border: "rgba(162,155,254,0.3)" },
-  { label: "Coach",  emoji: "🎯", min: 3,  color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)" },
-  { label: "Pro",    emoji: "⚡", min: 10, color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
-  { label: "Elite",  emoji: "👑", min: 20, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
+  { label: "Spotter",      emoji: "🤝", min: 0,  color: "#94a3b8", bg: "rgba(148,163,184,0.10)", border: "rgba(148,163,184,0.3)" },
+  { label: "Strategist",   emoji: "🧠", min: 2,  color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)"  },
+  { label: "Pro",          emoji: "⚡", min: 5,  color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
+  { label: "Master",       emoji: "👑", min: 10, color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.35)" },
+  { label: "Legend",       emoji: "🏆", min: 18, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
+  { label: "Hall of Fame", emoji: "⭐", min: 30, color: "#f0c040", bg: "rgba(240,192,64,0.12)",  border: "rgba(240,192,64,0.45)" },
 ];
 
 function getTrainerTier(clientCount: number) {
@@ -3215,7 +3220,7 @@ function TierInfoModal({
           roles. There are two ladders:
           <ul style={{ margin: "8px 0 0 0", paddingLeft: 18, color: "rgba(255,255,255,0.65)" }}>
             <li>🐯 <strong>Athlete tiers</strong> (Kitten → Gorilla) — earned by training.</li>
-            <li>🎯 <strong>Trainer tiers</strong> (Rookie → Elite) — earned by coaching clients. <em>“Coach” is a tier of trainers, not a separate role.</em></li>
+            <li>🤝 <strong>Trainer tiers</strong> (Spotter → Hall of Fame) — earned by coaching clients AND keeping your own training on track. Discipline (your own athlete score) is one of the five dimensions.</li>
           </ul>
           {isAthlete && isTrainer && (
             <div style={{ marginTop: 8, fontSize: 12, color: "rgba(78,205,196,0.85)" }}>

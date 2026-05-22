@@ -58,14 +58,21 @@ export function getAthleteTiers(theme: string | null | undefined): AnimalTier[] 
 // you touch them.
 export const ATHLETE_TIERS: AnimalTier[] = ATHLETE_TIER_THEMES.vivid;
 
-// Trainer ladder — kept theme-agnostic for now. Same labels
-// regardless of the athlete tier theme the user has selected.
-// (qa: tier-themes — user direction: "For trainers tiers no change between themes yet")
+// Trainer ladder — expanded to 6 tiers for emotional pacing parity
+// with the athlete ladder. Theme-agnostic (same labels everywhere
+// regardless of the athlete tier theme the visitor has selected) —
+// trainers earn ONE trainer rank, not two parallel ones.
+// Lineup confirmed by @maaiz: Spotter → Strategist → Pro → Master
+// → Legend → Hall of Fame. Spotter ties to gym vocabulary;
+// Strategist signals plan design; Pro/Master/Hall-of-Fame are the
+// achievement-arc ceiling. (qa: tier-themes — final naming pass)
 export const TRAINER_TIERS: AnimalTier[] = [
-  { tierNum: 1, label: "Rookie", icon: "🏅", min: 0,  color: "#A29BFE", bg: "rgba(162,155,254,0.10)", border: "rgba(162,155,254,0.3)" },
-  { tierNum: 2, label: "Coach",  icon: "🎯", min: 25, color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)"  },
-  { tierNum: 3, label: "Pro",    icon: "⚡", min: 50, color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
-  { tierNum: 4, label: "Elite",  icon: "👑", min: 75, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
+  { tierNum: 1, label: "Spotter",      icon: "🤝", min: 0,  color: "#94a3b8", bg: "rgba(148,163,184,0.10)", border: "rgba(148,163,184,0.3)" },
+  { tierNum: 2, label: "Strategist",   icon: "🧠", min: 15, color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)"  },
+  { tierNum: 3, label: "Pro",          icon: "⚡", min: 30, color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
+  { tierNum: 4, label: "Master",       icon: "👑", min: 50, color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.35)" },
+  { tierNum: 5, label: "Legend",       icon: "🏆", min: 70, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
+  { tierNum: 6, label: "Hall of Fame", icon: "⭐", min: 88, color: "#f0c040", bg: "rgba(240,192,64,0.12)",  border: "rgba(240,192,64,0.45)" },
 ];
 
 export type SubRank = {

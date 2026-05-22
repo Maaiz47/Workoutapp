@@ -43,11 +43,28 @@ training themselves. Earned milestone badges stay (the
 celebration system uses `>=` tier checks, not exact match).
 The path to recovery is simple: train and the score climbs.
 
-### Tier name redesign (Tier 1-3) — still pending
-Spotter (Tier 1) is approved. Tier 2 and 3 names still being
-decided — leaving the existing Rookie/Coach lineup in place
-until the names are confirmed. The Discipline sub-rank ships
-independently of the name change.
+### Tier name redesign — final lineup (added 2026-05-22 same day)
+@maaiz locked the trainer ladder names. New 6-tier lineup
+replaces the old 4-tier Rookie/Coach/Pro/Elite:
+
+| # | Name | Icon | Score |
+|---|---|---|---|
+| 1 | Spotter      | 🤝 | 0  |
+| 2 | Strategist   | 🧠 | 15 |
+| 3 | Pro          | ⚡ | 30 |
+| 4 | Master       | 👑 | 50 |
+| 5 | Legend       | 🏆 | 70 |
+| 6 | Hall of Fame | ⭐ | 88 |
+
+`TRAINER_TIERS` in lib/tiers.ts rebuilt as 6 entries.
+`tierNum` already universal so the modal's sub-rank panel +
+leaderboard rendering both pick up the new names without
+extra wiring. Client-count fallback array in page.tsx
+(used during loading before /api/trainer/me/tier responds)
+re-keyed to the new names too — mins are roster counts
+(0/2/5/10/18/30), not scores. Modal explainer copy updated
+to drop the obsolete "Coach is a tier of trainers" line —
+replaced with "Spotter → Hall of Fame, Discipline included".
 
 ---
 
