@@ -2,6 +2,38 @@
 
 ---
 
+## Fix · 2026-05-21 — Add-day picker UX + bootstrap-collision fix (qa: home-polish-v2)
+
+### "Couldn't add day. Try again in a moment."
+The previous add-day flow seeded a freshly-bootstrapped plan with
+WORKOUT_DATA's hardcoded day ids (`push1`, `pull1`, …). PlanDay.id
+is a global primary key, so the second user to hit that path
+collided on those ids and the API errored out with the catch-all
+500. Fix: when bootstrapping, create an EMPTY WorkoutPlan and let
+the new day be the only entry. The user's home grid still falls
+back to WORKOUT_DATA when customPlan is empty, so nothing breaks.
+
+Also added a guard: any `action` value that isn't `init` or
+`add-day` returns 400 instead of silently falling through to the
+regenerate-from-profile branch (which would wipe an existing
+plan).
+
+### "What is conditioning?" — clearer day picker
+Replaced the two `window.prompt()` calls with an inline picker:
+- 6 preset cards (Cardio Day, HIIT / Conditioning, Mobility /
+  Recovery, Core / Abs Focus, Arms Day, Custom). Each preset
+  card shows an icon + title + 1-line description so the
+  meaning is obvious.
+- Tapping a preset auto-fills the title + focus inputs (which
+  the user can still edit). "Custom" leaves both blank.
+- Title / Focus inputs sit below the presets. Cancel / ADD DAY
+  buttons at the bottom; ADD DAY is disabled until there's a
+  non-empty title.
+- Inline error banner shows the server's exact reason if the
+  request fails (instead of an empty alert).
+
+---
+
 ## Fix · 2026-05-21 — Customise screen + leaderboard error + add-day affordance (qa: home-polish-v2, qa-dashboard, tier-pills-clarity)
 
 ### Customise — default-plan users couldn't edit

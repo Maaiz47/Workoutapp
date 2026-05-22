@@ -38,41 +38,37 @@ export async function POST(req: NextRequest) {
     // customise? One user wants to add an extra cardio day on top
     // of the workouts built manually")
     if (body.action === "add-day") {
-      let plan = await prisma.workoutPlan.findUnique({ where: { userId: uid } });
-      if (!plan) {
-        plan = await prisma.workoutPlan.create({
+      try {
+        let plan = await prisma.workoutPlan.findUnique({ where: { userId: uid } });
+        if (!plan) {
+          // Bootstrap an empty plan rather than seeding with
+          // WORKOUT_DATA — preserving WORKOUT_DATA ids (push1,
+          // pull1, …) would collide with rows another user already
+          // owns since PlanDay.id is a global primary key. The
+          // user's home grid still falls back to WORKOUT_DATA when
+          // customPlan is empty, so leaving the plan empty here is
+          // fine — the new day is the entry point.
+          plan = await prisma.workoutPlan.create({ data: { userId: uid } });
+        }
+        const last = await prisma.planDay.findFirst({ where: { planId: plan.id }, orderBy: { dayIndex: "desc" } });
+        const nextIdx = last ? last.dayIndex + 1 : 0;
+        const title = typeof body.title === "string" && body.title.trim() ? body.title.trim() : "New Day";
+        const focus = typeof body.focus === "string" ? body.focus : "";
+        const created = await prisma.planDay.create({
           data: {
-            userId: uid,
-            days: {
-              create: WORKOUT_DATA.map((wd, i) => ({
-                id: wd.id,
-                dayIndex: i,
-                title: wd.title,
-                subtitle: wd.focus,
-                focus: wd.focus,
-                exercises: {
-                  create: wd.sections.flatMap(s => s.exercises).filter(e => e.trackable !== false).map((ex, j) => ({
-                    order: j, exerciseId: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest ?? 60, notes: ex.note ?? null,
-                  })),
-                },
-              })),
-            },
+            planId: plan.id,
+            dayIndex: nextIdx,
+            title,
+            subtitle: focus,
+            focus,
           },
+          include: { exercises: true },
         });
+        return json({ day: created });
+      } catch (e: any) {
+        console.error("add-day error:", e);
+        return json({ error: `add-day failed: ${e?.message ?? "unknown"}` }, 500);
       }
-      const last = await prisma.planDay.findFirst({ where: { planId: plan.id }, orderBy: { dayIndex: "desc" } });
-      const nextIdx = last ? last.dayIndex + 1 : 0;
-      const created = await prisma.planDay.create({
-        data: {
-          planId: plan.id,
-          dayIndex: nextIdx,
-          title: typeof body.title === "string" && body.title.trim() ? body.title.trim() : "New Day",
-          subtitle: typeof body.focus === "string" ? body.focus : "",
-          focus: typeof body.focus === "string" ? body.focus : "",
-        },
-        include: { exercises: true },
-      });
-      return json({ day: created });
     }
 
     // ── Init from WORKOUT_DATA defaults (for existing users without a profile) ──
@@ -117,6 +113,13 @@ export async function POST(req: NextRequest) {
       });
 
       return json({ plan });
+    }
+
+    // Guard: any unknown `action` should NOT silently fall through to
+    // the regenerate-from-profile branch below — that would wipe the
+    // user's existing plan. Reject explicitly instead.
+    if (body.action && body.action !== "add-day" && body.action !== "init") {
+      return json({ error: `Unknown action: ${body.action}` }, 400);
     }
 
     // ── Generate from profile ──

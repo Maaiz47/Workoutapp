@@ -3641,6 +3641,15 @@ function HomePage() {
 
   // ── Customise ──
   const [editingDay, setEditingDay] = useState<any | null>(null);
+  // Add-day picker state (Customise → + ADD A DAY). Lifted out of
+  // the customise render so the form remembers its draft if the user
+  // expands/collapses it.
+  const [showAddDayPicker, setShowAddDayPicker] = useState(false);
+  const [addDayPreset, setAddDayPreset] = useState<"cardio" | "hiit" | "mobility" | "core" | "arms" | "custom" | null>(null);
+  const [addDayTitle, setAddDayTitle] = useState("");
+  const [addDayFocus, setAddDayFocus] = useState("");
+  const [addingDay, setAddingDay] = useState(false);
+  const [addDayError, setAddDayError] = useState<string | null>(null);
   const [superSelection, setSuperSelection] = useState<string[]>([]);
   const [customMultiMode, setCustomMultiMode] = useState(false);
   const [browserSupersetMode, setBrowserSupersetMode] = useState(false);
@@ -6479,45 +6488,145 @@ function HomePage() {
               </div>
             </div>
           ))}
-          {/* Manually add a day — for cardio / mobility / extra
-              session on top of the generated plan. Bootstraps a
-              custom plan from defaults if the user is still on
-              WORKOUT_DATA so the added day persists. (qa: maaiz —
-              "Able to manually add session days from customise?") */}
-          <button
-            onClick={async () => {
-              const title = window.prompt("New day title", "Cardio Day")?.trim();
-              if (!title) return;
-              const focus = window.prompt(`Focus (e.g. "Treadmill · Bike · Conditioning")`, "Conditioning")?.trim() ?? "";
-              try {
-                const res = await fetch("/api/plan", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ action: "add-day", title, focus }),
-                });
-                if (!res.ok) {
-                  alert("Couldn't add day. Try again in a moment.");
-                  return;
-                }
-                const reloaded = await fetch("/api/plan").then(r => r.json());
-                if (reloaded?.plan?.days) {
-                  setCustomPlan(reloaded.plan.days);
-                  const added = reloaded.plan.days[reloaded.plan.days.length - 1];
-                  if (added) setEditingDay(added);
-                }
-              } catch {
-                alert("Couldn't add day. Check your connection.");
-              }
-            }}
-            style={{
-              display: "block", width: "100%", marginTop: 6, padding: "16px",
-              background: "rgba(78,205,196,0.06)",
-              border: "1px dashed rgba(78,205,196,0.35)",
-              borderRadius: 14, color: "#4ECDC4",
-              fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: "pointer",
-              fontFamily: "'Space Mono', monospace",
-            }}
-          >+ ADD DAY (CARDIO / MOBILITY / CUSTOM)</button>
+          {/* Manually add a day — preset picker + optional name
+              override. Bootstraps a custom plan from defaults if the
+              user is still on WORKOUT_DATA so the added day
+              persists. (qa: maaiz — "Able to manually add session
+              days from customise? One user wants to add an extra
+              cardio day" + "what is conditioning? Make the drop
+              down selection clearer") */}
+          {!showAddDayPicker ? (
+            <button
+              onClick={() => setShowAddDayPicker(true)}
+              style={{
+                display: "block", width: "100%", marginTop: 6, padding: "16px",
+                background: "rgba(78,205,196,0.06)",
+                border: "1px dashed rgba(78,205,196,0.35)",
+                borderRadius: 14, color: "#4ECDC4",
+                fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: "pointer",
+                fontFamily: "'Space Mono', monospace",
+              }}
+            >+ ADD A DAY</button>
+          ) : (
+            <div style={{
+              marginTop: 6, padding: "16px",
+              background: "rgba(78,205,196,0.04)",
+              border: "1px solid rgba(78,205,196,0.25)",
+              borderRadius: 14,
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2.5, color: "#4ECDC4", fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>+ NEW SESSION DAY</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 12, lineHeight: 1.5 }}>Pick a preset to seed the title + focus. You can rename the day or add exercises in the editor on the next screen.</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 12 }}>
+                {([
+                  { key: "cardio",   icon: "🏃", title: "Cardio Day",        focus: "Treadmill / bike / row — steady-state aerobic work" },
+                  { key: "hiit",     icon: "⚡", title: "HIIT / Conditioning", focus: "Short, hard intervals — burpees, sprints, KB swings" },
+                  { key: "mobility", icon: "🧘", title: "Mobility / Recovery", focus: "Stretching, foam rolling, light flow — easy day" },
+                  { key: "core",     icon: "🔥", title: "Core / Abs Focus",   focus: "Hanging leg raises, planks, weighted ab work" },
+                  { key: "arms",     icon: "💪", title: "Arms Day",           focus: "Biceps + triceps isolation, pump work" },
+                  { key: "custom",   icon: "✏",  title: "Custom",            focus: "" },
+                ] as const).map(p => {
+                  const sel = addDayPreset === p.key;
+                  return (
+                    <button
+                      key={p.key}
+                      onClick={() => {
+                        setAddDayPreset(p.key);
+                        if (p.key !== "custom") {
+                          setAddDayTitle(p.title);
+                          setAddDayFocus(p.focus);
+                        }
+                      }}
+                      style={{
+                        padding: "10px 8px", textAlign: "left",
+                        background: sel ? "rgba(78,205,196,0.14)" : "rgba(255,255,255,0.03)",
+                        border: `1px solid ${sel ? "rgba(78,205,196,0.5)" : "rgba(255,255,255,0.06)"}`,
+                        borderRadius: 10, cursor: "pointer",
+                        fontFamily: "'DM Sans', sans-serif",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                        <span style={{ fontSize: 14 }}>{p.icon}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: sel ? "#4ECDC4" : "#fff" }}>{p.title}</span>
+                      </div>
+                      {p.focus && (
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", lineHeight: 1.4 }}>{p.focus}</div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>TITLE</div>
+              <input
+                value={addDayTitle}
+                onChange={e => setAddDayTitle(e.target.value)}
+                placeholder="e.g. Cardio Day"
+                style={{ width: "100%", boxSizing: "border-box", background: "#111", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "10px 12px", fontSize: 14, fontFamily: "'DM Sans', sans-serif", marginBottom: 10 }}
+              />
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>FOCUS (OPTIONAL)</div>
+              <input
+                value={addDayFocus}
+                onChange={e => setAddDayFocus(e.target.value)}
+                placeholder="e.g. Treadmill · Bike"
+                style={{ width: "100%", boxSizing: "border-box", background: "#111", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "10px 12px", fontSize: 14, fontFamily: "'DM Sans', sans-serif", marginBottom: 14 }}
+              />
+
+              {addDayError && (
+                <div style={{ fontSize: 12, color: "#FF6B6B", marginBottom: 10 }}>{addDayError}</div>
+              )}
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => { setShowAddDayPicker(false); setAddDayPreset(null); setAddDayTitle(""); setAddDayFocus(""); setAddDayError(null); }}
+                  disabled={addingDay}
+                  style={{ padding: "10px 14px", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: addingDay ? "not-allowed" : "pointer" }}
+                >CANCEL</button>
+                <button
+                  onClick={async () => {
+                    const title = addDayTitle.trim() || (addDayPreset === "cardio" ? "Cardio Day" : "New Day");
+                    setAddingDay(true);
+                    setAddDayError(null);
+                    try {
+                      const res = await fetch("/api/plan", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "add-day", title, focus: addDayFocus.trim() }),
+                      });
+                      const data = await res.json().catch(() => ({} as any));
+                      if (!res.ok) {
+                        setAddDayError(typeof data?.error === "string" ? data.error : `Couldn't add day (HTTP ${res.status}). Please refresh and retry.`);
+                        setAddingDay(false);
+                        return;
+                      }
+                      const reloaded = await fetch("/api/plan").then(r => r.json());
+                      if (reloaded?.plan?.days) {
+                        setCustomPlan(reloaded.plan.days);
+                        const added = reloaded.plan.days.find((d: any) => d.id === data?.day?.id) ?? reloaded.plan.days[reloaded.plan.days.length - 1];
+                        setShowAddDayPicker(false);
+                        setAddDayPreset(null);
+                        setAddDayTitle("");
+                        setAddDayFocus("");
+                        if (added) setEditingDay(added);
+                      }
+                    } catch (err: any) {
+                      setAddDayError(err?.message ? `Network error: ${err.message}` : "Network error — check your connection and retry.");
+                    } finally {
+                      setAddingDay(false);
+                    }
+                  }}
+                  disabled={addingDay || !addDayTitle.trim()}
+                  style={{
+                    flex: 1, padding: "10px",
+                    background: addingDay || !addDayTitle.trim() ? "rgba(78,205,196,0.2)" : "rgba(78,205,196,0.9)",
+                    color: addingDay || !addDayTitle.trim() ? "rgba(255,255,255,0.5)" : "#0a0a0a",
+                    border: "none", borderRadius: 10, fontSize: 12, fontWeight: 800, letterSpacing: 1.5,
+                    fontFamily: "'Space Mono', monospace",
+                    cursor: addingDay || !addDayTitle.trim() ? "not-allowed" : "pointer",
+                  }}
+                >{addingDay ? "ADDING…" : "ADD DAY"}</button>
+              </div>
+            </div>
+          )}
           {planDays.length === 0 && (
             <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 14, textAlign: "center", marginTop: 40 }}>No plan yet — tap + ADD DAY above to start, or REBUILD MY WEEKLY PLAN to generate one from your profile.</div>
           )}
