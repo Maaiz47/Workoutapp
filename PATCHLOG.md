@@ -2,6 +2,55 @@
 
 ---
 
+## Feat · 2026-05-22 — Contributors leaderboard + soft attribution for anonymous QA (qa: contributions-leaderboard, amanii-attribution)
+
+@maaiz: "Amanii who's user wasn't logged in when doing the QA can
+be assigned to the user for feedback history, and also manually
+add her into feedback/contributions leaderboard as providing all
+of the missing generated image content for avatars and missing
+form previews (it's like 80 photos)"
+
+### Soft attribution for anonymous testers
+
+When a QA comment was posted with `userId=null` but the `tester`
+field matches a real `User.username` (case-insensitive), the read
+API now soft-attaches the user record at request time. No DB
+migration, no JSON-mirror rewrite — works for Amanii's 4 historic
+comments on auth-login, auth-register, auth-must-reset, and
+auth-login (the second one).
+
+Applied to:
+- `GET /api/qa/comment` (public dashboard reads)
+- `GET /api/qa/comments` (admin reads)
+
+Anywhere the dashboard reads `c.user?.username ?? c.tester ?? "anon"`
+(e.g. /qa unique-testers count, per-user grouping in the admin
+processing pass) now sees Amanii's comments grouped under her
+username.
+
+Also generalises: any future tester who submits a comment without
+logging in but types their actual username will be auto-attributed.
+
+### Contributors leaderboard
+
+- New `lib/contributions.ts` — static catalogue. Each contributor
+  has `username`, `displayName`, and a list of typed
+  contributions (`asset-generation` | `qa-feedback` | `code` |
+  `design` | `other`) with `count`, `description`, and optional
+  `at` date.
+- New `ContributionsView` component (separate view, not modal).
+  Ranked list sorted by total contribution count, medals for top
+  3, per-contribution chips showing kind + count + date.
+- Entry point on Settings → FEEDBACK & QA section: a "🏅
+  CONTRIBUTORS" card opens the view. Swipe-back returns to
+  Settings.
+- Amanii seeded as the first entry: 80 image-asset generations +
+  4 early QA comments = 84 total contributions, claiming rank #1.
+
+(qa: contributions-leaderboard, amanii-attribution)
+
+---
+
 ## Feat · 2026-05-22 — Recency-weighted Mastery (qa: tier-decay)
 
 @maaiz approved shipping just the highest-impact decay change.

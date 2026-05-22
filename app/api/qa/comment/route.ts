@@ -110,11 +110,34 @@ export async function GET(req: NextRequest) {
     : [];
   const userMap = new Map(users.map((u: any) => [u.id, u]));
 
+  // Soft attribution: a comment posted with userId=null but tester name
+  // matching a real username (case-insensitive) gets the user record
+  // attached at read time. Lets testers who submitted while logged out
+  // (e.g. Amanii's early QA pass on the auth flow) see their feedback
+  // attributed in feedback history without a DB migration.
+  // (qa: amanii-attribution)
+  const anonTesterNames = Array.from(new Set(
+    rows.filter((r: any) => !r.userId && typeof r.tester === "string" && r.tester.trim()).map((r: any) => r.tester.trim())
+  )) as string[];
+  const softUsers = anonTesterNames.length > 0
+    ? await prisma.user.findMany({
+        where: { username: { in: anonTesterNames, mode: "insensitive" } },
+        select: { id: true, username: true, email: true, role: true },
+      })
+    : [];
+  const softUserByName = new Map(softUsers.map((u: any) => [u.username.toLowerCase(), u]));
+
   const processedMap = await readProcessedManifest();
-  const comments = rows.map((c: any) => ({
-    ...c,
-    user: c.userId ? (userMap.get(c.userId) || null) : null,
-    processed: processedMap[c.id] ? true : c.processed,
-  }));
+  const comments = rows.map((c: any) => {
+    let user = c.userId ? (userMap.get(c.userId) || null) : null;
+    if (!user && c.tester) {
+      user = softUserByName.get(String(c.tester).toLowerCase()) || null;
+    }
+    return {
+      ...c,
+      user,
+      processed: processedMap[c.id] ? true : c.processed,
+    };
+  });
   return NextResponse.json({ comments });
 }

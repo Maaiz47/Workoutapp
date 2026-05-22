@@ -2092,6 +2092,44 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     },
     {
+      "id": "contributions-leaderboard",
+      "title": "Contributors leaderboard — credits surface for asset / QA / code / design contributions",
+      "area": "Settings",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass contributions-leaderboard",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings. Scroll to the FEEDBACK & QA section.",
+        "Find the 🏅 CONTRIBUTORS card. Tap it.",
+        "Verify the Contributors view loads. Header shows ← Back and 'CONTRIBUTORS' label.",
+        "Verify a hero card at the top with 🏅 icon and 'Built with help' copy.",
+        "Verify the ranked list. @Amanii should appear at rank #1 (🥇) with 84 contributions (80 image-assets + 4 QA notes).",
+        "Verify each contribution row shows: kind chip (🎨 ART or 🐞 QA, coloured), ×N count when > 1, optional date, description text.",
+        "Tap ← Back — verify return to Settings. Swipe-back should also work (set up via swipeBackViews).",
+        "To add a new contributor: edit lib/contributions.ts → append to CONTRIBUTORS array → no code change needed in the view."
+      ],
+      "notes": "[2026-05-22 <sha7>] Slice 1/N: data-driven via lib/contributions.ts (static catalogue, no DB). Renders sorted list with medals + per-contribution chips. Entry point from Settings > FEEDBACK & QA. Future slices could add: data-driven contribution detection (e.g. auto-count QA comments per user), additional kinds, contributor profile links."
+    },
+    {
+      "id": "amanii-attribution",
+      "title": "Soft attribution — anonymous QA tester names matched to user accounts",
+      "area": "QA",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass amanii-attribution",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Verify Amanii's 4 historical QA comments exist with userId=null and tester='Amanii' in /qa-comments/*.json (auth-login, auth-register, auth-must-reset, auth-login [2]).",
+        "Open /qa dashboard. Find an item Amanii commented on (e.g. auth-login). Verify her comment displays with username @Amanii (not as anonymous tester).",
+        "Verify the testers-with-pending count at the top of /qa correctly groups Amanii's comments under one tester (not 'anon').",
+        "GET /api/qa/comment?itemId=auth-login (no admin auth needed). Verify the response includes a `user` field on Amanii's comment with { username: 'Amanii', email, role } populated.",
+        "GET /api/qa/comments?secret=<ADMIN_SECRET> (admin). Same soft-attribution behaviour — anonymous comments matching a username get the user object attached.",
+        "Future test: any user who submits a QA comment while logged out but types their real username should be auto-attributed in the dashboard."
+      ],
+      "notes": "[2026-05-22 <sha7>] Soft-attribution implemented as a runtime join — no DB migration, no JSON mirror rewrite. /api/qa/comment GET and /api/qa/comments GET both: collect anonymous testers, prisma.user.findMany({ where: { username: { in: names, mode: 'insensitive' } } }), attach user record where tester matches. Generalises for any future logged-out tester."
+    },
+    {
       "id": "tier-decay",
       "title": "Recency-weighted Mastery — distinct exercises last 180d feeds tier score",
       "area": "Progress",

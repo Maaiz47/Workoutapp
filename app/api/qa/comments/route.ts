@@ -76,10 +76,26 @@ export async function GET(req: NextRequest) {
     : [];
   const userById: Record<string, { username: string; email: string | null; role: string }> = {};
   for (const u of users) userById[u.id] = { username: u.username, email: u.email, role: u.role };
-  const commentsWithUser = comments.map((c: any) => ({
-    ...c,
-    user: c.userId ? (userById[c.userId] ?? null) : null,
-  }));
+
+  // Soft attribution: anonymous comments (userId=null) where `tester`
+  // matches a real username get the user record attached at read time.
+  // Mirrors the public GET in /api/qa/comment. (qa: amanii-attribution)
+  const anonTesterNames = Array.from(new Set(
+    comments.filter((c: any) => !c.userId && typeof c.tester === "string" && c.tester.trim()).map((c: any) => c.tester.trim())
+  )) as string[];
+  const softUsers = anonTesterNames.length > 0
+    ? await prisma.user.findMany({
+        where: { username: { in: anonTesterNames, mode: "insensitive" } },
+        select: { id: true, username: true, email: true, role: true },
+      })
+    : [];
+  const softByName = new Map(softUsers.map((u: any) => [u.username.toLowerCase(), { username: u.username, email: u.email, role: u.role }]));
+
+  const commentsWithUser = comments.map((c: any) => {
+    let user = c.userId ? (userById[c.userId] ?? null) : null;
+    if (!user && c.tester) user = softByName.get(String(c.tester).toLowerCase()) ?? null;
+    return { ...c, user };
+  });
 
   // Also surface any legacy QAReport rows that haven't been migrated yet.
   const legacyReports = await (prisma as any).qAReport.findMany({
