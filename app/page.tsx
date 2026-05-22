@@ -4981,6 +4981,44 @@ function HomePage() {
 
   const saveDay = async (day: any, exercises: any[]) => {
     const res = await fetch("/api/plan", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dayId: day.id, exercises }) });
+    // When the customise view is showing a WORKOUT_DATA fallback the
+    // user has no real PlanDay rows yet — PUT 404s. Transparently
+    // upgrade by cloning the fallback day into the user's plan and
+    // setting exercises in one step, then return so the next save on
+    // this day hits the new real id. (qa: plan-customise-add-remove)
+    if (res.status === 404) {
+      try {
+        const cloneRes = await fetch("/api/plan", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "clone-fallback-day",
+            title: day.title,
+            subtitle: day.subtitle ?? day.focus ?? "",
+            focus: day.focus ?? "",
+            dayIndex: typeof day.dayIndex === "number" ? day.dayIndex : undefined,
+            exercises,
+          }),
+        });
+        const cloneData = await cloneRes.json();
+        if (cloneData.day) {
+          const newDay = cloneData.day;
+          // Replace the fallback row in customPlan if it was sourced
+          // from WORKOUT_DATA, OR splice into a freshly-bootstrapped
+          // plan if customPlan was null until now.
+          setCustomPlan(prev => {
+            if (!prev || prev.length === 0) return [newDay];
+            const exists = prev.find(d => d.id === day.id || d.title === newDay.title);
+            return exists
+              ? prev.map(d => (d.id === day.id || d.title === newDay.title) ? newDay : d)
+              : [...prev, newDay];
+          });
+          setEditingDay(() => newDay);
+        }
+      } catch (e) {
+        console.error("Fallback clone failed:", e);
+      }
+      return;
+    }
     const data = await res.json();
     if (data.day) {
       setCustomPlan(prev => prev ? prev.map(d => d.id === day.id ? { ...d, exercises: data.day.exercises } : d) : prev);
@@ -7451,9 +7489,11 @@ function HomePage() {
             "last logged" date (or unused). Helps new users get
             started AND returning users avoid skipping the same day
             repeatedly. Tap → openDay + begin() so it's a one-tap
-            start. (qa: user — "Show a suggested next workout in the
-            main page based on their past history and data") */}
-        {(() => {
+            start. Hidden while a session is in progress so the
+            screen doesn't taunt the user with a SECOND workout
+            during their first. (qa: home-polish-v2 — @maaiz: "Gray
+            out the other sessions while a session is active") */}
+        {!started && (() => {
           const plan = customPlan ? customPlan.map(planDayToWorkoutDay) : (WORKOUT_DATA as any[]);
           if (!plan || plan.length === 0) return null;
           // Newest log date per day id from history.
@@ -7637,8 +7677,13 @@ function HomePage() {
                     style={{
                       marginBottom: twoCol ? 0 : 12,
                       cursor: isLocked ? "default" : "pointer",
-                      opacity: isLocked ? 0.28 : 1,
-                      transition: "transform 0.15s ease, opacity 0.15s ease",
+                      opacity: isLocked ? 0.22 : 1,
+                      // Locked cards also lose colour so the active
+                      // session reads as the only "live" surface on
+                      // the home screen. (qa: home-polish-v2 — @maaiz)
+                      filter: isLocked ? "grayscale(85%)" : "none",
+                      pointerEvents: isLocked ? "none" : "auto",
+                      transition: "transform 0.15s ease, opacity 0.15s ease, filter 0.15s ease",
                       willChange: "transform",
                     }}
                     onClick={() => {

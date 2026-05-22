@@ -1,5 +1,17 @@
 {
   "processedIds": {
+    "cmpgat2tw00001ukzu87h9mhv": {
+      "ts": "2026-05-22T08:00:00Z",
+      "summary": "@maaiz: 'Gray out other sessions while a session is active' + suggest-next visibility. Locked day cards now use opacity 0.22 + grayscale(85%) + pointer-events:none for a clearly paused look; Suggested Next card hidden while started=true. (qa: home-polish-v2)"
+    },
+    "cmpgf4my90018z2kpu2os0rv6": {
+      "ts": "2026-05-22T08:00:00Z",
+      "summary": "@munchy: 'Adding new exercise in splits editing doesn't do anything'. Root cause: customise was editing WORKOUT_DATA fallback days whose IDs don't exist in DB → PUT 404'd silently. New POST action clone-fallback-day on /api/plan upserts (bootstraps WorkoutPlan + creates PlanDay with fresh cuid + sets exercises). saveDay client falls back on 404 + replaces the fallback row. (qa: plan-customise-add-remove)"
+    },
+    "cmpgl1ov20000o3rpyt95a3qb": {
+      "ts": "2026-05-22T08:00:00Z",
+      "summary": "@maaiz: 'Search bar not floating want it always visible'. /qa search box was position:sticky inside the header section so it scrolled away once the user reached the items list. Switched to position:fixed + safe-area top inset + backdrop blur + bottom shadow; outer container padding-top bumped to make room. (qa: qa-dashboard)"
+    },
     "cmpet8uo5000055xfnmce573y": {
       "ts": "2026-05-21T01:30:00Z",
       "sha": "104133e",

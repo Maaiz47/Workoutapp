@@ -2,6 +2,53 @@
 
 ---
 
+## QA pass · 2026-05-22 — 3 comments actioned (qa: plan-customise-add-remove, home-polish-v2, qa-dashboard)
+
+Processed three unprocessed comments from the `qa-comments/`
+mirror. Two @maaiz drive-by polish notes plus one @munchy bug
+report. None flagged as suspicious — all genuine product
+feedback.
+
+### Addressed
+- **@munchy · plan-customise-add-remove**:
+  "Adding a new exercise in splits editing doesn't do anything."
+  Root cause: when a user has no custom plan, customise falls
+  back to WORKOUT_DATA — but those day IDs (`push1`, `pull1`)
+  don't exist in DB. saveDay's `PUT /api/plan` 404'd silently
+  and the UI ate the response. Fix: new `clone-fallback-day`
+  POST action on `/api/plan` upserts in one step (bootstraps
+  the WorkoutPlan if missing, creates a fresh PlanDay with a
+  generated cuid — NOT the WORKOUT_DATA id since those would
+  collide between users — and stocks it with the supplied
+  exercises). Client-side `saveDay` detects the 404 and falls
+  back to the clone path, then replaces the fallback row in
+  `customPlan` with the real DB row. Subsequent edits on the
+  same day hit the real id directly.
+- **@maaiz · home-polish-v2**: "Gray out other sessions while
+  a session is active." Locked day cards in YOUR SPLIT already
+  used opacity 0.28; bumped the visual cue: opacity 0.22 +
+  `grayscale(85%)` + `pointer-events: none`. Also hid the
+  Suggested Next card while a session is active so the home
+  screen doesn't dangle a second workout in front of the user
+  mid-session.
+- **@maaiz · qa-dashboard**: "Search bar not floating, want it
+  always visible." Search was `position: sticky` inside the
+  header section, so it slid out of view once the user
+  scrolled past the header into the items list. Switched to
+  `position: fixed` at viewport top with safe-area inset,
+  backdrop blur, and a bottom shadow. Page top padding bumped
+  to reserve room. Now visible across the whole scroll.
+
+### qa-state reconciliation
+- `plan-customise-add-remove`: untested → regression-retest,
+  added the new-user scenario to its `steps[]`.
+- `home-polish-v2`: lastTested → 2026-05-22, appended visual-
+  lock step.
+- `qa-dashboard`: lastTested → 2026-05-22, appended floating-
+  search step.
+
+---
+
 ## Feat · 2026-05-22 — Pending backlog clear (parts 4–5) (qa: tier-trainer-keeps-athlete, qa-per-step-comments)
 
 Closes the remaining two items from the backlog clear after

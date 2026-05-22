@@ -1308,7 +1308,10 @@ export default function QAPage() {
   return (
     <div style={{
       minHeight: "100dvh", background: "#0a0a0a", color: "#fff",
-      padding: "20px 16px 80px", boxSizing: "border-box",
+      // paddingTop reserves space for the fixed search bar (~64px
+      // tall plus safe-area inset). (qa: __general__ — @maaiz)
+      padding: "calc(env(safe-area-inset-top, 0px) + 78px) 16px 80px",
+      boxSizing: "border-box",
       fontFamily: "'DM Sans', sans-serif",
     }}>
       <AnimatePresence>
@@ -1441,23 +1444,30 @@ export default function QAPage() {
             />
           )}
 
-          {/* Search — sticky to the top of the viewport so it stays
-              accessible while scrolling the long backlog. (qa:
-              __general__ — maaiz: "Make search box floating that stays
-              always") */}
+          {/* Search — pinned to the viewport top with position:fixed
+              so it remains visible while scrolling the entire items
+              list. Previously was position:sticky inside the header
+              section, but that meant the sticky context ended where
+              the header closed, and the bar slid away once the user
+              scrolled into the items list. Fixed positioning + a
+              spacer below keeps the bar in view always, no matter
+              how far down the list the user goes. The visible-search
+              CSS variable pads the page so headers don't disappear
+              under the bar on first load. (qa: __general__ — @maaiz:
+              "Search br is not floating want it always visible") */}
           <div style={{
-            marginTop: 14, position: "sticky",
+            position: "fixed",
             top: "calc(env(safe-area-inset-top, 0px) + 6px)",
+            left: 0, right: 0,
             zIndex: 50,
-            // Backdrop blur so items behind it don't smear through.
-            background: "rgba(10,10,10,0.85)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            margin: "14px -4px 0",
-            padding: "6px 4px 8px",
-            borderRadius: 10,
+            padding: "6px 16px 10px",
+            background: "rgba(10,10,10,0.92)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            boxShadow: "0 8px 24px -12px rgba(0,0,0,0.6)",
           }}>
-            <div style={{ position: "relative" }}>
+            <div style={{ maxWidth: 720, margin: "0 auto", position: "relative" }}>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}

@@ -115,10 +115,67 @@ export async function POST(req: NextRequest) {
       return json({ plan });
     }
 
+    // ── Clone a fallback WORKOUT_DATA day into the user's plan ─────────
+    // When the customise view is showing a WORKOUT_DATA fallback (the
+    // user has no WorkoutPlan yet) and the tester taps "+ ADD
+    // EXERCISE", saveDay's PUT 404s because the dayId ("push1",
+    // "pull1"…) doesn't exist in DB. This action lets the client
+    // upsert: bootstraps the WorkoutPlan if missing, creates a fresh
+    // PlanDay (with an auto-generated cuid, NOT the WORKOUT_DATA id
+    // to avoid global-PK collisions between users), and stocks it
+    // with the supplied exercises. Returns the new day so the client
+    // can swap the fallback row for the real one.
+    // Reported by @munchy — "adding a new exercise doesn't do
+    // anything" (qa: plan-customise-add-remove)
+    if (body.action === "clone-fallback-day") {
+      try {
+        const { title, subtitle, focus, dayIndex, exercises } = body;
+        if (typeof title !== "string" || !Array.isArray(exercises)) {
+          return json({ error: "Invalid payload" }, 400);
+        }
+        let plan = await prisma.workoutPlan.findUnique({ where: { userId: uid } });
+        if (!plan) {
+          plan = await prisma.workoutPlan.create({ data: { userId: uid } });
+        }
+        const last = await prisma.planDay.findFirst({ where: { planId: plan.id }, orderBy: { dayIndex: "desc" } });
+        const idx = typeof dayIndex === "number" ? dayIndex : (last ? last.dayIndex + 1 : 0);
+        const created = await prisma.planDay.create({
+          data: {
+            planId: plan.id,
+            dayIndex: idx,
+            title,
+            subtitle: typeof subtitle === "string" ? subtitle : "",
+            focus: typeof focus === "string" ? focus : "",
+            exercises: {
+              create: exercises.map((ex: any, i: number) => ({
+                order: i,
+                exerciseId: ex.exerciseId ?? ex.id,
+                name: ex.name,
+                sets: ex.sets ?? 3,
+                reps: ex.reps ?? "10–12",
+                rest: ex.rest ?? 60,
+                notes: ex.notes ?? null,
+                groupId: ex.groupId ?? null,
+                groupType: ex.groupType ?? null,
+                dropSets: ex.dropSets ?? 0,
+                dropSet: ex.dropSet === true,
+                kind: ex.kind === "warmup" || ex.kind === "cooldown" ? ex.kind : "main",
+              })),
+            },
+          },
+          include: { exercises: { orderBy: { order: "asc" } } },
+        });
+        return json({ day: created });
+      } catch (e: any) {
+        console.error("clone-fallback-day error:", e);
+        return json({ error: `Failed: ${e?.message ?? "unknown"}` }, 500);
+      }
+    }
+
     // Guard: any unknown `action` should NOT silently fall through to
     // the regenerate-from-profile branch below — that would wipe the
     // user's existing plan. Reject explicitly instead.
-    if (body.action && body.action !== "add-day" && body.action !== "init") {
+    if (body.action && body.action !== "add-day" && body.action !== "init" && body.action !== "clone-fallback-day") {
       return json({ error: `Unknown action: ${body.action}` }, 400);
     }
 

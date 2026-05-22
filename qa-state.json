@@ -393,18 +393,19 @@
       "area": "Plan",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
       "steps": [
-        "From the home screen tap '✎ Customise' on a plan day",
-        "Tap '+ Add Exercise' to open the exercise browser",
+        "First-time scenario: as a NEW user with no custom plan (or someone who never went through onboarding), open Customise. Verify the fallback WORKOUT_DATA days are listed.",
+        "Tap '✎ Customise' on Day 1 → tap '+ ADD EXERCISE' → pick any exercise from the browser. Verify the exercise appears in the day immediately (NOT silently dropped). Open the workout for the day and confirm the new exercise is logged-ready.",
+        "Subsequent adds on the SAME day should now persist normally (since the day now has a real PlanDay row in the DB).",
+        "Existing-plan scenario: user with a generated plan opens Customise on any day, adds an exercise — should still work as before. No regression.",
         "Filter by muscle group, equipment, or type and select an exercise",
-        "Tap 'Add' — the exercise should appear at the bottom of the day's list",
         "Tap the trash/remove icon on an existing exercise — it should be removed",
         "Tap 'Save changes' and return to the home screen",
         "Open the workout for that day and verify the changes are reflected"
       ],
-      "notes": ""
+      "notes": "[2026-05-22] Fixed: when a user with no custom plan tried to add an exercise on a WORKOUT_DATA fallback day, the PUT /api/plan dayId didn't exist in DB and returned 404 silently — nothing happened. New `clone-fallback-day` POST action on /api/plan bootstraps the WorkoutPlan if missing, creates a fresh PlanDay with an auto-generated cuid, and stocks it with the supplied exercises. saveDay on the client detects the 404 and falls back to this clone path, then replaces the fallback row in customPlan with the real DB row. (Reported by @munchy)"
     },
     {
       "id": "plan-customise-superset",
@@ -936,7 +937,7 @@
       "area": "Other",
       "introduced": "2026-05-21",
       "introducedBy": "QA pass home-polish-v2",
-      "lastTested": "2026-05-21",
+      "lastTested": "2026-05-22",
       "status": "regression-retest",
       "steps": [
         "Open home — verify LIFT · TRACK · PROGRESS sits visually centered in the lower portion of the hero (over the barbell image), with the phrase italic below",
@@ -947,9 +948,11 @@
         "If you have 3 days, verify cards are ~178px single-column",
         "If you have 4-6 days, verify cards stay compact (138px, 2-col)",
         "Tap a day card → verify the expanding overlay now has title + START WORKOUT centered VERTICALLY on screen (not glued to the bottom)",
-        "Tap ← Back on the overlay — verify it collapses cleanly"
+        "Tap ← Back on the overlay — verify it collapses cleanly",
+        "ACTIVE SESSION VISUAL LOCK: Start a workout (tap START on Day 1). Navigate back home (or just refresh — session-persistence keeps it active). Verify the OTHER day cards in YOUR SPLIT are now (a) more dimmed than before (opacity ~0.22) AND (b) desaturated via grayscale(85%) so they read as genuinely 'paused', not just slightly faded. Tapping them should still no-op (pointer-events: none).",
+        "Verify the 'Suggested Next' card above YOUR SPLIT is HIDDEN while a session is active (don't taunt the user with a second workout during their first)."
       ],
-      "notes": "[2026-05-21] Slice 2 — declutter pass. Hero 200→150. Welcome chip compressed to a single horizontal row: avatar (38→32) · name · inline tier pills · ›. Dropped 'WELCOME BACK' label (redundant), and tier pills now show emoji + tier label only (no 'TIER N/M' suffix — already explained in modal). Tagline shrunk (18→15) and moved deeper into hero. Pro Tip card compressed from ~140px padded card to a single-line slim chip with tap-to-expand modal that shows full body + source + 'hide for today'.\n[2026-05-21] Hero height 220→200. Tagline kept inside hero at top: 62% (user confirmed this is the right placement). Daily Quest compressed from full card with body+title+label to a 36px-tall single-row chip with chevron. Tap opens questInfo modal — wellness-related quests deep-link to Progress → Dashboard; behavioural ones just acknowledge. Dynamic card heights: plan.length 1 → 420px, 2 → 260px, 3 → 178px, 4+ → 138px (2-col). Day-card expand overlay vertically centers title + focus + START WORKOUT button with flex justifyContent: center."
+      "notes": "[2026-05-22] Polish: while a session is active, the other day cards in YOUR SPLIT now go grayscale(85%) + opacity 0.22 + pointer-events:none so they read as fully paused; the 'Suggested Next' card is also hidden so the home screen doesn't suggest a second workout during the current one. (Reported by @maaiz — 'Gray out the other sessions while a session is active'.)\n[2026-05-21] Slice 2 — declutter pass. Hero 200→150. Welcome chip compressed to a single horizontal row: avatar (38→32) · name · inline tier pills · ›. Dropped 'WELCOME BACK' label (redundant), and tier pills now show emoji + tier label only (no 'TIER N/M' suffix — already explained in modal). Tagline shrunk (18→15) and moved deeper into hero. Pro Tip card compressed from ~140px padded card to a single-line slim chip with tap-to-expand modal that shows full body + source + 'hide for today'.\n[2026-05-21] Hero height 220→200. Tagline kept inside hero at top: 62% (user confirmed this is the right placement). Daily Quest compressed from full card with body+title+label to a 36px-tall single-row chip with chevron. Tap opens questInfo modal — wellness-related quests deep-link to Progress → Dashboard; behavioural ones just acknowledge. Dynamic card heights: plan.length 1 → 420px, 2 → 260px, 3 → 178px, 4+ → 138px (2-col). Day-card expand overlay vertically centers title + focus + START WORKOUT button with flex justifyContent: center."
     },
     {
       "id": "profile-settings-split",
@@ -1676,7 +1679,7 @@
       "area": "Other",
       "introduced": "2026-05-21",
       "introducedBy": "QA pass 01da6f1",
-      "lastTested": "2026-05-21",
+      "lastTested": "2026-05-22",
       "status": "regression-retest",
       "steps": [
         "Navigate to /qa while logged in — verify a single 'SIGNED IN AS @<your-username>' chip is shown (no name input)",
@@ -1692,9 +1695,10 @@
         "Verify the short helper line under the chips explains what each one does (📤 vs 🥋).",
         "Each comment shows @username if the submitter was logged in",
         "Verify each item card's status row shows TESTED ×N (count of comments) AND LAST <date hh:mm> (most recent of item.lastTested or newest comment ts)",
-        "Expand an item with a populated notes field — verify a 📜 PATCH HISTORY (count) section appears with each [date] entry rendered as its own row (date tag highlighted, body text in regular weight)"
+        "Expand an item with a populated notes field — verify a 📜 PATCH HISTORY (count) section appears with each [date] entry rendered as its own row (date tag highlighted, body text in regular weight)",
+        "FLOATING SEARCH: scroll all the way to the bottom of the items list. The search box at the top of the page should STAY VISIBLE pinned to the viewport (position: fixed). Tap it and type — filtering still works from anywhere on the page. Previously it was position:sticky inside the header section so it slid away once you scrolled past the header."
       ],
-      "notes": "[2026-05-21] Item card status row now shows TESTED ×N · LAST <date time> instead of the previous date-only `Last tested:`. Latest activity is computed as max(item.lastTested, newest comment ts) so fresh feedback moves the line forward before the next QA pass. The notes blob is now rendered as a 📜 PATCH HISTORY list — each `[date]` line becomes its own row with the date tag highlighted in red, body in regular weight.\n[2026-05-21] Slice 2/N (PWA escape, real this time): the previous `<a target=_blank>` to /qa stayed trapped in the iOS PWA's in-app webview. Switched to a button that calls navigator.share() first — on iOS PWA the native share sheet appears with 'Open in Safari', which is the only reliable escape path. Falls back to window.open() (Android PWA + desktop), then clipboard copy (last resort).\n[2026-05-21] Cleanup: removed the BACKUP / RESTORE buttons (server-side comment save makes them unnecessary). Tester name input now auto-fills + hides when the visitor is logged in."
+      "notes": "[2026-05-22] Search box pinned with position:fixed (was sticky inside the header section, so it scrolled out of view once the user reached the items list). Page top padding bumped to reserve space for the bar; bar has a backdrop blur + bottom shadow so the content beneath reads as scrolling under it. (Reported by @maaiz — 'Search br is not floating want it always visible'.)\n[2026-05-21] Item card status row now shows TESTED ×N · LAST <date time> instead of the previous date-only `Last tested:`. Latest activity is computed as max(item.lastTested, newest comment ts) so fresh feedback moves the line forward before the next QA pass. The notes blob is now rendered as a 📜 PATCH HISTORY list — each `[date]` line becomes its own row with the date tag highlighted in red, body in regular weight.\n[2026-05-21] Slice 2/N (PWA escape, real this time): the previous `<a target=_blank>` to /qa stayed trapped in the iOS PWA's in-app webview. Switched to a button that calls navigator.share() first — on iOS PWA the native share sheet appears with 'Open in Safari', which is the only reliable escape path. Falls back to window.open() (Android PWA + desktop), then clipboard copy (last resort).\n[2026-05-21] Cleanup: removed the BACKUP / RESTORE buttons (server-side comment save makes them unnecessary). Tester name input now auto-fills + hides when the visitor is logged in."
     },
     {
       "id": "qa-leaderboard",
