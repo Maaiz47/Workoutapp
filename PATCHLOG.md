@@ -2,6 +2,41 @@
 
 ---
 
+## Fix · 2026-05-22 — Surface the global leaderboard on home (qa: global-leaderboard-entry)
+
+@maaiz: "I'm not seeing any global leaderboards placed anywhere,
+not for trainers in general, not for a global athlete leaderboard
+which we already discussed either."
+
+Root cause: the view existed (`GlobalLeaderboardView` at line
+3709, route `/api/leaderboard/global`) but the only entry point
+was buried INSIDE the TierInfoModal — user had to tap a tier
+badge → modal opens → scroll down → tap a button. Four taps
+deep, behind a thing most users never open.
+
+### Fix
+
+- Added a first-class entry point on the home screen, right
+  above the GROUPS section: a wide `🌍 GLOBAL RANKINGS` card
+  with subtitle "See how you stack up · Athletes + trainers
+  ranked across the whole app."
+- One tap → opens `GlobalLeaderboardView`. The view's own
+  internal toggles handle athletes-vs-trainers and
+  top-100-vs-tier-band-vs-around-you.
+- Existing TierInfoModal "🌍 GLOBAL TIER LEADERBOARD" button
+  kept — second entry point doesn't hurt.
+
+### Tutorial
+
+- Added a `global-rankings` step explaining the new entry
+  point.
+- Bumped `TUTORIAL_VERSION` v3 → v4 so existing users see it
+  once on next launch.
+
+(qa: global-leaderboard-entry)
+
+---
+
 ## Feat · 2026-05-22 — Suggested-workout bonus (qa: suggestion-bonus)
 
 @maaiz: "Doing suggested workouts can give a slight tier point bonus."

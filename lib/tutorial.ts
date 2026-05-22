@@ -17,7 +17,7 @@ export type TutorialStep = {
   where?: string;
 };
 
-export const TUTORIAL_VERSION = "v3";
+export const TUTORIAL_VERSION = "v4";
 export const TUTORIAL_STORAGE_KEY = `ironlog-tutorial-seen-${TUTORIAL_VERSION}`;
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -68,6 +68,13 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Customise your routine",
     body: "Open the Customise screen for any day to edit warm-ups, exercises, sets/reps/rest, and cool-downs. Add an exercise just for today (+ SESSION) or save it to your routine (+ ROUTINE).",
     where: "Home → Customise",
+  },
+  {
+    id: "global-rankings",
+    icon: "🌍",
+    title: "See how you stack up",
+    body: "The GLOBAL RANKINGS card on home opens an app-wide leaderboard — athletes + trainers ranked across the whole app. Toggle between Top 100, your tier band, or around-you. Athletes can opt out of being named in Settings; trainers are always public.",
+    where: "Home → 🌍 GLOBAL RANKINGS",
   },
   {
     id: "updates",

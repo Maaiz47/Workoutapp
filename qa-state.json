@@ -2092,6 +2092,28 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     },
     {
+      "id": "global-leaderboard-entry",
+      "title": "Global leaderboard — discoverable entry point on home",
+      "area": "Home",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass global-leaderboard-entry",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open the app to home. Scroll past YOUR SPLIT.",
+        "Verify a 🌍 GLOBAL RANKINGS card is visible above the GROUPS section, with subtitle 'See how you stack up · Athletes + trainers ranked across the whole app.'",
+        "Tap the card. Verify it navigates to the GLOBAL · TIER LEADERBOARD view (full-screen, with a ← Back button).",
+        "Inside the view, verify two tabs: 🏆 ATHLETES (default) and 🤝 TRAINERS. Tap each — list refreshes against /api/leaderboard/global?kind=...",
+        "Verify three lens pills: TOP 100 (default), YOUR TIER, AROUND YOU. Tap each — list refreshes against /api/leaderboard/global?lens=...",
+        "Verify the meta line shows total participants + your rank if you qualify (athletes need ≥ 5 sessions).",
+        "Verify your own row is highlighted with 'YOU' in teal.",
+        "Tap ← Back — verify return to home.",
+        "Existing entry: open the TierInfoModal (tap any tier badge), scroll to the bottom, verify the '🌍 GLOBAL TIER LEADERBOARD' button STILL works as a second entry point.",
+        "Tutorial: a brand-new user (or one with localStorage cleared) should see a `global-rankings` step in the first-launch tutorial. TUTORIAL_VERSION was bumped to v4 so existing users see it once."
+      ],
+      "notes": "[2026-05-22 <sha7>] Discoverability fix. GlobalLeaderboardView + /api/leaderboard/global were already shipped under tier-global-leaderboard but only reachable via the TierInfoModal's bottom button. Added a wide tap-to-navigate card directly on home above GROUPS. TUTORIAL_VERSION bumped v3 → v4 with a global-rankings step pointing at the new entry."
+    },
+    {
       "id": "suggestion-bonus",
       "title": "Suggested-workout bonus — +1 tier score when you log the recommended day",
       "area": "Workout",

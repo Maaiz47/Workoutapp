@@ -8607,6 +8607,37 @@ function HomePage() {
           )}
         </div>
 
+        {/* ── Global Rankings ── First-class entry point to the
+            app-wide athlete + trainer leaderboards. Used to be
+            buried inside the TierInfoModal — surfaced here so
+            users can actually find it. (qa: global-leaderboard-entry) */}
+        <div style={{ padding: "20px 20px 0" }}>
+          <button
+            onClick={() => setView("globalLeaderboard")}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              padding: "14px 16px",
+              background: "linear-gradient(135deg, rgba(240,192,64,0.14), rgba(78,205,196,0.08))",
+              border: "1px solid rgba(240,192,64,0.32)",
+              borderRadius: 14, cursor: "pointer", textAlign: "left",
+              boxShadow: "0 4px 18px -8px rgba(240,192,64,0.35), inset 0 1px 0 rgba(255,255,255,0.04)",
+              fontFamily: "'DM Sans', sans-serif",
+              display: "flex", alignItems: "center", gap: 12,
+            }}
+          >
+            <div style={{ fontSize: 28, lineHeight: 1, filter: "drop-shadow(0 0 8px rgba(240,192,64,0.45))" }}>🌍</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>GLOBAL RANKINGS</span>
+                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· APP-WIDE</span>
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", letterSpacing: -0.2, marginBottom: 2 }}>See how you stack up</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.4 }}>Athletes + trainers ranked across the whole app. Top 100, your tier band, around you.</div>
+            </div>
+            <div style={{ fontSize: 22, color: "rgba(255,255,255,0.35)", flexShrink: 0 }}>›</div>
+          </button>
+        </div>
+
         {/* ── Leaderboard Groups ── */}
         <div style={{ padding: "20px 20px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
