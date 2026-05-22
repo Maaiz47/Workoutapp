@@ -1,5 +1,5 @@
 {
-  "version": "2026.05.22.03",
-  "commit": "693baa0",
-  "note": "session-persistence fix + cable fly + rope pushdown + un-crammed exercise row"
+  "version": "2026.05.22.04",
+  "commit": "902220a",
+  "note": "tighter active workout row - name always visible, buttons only when expanded"
 }
