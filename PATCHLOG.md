@@ -2,6 +2,28 @@
 
 ---
 
+## Infra · 2026-05-22 — Nudge Vercel: production stuck due to SHA dedupe across branches
+
+Production stopped at `3b402ea` (Tier 1+2 avatars). Two subsequent
+commits — `83f652f` (splash hero + picker UX + chip strip + music
+move) and `c12afca` (final 3 form frames) — pushed to main + branch
+in quick succession only got built as **previews** on the branch;
+Vercel deduplicated by SHA and silently dropped the corresponding
+production deploys.
+
+Pattern to avoid in future: when shipping work, push to main FIRST,
+let the production build register, THEN push the same SHA to the
+working branch if needed (or skip the branch push entirely — main
+is canonical per CLAUDE.md). Pushing both within the same second
+trips Vercel's SHA-dedupe.
+
+This commit is a no-op nudge with a fresh SHA. Pushing to main only
+this time. Vercel's `ignoreCommand` will see the changes-since-last-
+deployed-SHA span everything from `3b402ea`→here (including all the
+real work in `83f652f` and `c12afca`) and proceed with the deploy.
+
+---
+
 ## Assets · 2026-05-22 — Final 3 form frames → 82/82 image-gen complete ✅ (qa: exercise-local-images)
 
 User uploaded the last 3 missing exercise frames to Drive root.
