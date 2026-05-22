@@ -2,6 +2,38 @@
 
 ---
 
+## Feat · 2026-05-22 — QA steps individually commentable (qa: qa-per-step-comments-v2)
+
+@maaiz: "Full qa system still isn't how I intended.
+There are steps to testing each function/feature, I want
+to be able to individually comment on each step not the
+whole function/feature."
+
+Previous slice gave each step a 💬 button that scoped a
+single shared form to that step — still item-centric in
+practice. This pass makes each step a first-class commentable
+unit:
+
+- Each step row in `/qa` is now a clickable card. Numbered
+  chip on the left, step body, comment count, chevron.
+- Tapping expands the step INLINE to reveal:
+  - That step's thread (filtered to `stepIndex === i`)
+  - A reply form scoped to the step (status / note /
+    screenshot URL / save button labelled "SAVE COMMENT
+    ON STEP N")
+- Only ONE step open per item at a time (`openStepIndex`
+  local state) — keeps the active surface unambiguous.
+- The item-level thread + form at the bottom now ONLY
+  show step-less comments (`stepIndex == null`). Per-step
+  comments live inline next to their step.
+- Bottom item-level form is HIDDEN while a step is open,
+  so you can't accidentally cross-post.
+
+Data model unchanged — `QAComment.stepIndex` already
+existed. This is a UI-only redesign.
+
+---
+
 ## Feat · 2026-05-22 — Time-of-day for body metrics + Unlock Your Abs (qa: body-metric-timeofday, mission-unlock-abs)
 
 ### 1. Weight/BF time-of-day capture

@@ -1012,6 +1012,26 @@
       "notes": "[2026-05-21] Tier card header completely rebuilt to be obviously a tier system: '🏆 YOUR RANK' + 'TIER N OF 6' explicit header, bigger animal icon (58px) + bigger name (26px in caps), horizontal animal ladder of all 6 tiers (current highlighted/glowing, past coloured, future greyed), explicit OVERALL SCORE row with breakpoint, '5 STATS FEED THIS RANK' label above the sub-rank grid."
     },
     {
+      "id": "qa-per-step-comments-v2",
+      "title": "QA steps are individually expandable + commentable",
+      "area": "Internal · QA",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass qa-per-step-comments-v2",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open /qa as a tester. Pick any item with multiple test steps. Expand the item.",
+        "Verify the STEPS TO TEST section now renders each step as a clickable card (numbered chip on the left, body in the middle, 💬 count + chevron on the right). Header copy reads 'STEPS TO TEST · TAP A STEP TO COMMENT'.",
+        "Tap step 1. The card expands to reveal that step's thread (existing comments) PLUS an inline REPLY TO STEP 1 form (status select, note textarea, screenshot URL, save button labelled SAVE COMMENT ON STEP 1).",
+        "Type a note, set status FAILING, hit save. Verify the comment appears inline under step 1 with the per-step badge, and the main ITEM-LEVEL THREAD below does NOT include this comment.",
+        "Tap step 1 again to collapse. The bottom ITEM-LEVEL COMMENT form re-appears (only one form visible at a time — either a step's inline form OR the item-level one).",
+        "Tap step 2 → step 1 closes, step 2 opens. Only one step expanded per item at a time.",
+        "Scroll to ITEM-LEVEL THREAD. Verify it ONLY contains comments where stepIndex is null. Step-scoped comments don't appear here.",
+        "Tap ITEM-LEVEL COMMENT, add a comment without expanding any step. It saves with stepIndex=null and appears in the ITEM-LEVEL THREAD."
+      ],
+      "notes": "[2026-05-22] Shipped v2 redesign per @maaiz: 'Full qa system still isn't how I intended. There are steps to testing each function/feature, I want to be able to individually comment on each step not the whole function/feature.' Each step is now an inline expandable card with its own thread + reply form. openStepIndex local state ensures one step open per item. Item-level form/thread hidden when a step is open (so the active surface is unambiguous). Step-scoped comments filtered OUT of the item-level thread (they render inline under their step). Existing data model unchanged (stepIndex was already on QAComment from the previous pass)."
+    },
+    {
       "id": "body-metric-timeofday",
       "title": "Weight/BF entries record time of day + colour-code chart",
       "area": "Body metrics",

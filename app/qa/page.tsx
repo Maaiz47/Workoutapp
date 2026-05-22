@@ -640,6 +640,10 @@ function ItemCard({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which step is expanded inline (only one at a time per item).
+  // null = no step expanded; the item-level comment form/thread
+  // shows at the bottom instead. (qa: qa-per-step-comments)
+  const [openStepIndex, setOpenStepIndex] = useState<number | null>(null);
 
   const itemComments = comments
     .filter(c => c.itemId === item.id)
@@ -754,44 +758,126 @@ function ItemCard({
               <div style={{
                 fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#FF6B6B",
                 fontFamily: "'Space Mono', monospace", marginBottom: 8,
-              }}>STEPS TO TEST</div>
-              <ol style={{ margin: 0, paddingLeft: 18 }}>
-                {item.steps.map((s, i) => {
-                  // Count existing comments scoped to this step so a
-                  // tester can see "this step has 2 reports" at a
-                  // glance and tap to read them in the thread.
-                  const stepCommentCount = comments.filter(c => c.stepIndex === i).length;
-                  return (
-                    <li key={i} style={{
-                      fontSize: 12, color: "rgba(255,255,255,0.7)",
-                      fontFamily: "'DM Sans', sans-serif", marginBottom: 7, lineHeight: 1.5,
-                      display: "flex", gap: 6, alignItems: "flex-start",
-                    }}>
-                      <span style={{ flex: 1 }}>{s}</span>
-                      <button
-                        onClick={() => {
-                          setDraft({ ...draft, stepIndex: i });
-                          // Defer scroll one frame so the indicator
-                          // chip is visible before we jump.
-                          setTimeout(() => {
-                            const el = document.getElementById(`comment-form-${item.id}`);
-                            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                          }, 40);
-                        }}
-                        title={`Comment on step ${i + 1}${stepCommentCount > 0 ? ` (${stepCommentCount} existing)` : ""}`}
-                        style={{
-                          fontSize: 9, fontWeight: 700, letterSpacing: 1,
-                          background: stepCommentCount > 0 ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.04)",
-                          border: `1px solid ${stepCommentCount > 0 ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.08)"}`,
-                          color: stepCommentCount > 0 ? "#FF6B6B" : "rgba(255,255,255,0.4)",
-                          borderRadius: 4, padding: "1px 6px", cursor: "pointer",
-                          fontFamily: "'Space Mono', monospace", flexShrink: 0,
-                        }}
-                      >💬{stepCommentCount > 0 ? ` ${stepCommentCount}` : ""}</button>
-                    </li>
-                  );
-                })}
-              </ol>
+              }}>STEPS TO TEST · TAP A STEP TO COMMENT</div>
+              {/* Per-step inline cards. Each step is its own
+                  collapsible thread + reply form scoped to that step.
+                  Only one step open at a time per item. The
+                  item-level thread + form below stays for feedback
+                  that doesn't belong to a specific step.
+                  (qa: qa-per-step-comments) */}
+              {item.steps.map((s, i) => {
+                const stepComments = comments.filter(c => c.stepIndex === i);
+                const isOpen = openStepIndex === i;
+                return (
+                  <div key={i} style={{
+                    border: `1px solid ${isOpen ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.06)"}`,
+                    background: isOpen ? "rgba(255,107,107,0.04)" : "rgba(255,255,255,0.02)",
+                    borderRadius: 8, marginBottom: 6, overflow: "hidden",
+                  }}>
+                    <button
+                      onClick={() => {
+                        if (isOpen) { setOpenStepIndex(null); setDraft({ ...draft, stepIndex: null }); }
+                        else { setOpenStepIndex(i); setDraft({ ...draft, stepIndex: i }); }
+                      }}
+                      style={{
+                        display: "flex", gap: 8, alignItems: "flex-start",
+                        width: "100%", textAlign: "left", padding: "8px 10px",
+                        background: "transparent", border: "none", cursor: "pointer",
+                      }}
+                    >
+                      <span style={{
+                        flexShrink: 0, fontSize: 10, fontWeight: 700,
+                        color: isOpen ? "#FF6B6B" : "rgba(255,255,255,0.35)",
+                        fontFamily: "'Space Mono', monospace", letterSpacing: 1,
+                        background: isOpen ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${isOpen ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.08)"}`,
+                        borderRadius: 4, padding: "2px 6px", minWidth: 22, textAlign: "center",
+                      }}>{i + 1}</span>
+                      <span style={{ flex: 1, fontSize: 12, color: "rgba(255,255,255,0.8)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>{s}</span>
+                      <span style={{
+                        flexShrink: 0, fontSize: 9, fontWeight: 700, letterSpacing: 1,
+                        background: stepComments.length > 0 ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${stepComments.length > 0 ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.08)"}`,
+                        color: stepComments.length > 0 ? "#FF6B6B" : "rgba(255,255,255,0.4)",
+                        borderRadius: 4, padding: "2px 6px",
+                        fontFamily: "'Space Mono', monospace",
+                      }}>💬 {stepComments.length}</span>
+                      <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, marginLeft: 2 }}>{isOpen ? "▲" : "▼"}</span>
+                    </button>
+                    {isOpen && (
+                      <div style={{ padding: "8px 10px 10px", borderTop: "1px dashed rgba(255,107,107,0.2)" }}>
+                        {/* This step's thread */}
+                        {stepComments.length > 0 ? (
+                          <div style={{ marginBottom: 10 }}>
+                            {stepComments.sort((a, b) => +new Date(a.ts) - +new Date(b.ts)).map(c => (
+                              <div key={c.id} style={{
+                                background: c.processed ? "rgba(76,175,80,0.04)" : "rgba(255,255,255,0.025)",
+                                border: `1px solid ${c.processed ? "rgba(76,175,80,0.2)" : "rgba(255,255,255,0.05)"}`,
+                                borderRadius: 6, padding: "6px 8px", marginBottom: 4,
+                              }}>
+                                <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 3, fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>
+                                  <strong style={{ color: "#fff" }}>{c.user?.username ? `@${c.user.username}` : c.tester}</strong>
+                                  <span>·</span>
+                                  <span>{fmtShortDateTime(c.ts)}</span>
+                                  <StatusBadge status={c.status} />
+                                  {c.processed && <span style={{ color: "#4caf50", fontSize: 9, fontWeight: 700, letterSpacing: 1 }}>✓ PROCESSED</span>}
+                                </div>
+                                {c.note && (
+                                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{c.note}</div>
+                                )}
+                                {c.screenshotUrl && (
+                                  <a href={c.screenshotUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 4, fontSize: 11, color: "#FF6B6B", textDecoration: "none", fontFamily: "'Space Mono', monospace" }}>📎 Screenshot</a>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 10, fontStyle: "italic" }}>No comments on this step yet — be the first.</div>
+                        )}
+                        {/* Reply form scoped to this step (uses the
+                            shared draft state with stepIndex=i set by
+                            the toggle above). */}
+                        <div style={{ background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,107,107,0.18)", borderRadius: 6, padding: 8 }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#FF6B6B", fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>REPLY TO STEP {i + 1}</div>
+                          <select
+                            value={draft.status}
+                            onChange={e => setDraft({ ...draft, status: e.target.value as ItemStatus })}
+                            style={{ width: "100%", background: "#111", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, padding: "7px 10px", fontSize: 14, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", marginBottom: 6 }}
+                          >
+                            <option value="untested">Untested</option>
+                            <option value="passing">Passing</option>
+                            <option value="failing">Failing</option>
+                            <option value="regression-retest">Patched · please retest</option>
+                          </select>
+                          <textarea
+                            value={draft.note}
+                            onChange={e => setDraft({ ...draft, note: e.target.value })}
+                            placeholder={draft.status === "passing" ? "Optional: any context worth noting" : "What happened? Steps to reproduce, what you expected vs saw…"}
+                            rows={2}
+                            style={{ width: "100%", boxSizing: "border-box", background: "#111", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, padding: "7px 10px", fontSize: 14, fontFamily: "'DM Sans', sans-serif", resize: "vertical", marginBottom: 6 }}
+                          />
+                          <input
+                            type="url"
+                            value={draft.screenshotUrl}
+                            onChange={e => setDraft({ ...draft, screenshotUrl: e.target.value })}
+                            placeholder="Screenshot URL (optional)"
+                            style={{ width: "100%", boxSizing: "border-box", background: "#111", color: "#fff", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, padding: "7px 10px", fontSize: 13, fontFamily: "'DM Sans', sans-serif", marginBottom: 6 }}
+                          />
+                          {error && <div style={{ color: "#FF6B6B", fontSize: 11, marginBottom: 6 }}>{error}</div>}
+                          <button
+                            onClick={submit}
+                            disabled={!canSave}
+                            style={{ width: "100%", padding: "9px", background: canSave ? "rgba(255,107,107,0.9)" : "rgba(255,107,107,0.25)", border: "none", borderRadius: 6, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: canSave ? "pointer" : "not-allowed", minHeight: 36 }}
+                          >{saving ? "SAVING…" : `SAVE COMMENT ON STEP ${i + 1}`}</button>
+                          {!tester.trim() && (
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4, textAlign: "center" }}>Enter your name at the top of the page first.</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -828,13 +914,16 @@ function ItemCard({
             </div>
           )}
 
-          {itemComments.length > 0 && (
+          {/* Item-level thread = comments NOT tied to a specific
+              step. Per-step comments render inline above next to
+              their step. (qa: qa-per-step-comments) */}
+          {itemComments.filter(c => c.stepIndex == null).length > 0 && (
             <div style={{ marginBottom: 14 }}>
               <div style={{
                 fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,0.5)",
                 fontFamily: "'Space Mono', monospace", marginBottom: 8,
-              }}>THREAD</div>
-              {itemComments.map(c => (
+              }}>ITEM-LEVEL THREAD · {itemComments.filter(c => c.stepIndex == null).length}</div>
+              {itemComments.filter(c => c.stepIndex == null).map(c => (
                 <div key={c.id} style={{
                   background: c.processed ? "rgba(76,175,80,0.04)" : "rgba(255,255,255,0.025)",
                   border: `1px solid ${c.processed ? "rgba(76,175,80,0.15)" : "rgba(255,255,255,0.06)"}`,
@@ -883,6 +972,10 @@ function ItemCard({
             </div>
           )}
 
+          {/* Item-level comment form — only shown when no step is
+              expanded. Step-scoped replies live inline above next to
+              their step. (qa: qa-per-step-comments) */}
+          {openStepIndex === null && (
           <div id={`comment-form-${item.id}`} style={{
             background: "rgba(255,107,107,0.04)",
             border: "1px dashed rgba(255,107,107,0.25)",
@@ -892,17 +985,7 @@ function ItemCard({
               <div style={{
                 fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#FF6B6B",
                 fontFamily: "'Space Mono', monospace",
-              }}>ADD A COMMENT</div>
-              {draft.stepIndex != null && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#FF6B6B", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                  💬 STEP {draft.stepIndex + 1}
-                  <button
-                    onClick={() => setDraft({ ...draft, stepIndex: null })}
-                    aria-label="Clear step scope — comment about the item as a whole"
-                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 4, color: "rgba(255,255,255,0.5)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}
-                  >× CLEAR</button>
-                </div>
-              )}
+              }}>ITEM-LEVEL COMMENT (not tied to a step)</div>
             </div>
 
             <div style={{ marginBottom: 8 }}>
@@ -996,6 +1079,7 @@ function ItemCard({
               }}>Enter your name at the top of the page first.</div>
             )}
           </div>
+          )}
         </div>
       )}
     </div>
