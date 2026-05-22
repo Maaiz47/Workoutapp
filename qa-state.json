@@ -2087,9 +2087,10 @@
         "Tap 'Default' in the picker — verify it un-equips back to the gradient default.",
         "Advance to tier 2 (Fox/Silver, score 15+). GET /api/avatars — verify the tier-2 avatars are now in tierUnlocked (backfilled server-side from UserAvatarUnlock).",
         "Verify locked tier-3+ avatars show their unlock hint on hover/tap (`title` attribute: 'Unlocks at Tier N').",
-        "Avatar art: ChatGPT prompts for all 30 avatars are in /avatars-prompts.md at repo root. Until generated, missing /public/avatars/<id>.png falls back to /ai/avatar-default.png — picker remains functional."
+        "Avatar art: 24/30 generated avatars live in /public/avatars/. Tiers 3-6 (dawg/lion/gorilla/bear) and all 10 lucky avatars are real artwork; Tier 1 (3 starter) and Tier 2 (3 fox) avatars still fall back to /ai/avatar-default.png — visit Tier 1 picker and confirm the 3 starter slots still show the gradient default until the missing 6 are dropped in.",
+        "Spot-check a couple of the new avatars by hovering/tapping any of: dawg-howler, lion-crown, gorilla-vanguard, bear-pinnacle, lucky-clover, lucky-phoenix, lucky-mythic — each should show a distinctive emblem in a coloured ring (not the gradient fallback)."
       ],
-      "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
+      "notes": "[2026-05-22 <sha7>] Slice 2/N: shipped 24/30 generated avatars (all dawg/lion/gorilla/bear + 10 lucky). Sorted 76 anonymously-named PNGs from a Drive batch via a 4-way parallel vision pipeline + 4 user-confirmed reassignments. Remaining 6 (starter ×3, fox ×3) coming next batch from the user's laptop — see CLAUDE.md reminder. [2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear."
     },
     {
       "id": "vercel-ignore-deploys",
@@ -2131,6 +2132,23 @@
         "Verify the script prints the suggested `git add / commit / push` next-steps at the end."
       ],
       "notes": "[2026-05-22 <sha7>] Walk + route + copy. System `unzip` shells out for .zip inputs. Idempotent (overwrites). Skips files outside the expected layout (avatars/<id>.png, stretches/<id>/{0,1}.png). Verified locally with a synthetic batch — routed 3, skipped 2 (junk.txt + nested wrong.png)."
+    },
+    {
+      "id": "exercise-local-images",
+      "title": "Local exercise/stretch frames — 26 movements with 0/1 image pairs",
+      "area": "Workout",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass image-asset-sort",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open the exercise picker (or start any workout that includes one of the locally-imaged moves) and tap the exercise to expand its FORM card / preview.",
+        "Verify the start/end image pair renders for movements that should now have real photos: cd-chest-doorway, cd-pigeon, cd-hamstring-lay, cd-lat-stretch, cd-glute-pretzel, wu-leg-swings, bear-crawl, broad-jump (start only — landing is still placeholder), elliptical, inchworm, lateral-bounds, lateral-shuffle, plyo-pushup, speed-skaters, split-jumps, squat-thrust, star-jump, tuck-jumps, jumping-jacks, burpees, high-knees, wall-sit, wall-slide, terminal-knee-extension, bird-dog.",
+        "Verify the still-pending pairs fall back to the text-card placeholder (small file, simple label): wu-scap-shrugs (both frames), broad-jump frame 1 only.",
+        "Spot-check semantic correctness on the previously-wrong-DB-mapping moves (jumping-jacks, burpees, high-knees, wall-sit, wall-slide, terminal-knee-extension, bird-dog) — each should now show the correct movement, not the wrong exercise that the free-exercise-db used to surface.",
+        "Verify frame 0 = start/setup position and frame 1 = peak/end position for each pair (e.g. wall-sit 0 = standing against wall, wall-sit 1 = seated; wall-slide 0 = W arms, wall-slide 1 = arms overhead Y)."
+      ],
+      "notes": "[2026-05-22 <sha7>] Slice 1/N: shipped 49/52 frames covering 26 movements. 3 still pending (wu-scap-shrugs ×2, broad-jump frame 1) — placeholders remain for those slots. Identified 76 anonymously-named PNGs by routing them through 4 parallel vision subagents against the catalogue; 4 reassignments confirmed with the user. `LOCAL_STRETCH_IDS` in `lib/exerciseImages.ts` is the source of truth for which IDs serve their own art (vs falling through to free-exercise-db). Next slice: drop the remaining 3 frames once user uploads."
     },
     {
       "id": "splash-polish",

@@ -15,23 +15,24 @@ edit this file to either tick the box ✅ or delete the line entirely. Don't
 re-remind on the same item more than once per session — the goal is gentle
 nudge, not nag.
 
-- [ ] **Generate the 82 image-gen assets (one-sitting batch).** Master
-  prompt file is `/image-prompts.md` at repo root. Covers:
-  - **30 avatars** → `/public/avatars/<id>.png`. Tier-progression +
-    rare lucky-drop pool. Picker reads the catalogue from
-    `lib/avatars.ts` — no code change once dropped in.
-  - **14 stretch frames** (7 movements × 2) →
-    `/public/stretches/<id>/{0,1}.png`. Placeholders already shipped;
-    overwriting replaces them. No code change needed.
-  - **38 exercise frames** (19 movements × 2) →
-    `/public/stretches/<id>/{0,1}.png`. Covers the 12 plyometrics not
-    in free-exercise-db + 7 movements that were previously pointing
-    to a semantically wrong DB demo (jumping-jacks, burpees,
-    high-knees, wall-sit, wall-slide, terminal-knee-extension,
-    bird-dog). All 19 are already registered in `LOCAL_STRETCH_IDS`
-    with text-card placeholders; overwriting replaces them.
-  Tick this box when all 82 are dropped in. Vercel auto-deploys on
-  every push to main.
+- [ ] **Image-gen assets — 73/82 shipped 2026-05-22, 9 still pending.**
+  Generated batch went into the repo via Drive + AI-assisted sorting.
+  The remaining 9 are believed to be on the user's laptop — they said
+  they'd come back to it. When the next batch lands, drop them in
+  using the same `unpack-image-batch.ts` flow and tick this box.
+
+  Still pending:
+  - **6 avatars** → `/public/avatars/<id>.png`:
+    - Tier 1 (starter): `starter-spark.png`, `starter-dawn.png`,
+      `starter-seedling.png`
+    - Tier 2 (fox): `fox-sprint.png`, `fox-emberbolt.png`,
+      `fox-stride.png`
+  - **3 exercise frames** → `/public/stretches/<id>/<frame>.png`:
+    - `wu-scap-shrugs/0.png` (arms hanging at sides, neutral)
+    - `wu-scap-shrugs/1.png` (shoulders shrugged up at top)
+    - `broad-jump/1.png` (airborne / landed forward jump)
+
+  Master prompt file is `/image-prompts.md` at repo root for reference.
 
 ## Always push to `main`
 

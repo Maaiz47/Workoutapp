@@ -2,6 +2,57 @@
 
 ---
 
+## Assets · 2026-05-22 — Image-gen batch landed (73/82) (qa: profile-avatars, exercise-local-images)
+
+@maaiz delivered the generated image assets via a Google Drive folder
+of 77 unnamed PNGs. Identified and routed every file against the
+catalogue (30 avatars + 26 movements × 2 frames = 82 expected slots).
+
+### Shipped (73 files into `public/`)
+- **24 avatars** → `public/avatars/<id>.png` (Tier 3 dawg, Tier 4 lion,
+  Tier 5 gorilla, Tier 6 bear, all 10 lucky)
+- **49 exercise frames** → `public/stretches/<id>/{0,1}.png` covering 26
+  movements, with the following pairs filled: cd-chest-doorway,
+  cd-pigeon, cd-hamstring-lay, cd-lat-stretch, cd-glute-pretzel,
+  wu-leg-swings, bear-crawl, elliptical, inchworm, lateral-bounds,
+  lateral-shuffle, plyo-pushup, speed-skaters, split-jumps,
+  squat-thrust, star-jump, tuck-jumps, jumping-jacks, burpees,
+  high-knees, wall-sit, wall-slide, terminal-knee-extension, bird-dog,
+  + broad-jump frame 0.
+
+### Sorting approach
+Filenames were timestamp-stubs (`image__20260522-160008.png` etc.) plus
+4 random short names — no structural hints. Used a 4-way parallel
+vision pipeline (gdown the Drive folder → md5 dedupe → 4 subagents
+each identifying ~19 images against the catalogue → aggregate +
+conflict-resolve). Byte-identical pair: `rwqrwe.png` was the same file
+as `image__20260522-160008.png` (lion-crown) — dropped.
+
+Four reassignments needed user confirmation (and got it):
+- `image__20260522-160341.png` → `lion-mane` (mane-only sigil; initial
+  guess was dawg-howler but jbh.png was the cleaner howler match).
+- `image__20260522-172315.png` → `cd-pigeon/0.png` (low-lunge setup).
+- `image__20260522-191808.png` → `tuck-jumps/0.png` (standing prep
+  before the airborne tuck at frame 1).
+- `image__20260522-192325.png` → `burpees/0.png` (pushup phase of a
+  burpee; reassigned from a duplicate plyo-pushup-0 candidate to fill
+  the otherwise-missing burpees frame 0).
+
+### Still pending (9 slots — see CLAUDE.md reminder)
+- All Tier 1 avatars (starter-spark / starter-dawn / starter-seedling)
+- All Tier 2 avatars (fox-sprint / fox-emberbolt / fox-stride)
+- `wu-scap-shrugs/0.png` and `wu-scap-shrugs/1.png`
+- `broad-jump/1.png` (airborne / landing)
+
+User said they'd grab the remaining 9 from their laptop and follow up.
+Existing text-card placeholders stay in place for those slots until
+they land.
+
+### Housekeeping
+Removed stray `public/avatars/d` (1-byte typo artifact, contents = `\n`).
+
+---
+
 ## Infra · 2026-05-22 — Vercel ignoreCommand + deploy-frugality discipline (qa: vercel-ignore-deploys)
 
 @maaiz: hit the Vercel deploy limit again. Two fixes — server-side
