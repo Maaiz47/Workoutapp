@@ -15,18 +15,13 @@ edit this file to either tick the box ✅ or delete the line entirely. Don't
 re-remind on the same item more than once per session — the goal is gentle
 nudge, not nag.
 
-- [ ] **Image-gen assets — 73/82 shipped 2026-05-22, 9 still pending.**
-  Generated batch went into the repo via Drive + AI-assisted sorting.
-  The remaining 9 are believed to be on the user's laptop — they said
-  they'd come back to it. When the next batch lands, drop them in
-  using the same `unpack-image-batch.ts` flow and tick this box.
+- [ ] **Image-gen assets — 79/82 shipped (30/30 avatars ✅), 3 form
+  frames still pending.** All 30 avatars now in
+  `/public/avatars/<id>.png`. The 3 remaining are exercise frames the
+  user has on their laptop — they'll drop them in soon. When they do,
+  use the same Drive-pull / route flow.
 
   Still pending:
-  - **6 avatars** → `/public/avatars/<id>.png`:
-    - Tier 1 (starter): `starter-spark.png`, `starter-dawn.png`,
-      `starter-seedling.png`
-    - Tier 2 (fox): `fox-sprint.png`, `fox-emberbolt.png`,
-      `fox-stride.png`
   - **3 exercise frames** → `/public/stretches/<id>/<frame>.png`:
     - `wu-scap-shrugs/0.png` (arms hanging at sides, neutral)
     - `wu-scap-shrugs/1.png` (shoulders shrugged up at top)

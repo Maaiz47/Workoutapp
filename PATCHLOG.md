@@ -2,6 +2,41 @@
 
 ---
 
+## Assets · 2026-05-22 — Tier 1+2 avatars complete (30/30 avatars ✅) (qa: profile-avatars)
+
+@maaiz uploaded the missing 6 avatars (3 starter, 3 fox) to Drive
+root with iOS UUID filenames. Pulled via the Drive MCP
+(`download_file_content` → base64 → decode), identified each against
+the catalogue, placed at `public/avatars/`.
+
+### Shipped
+- `starter-spark` (flame on glowing coals, warm ring)
+- `starter-dawn` (sunrise on horizon over ocean, soft warm ring)
+- `starter-seedling` (sprout breaking through cracked earth, green ring)
+- `fox-sprint` (low-poly fox running in profile, motion lines, silver
+  ring)
+- `fox-emberbolt` (lightning bolt + flame swirl + white-tipped fox tail,
+  fiery orange ring)
+- `fox-stride` (silver paw-prints with motion lines, white ring)
+
+### Coverage
+- **Avatars: 30/30 ✅** All tiers (starter through bear) plus all 10
+  lucky drops are now real artwork. Tier-1 starter unlock + tier-2
+  fox unlock now show the proper distinctive emblems instead of the
+  gradient default.
+- **Exercise frames: 49/52.** Still pending: wu-scap-shrugs ×2,
+  broad-jump frame 1.
+
+### Notes on pipeline change
+Chat-pasted images aren't materialized to disk in the remote
+container, so the user re-uploaded the 6 to Drive root. Drive MCP
+auth uses the user's session, so files don't need to be set to
+"Anyone with the link" (which gdown requires) — they can stay
+restricted. Future single-file delivery can skip the public-share
+step.
+
+---
+
 ## Assets · 2026-05-22 — Image-gen batch landed (73/82) (qa: profile-avatars, exercise-local-images)
 
 @maaiz delivered the generated image assets via a Google Drive folder
