@@ -1,0 +1,10 @@
+{
+  "id": "cmpgf4my90018z2kpu2os0rv6",
+  "itemId": "user-feedback",
+  "tester": "munchy",
+  "userId": "cmp4cetem0003pskp274fe7ul",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=customise] When editing splits adding a new exercise doesn't do anything",
+  "screenshotUrl": null,
+  "ts": "2026-05-22T04:27:17.934Z"
+}
