@@ -4413,15 +4413,17 @@ function HomePage() {
   const changeTheme = (t: "iron"|"mono"|"vivid") => { setAppTheme(t); localStorage.setItem("ironlog-theme", t); };
   const changeAccent = (c: string) => { setAccentColor(c); localStorage.setItem("ironlog-accent", c); };
 
-  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "contributions", "globalLeaderboard"]);
+  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "contributions", "globalLeaderboard", "groupsHub", "clientsHub"]);
   useSwipeBack(() => {
     if (view === "conversation") { setView("messages"); setActiveConversation(null); }
     else if (view === "messages") setView("home");
-    else if (view === "clientDetail") { setView("home"); setEditingPlan(false); setEditedPlanDays(null); }
+    else if (view === "clientDetail") { setView("clientsHub"); setEditingPlan(false); setEditedPlanDays(null); }
     else if (view === "progress") { setView("home"); }
     else if (view === "settings" || view === "profile") setView("home");
     else if (view === "contributions") setView("settings");
     else if (view === "globalLeaderboard") setView("home");
+    else if (view === "groupsHub") setView("home");
+    else if (view === "clientsHub") setView("home");
     else if (view === "workout" && started) setView("home"); // leave but keep session alive
   }, swipeBackViews.has(view));
 
@@ -8506,88 +8508,8 @@ function HomePage() {
           </div>
         )}
       </div>
-      {userHasRole(user, "trainer") && (
-        <div style={{ padding: "20px 20px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <span style={{ fontSize: 18, lineHeight: 1 }}>👥</span>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>MY CLIENTS</div>
-            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{clients.length}</span>
-            <button onClick={() => setShowMyClients(s => !s)} style={{ padding: "5px 12px", background: showMyClients ? "rgba(78,205,196,0.16)" : "rgba(255,255,255,0.04)", border: `1px solid ${showMyClients ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, color: showMyClients ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{showMyClients ? "HIDE" : "VIEW"}</button>
-          </div>
-          {showMyClients && (
-            <div className="fade-in">
-              {clients.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "16px 0" }}>
-                  <img src="/ai/empty-clients.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontStyle: "italic" }}>No accepted clients yet — find one below</div>
-                </div>
-              ) : clients.map(c => (
-                <div key={c.id} className="card-hover" onClick={() => openClientDetail(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
-                      {c.logCount} workout{c.logCount !== 1 ? "s" : ""}
-                      {c.lastWorkout ? ` · last ${new Date(c.lastWorkout.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : " · no sessions yet"}
-                    </div>
-                  </div>
-                  <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 18 }}>›</span>
-                </div>
-              ))}
-              {/* ── Find new clients (inline) ── */}
-              <button onClick={() => setShowFindClients(s => !s)} style={{ width: "100%", marginTop: clients.length > 0 ? 6 : 0, padding: "10px 14px", background: showFindClients ? "rgba(255,107,107,0.08)" : "rgba(78,205,196,0.08)", border: `1px solid ${showFindClients ? "rgba(255,107,107,0.25)" : "rgba(78,205,196,0.22)"}`, borderRadius: 12, color: showFindClients ? "#FF6B6B" : "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
-                {showFindClients ? "CLOSE SEARCH" : "+ FIND CLIENTS"}
-              </button>
-              {showFindClients && (
-                <div className="fade-in" style={{ marginTop: 10, padding: 14, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12 }}>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                    <input
-                      value={trainerSearch}
-                      onChange={e => { setTrainerSearch(e.target.value); if (!e.target.value.trim()) { setTrainerResults([]); setTrainerHasSearched(false); } }}
-                      onKeyDown={e => { if (e.key === "Enter") doTrainerSearch(); }}
-                      placeholder="Enter exact username…"
-                      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 13, fontFamily: "'DM Sans', sans-serif", padding: "10px 12px", flex: 1, outline: "none", boxSizing: "border-box" }}
-                    />
-                    <button onClick={() => doTrainerSearch()} style={{ padding: "10px 14px", background: "#4ECDC4", border: "none", borderRadius: 10, color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>SEARCH</button>
-                  </div>
-                  {trainerSearching && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "10px 0" }}>Searching…</div>}
-                  {trainerResults.map(u => {
-                    const req = trainerRequests.find(r => r.userId === u.id);
-                    const status = req?.status ?? null;
-                    return (
-                      <div key={u.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 12px", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>@{u.username}</div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace" }}>
-                            {u.logCount} workout{u.logCount !== 1 ? "s" : ""} · {new Date(u.joinedAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
-                          </div>
-                        </div>
-                        {status === "pending" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>PENDING</span>}
-                        {status === "accepted" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>ACCEPTED</span>}
-                        {status === "declined" && (
-                          <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "5px 10px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.7)", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>RE-SEND</button>
-                        )}
-                        {!status && (
-                          <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "5px 10px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, color: "#4ECDC4", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>{sendingRequest === u.id ? "…" : "SEND REQUEST"}</button>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {trainerSearchError && (
-                    <div style={{ fontSize: 12, color: "#ff6b6b", textAlign: "center", padding: "10px 0", fontFamily: "'Space Mono', monospace" }}>{trainerSearchError}</div>
-                  )}
-                  {trainerHasSearched && !trainerSearching && !trainerSearchError && trainerResults.length === 0 && (
-                    <div style={{ textAlign: "center", padding: "12px 0", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>No users found matching &ldquo;{trainerSearch}&rdquo;</div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {userHasRole(user, "trainer") && (
-        <>
         <div style={{ padding: "20px 20px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <span style={{ fontSize: 18, lineHeight: 1 }}>🏆</span>
@@ -8681,671 +8603,6 @@ function HomePage() {
             </div>
           )}
         </div>
-
-        {/* ── Global Rankings ── First-class entry point to the
-            app-wide athlete + trainer leaderboards. Used to be
-            buried inside the TierInfoModal — surfaced here so
-            users can actually find it. (qa: global-leaderboard-entry) */}
-        <div style={{ padding: "20px 20px 0" }}>
-          <button
-            onClick={() => setView("globalLeaderboard")}
-            style={{
-              width: "100%", boxSizing: "border-box",
-              padding: "14px 16px",
-              background: "linear-gradient(135deg, rgba(240,192,64,0.14), rgba(78,205,196,0.08))",
-              border: "1px solid rgba(240,192,64,0.32)",
-              borderRadius: 14, cursor: "pointer", textAlign: "left",
-              boxShadow: "0 4px 18px -8px rgba(240,192,64,0.35), inset 0 1px 0 rgba(255,255,255,0.04)",
-              fontFamily: "'DM Sans', sans-serif",
-              display: "flex", alignItems: "center", gap: 12,
-            }}
-          >
-            <div style={{ fontSize: 28, lineHeight: 1, filter: "drop-shadow(0 0 8px rgba(240,192,64,0.45))" }}>🌍</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>GLOBAL RANKINGS</span>
-                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· APP-WIDE</span>
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", letterSpacing: -0.2, marginBottom: 2 }}>See how you stack up</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.4 }}>Athletes + trainers ranked across the whole app. Top 100, your tier band, around you.</div>
-            </div>
-            <div style={{ fontSize: 22, color: "rgba(255,255,255,0.35)", flexShrink: 0 }}>›</div>
-          </button>
-        </div>
-
-        {/* ── Leaderboard Groups ── */}
-        <div style={{ padding: "20px 20px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <span style={{ fontSize: 18, lineHeight: 1 }}>🏝️</span>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>GROUPS</div>
-            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
-            <button
-              onClick={async () => {
-                if (showLbGroups) { setShowLbGroups(false); return; }
-                setLbGroupsLoading(true);
-                setShowLbGroups(true);
-                try {
-                  const res = await fetch("/api/leaderboard/groups");
-                  const data = await res.json();
-                  if (data.groups) setLbGroups(data.groups);
-                } catch {}
-                setLbGroupsLoading(false);
-              }}
-              style={{ padding: "5px 12px", background: showLbGroups ? "rgba(78,205,196,0.16)" : "rgba(255,255,255,0.04)", border: `1px solid ${showLbGroups ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, color: showLbGroups ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
-            >{showLbGroups ? "HIDE" : "VIEW"}</button>
-          </div>
-          {showLbGroups && (
-            <div className="fade-in" style={{ marginTop: 8 }}>
-              {/* Pending invites from other trainers */}
-              {pendingGroupInvites.length > 0 && (
-                <div style={{ background: "rgba(255,230,109,0.06)", border: "1px solid rgba(255,230,109,0.2)", borderRadius: 12, padding: 12, marginBottom: 10 }}>
-                  <div style={{ fontSize: 10, color: "#FFE66D", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 8 }}>PENDING INVITES</div>
-                  {pendingGroupInvites.map((inv: any) => (
-                    <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{inv.group?.name}</div>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>from @{inv.inviter?.username} · {inv.group?.members?.length ?? 0} members</div>
-                      </div>
-                      <button onClick={async () => {
-                        try {
-                          const res = await fetch(`/api/leaderboard/groups/${inv.group.id}/invite`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inviteId: inv.id, action: "accept" }) });
-                          if (res.ok) {
-                            setPendingGroupInvites(p => p.filter(i => i.id !== inv.id));
-                            const refreshRes = await fetch("/api/leaderboard/groups");
-                            const refreshData = await refreshRes.json();
-                            if (refreshData.groups) setLbGroups(refreshData.groups);
-                          }
-                        } catch {}
-                      }} style={{ padding: "5px 10px", background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 6, color: "#4ECDC4", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>ACCEPT</button>
-                      <button onClick={async () => {
-                        try {
-                          const res = await fetch(`/api/leaderboard/groups/${inv.group.id}/invite`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inviteId: inv.id, action: "decline" }) });
-                          if (res.ok) setPendingGroupInvites(p => p.filter(i => i.id !== inv.id));
-                        } catch {}
-                      }} style={{ padding: "5px 10px", background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "#FF6B6B", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>DECLINE</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {/* Create group button */}
-              <button onClick={() => setShowLbGroupCreate(s => !s)} style={{ width: "100%", padding: "10px 14px", marginBottom: 8, background: showLbGroupCreate ? "rgba(255,107,107,0.1)" : "rgba(78,205,196,0.08)", border: `1px solid ${showLbGroupCreate ? "rgba(255,107,107,0.3)" : "rgba(78,205,196,0.2)"}`, borderRadius: 10, color: showLbGroupCreate ? "#FF6B6B" : "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
-                {showLbGroupCreate ? "CANCEL" : "+ NEW GROUP"}
-              </button>
-              {showLbGroupCreate && (
-                <div className="fade-in" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                  <input value={lbGroupName} onChange={e => setLbGroupName(e.target.value)} placeholder="Group name (e.g. Strength Squad)" style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#fff", fontSize: 14, padding: "10px 12px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
-                  <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                    {(["private","public"] as const).map(p => (
-                      <button key={p} onClick={() => setLbGroupPrivacy(p)} style={{ flex: 1, padding: "6px", borderRadius: 8, fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", background: lbGroupPrivacy === p ? "rgba(78,205,196,0.18)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbGroupPrivacy === p ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, color: lbGroupPrivacy === p ? "#4ECDC4" : "rgba(255,255,255,0.35)" }}>{p.toUpperCase()}</button>
-                    ))}
-                  </div>
-                  <button onClick={async () => {
-                    if (!lbGroupName.trim()) return;
-                    setCreatingLbGroup(true);
-                    try {
-                      const res = await fetch("/api/leaderboard/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: lbGroupName.trim(), privacy: lbGroupPrivacy }) });
-                      const data = await res.json();
-                      if (data.group) { setLbGroups(p => [data.group, ...p]); setShowLbGroupCreate(false); setLbGroupName(""); }
-                      else alert(data.error ?? "Failed");
-                    } catch { alert("Failed"); } finally { setCreatingLbGroup(false); }
-                  }} disabled={creatingLbGroup || !lbGroupName.trim()} style={{ width: "100%", padding: "10px", background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
-                    {creatingLbGroup ? "CREATING…" : "CREATE GROUP"}
-                  </button>
-                </div>
-              )}
-              {lbGroupsLoading ? (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "16px 0" }}>Loading…</div>
-              ) : lbGroups.length === 0 ? (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "16px 0" }}>No groups yet — create one above</div>
-              ) : (
-                lbGroups.map(grp => (
-                  <div key={grp.id} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
-                    <div onClick={async () => {
-                      const opening = activeLbGroup?.id !== grp.id;
-                      setActiveLbGroup(opening ? grp : null);
-                      // Pre-fetch the group workout on open so trainer/member
-                      // see the right SET / APPLY state without an extra tap.
-                      if (opening && !groupWorkoutCache[grp.id]) {
-                        setGroupWorkoutLoading(true);
-                        try {
-                          const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`);
-                          const data = await res.json();
-                          setGroupWorkoutCache(p => ({ ...p, [grp.id]: data }));
-                        } catch {} finally { setGroupWorkoutLoading(false); }
-                      }
-                      if (opening && !groupChallengesCache[grp.id]) {
-                        setGroupChallengesLoading(true);
-                        try {
-                          const res = await fetch(`/api/leaderboard/groups/${grp.id}/challenges`);
-                          const data = await res.json();
-                          if (!data.error) setGroupChallengesCache(p => ({ ...p, [grp.id]: data }));
-                        } catch {} finally { setGroupChallengesLoading(false); }
-                      }
-                    }} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{grp.name}</div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{grp.members?.length ?? 0} members · {grp.privacy}</div>
-                      </div>
-                      <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 14 }}>{activeLbGroup?.id === grp.id ? "▲" : "▼"}</span>
-                    </div>
-                    {activeLbGroup?.id === grp.id && (
-                      <div className="fade-in" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: 14 }}>
-                        {/* Trainer inclusion toggle */}
-                        {(() => {
-                          const myMember = grp.members?.find((m: any) => m.userId === user.id && m.role === "trainer");
-                          return myMember ? (
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
-                              <div>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Include me in ranking</div>
-                                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Show your stats on this leaderboard</div>
-                              </div>
-                              <button onClick={async () => {
-                                try {
-                                  const res = await fetch(`/api/leaderboard/groups/${grp.id}/members`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ includeInRank: !myMember.includeInRank }) });
-                                  if (res.ok) {
-                                    setLbGroups(prev => prev.map(g => g.id !== grp.id ? g : { ...g, members: g.members.map((m: any) => m.id !== myMember.id ? m : { ...m, includeInRank: !m.includeInRank }) }));
-                                    setActiveLbGroup((prev: any) => ({ ...prev, members: prev.members.map((m: any) => m.id !== myMember.id ? m : { ...m, includeInRank: !m.includeInRank }) }));
-                                  }
-                                } catch {}
-                              }} style={{ width: 44, height: 24, borderRadius: 12, background: myMember.includeInRank ? "#4ECDC4" : "rgba(255,255,255,0.1)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
-                                <div style={{ position: "absolute", top: 2, left: myMember.includeInRank ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
-                              </button>
-                            </div>
-                          ) : null;
-                        })()}
-                        {/* ── Group Challenges ── opt-in by group leader.
-                            Shared progress bar across all members.
-                            (qa: group-challenges) */}
-                        {(() => {
-                          const cache = groupChallengesCache[grp.id];
-                          const challenges = (cache?.challenges ?? []) as any[];
-                          const isLeader = !!cache?.isLeader;
-                          const isCreating = newChallengeForm.groupId === grp.id;
-                          const activeOnes = challenges.filter(c => c.state === "active");
-                          const completedOnes = challenges.filter(c => c.state === "completed");
-                          return (
-                            <div style={{ marginBottom: 14, padding: 10, background: "rgba(255,230,109,0.04)", border: "1px solid rgba(255,230,109,0.14)", borderRadius: 10 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                                <span style={{ fontSize: 14 }}>🎯</span>
-                                <div style={{ fontSize: 10, color: "#FFE66D", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>CHALLENGES</div>
-                                <div style={{ flex: 1, height: 1, background: "rgba(255,230,109,0.1)" }} />
-                                {isLeader && !isCreating && (
-                                  <button onClick={() => setNewChallengeForm({ groupId: grp.id, title: "", metric: "total_reps", target: "1000", durationDays: "30", exerciseSubstrings: "" })} style={{ padding: "3px 9px", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 6, color: "#FFE66D", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>+ START</button>
-                                )}
-                              </div>
-
-                              {activeOnes.length === 0 && completedOnes.length === 0 && !isCreating && (
-                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center", padding: "8px 0" }}>{isLeader ? "Start a group challenge — push the team together." : "Group leader hasn't set one yet."}</div>
-                              )}
-
-                              {activeOnes.map((c: any) => {
-                                const pct = Math.min(100, Math.round((c.progress / c.target) * 100));
-                                const endsAt = new Date(c.endsAt);
-                                const daysLeft = Math.max(0, Math.ceil((endsAt.getTime() - Date.now()) / 86400000));
-                                const unit = c.metric === "total_volume_kg" ? "kg" : c.metric === "total_sessions" ? "sessions" : c.metric === "exercise_distinct" ? "exercises" : "reps";
-                                return (
-                                  <div key={c.id} style={{ marginBottom: 8, padding: 10, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,230,109,0.18)", borderRadius: 8 }}>
-                                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
-                                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{c.title}</div>
-                                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>{daysLeft}d LEFT</div>
-                                    </div>
-                                    <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", marginBottom: 4 }}>
-                                      <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg, #FFE66D, #f0c040)" }}/>
-                                    </div>
-                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "rgba(255,255,255,0.55)" }}>
-                                      <span>{c.progress.toLocaleString()} / {c.target.toLocaleString()} {unit}</span>
-                                      <span>You: {(c.myContribution ?? 0).toLocaleString()}</span>
-                                    </div>
-                                    {isLeader && (
-                                      <button onClick={async () => {
-                                        if (!confirm("Cancel this challenge?")) return;
-                                        try {
-                                          const res = await fetch(`/api/leaderboard/groups/${grp.id}/challenges`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challengeId: c.id }) });
-                                          if (res.ok) {
-                                            setGroupChallengesCache(prev => ({ ...prev, [grp.id]: { ...prev[grp.id], challenges: prev[grp.id].challenges.filter((x: any) => x.id !== c.id) } }));
-                                          }
-                                        } catch {}
-                                      }} style={{ marginTop: 6, padding: "3px 8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "#FF6B6B", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>CANCEL</button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-
-                              {completedOnes.length > 0 && (
-                                <div style={{ marginTop: 6 }}>
-                                  {completedOnes.slice(0, 2).map((c: any) => (
-                                    <div key={c.id} style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", padding: "4px 0", display: "flex", justifyContent: "space-between" }}>
-                                      <span>✓ {c.title}</span><span style={{ color: "#34d399" }}>completed</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-
-                              {isCreating && (
-                                <div style={{ marginTop: 8, padding: 10, background: "rgba(0,0,0,0.35)", borderRadius: 8, border: "1px solid rgba(255,230,109,0.18)" }}>
-                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>NEW CHALLENGE</div>
-                                  <input value={newChallengeForm.title} onChange={e => setNewChallengeForm(f => ({ ...f, title: e.target.value }))} placeholder="Title (e.g. Pushup Pile)" style={{ width: "100%", padding: "8px 10px", marginBottom: 6, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 12, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
-                                  <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                                    <select value={newChallengeForm.metric} onChange={e => setNewChallengeForm(f => ({ ...f, metric: e.target.value }))} style={{ flex: 1, padding: "7px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11 }}>
-                                      <option value="total_reps">Total reps</option>
-                                      <option value="total_sessions">Total sessions</option>
-                                      <option value="total_volume_kg">Total volume (kg)</option>
-                                      <option value="exercise_distinct">Distinct exercises</option>
-                                    </select>
-                                    <input value={newChallengeForm.target} onChange={e => setNewChallengeForm(f => ({ ...f, target: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="Target" style={{ width: 80, padding: "7px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, outline: "none", boxSizing: "border-box" }} />
-                                    <input value={newChallengeForm.durationDays} onChange={e => setNewChallengeForm(f => ({ ...f, durationDays: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="Days" style={{ width: 50, padding: "7px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, outline: "none", boxSizing: "border-box" }} />
-                                  </div>
-                                  {(newChallengeForm.metric === "total_reps" || newChallengeForm.metric === "total_volume_kg") && (
-                                    <input value={newChallengeForm.exerciseSubstrings} onChange={e => setNewChallengeForm(f => ({ ...f, exerciseSubstrings: e.target.value }))} placeholder="Optional: limit to exercises matching (e.g. pushup,squat)" style={{ width: "100%", padding: "7px 8px", marginBottom: 6, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
-                                  )}
-                                  <div style={{ display: "flex", gap: 6 }}>
-                                    <button onClick={async () => {
-                                      if (!newChallengeForm.title.trim() || !newChallengeForm.target) return;
-                                      try {
-                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/challenges`, {
-                                          method: "POST", headers: { "Content-Type": "application/json" },
-                                          body: JSON.stringify({
-                                            title: newChallengeForm.title.trim(),
-                                            metric: newChallengeForm.metric,
-                                            target: Number(newChallengeForm.target),
-                                            durationDays: Number(newChallengeForm.durationDays) || 30,
-                                            exerciseSubstrings: newChallengeForm.exerciseSubstrings.trim() || undefined,
-                                          })
-                                        });
-                                        const data = await res.json();
-                                        if (res.ok && data.challenge) {
-                                          setGroupChallengesCache(prev => ({ ...prev, [grp.id]: { ...prev[grp.id], challenges: [data.challenge, ...(prev[grp.id]?.challenges ?? [])] } }));
-                                          setNewChallengeForm({ groupId: null, title: "", metric: "total_reps", target: "1000", durationDays: "30", exerciseSubstrings: "" });
-                                        }
-                                      } catch {}
-                                    }} style={{ flex: 1, padding: "8px", background: "rgba(255,230,109,0.18)", border: "1px solid rgba(255,230,109,0.4)", borderRadius: 6, color: "#FFE66D", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>START</button>
-                                    <button onClick={() => setNewChallengeForm({ groupId: null, title: "", metric: "total_reps", target: "1000", durationDays: "30", exerciseSubstrings: "" })} style={{ padding: "8px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>CANCEL</button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                        {/* Group leaderboard — 4 view modes, all ranked
-                            within the group only (never global). */}
-                        {(() => {
-                          const base = (grp.members ?? [])
-                            .filter((m: any) => m.includeInRank)
-                            .map((m: any) => ({
-                              userId: m.userId,
-                              username: m.user?.username ?? "unknown",
-                              role: m.role,
-                              totalSessions: m.stats?.totalSessions ?? 0,
-                              streak: m.stats?.streak ?? 0,
-                              prCount: m.stats?.prCount ?? 0,
-                              totalVolume: m.stats?.totalVolume ?? 0,
-                              // Canonical tier from computeStatsForUsers
-                              // (server-side computeAthleteTier). Frontend
-                              // overrides with the local breakdown for
-                              // the visitor's own row.
-                              tier: m.stats?.tier ?? null,
-                              weightStart: m.stats?.weightStart ?? null,
-                              weightCurrent: m.stats?.weightCurrent ?? null,
-                              weightChangeKg: m.stats?.weightChangeKg ?? null,
-                              weightStartDate: m.stats?.weightStartDate ?? null,
-                              bfStart: m.stats?.bfStart ?? null,
-                              bfCurrent: m.stats?.bfCurrent ?? null,
-                              bfChangePct: m.stats?.bfChangePct ?? null,
-                              bfStartDate: m.stats?.bfStartDate ?? null,
-                            }));
-
-                          // Sort + visible filter per mode. Members with
-                          // no relevant body data still appear, sunk to
-                          // the bottom with "—" cells.
-                          let ranked: any[] = base;
-                          if (lbMode === "sessions") {
-                            ranked = [...base].sort((a, b) => b.totalSessions - a.totalSessions || b.totalVolume - a.totalVolume);
-                          } else if (lbMode === "weight") {
-                            ranked = [...base].sort((a, b) => {
-                              const av = a.weightChangeKg, bv = b.weightChangeKg;
-                              if (av == null && bv == null) return 0;
-                              if (av == null) return 1; if (bv == null) return -1;
-                              // loss: most negative first. gain: most positive first.
-                              return lbWeightDir === "loss" ? av - bv : bv - av;
-                            });
-                          } else if (lbMode === "bf-change") {
-                            ranked = [...base].sort((a, b) => {
-                              const av = a.bfChangePct, bv = b.bfChangePct;
-                              if (av == null && bv == null) return 0;
-                              if (av == null) return 1; if (bv == null) return -1;
-                              return av - bv; // most negative (largest BF drop) first
-                            });
-                          } else { // bf-now
-                            ranked = [...base].sort((a, b) => {
-                              const av = a.bfCurrent, bv = b.bfCurrent;
-                              if (av == null && bv == null) return 0;
-                              if (av == null) return 1; if (bv == null) return -1;
-                              return av - bv; // lowest BF% first (leanest)
-                            });
-                          }
-
-                          const modeChip = (id: typeof lbMode, label: string) => (
-                            <button key={id} onClick={() => setLbMode(id)} style={{ flex: 1, padding: "5px 0", background: lbMode === id ? "rgba(255,107,107,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbMode === id ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbMode === id ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{label}</button>
-                          );
-
-                          return (
-                            <div style={{ marginBottom: 14 }}>
-                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>🏆 RANKINGS · {ranked.length}</div>
-                              <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                                {modeChip("sessions", "SESSIONS")}
-                                {modeChip("weight", "WEIGHT Δ")}
-                                {modeChip("bf-change", "BF LOSS")}
-                                {modeChip("bf-now", "BF NOW")}
-                              </div>
-                              {lbMode === "weight" && (
-                                <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-                                  <button onClick={() => setLbWeightDir("loss")} style={{ flex: 1, padding: "4px 0", background: lbWeightDir === "loss" ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>⬇ LOSS LEADERS</button>
-                                  <button onClick={() => setLbWeightDir("gain")} style={{ flex: 1, padding: "4px 0", background: lbWeightDir === "gain" ? "rgba(162,155,254,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWeightDir === "gain" ? "#a29bfe" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWeightDir === "gain" ? "#a29bfe" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>⬆ GAIN LEADERS</button>
-                                </div>
-                              )}
-                              {ranked.length === 0 ? (
-                                <div style={{ padding: "14px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, fontSize: 11.5, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>
-                                  No members ranked yet — toggle &ldquo;Include me in ranking&rdquo; or add clients below.
-                                </div>
-                              ) : (
-                                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
-                                  {/* Header row — columns depend on mode */}
-                                  {lbMode === "sessions" && (
-                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 38px 38px 38px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                                      {["#","NAME","SESS","STRK","PRs"].map((h, hi) => (
-                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "center" : "left" }}>{h}</div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {lbMode === "weight" && (
-                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 56px 60px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                                      {["#","NAME","NOW","CHANGE"].map((h, hi) => (
-                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "right" : "left" }}>{h}</div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {lbMode === "bf-change" && (
-                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 56px 60px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                                      {["#","NAME","NOW","Δ BF%"].map((h, hi) => (
-                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "right" : "left" }}>{h}</div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {lbMode === "bf-now" && (
-                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 80px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                                      {["#","NAME","BF % NOW"].map((h, hi) => (
-                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "right" : "left" }}>{h}</div>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  {ranked.map((m: any, i: number) => {
-                                    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
-                                    const isMe = m.userId === user.id;
-                                    // Tier source priority:
-                                    // 1. Visitor's OWN row → use the
-                                    //    locally-computed breakdown
-                                    //    (includes wellness, fully
-                                    //    canonical).
-                                    // 2. Other rows → use the server-
-                                    //    shipped m.tier from
-                                    //    computeStatsForUsers (covers
-                                    //    distinctExercises + monthsOnApp
-                                    //    via prisma; wellness still 0
-                                    //    server-side since it's
-                                    //    localStorage-only).
-                                    // 3. Fallback if the API somehow
-                                    //    omits tier → Kitten.
-                                    // Same theme remap as the trainer
-                                    // leaderboard row above — other
-                                    // users' tier objects ship in the
-                                    // vivid theme; the viewer's chosen
-                                    // theme rewrites the label/icon.
-                                    const themedTiers = getAthleteTiers(tierTheme);
-                                    const tier = isMe && myAthleteBreakdown
-                                      ? myAthleteBreakdown.headline
-                                      : (() => {
-                                          const raw = m.tier as any;
-                                          if (!raw) return themedTiers[0];
-                                          const num = raw.tierNum ?? themedTiers.findIndex(t => t.label === raw.label) + 1;
-                                          const themed = themedTiers.find(t => t.tierNum === num);
-                                          return themed ?? raw;
-                                        })();
-                                    const rowStyle: React.CSSProperties = { display: "grid", gap: 6, padding: "9px 10px", borderBottom: i < ranked.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.04)" : isMe ? "rgba(78,205,196,0.04)" : "transparent" };
-                                    const nameCell = (
-                                      <>
-                                        <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
-                                        <div style={{ minWidth: 0 }}>
-                                          <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : `@${m.username}`}</div>
-                                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.icon} {tier.label}{m.role === "trainer" ? " · TRAINER" : ""}</div>
-                                        </div>
-                                      </>
-                                    );
-                                    if (lbMode === "sessions") {
-                                      return (
-                                        <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 38px 38px 38px" }}>
-                                          {nameCell}
-                                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: "#a29bfe" }}>{m.totalSessions}</div></div>
-                                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: m.streak >= 3 ? "#FF6B6B" : "#fff" }}>{m.streak}</div></div>
-                                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: m.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{m.prCount}</div></div>
-                                        </div>
-                                      );
-                                    }
-                                    if (lbMode === "weight") {
-                                      const wc = m.weightChangeKg;
-                                      const wcColor = wc == null ? "rgba(255,255,255,0.3)" : wc < 0 ? "#4ECDC4" : wc > 0 ? "#a29bfe" : "rgba(255,255,255,0.5)";
-                                      return (
-                                        <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 56px 60px" }}>
-                                          {nameCell}
-                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{m.weightCurrent != null ? `${m.weightCurrent}kg` : "—"}</div></div>
-                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: wcColor, fontFamily: "'Space Mono', monospace" }}>{wc == null ? "—" : `${wc > 0 ? "+" : ""}${wc}kg`}</div></div>
-                                        </div>
-                                      );
-                                    }
-                                    if (lbMode === "bf-change") {
-                                      const dc = m.bfChangePct;
-                                      const dcColor = dc == null ? "rgba(255,255,255,0.3)" : dc < 0 ? "#4ECDC4" : dc > 0 ? "#FF6B6B" : "rgba(255,255,255,0.5)";
-                                      return (
-                                        <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 56px 60px" }}>
-                                          {nameCell}
-                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{m.bfCurrent != null ? `${m.bfCurrent}%` : "—"}</div></div>
-                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: dcColor, fontFamily: "'Space Mono', monospace" }}>{dc == null ? "—" : `${dc > 0 ? "+" : ""}${dc}%`}</div></div>
-                                        </div>
-                                      );
-                                    }
-                                    // bf-now
-                                    return (
-                                      <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 80px" }}>
-                                        {nameCell}
-                                        <div style={{ textAlign: "right" }}><div style={{ fontSize: 14, fontWeight: 700, color: m.bfCurrent != null ? "#f0c040" : "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{m.bfCurrent != null ? `${m.bfCurrent}%` : "—"}</div></div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                        {/* Shared workout — trainer can push their current
-                            plan to every member as the group routine. */}
-                        <div style={{ marginBottom: 14, padding: 12, background: "rgba(240,192,64,0.05)", border: "1px solid rgba(240,192,64,0.18)", borderRadius: 10 }}>
-                          <div style={{ fontSize: 10, color: "#f0c040", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>🏋 SHARED WORKOUT</div>
-                          {(() => {
-                            const cached = groupWorkoutCache[grp.id];
-                            if (groupWorkoutLoading && openGroupWorkoutId === grp.id) {
-                              return <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center", padding: "8px 0" }}>Loading…</div>;
-                            }
-                            if (cached?.workout) {
-                              return (
-                                <>
-                                  <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{cached.workout.name}</div>
-                                  {cached.workout.description && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 6 }}>{cached.workout.description}</div>}
-                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", marginBottom: 10 }}>{(cached.workout.days ?? []).length} day{(cached.workout.days ?? []).length === 1 ? "" : "s"} · members get a ▣ GROUP badge on home</div>
-                                  <div style={{ display: "flex", gap: 6 }}>
-                                    <button onClick={async () => {
-                                      const planSource = customPlan ?? (WORKOUT_DATA as any[]).map((d: any) => ({
-                                        id: d.id, title: d.title, focus: d.focus, color: d.color, gradient: d.gradient,
-                                        exercises: (d.sections ?? []).flatMap((s: any) => s.exercises).filter((e: any) => e.trackable !== false).map((ex: any, j: number) => ({ order: j, exerciseId: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest ?? 60 })),
-                                      }));
-                                      setGroupWorkoutSaving(true);
-                                      try {
-                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: cached.workout.name, description: cached.workout.description, days: planSource }) });
-                                        if (res.ok) {
-                                          const data = await res.json();
-                                          setGroupWorkoutCache(p => ({ ...p, [grp.id]: { workout: { ...data.workout, mySubscription: cached.workout.mySubscription, isTrainer: true } } }));
-                                        }
-                                      } catch {} finally { setGroupWorkoutSaving(false); }
-                                    }} disabled={groupWorkoutSaving} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 7, color: "#4ECDC4", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>{groupWorkoutSaving ? "…" : "↺ SYNC TO MY PLAN"}</button>
-                                    <button onClick={async () => {
-                                      if (!confirm(`Remove the group workout "${cached.workout.name}"? Members' past tagged sessions stay logged but stop counting in the group's filtered ranking.`)) return;
-                                      setGroupWorkoutSaving(true);
-                                      try {
-                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`, { method: "DELETE" });
-                                        if (res.ok) setGroupWorkoutCache(p => ({ ...p, [grp.id]: { workout: null } }));
-                                      } catch {} finally { setGroupWorkoutSaving(false); }
-                                    }} disabled={groupWorkoutSaving} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 7, color: "#FF6B6B", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>REMOVE</button>
-                                  </div>
-                                </>
-                              );
-                            }
-                            // No workout set yet — show form.
-                            if (openGroupWorkoutId === grp.id) {
-                              return (
-                                <>
-                                  <input value={groupWorkoutName} onChange={e => setGroupWorkoutName(e.target.value)} placeholder="Workout name (e.g. PPL Hypertrophy)" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "#fff", fontSize: 12, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 6 }} />
-                                  <input value={groupWorkoutDesc} onChange={e => setGroupWorkoutDesc(e.target.value)} placeholder="Description (optional)" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "#fff", fontSize: 12, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
-                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginBottom: 8, lineHeight: 1.5 }}>Pushes your current plan as the shared routine. Every member is auto-subscribed; they tap APPLY in their app to start counting toward the filtered group ranking.</div>
-                                  <div style={{ display: "flex", gap: 6 }}>
-                                    <button onClick={() => { setOpenGroupWorkoutId(null); setGroupWorkoutName(""); setGroupWorkoutDesc(""); }} style={{ flex: 1, padding: "8px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.6)", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>CANCEL</button>
-                                    <button onClick={async () => {
-                                      if (!groupWorkoutName.trim()) return;
-                                      const planSource = customPlan ?? (WORKOUT_DATA as any[]).map((d: any) => ({
-                                        id: d.id, title: d.title, focus: d.focus, color: d.color, gradient: d.gradient,
-                                        exercises: (d.sections ?? []).flatMap((s: any) => s.exercises).filter((e: any) => e.trackable !== false).map((ex: any, j: number) => ({ order: j, exerciseId: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest ?? 60 })),
-                                      }));
-                                      setGroupWorkoutSaving(true);
-                                      try {
-                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: groupWorkoutName.trim(), description: groupWorkoutDesc.trim() || undefined, days: planSource }) });
-                                        if (res.ok) {
-                                          const data = await res.json();
-                                          setGroupWorkoutCache(p => ({ ...p, [grp.id]: { workout: { ...data.workout, isTrainer: true } } }));
-                                          setOpenGroupWorkoutId(null); setGroupWorkoutName(""); setGroupWorkoutDesc("");
-                                        }
-                                      } catch {} finally { setGroupWorkoutSaving(false); }
-                                    }} disabled={groupWorkoutSaving || !groupWorkoutName.trim()} style={{ flex: 1, padding: "8px", background: groupWorkoutName.trim() ? "rgba(240,192,64,0.18)" : "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.35)", borderRadius: 7, color: "#f0c040", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: groupWorkoutName.trim() ? "pointer" : "not-allowed", letterSpacing: 1, opacity: groupWorkoutName.trim() ? 1 : 0.5 }}>{groupWorkoutSaving ? "…" : "SET WORKOUT"}</button>
-                                  </div>
-                                </>
-                              );
-                            }
-                            return (
-                              <>
-                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>No shared workout yet — push one routine to the whole group.</div>
-                                <button onClick={async () => {
-                                  setOpenGroupWorkoutId(grp.id);
-                                  setGroupWorkoutLoading(true);
-                                  try {
-                                    const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`);
-                                    const data = await res.json();
-                                    setGroupWorkoutCache(p => ({ ...p, [grp.id]: data }));
-                                  } catch {} finally { setGroupWorkoutLoading(false); }
-                                }} style={{ width: "100%", padding: "8px", background: "rgba(240,192,64,0.14)", border: "1px solid rgba(240,192,64,0.3)", borderRadius: 7, color: "#f0c040", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>+ SET GROUP WORKOUT</button>
-                              </>
-                            );
-                          })()}
-                        </div>
-                        {/* Client member selection */}
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>CLIENTS IN GROUP</div>
-                        <input value={lbGroupClientSearch} onChange={e => setLbGroupClientSearch(e.target.value)} placeholder="Filter clients…" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
-                        {clients.filter(c => !lbGroupClientSearch || c.username.toLowerCase().includes(lbGroupClientSearch.toLowerCase())).map((c: any) => {
-                          const inGroup = grp.members?.some((m: any) => m.userId === c.id && m.role === "client");
-                          return (
-                            <div key={c.id} onClick={() => {
-                              const currentClientIds = (grp.members ?? []).filter((m: any) => m.role === "client").map((m: any) => m.userId);
-                              const newIds = inGroup ? currentClientIds.filter((id: string) => id !== c.id) : [...currentClientIds, c.id];
-                              const snapshotMembers = grp.members ?? [];
-                              // Optimistic update — instant UI feedback
-                              const optimisticMembers = inGroup
-                                ? snapshotMembers.filter((m: any) => !(m.userId === c.id && m.role === "client"))
-                                : [...snapshotMembers, { userId: c.id, role: "client", includeInRank: true, trainerId: user.id, user: { id: c.id, username: c.username, workoutLogs: [] } }];
-                              setLbGroups(prev => prev.map(g => g.id !== grp.id ? g : { ...g, members: optimisticMembers }));
-                              setActiveLbGroup((prev: any) => prev && prev.id === grp.id ? { ...prev, members: optimisticMembers } : prev);
-                              // Fire-and-forget API call; revert on failure
-                              fetch(`/api/leaderboard/groups/${grp.id}/members`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientIds: newIds }) })
-                                .then(res => { if (!res.ok) throw new Error(); })
-                                .catch(() => {
-                                  setLbGroups(prev => prev.map(g => g.id !== grp.id ? g : { ...g, members: snapshotMembers }));
-                                  setActiveLbGroup((prev: any) => prev && prev.id === grp.id ? { ...prev, members: snapshotMembers } : prev);
-                                });
-                            }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 8, marginBottom: 4, background: inGroup ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.02)", cursor: "pointer", border: `1px solid ${inGroup ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.05)"}` }}>
-                              <span style={{ fontSize: 13, color: inGroup ? "#4ECDC4" : "rgba(255,255,255,0.6)" }}>@{c.username}</span>
-                              <span style={{ fontSize: 16 }}>{inGroup ? "✓" : "+"}</span>
-                            </div>
-                          );
-                        })}
-                        {/* Invite other trainer */}
-                        <div style={{ marginTop: 14 }}>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>INVITE TRAINER</div>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            <input value={trainerSearchForLb} onChange={e => setTrainerSearchForLb(e.target.value)} placeholder="Search by username…" style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif" }} />
-                            <button onClick={async () => {
-                              if (trainerSearchForLb.trim().length < 2) return;
-                              setTrainerSearchingLb(true);
-                              try {
-                                const res = await fetch(`/api/trainer/search?q=${encodeURIComponent(trainerSearchForLb.trim())}&type=trainer`);
-                                const data = await res.json();
-                                setTrainerSearchResultsLb(data.results ?? []);
-                              } catch {} finally { setTrainerSearchingLb(false); }
-                            }} style={{ padding: "7px 12px", background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.25)", borderRadius: 8, color: "#a29bfe", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
-                              {trainerSearchingLb ? "…" : "FIND"}
-                            </button>
-                          </div>
-                          {trainerSearchResultsLb.map((t: any) => {
-                            const alreadyInvited = grp.invites?.some((inv: any) => inv.inviteeId === t.id);
-                            const alreadyMember = grp.members?.some((m: any) => m.userId === t.id);
-                            return (
-                              <div key={t.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 8, marginTop: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                                <span style={{ fontSize: 13, color: "#fff" }}>@{t.username}</span>
-                                {alreadyMember ? (
-                                  <span style={{ fontSize: 10, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>MEMBER</span>
-                                ) : alreadyInvited ? (
-                                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>INVITED</span>
-                                ) : (
-                                  <button onClick={async () => {
-                                    try {
-                                      const res = await fetch(`/api/leaderboard/groups/${grp.id}/invite`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inviteeId: t.id }) });
-                                      if (res.ok) {
-                                        const refreshRes = await fetch("/api/leaderboard/groups");
-                                        const refreshData = await refreshRes.json();
-                                        if (refreshData.groups) { setLbGroups(refreshData.groups); setActiveLbGroup(refreshData.groups.find((g: any) => g.id === grp.id) ?? null); }
-                                        setTrainerSearchResultsLb([]);
-                                        setTrainerSearchForLb("");
-                                      }
-                                    } catch {}
-                                  }} style={{ padding: "4px 10px", background: "rgba(162,155,254,0.14)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 6, color: "#a29bfe", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>INVITE</button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {/* Delete group */}
-                        {grp.createdBy === user.id && (
-                          <button onClick={async () => {
-                            if (!confirm(`Delete "${grp.name}"? This cannot be undone.`)) return;
-                            try {
-                              const res = await fetch(`/api/leaderboard/groups/${grp.id}`, { method: "DELETE" });
-                              if (res.ok) { setLbGroups(p => p.filter(g => g.id !== grp.id)); setActiveLbGroup(null); }
-                            } catch {}
-                          }} style={{ width: "100%", marginTop: 14, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>DELETE GROUP</button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-        </>
       )}
 
       {/* ── Trainer: Custom Exercises ── */}
@@ -9485,6 +8742,33 @@ function HomePage() {
             <span style={{ fontSize: 22, lineHeight: 1 }}>📊</span>
             <span>Progress</span>
           </button>
+          {/* Leaderboards — opens GlobalLeaderboardView (athletes +
+              trainers, app-wide). Visible to all roles. Used to live
+              behind the TierInfoModal; now first-class.
+              (qa: home-hub-consolidation) */}
+          <button className="card-hover nav-btn" onClick={() => goTo("globalLeaderboard")} style={{ padding: "18px 14px", background: "rgba(240,192,64,0.05)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 14, color: "#f0c040", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box" }}>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>🏆</span>
+            <span>Leaderboards</span>
+          </button>
+          {/* Groups — opens the dedicated Groups view (was inline on
+              home, now consolidated). Trainer-only since athletes
+              don't currently see groups on home in the original
+              layout. (qa: home-hub-consolidation) */}
+          {userHasRole(user, "trainer") && (
+            <button className="card-hover nav-btn" onClick={() => goTo("groupsHub")} style={{ padding: "18px 14px", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 14, color: "#4ECDC4", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box" }}>
+              <span style={{ fontSize: 22, lineHeight: 1 }}>🏝️</span>
+              <span>Groups</span>
+            </button>
+          )}
+          {/* Clients — opens the dedicated Clients view, trainer-only.
+              Used to be inline on home. (qa: home-hub-consolidation) */}
+          {userHasRole(user, "trainer") && (
+            <button className="card-hover nav-btn" onClick={() => goTo("clientsHub")} style={{ padding: "18px 14px", background: "rgba(168,85,247,0.05)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 14, color: "#a855f7", fontSize: 12, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxSizing: "border-box", position: "relative" }}>
+              <span style={{ fontSize: 22, lineHeight: 1 }}>👥</span>
+              <span>Clients</span>
+              {clients.length > 0 && <span style={{ position: "absolute", top: 8, right: 8, background: "rgba(168,85,247,0.2)", color: "#a855f7", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{clients.length}</span>}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -10273,6 +9557,742 @@ function HomePage() {
   // ─── GLOBAL TIER LEADERBOARD ────────────────────────────────────────
   if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} />;
   if (view === "contributions") return <ContributionsView onBack={() => setView("settings")} />;
+  // ─── CLIENTS HUB ──────────────────────────────────────────────────
+  // Trainer's roster + actions, lifted out of the home dashboard.
+  // (qa: home-hub-consolidation)
+  if (view === "clientsHub") return (
+    <div key="clientsHub" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: 80, minHeight: "100dvh", boxSizing: "border-box" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "24px 20px 8px" }}>
+        <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>CLIENTS</div>
+      </div>
+      {userHasRole(user, "trainer") && (
+        <div style={{ padding: "20px 20px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>👥</span>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>MY CLIENTS</div>
+            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{clients.length}</span>
+            <button onClick={() => setShowMyClients(s => !s)} style={{ padding: "5px 12px", background: showMyClients ? "rgba(78,205,196,0.16)" : "rgba(255,255,255,0.04)", border: `1px solid ${showMyClients ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, color: showMyClients ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{showMyClients ? "HIDE" : "VIEW"}</button>
+          </div>
+          {showMyClients && (
+            <div className="fade-in">
+              {clients.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "16px 0" }}>
+                  <img src="/ai/empty-clients.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontStyle: "italic" }}>No accepted clients yet — find one below</div>
+                </div>
+              ) : clients.map(c => (
+                <div key={c.id} className="card-hover" onClick={() => openClientDetail(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+                      {c.logCount} workout{c.logCount !== 1 ? "s" : ""}
+                      {c.lastWorkout ? ` · last ${new Date(c.lastWorkout.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : " · no sessions yet"}
+                    </div>
+                  </div>
+                  <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 18 }}>›</span>
+                </div>
+              ))}
+              {/* ── Find new clients (inline) ── */}
+              <button onClick={() => setShowFindClients(s => !s)} style={{ width: "100%", marginTop: clients.length > 0 ? 6 : 0, padding: "10px 14px", background: showFindClients ? "rgba(255,107,107,0.08)" : "rgba(78,205,196,0.08)", border: `1px solid ${showFindClients ? "rgba(255,107,107,0.25)" : "rgba(78,205,196,0.22)"}`, borderRadius: 12, color: showFindClients ? "#FF6B6B" : "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                {showFindClients ? "CLOSE SEARCH" : "+ FIND CLIENTS"}
+              </button>
+              {showFindClients && (
+                <div className="fade-in" style={{ marginTop: 10, padding: 14, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12 }}>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                    <input
+                      value={trainerSearch}
+                      onChange={e => { setTrainerSearch(e.target.value); if (!e.target.value.trim()) { setTrainerResults([]); setTrainerHasSearched(false); } }}
+                      onKeyDown={e => { if (e.key === "Enter") doTrainerSearch(); }}
+                      placeholder="Enter exact username…"
+                      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 13, fontFamily: "'DM Sans', sans-serif", padding: "10px 12px", flex: 1, outline: "none", boxSizing: "border-box" }}
+                    />
+                    <button onClick={() => doTrainerSearch()} style={{ padding: "10px 14px", background: "#4ECDC4", border: "none", borderRadius: 10, color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>SEARCH</button>
+                  </div>
+                  {trainerSearching && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "10px 0" }}>Searching…</div>}
+                  {trainerResults.map(u => {
+                    const req = trainerRequests.find(r => r.userId === u.id);
+                    const status = req?.status ?? null;
+                    return (
+                      <div key={u.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 12px", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>@{u.username}</div>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace" }}>
+                            {u.logCount} workout{u.logCount !== 1 ? "s" : ""} · {new Date(u.joinedAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}
+                          </div>
+                        </div>
+                        {status === "pending" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>PENDING</span>}
+                        {status === "accepted" && <span style={{ fontSize: 10, letterSpacing: 1, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>ACCEPTED</span>}
+                        {status === "declined" && (
+                          <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "5px 10px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.7)", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>RE-SEND</button>
+                        )}
+                        {!status && (
+                          <button onClick={() => sendAdoptionRequest(u.id)} disabled={sendingRequest === u.id} style={{ fontSize: 11, padding: "5px 10px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, color: "#4ECDC4", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>{sendingRequest === u.id ? "…" : "SEND REQUEST"}</button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {trainerSearchError && (
+                    <div style={{ fontSize: 12, color: "#ff6b6b", textAlign: "center", padding: "10px 0", fontFamily: "'Space Mono', monospace" }}>{trainerSearchError}</div>
+                  )}
+                  {trainerHasSearched && !trainerSearching && !trainerSearchError && trainerResults.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "12px 0", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>No users found matching &ldquo;{trainerSearch}&rdquo;</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  // ─── GROUPS HUB ───────────────────────────────────────────────────
+  // Lifted out of the home dashboard so the main view stays clean.
+  // Trainer-only nav entry from the QUICK ACTIONS hub.
+  // (qa: home-hub-consolidation)
+  if (view === "groupsHub") return (
+    <div key="groupsHub" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: 80, minHeight: "100dvh", boxSizing: "border-box" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "24px 20px 8px" }}>
+        <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>GROUPS</div>
+      </div>
+        {/* ── Leaderboard Groups ── */}
+        <div style={{ padding: "20px 20px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>🏝️</span>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>GROUPS</div>
+            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+            <button
+              onClick={async () => {
+                if (showLbGroups) { setShowLbGroups(false); return; }
+                setLbGroupsLoading(true);
+                setShowLbGroups(true);
+                try {
+                  const res = await fetch("/api/leaderboard/groups");
+                  const data = await res.json();
+                  if (data.groups) setLbGroups(data.groups);
+                } catch {}
+                setLbGroupsLoading(false);
+              }}
+              style={{ padding: "5px 12px", background: showLbGroups ? "rgba(78,205,196,0.16)" : "rgba(255,255,255,0.04)", border: `1px solid ${showLbGroups ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, color: showLbGroups ? "#4ECDC4" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+            >{showLbGroups ? "HIDE" : "VIEW"}</button>
+          </div>
+          {showLbGroups && (
+            <div className="fade-in" style={{ marginTop: 8 }}>
+              {/* Pending invites from other trainers */}
+              {pendingGroupInvites.length > 0 && (
+                <div style={{ background: "rgba(255,230,109,0.06)", border: "1px solid rgba(255,230,109,0.2)", borderRadius: 12, padding: 12, marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, color: "#FFE66D", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 8 }}>PENDING INVITES</div>
+                  {pendingGroupInvites.map((inv: any) => (
+                    <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{inv.group?.name}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>from @{inv.inviter?.username} · {inv.group?.members?.length ?? 0} members</div>
+                      </div>
+                      <button onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/leaderboard/groups/${inv.group.id}/invite`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inviteId: inv.id, action: "accept" }) });
+                          if (res.ok) {
+                            setPendingGroupInvites(p => p.filter(i => i.id !== inv.id));
+                            const refreshRes = await fetch("/api/leaderboard/groups");
+                            const refreshData = await refreshRes.json();
+                            if (refreshData.groups) setLbGroups(refreshData.groups);
+                          }
+                        } catch {}
+                      }} style={{ padding: "5px 10px", background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 6, color: "#4ECDC4", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>ACCEPT</button>
+                      <button onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/leaderboard/groups/${inv.group.id}/invite`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inviteId: inv.id, action: "decline" }) });
+                          if (res.ok) setPendingGroupInvites(p => p.filter(i => i.id !== inv.id));
+                        } catch {}
+                      }} style={{ padding: "5px 10px", background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "#FF6B6B", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>DECLINE</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Create group button */}
+              <button onClick={() => setShowLbGroupCreate(s => !s)} style={{ width: "100%", padding: "10px 14px", marginBottom: 8, background: showLbGroupCreate ? "rgba(255,107,107,0.1)" : "rgba(78,205,196,0.08)", border: `1px solid ${showLbGroupCreate ? "rgba(255,107,107,0.3)" : "rgba(78,205,196,0.2)"}`, borderRadius: 10, color: showLbGroupCreate ? "#FF6B6B" : "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                {showLbGroupCreate ? "CANCEL" : "+ NEW GROUP"}
+              </button>
+              {showLbGroupCreate && (
+                <div className="fade-in" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                  <input value={lbGroupName} onChange={e => setLbGroupName(e.target.value)} placeholder="Group name (e.g. Strength Squad)" style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#fff", fontSize: 14, padding: "10px 12px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
+                  <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                    {(["private","public"] as const).map(p => (
+                      <button key={p} onClick={() => setLbGroupPrivacy(p)} style={{ flex: 1, padding: "6px", borderRadius: 8, fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", background: lbGroupPrivacy === p ? "rgba(78,205,196,0.18)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbGroupPrivacy === p ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, color: lbGroupPrivacy === p ? "#4ECDC4" : "rgba(255,255,255,0.35)" }}>{p.toUpperCase()}</button>
+                    ))}
+                  </div>
+                  <button onClick={async () => {
+                    if (!lbGroupName.trim()) return;
+                    setCreatingLbGroup(true);
+                    try {
+                      const res = await fetch("/api/leaderboard/groups", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: lbGroupName.trim(), privacy: lbGroupPrivacy }) });
+                      const data = await res.json();
+                      if (data.group) { setLbGroups(p => [data.group, ...p]); setShowLbGroupCreate(false); setLbGroupName(""); }
+                      else alert(data.error ?? "Failed");
+                    } catch { alert("Failed"); } finally { setCreatingLbGroup(false); }
+                  }} disabled={creatingLbGroup || !lbGroupName.trim()} style={{ width: "100%", padding: "10px", background: "rgba(78,205,196,0.15)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                    {creatingLbGroup ? "CREATING…" : "CREATE GROUP"}
+                  </button>
+                </div>
+              )}
+              {lbGroupsLoading ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "16px 0" }}>Loading…</div>
+              ) : lbGroups.length === 0 ? (
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "16px 0" }}>No groups yet — create one above</div>
+              ) : (
+                lbGroups.map(grp => (
+                  <div key={grp.id} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
+                    <div onClick={async () => {
+                      const opening = activeLbGroup?.id !== grp.id;
+                      setActiveLbGroup(opening ? grp : null);
+                      // Pre-fetch the group workout on open so trainer/member
+                      // see the right SET / APPLY state without an extra tap.
+                      if (opening && !groupWorkoutCache[grp.id]) {
+                        setGroupWorkoutLoading(true);
+                        try {
+                          const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`);
+                          const data = await res.json();
+                          setGroupWorkoutCache(p => ({ ...p, [grp.id]: data }));
+                        } catch {} finally { setGroupWorkoutLoading(false); }
+                      }
+                      if (opening && !groupChallengesCache[grp.id]) {
+                        setGroupChallengesLoading(true);
+                        try {
+                          const res = await fetch(`/api/leaderboard/groups/${grp.id}/challenges`);
+                          const data = await res.json();
+                          if (!data.error) setGroupChallengesCache(p => ({ ...p, [grp.id]: data }));
+                        } catch {} finally { setGroupChallengesLoading(false); }
+                      }
+                    }} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{grp.name}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{grp.members?.length ?? 0} members · {grp.privacy}</div>
+                      </div>
+                      <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 14 }}>{activeLbGroup?.id === grp.id ? "▲" : "▼"}</span>
+                    </div>
+                    {activeLbGroup?.id === grp.id && (
+                      <div className="fade-in" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: 14 }}>
+                        {/* Trainer inclusion toggle */}
+                        {(() => {
+                          const myMember = grp.members?.find((m: any) => m.userId === user.id && m.role === "trainer");
+                          return myMember ? (
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 8 }}>
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Include me in ranking</div>
+                                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Show your stats on this leaderboard</div>
+                              </div>
+                              <button onClick={async () => {
+                                try {
+                                  const res = await fetch(`/api/leaderboard/groups/${grp.id}/members`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ includeInRank: !myMember.includeInRank }) });
+                                  if (res.ok) {
+                                    setLbGroups(prev => prev.map(g => g.id !== grp.id ? g : { ...g, members: g.members.map((m: any) => m.id !== myMember.id ? m : { ...m, includeInRank: !m.includeInRank }) }));
+                                    setActiveLbGroup((prev: any) => ({ ...prev, members: prev.members.map((m: any) => m.id !== myMember.id ? m : { ...m, includeInRank: !m.includeInRank }) }));
+                                  }
+                                } catch {}
+                              }} style={{ width: 44, height: 24, borderRadius: 12, background: myMember.includeInRank ? "#4ECDC4" : "rgba(255,255,255,0.1)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
+                                <div style={{ position: "absolute", top: 2, left: myMember.includeInRank ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                              </button>
+                            </div>
+                          ) : null;
+                        })()}
+                        {/* ── Group Challenges ── opt-in by group leader.
+                            Shared progress bar across all members.
+                            (qa: group-challenges) */}
+                        {(() => {
+                          const cache = groupChallengesCache[grp.id];
+                          const challenges = (cache?.challenges ?? []) as any[];
+                          const isLeader = !!cache?.isLeader;
+                          const isCreating = newChallengeForm.groupId === grp.id;
+                          const activeOnes = challenges.filter(c => c.state === "active");
+                          const completedOnes = challenges.filter(c => c.state === "completed");
+                          return (
+                            <div style={{ marginBottom: 14, padding: 10, background: "rgba(255,230,109,0.04)", border: "1px solid rgba(255,230,109,0.14)", borderRadius: 10 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                                <span style={{ fontSize: 14 }}>🎯</span>
+                                <div style={{ fontSize: 10, color: "#FFE66D", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>CHALLENGES</div>
+                                <div style={{ flex: 1, height: 1, background: "rgba(255,230,109,0.1)" }} />
+                                {isLeader && !isCreating && (
+                                  <button onClick={() => setNewChallengeForm({ groupId: grp.id, title: "", metric: "total_reps", target: "1000", durationDays: "30", exerciseSubstrings: "" })} style={{ padding: "3px 9px", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 6, color: "#FFE66D", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>+ START</button>
+                                )}
+                              </div>
+
+                              {activeOnes.length === 0 && completedOnes.length === 0 && !isCreating && (
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center", padding: "8px 0" }}>{isLeader ? "Start a group challenge — push the team together." : "Group leader hasn't set one yet."}</div>
+                              )}
+
+                              {activeOnes.map((c: any) => {
+                                const pct = Math.min(100, Math.round((c.progress / c.target) * 100));
+                                const endsAt = new Date(c.endsAt);
+                                const daysLeft = Math.max(0, Math.ceil((endsAt.getTime() - Date.now()) / 86400000));
+                                const unit = c.metric === "total_volume_kg" ? "kg" : c.metric === "total_sessions" ? "sessions" : c.metric === "exercise_distinct" ? "exercises" : "reps";
+                                return (
+                                  <div key={c.id} style={{ marginBottom: 8, padding: 10, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,230,109,0.18)", borderRadius: 8 }}>
+                                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
+                                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{c.title}</div>
+                                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>{daysLeft}d LEFT</div>
+                                    </div>
+                                    <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", marginBottom: 4 }}>
+                                      <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg, #FFE66D, #f0c040)" }}/>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "rgba(255,255,255,0.55)" }}>
+                                      <span>{c.progress.toLocaleString()} / {c.target.toLocaleString()} {unit}</span>
+                                      <span>You: {(c.myContribution ?? 0).toLocaleString()}</span>
+                                    </div>
+                                    {isLeader && (
+                                      <button onClick={async () => {
+                                        if (!confirm("Cancel this challenge?")) return;
+                                        try {
+                                          const res = await fetch(`/api/leaderboard/groups/${grp.id}/challenges`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ challengeId: c.id }) });
+                                          if (res.ok) {
+                                            setGroupChallengesCache(prev => ({ ...prev, [grp.id]: { ...prev[grp.id], challenges: prev[grp.id].challenges.filter((x: any) => x.id !== c.id) } }));
+                                          }
+                                        } catch {}
+                                      }} style={{ marginTop: 6, padding: "3px 8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "#FF6B6B", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>CANCEL</button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+
+                              {completedOnes.length > 0 && (
+                                <div style={{ marginTop: 6 }}>
+                                  {completedOnes.slice(0, 2).map((c: any) => (
+                                    <div key={c.id} style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", padding: "4px 0", display: "flex", justifyContent: "space-between" }}>
+                                      <span>✓ {c.title}</span><span style={{ color: "#34d399" }}>completed</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {isCreating && (
+                                <div style={{ marginTop: 8, padding: 10, background: "rgba(0,0,0,0.35)", borderRadius: 8, border: "1px solid rgba(255,230,109,0.18)" }}>
+                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>NEW CHALLENGE</div>
+                                  <input value={newChallengeForm.title} onChange={e => setNewChallengeForm(f => ({ ...f, title: e.target.value }))} placeholder="Title (e.g. Pushup Pile)" style={{ width: "100%", padding: "8px 10px", marginBottom: 6, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 12, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
+                                  <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                                    <select value={newChallengeForm.metric} onChange={e => setNewChallengeForm(f => ({ ...f, metric: e.target.value }))} style={{ flex: 1, padding: "7px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11 }}>
+                                      <option value="total_reps">Total reps</option>
+                                      <option value="total_sessions">Total sessions</option>
+                                      <option value="total_volume_kg">Total volume (kg)</option>
+                                      <option value="exercise_distinct">Distinct exercises</option>
+                                    </select>
+                                    <input value={newChallengeForm.target} onChange={e => setNewChallengeForm(f => ({ ...f, target: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="Target" style={{ width: 80, padding: "7px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, outline: "none", boxSizing: "border-box" }} />
+                                    <input value={newChallengeForm.durationDays} onChange={e => setNewChallengeForm(f => ({ ...f, durationDays: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="Days" style={{ width: 50, padding: "7px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, outline: "none", boxSizing: "border-box" }} />
+                                  </div>
+                                  {(newChallengeForm.metric === "total_reps" || newChallengeForm.metric === "total_volume_kg") && (
+                                    <input value={newChallengeForm.exerciseSubstrings} onChange={e => setNewChallengeForm(f => ({ ...f, exerciseSubstrings: e.target.value }))} placeholder="Optional: limit to exercises matching (e.g. pushup,squat)" style={{ width: "100%", padding: "7px 8px", marginBottom: 6, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#fff", fontSize: 11, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }} />
+                                  )}
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button onClick={async () => {
+                                      if (!newChallengeForm.title.trim() || !newChallengeForm.target) return;
+                                      try {
+                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/challenges`, {
+                                          method: "POST", headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({
+                                            title: newChallengeForm.title.trim(),
+                                            metric: newChallengeForm.metric,
+                                            target: Number(newChallengeForm.target),
+                                            durationDays: Number(newChallengeForm.durationDays) || 30,
+                                            exerciseSubstrings: newChallengeForm.exerciseSubstrings.trim() || undefined,
+                                          })
+                                        });
+                                        const data = await res.json();
+                                        if (res.ok && data.challenge) {
+                                          setGroupChallengesCache(prev => ({ ...prev, [grp.id]: { ...prev[grp.id], challenges: [data.challenge, ...(prev[grp.id]?.challenges ?? [])] } }));
+                                          setNewChallengeForm({ groupId: null, title: "", metric: "total_reps", target: "1000", durationDays: "30", exerciseSubstrings: "" });
+                                        }
+                                      } catch {}
+                                    }} style={{ flex: 1, padding: "8px", background: "rgba(255,230,109,0.18)", border: "1px solid rgba(255,230,109,0.4)", borderRadius: 6, color: "#FFE66D", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>START</button>
+                                    <button onClick={() => setNewChallengeForm({ groupId: null, title: "", metric: "total_reps", target: "1000", durationDays: "30", exerciseSubstrings: "" })} style={{ padding: "8px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>CANCEL</button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        {/* Group leaderboard — 4 view modes, all ranked
+                            within the group only (never global). */}
+                        {(() => {
+                          const base = (grp.members ?? [])
+                            .filter((m: any) => m.includeInRank)
+                            .map((m: any) => ({
+                              userId: m.userId,
+                              username: m.user?.username ?? "unknown",
+                              role: m.role,
+                              totalSessions: m.stats?.totalSessions ?? 0,
+                              streak: m.stats?.streak ?? 0,
+                              prCount: m.stats?.prCount ?? 0,
+                              totalVolume: m.stats?.totalVolume ?? 0,
+                              // Canonical tier from computeStatsForUsers
+                              // (server-side computeAthleteTier). Frontend
+                              // overrides with the local breakdown for
+                              // the visitor's own row.
+                              tier: m.stats?.tier ?? null,
+                              weightStart: m.stats?.weightStart ?? null,
+                              weightCurrent: m.stats?.weightCurrent ?? null,
+                              weightChangeKg: m.stats?.weightChangeKg ?? null,
+                              weightStartDate: m.stats?.weightStartDate ?? null,
+                              bfStart: m.stats?.bfStart ?? null,
+                              bfCurrent: m.stats?.bfCurrent ?? null,
+                              bfChangePct: m.stats?.bfChangePct ?? null,
+                              bfStartDate: m.stats?.bfStartDate ?? null,
+                            }));
+
+                          // Sort + visible filter per mode. Members with
+                          // no relevant body data still appear, sunk to
+                          // the bottom with "—" cells.
+                          let ranked: any[] = base;
+                          if (lbMode === "sessions") {
+                            ranked = [...base].sort((a, b) => b.totalSessions - a.totalSessions || b.totalVolume - a.totalVolume);
+                          } else if (lbMode === "weight") {
+                            ranked = [...base].sort((a, b) => {
+                              const av = a.weightChangeKg, bv = b.weightChangeKg;
+                              if (av == null && bv == null) return 0;
+                              if (av == null) return 1; if (bv == null) return -1;
+                              // loss: most negative first. gain: most positive first.
+                              return lbWeightDir === "loss" ? av - bv : bv - av;
+                            });
+                          } else if (lbMode === "bf-change") {
+                            ranked = [...base].sort((a, b) => {
+                              const av = a.bfChangePct, bv = b.bfChangePct;
+                              if (av == null && bv == null) return 0;
+                              if (av == null) return 1; if (bv == null) return -1;
+                              return av - bv; // most negative (largest BF drop) first
+                            });
+                          } else { // bf-now
+                            ranked = [...base].sort((a, b) => {
+                              const av = a.bfCurrent, bv = b.bfCurrent;
+                              if (av == null && bv == null) return 0;
+                              if (av == null) return 1; if (bv == null) return -1;
+                              return av - bv; // lowest BF% first (leanest)
+                            });
+                          }
+
+                          const modeChip = (id: typeof lbMode, label: string) => (
+                            <button key={id} onClick={() => setLbMode(id)} style={{ flex: 1, padding: "5px 0", background: lbMode === id ? "rgba(255,107,107,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbMode === id ? "#FF6B6B" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbMode === id ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{label}</button>
+                          );
+
+                          return (
+                            <div style={{ marginBottom: 14 }}>
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>🏆 RANKINGS · {ranked.length}</div>
+                              <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                                {modeChip("sessions", "SESSIONS")}
+                                {modeChip("weight", "WEIGHT Δ")}
+                                {modeChip("bf-change", "BF LOSS")}
+                                {modeChip("bf-now", "BF NOW")}
+                              </div>
+                              {lbMode === "weight" && (
+                                <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                                  <button onClick={() => setLbWeightDir("loss")} style={{ flex: 1, padding: "4px 0", background: lbWeightDir === "loss" ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>⬇ LOSS LEADERS</button>
+                                  <button onClick={() => setLbWeightDir("gain")} style={{ flex: 1, padding: "4px 0", background: lbWeightDir === "gain" ? "rgba(162,155,254,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWeightDir === "gain" ? "#a29bfe" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWeightDir === "gain" ? "#a29bfe" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>⬆ GAIN LEADERS</button>
+                                </div>
+                              )}
+                              {ranked.length === 0 ? (
+                                <div style={{ padding: "14px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, fontSize: 11.5, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>
+                                  No members ranked yet — toggle &ldquo;Include me in ranking&rdquo; or add clients below.
+                                </div>
+                              ) : (
+                                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
+                                  {/* Header row — columns depend on mode */}
+                                  {lbMode === "sessions" && (
+                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 38px 38px 38px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                                      {["#","NAME","SESS","STRK","PRs"].map((h, hi) => (
+                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "center" : "left" }}>{h}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {lbMode === "weight" && (
+                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 56px 60px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                                      {["#","NAME","NOW","CHANGE"].map((h, hi) => (
+                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "right" : "left" }}>{h}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {lbMode === "bf-change" && (
+                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 56px 60px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                                      {["#","NAME","NOW","Δ BF%"].map((h, hi) => (
+                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "right" : "left" }}>{h}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {lbMode === "bf-now" && (
+                                    <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 80px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                                      {["#","NAME","BF % NOW"].map((h, hi) => (
+                                        <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "right" : "left" }}>{h}</div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {ranked.map((m: any, i: number) => {
+                                    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+                                    const isMe = m.userId === user.id;
+                                    // Tier source priority:
+                                    // 1. Visitor's OWN row → use the
+                                    //    locally-computed breakdown
+                                    //    (includes wellness, fully
+                                    //    canonical).
+                                    // 2. Other rows → use the server-
+                                    //    shipped m.tier from
+                                    //    computeStatsForUsers (covers
+                                    //    distinctExercises + monthsOnApp
+                                    //    via prisma; wellness still 0
+                                    //    server-side since it's
+                                    //    localStorage-only).
+                                    // 3. Fallback if the API somehow
+                                    //    omits tier → Kitten.
+                                    // Same theme remap as the trainer
+                                    // leaderboard row above — other
+                                    // users' tier objects ship in the
+                                    // vivid theme; the viewer's chosen
+                                    // theme rewrites the label/icon.
+                                    const themedTiers = getAthleteTiers(tierTheme);
+                                    const tier = isMe && myAthleteBreakdown
+                                      ? myAthleteBreakdown.headline
+                                      : (() => {
+                                          const raw = m.tier as any;
+                                          if (!raw) return themedTiers[0];
+                                          const num = raw.tierNum ?? themedTiers.findIndex(t => t.label === raw.label) + 1;
+                                          const themed = themedTiers.find(t => t.tierNum === num);
+                                          return themed ?? raw;
+                                        })();
+                                    const rowStyle: React.CSSProperties = { display: "grid", gap: 6, padding: "9px 10px", borderBottom: i < ranked.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.04)" : isMe ? "rgba(78,205,196,0.04)" : "transparent" };
+                                    const nameCell = (
+                                      <>
+                                        <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
+                                        <div style={{ minWidth: 0 }}>
+                                          <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : `@${m.username}`}</div>
+                                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.icon} {tier.label}{m.role === "trainer" ? " · TRAINER" : ""}</div>
+                                        </div>
+                                      </>
+                                    );
+                                    if (lbMode === "sessions") {
+                                      return (
+                                        <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 38px 38px 38px" }}>
+                                          {nameCell}
+                                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: "#a29bfe" }}>{m.totalSessions}</div></div>
+                                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: m.streak >= 3 ? "#FF6B6B" : "#fff" }}>{m.streak}</div></div>
+                                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: m.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{m.prCount}</div></div>
+                                        </div>
+                                      );
+                                    }
+                                    if (lbMode === "weight") {
+                                      const wc = m.weightChangeKg;
+                                      const wcColor = wc == null ? "rgba(255,255,255,0.3)" : wc < 0 ? "#4ECDC4" : wc > 0 ? "#a29bfe" : "rgba(255,255,255,0.5)";
+                                      return (
+                                        <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 56px 60px" }}>
+                                          {nameCell}
+                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{m.weightCurrent != null ? `${m.weightCurrent}kg` : "—"}</div></div>
+                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: wcColor, fontFamily: "'Space Mono', monospace" }}>{wc == null ? "—" : `${wc > 0 ? "+" : ""}${wc}kg`}</div></div>
+                                        </div>
+                                      );
+                                    }
+                                    if (lbMode === "bf-change") {
+                                      const dc = m.bfChangePct;
+                                      const dcColor = dc == null ? "rgba(255,255,255,0.3)" : dc < 0 ? "#4ECDC4" : dc > 0 ? "#FF6B6B" : "rgba(255,255,255,0.5)";
+                                      return (
+                                        <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 56px 60px" }}>
+                                          {nameCell}
+                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{m.bfCurrent != null ? `${m.bfCurrent}%` : "—"}</div></div>
+                                          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, color: dcColor, fontFamily: "'Space Mono', monospace" }}>{dc == null ? "—" : `${dc > 0 ? "+" : ""}${dc}%`}</div></div>
+                                        </div>
+                                      );
+                                    }
+                                    // bf-now
+                                    return (
+                                      <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 80px" }}>
+                                        {nameCell}
+                                        <div style={{ textAlign: "right" }}><div style={{ fontSize: 14, fontWeight: 700, color: m.bfCurrent != null ? "#f0c040" : "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>{m.bfCurrent != null ? `${m.bfCurrent}%` : "—"}</div></div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        {/* Shared workout — trainer can push their current
+                            plan to every member as the group routine. */}
+                        <div style={{ marginBottom: 14, padding: 12, background: "rgba(240,192,64,0.05)", border: "1px solid rgba(240,192,64,0.18)", borderRadius: 10 }}>
+                          <div style={{ fontSize: 10, color: "#f0c040", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>🏋 SHARED WORKOUT</div>
+                          {(() => {
+                            const cached = groupWorkoutCache[grp.id];
+                            if (groupWorkoutLoading && openGroupWorkoutId === grp.id) {
+                              return <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center", padding: "8px 0" }}>Loading…</div>;
+                            }
+                            if (cached?.workout) {
+                              return (
+                                <>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{cached.workout.name}</div>
+                                  {cached.workout.description && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 6 }}>{cached.workout.description}</div>}
+                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", marginBottom: 10 }}>{(cached.workout.days ?? []).length} day{(cached.workout.days ?? []).length === 1 ? "" : "s"} · members get a ▣ GROUP badge on home</div>
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button onClick={async () => {
+                                      const planSource = customPlan ?? (WORKOUT_DATA as any[]).map((d: any) => ({
+                                        id: d.id, title: d.title, focus: d.focus, color: d.color, gradient: d.gradient,
+                                        exercises: (d.sections ?? []).flatMap((s: any) => s.exercises).filter((e: any) => e.trackable !== false).map((ex: any, j: number) => ({ order: j, exerciseId: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest ?? 60 })),
+                                      }));
+                                      setGroupWorkoutSaving(true);
+                                      try {
+                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: cached.workout.name, description: cached.workout.description, days: planSource }) });
+                                        if (res.ok) {
+                                          const data = await res.json();
+                                          setGroupWorkoutCache(p => ({ ...p, [grp.id]: { workout: { ...data.workout, mySubscription: cached.workout.mySubscription, isTrainer: true } } }));
+                                        }
+                                      } catch {} finally { setGroupWorkoutSaving(false); }
+                                    }} disabled={groupWorkoutSaving} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 7, color: "#4ECDC4", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>{groupWorkoutSaving ? "…" : "↺ SYNC TO MY PLAN"}</button>
+                                    <button onClick={async () => {
+                                      if (!confirm(`Remove the group workout "${cached.workout.name}"? Members' past tagged sessions stay logged but stop counting in the group's filtered ranking.`)) return;
+                                      setGroupWorkoutSaving(true);
+                                      try {
+                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`, { method: "DELETE" });
+                                        if (res.ok) setGroupWorkoutCache(p => ({ ...p, [grp.id]: { workout: null } }));
+                                      } catch {} finally { setGroupWorkoutSaving(false); }
+                                    }} disabled={groupWorkoutSaving} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 7, color: "#FF6B6B", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>REMOVE</button>
+                                  </div>
+                                </>
+                              );
+                            }
+                            // No workout set yet — show form.
+                            if (openGroupWorkoutId === grp.id) {
+                              return (
+                                <>
+                                  <input value={groupWorkoutName} onChange={e => setGroupWorkoutName(e.target.value)} placeholder="Workout name (e.g. PPL Hypertrophy)" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "#fff", fontSize: 12, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 6 }} />
+                                  <input value={groupWorkoutDesc} onChange={e => setGroupWorkoutDesc(e.target.value)} placeholder="Description (optional)" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "#fff", fontSize: 12, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
+                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginBottom: 8, lineHeight: 1.5 }}>Pushes your current plan as the shared routine. Every member is auto-subscribed; they tap APPLY in their app to start counting toward the filtered group ranking.</div>
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button onClick={() => { setOpenGroupWorkoutId(null); setGroupWorkoutName(""); setGroupWorkoutDesc(""); }} style={{ flex: 1, padding: "8px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.6)", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>CANCEL</button>
+                                    <button onClick={async () => {
+                                      if (!groupWorkoutName.trim()) return;
+                                      const planSource = customPlan ?? (WORKOUT_DATA as any[]).map((d: any) => ({
+                                        id: d.id, title: d.title, focus: d.focus, color: d.color, gradient: d.gradient,
+                                        exercises: (d.sections ?? []).flatMap((s: any) => s.exercises).filter((e: any) => e.trackable !== false).map((ex: any, j: number) => ({ order: j, exerciseId: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest ?? 60 })),
+                                      }));
+                                      setGroupWorkoutSaving(true);
+                                      try {
+                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: groupWorkoutName.trim(), description: groupWorkoutDesc.trim() || undefined, days: planSource }) });
+                                        if (res.ok) {
+                                          const data = await res.json();
+                                          setGroupWorkoutCache(p => ({ ...p, [grp.id]: { workout: { ...data.workout, isTrainer: true } } }));
+                                          setOpenGroupWorkoutId(null); setGroupWorkoutName(""); setGroupWorkoutDesc("");
+                                        }
+                                      } catch {} finally { setGroupWorkoutSaving(false); }
+                                    }} disabled={groupWorkoutSaving || !groupWorkoutName.trim()} style={{ flex: 1, padding: "8px", background: groupWorkoutName.trim() ? "rgba(240,192,64,0.18)" : "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.35)", borderRadius: 7, color: "#f0c040", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: groupWorkoutName.trim() ? "pointer" : "not-allowed", letterSpacing: 1, opacity: groupWorkoutName.trim() ? 1 : 0.5 }}>{groupWorkoutSaving ? "…" : "SET WORKOUT"}</button>
+                                  </div>
+                                </>
+                              );
+                            }
+                            return (
+                              <>
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>No shared workout yet — push one routine to the whole group.</div>
+                                <button onClick={async () => {
+                                  setOpenGroupWorkoutId(grp.id);
+                                  setGroupWorkoutLoading(true);
+                                  try {
+                                    const res = await fetch(`/api/leaderboard/groups/${grp.id}/workout`);
+                                    const data = await res.json();
+                                    setGroupWorkoutCache(p => ({ ...p, [grp.id]: data }));
+                                  } catch {} finally { setGroupWorkoutLoading(false); }
+                                }} style={{ width: "100%", padding: "8px", background: "rgba(240,192,64,0.14)", border: "1px solid rgba(240,192,64,0.3)", borderRadius: 7, color: "#f0c040", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>+ SET GROUP WORKOUT</button>
+                              </>
+                            );
+                          })()}
+                        </div>
+                        {/* Client member selection */}
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>CLIENTS IN GROUP</div>
+                        <input value={lbGroupClientSearch} onChange={e => setLbGroupClientSearch(e.target.value)} placeholder="Filter clients…" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", marginBottom: 8 }} />
+                        {clients.filter(c => !lbGroupClientSearch || c.username.toLowerCase().includes(lbGroupClientSearch.toLowerCase())).map((c: any) => {
+                          const inGroup = grp.members?.some((m: any) => m.userId === c.id && m.role === "client");
+                          return (
+                            <div key={c.id} onClick={() => {
+                              const currentClientIds = (grp.members ?? []).filter((m: any) => m.role === "client").map((m: any) => m.userId);
+                              const newIds = inGroup ? currentClientIds.filter((id: string) => id !== c.id) : [...currentClientIds, c.id];
+                              const snapshotMembers = grp.members ?? [];
+                              // Optimistic update — instant UI feedback
+                              const optimisticMembers = inGroup
+                                ? snapshotMembers.filter((m: any) => !(m.userId === c.id && m.role === "client"))
+                                : [...snapshotMembers, { userId: c.id, role: "client", includeInRank: true, trainerId: user.id, user: { id: c.id, username: c.username, workoutLogs: [] } }];
+                              setLbGroups(prev => prev.map(g => g.id !== grp.id ? g : { ...g, members: optimisticMembers }));
+                              setActiveLbGroup((prev: any) => prev && prev.id === grp.id ? { ...prev, members: optimisticMembers } : prev);
+                              // Fire-and-forget API call; revert on failure
+                              fetch(`/api/leaderboard/groups/${grp.id}/members`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientIds: newIds }) })
+                                .then(res => { if (!res.ok) throw new Error(); })
+                                .catch(() => {
+                                  setLbGroups(prev => prev.map(g => g.id !== grp.id ? g : { ...g, members: snapshotMembers }));
+                                  setActiveLbGroup((prev: any) => prev && prev.id === grp.id ? { ...prev, members: snapshotMembers } : prev);
+                                });
+                            }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 8, marginBottom: 4, background: inGroup ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.02)", cursor: "pointer", border: `1px solid ${inGroup ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.05)"}` }}>
+                              <span style={{ fontSize: 13, color: inGroup ? "#4ECDC4" : "rgba(255,255,255,0.6)" }}>@{c.username}</span>
+                              <span style={{ fontSize: 16 }}>{inGroup ? "✓" : "+"}</span>
+                            </div>
+                          );
+                        })}
+                        {/* Invite other trainer */}
+                        <div style={{ marginTop: 14 }}>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>INVITE TRAINER</div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <input value={trainerSearchForLb} onChange={e => setTrainerSearchForLb(e.target.value)} placeholder="Search by username…" style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, padding: "7px 10px", outline: "none", fontFamily: "'DM Sans', sans-serif" }} />
+                            <button onClick={async () => {
+                              if (trainerSearchForLb.trim().length < 2) return;
+                              setTrainerSearchingLb(true);
+                              try {
+                                const res = await fetch(`/api/trainer/search?q=${encodeURIComponent(trainerSearchForLb.trim())}&type=trainer`);
+                                const data = await res.json();
+                                setTrainerSearchResultsLb(data.results ?? []);
+                              } catch {} finally { setTrainerSearchingLb(false); }
+                            }} style={{ padding: "7px 12px", background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.25)", borderRadius: 8, color: "#a29bfe", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+                              {trainerSearchingLb ? "…" : "FIND"}
+                            </button>
+                          </div>
+                          {trainerSearchResultsLb.map((t: any) => {
+                            const alreadyInvited = grp.invites?.some((inv: any) => inv.inviteeId === t.id);
+                            const alreadyMember = grp.members?.some((m: any) => m.userId === t.id);
+                            return (
+                              <div key={t.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 8, marginTop: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                                <span style={{ fontSize: 13, color: "#fff" }}>@{t.username}</span>
+                                {alreadyMember ? (
+                                  <span style={{ fontSize: 10, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>MEMBER</span>
+                                ) : alreadyInvited ? (
+                                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>INVITED</span>
+                                ) : (
+                                  <button onClick={async () => {
+                                    try {
+                                      const res = await fetch(`/api/leaderboard/groups/${grp.id}/invite`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inviteeId: t.id }) });
+                                      if (res.ok) {
+                                        const refreshRes = await fetch("/api/leaderboard/groups");
+                                        const refreshData = await refreshRes.json();
+                                        if (refreshData.groups) { setLbGroups(refreshData.groups); setActiveLbGroup(refreshData.groups.find((g: any) => g.id === grp.id) ?? null); }
+                                        setTrainerSearchResultsLb([]);
+                                        setTrainerSearchForLb("");
+                                      }
+                                    } catch {}
+                                  }} style={{ padding: "4px 10px", background: "rgba(162,155,254,0.14)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 6, color: "#a29bfe", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>INVITE</button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Delete group */}
+                        {grp.createdBy === user.id && (
+                          <button onClick={async () => {
+                            if (!confirm(`Delete "${grp.name}"? This cannot be undone.`)) return;
+                            try {
+                              const res = await fetch(`/api/leaderboard/groups/${grp.id}`, { method: "DELETE" });
+                              if (res.ok) { setLbGroups(p => p.filter(g => g.id !== grp.id)); setActiveLbGroup(null); }
+                            } catch {}
+                          }} style={{ width: "100%", marginTop: 14, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>DELETE GROUP</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+    </div>
+  );
+
 
   // ─── MESSAGES LIST ──────────────────────────────────────────────────
   if (view === "messages") return (

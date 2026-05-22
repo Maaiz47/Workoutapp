@@ -2,6 +2,76 @@
 
 ---
 
+## Feat · 2026-05-22 — Home dashboard consolidation: Leaderboards + Groups + Clients as nav buttons (qa: home-hub-consolidation)
+
+@maaiz: "Maybe all leaderboards can be organised into one leaderboard
+section with a button in home page like messages. Same for groups
+and maybe clients too. It would help clean up the main dash — saved
+routines and my exercises can stay where they are I think."
+
+Three new nav buttons added to QUICK ACTIONS, three inline sections
+removed from home, two new dedicated views.
+
+### Buttons added to QUICK ACTIONS (alongside Messages + Progress)
+
+- 🏆 **Leaderboards** — visible to all roles. Opens
+  `GlobalLeaderboardView` (athlete/trainer tabs + lens picker).
+- 🏝️ **Groups** — trainer-only (matches the pre-existing
+  trainer-only home gating for groups). Opens the new
+  `groupsHub` view.
+- 👥 **Clients** — trainer-only. Opens the new `clientsHub`
+  view. Pill badge shows current client count.
+
+The 2-col grid in QUICK ACTIONS naturally accommodates 4-5 items:
+2 buttons for athletes, 4 buttons for trainers.
+
+### Inline sections removed from home
+
+- 🌍 GLOBAL RANKINGS wide card (was a single-purpose tap target;
+  Leaderboards button supersedes it).
+- 🏝️ GROUPS section (the ~630-line trainer-only group management
+  block, including invites, member lists, leaderboards within
+  groups, group-workout setup, group challenges).
+- 👥 MY CLIENTS section (the ~80-line trainer roster + per-client
+  cards).
+
+The trainer-fragment `<>...</>` that wrapped TRAINER LEADERBOARD +
+GROUPS got simplified back to a plain div now that GROUPS moved
+out.
+
+### New view branches
+
+- `view === "groupsHub"` — wraps the lifted GROUPS JSX with a
+  back-button header. All state (lbGroups, activeLbGroup,
+  groupWorkoutCache, groupChallengesCache, etc.) still lives on
+  HomePage so the JSX continues to work unchanged inside its new
+  scope.
+- `view === "clientsHub"` — same pattern for MY CLIENTS.
+
+### Routing
+
+- Swipe-back wired for both new views (returns to home).
+- `clientDetail` swipe-back now returns to `clientsHub` instead of
+  home, since users get there THROUGH the clients hub.
+- Tap from QUICK ACTIONS button → setView to the appropriate hub
+  → JSX renders → back button returns to home.
+
+### What stayed inline (per @maaiz)
+
+- YOUR SPLIT (day cards)
+- SAVED ROUTINES
+- MY EXERCISES (trainer custom exercises)
+- All the energy/pro-tip cards above YOUR SPLIT
+
+Home is now: welcome card → energy/tip/recap → YOUR SPLIT →
+SAVED ROUTINES → (trainer LEADERBOARD summary) → MY EXERCISES
+(trainer) → QUICK ACTIONS (5 buttons for trainers, 2-3 for
+athletes).
+
+(qa: home-hub-consolidation)
+
+---
+
 ## Feat · 2026-05-22 — Contributors leaderboard + soft attribution for anonymous QA (qa: contributions-leaderboard, amanii-attribution)
 
 @maaiz: "Amanii who's user wasn't logged in when doing the QA can

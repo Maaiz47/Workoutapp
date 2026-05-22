@@ -2092,6 +2092,30 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     },
     {
+      "id": "home-hub-consolidation",
+      "title": "Home dashboard cleanup — Leaderboards/Groups/Clients as nav buttons",
+      "area": "Home",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass home-hub-consolidation",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open the app to home as an ATHLETE (non-trainer).",
+        "Scroll to the bottom QUICK ACTIONS section. Verify 3 buttons in the 2-col grid: 💬 Messages, 📊 Progress, 🏆 Leaderboards.",
+        "Verify no inline GROUPS or MY CLIENTS or GLOBAL RANKINGS sections appear on home (they're behind buttons now).",
+        "Tap 🏆 Leaderboards. Verify GlobalLeaderboardView opens with athlete/trainer tabs and lens picker. Back button returns to home; swipe-back also works.",
+        "Log out, log in as a TRAINER. Open home. Verify QUICK ACTIONS shows 4 buttons: 💬 Messages, 📊 Progress, 🏆 Leaderboards, 🏝️ Groups, 👥 Clients (5 if you want to be precise — Groups + Clients are both trainer-only).",
+        "Verify the Clients button shows a count badge in the top-right when you have ≥ 1 client.",
+        "Tap 🏝️ Groups. Verify the full groups view opens with header '← Back · GROUPS'. Inside, you see your trainer-side group management UI: invites, member lists, group leaderboard with the 4 view modes (sessions/weight/bf-change/bf-now), group workout setup, group challenges. All the inline state (active group expand, workout cache, challenges cache) should still work.",
+        "From within a group, tap into a member to see their detail view. Verify the navigation works as before.",
+        "Tap ← Back. Verify return to home. Try swipe-back too — also returns to home.",
+        "Tap 👥 Clients. Verify the clients view opens with header '← Back · CLIENTS'. The trainer's client roster + add-client search still work.",
+        "Tap a client. Verify clientDetail view opens. Back/swipe-back from clientDetail returns to clientsHub (NOT home directly), so users can navigate clients sequentially.",
+        "Saved Routines + My Exercises (trainer) sections should STILL be inline on home — per the user's request, those didn't get moved behind buttons."
+      ],
+      "notes": "[2026-05-22 <sha7>] Slice 1/N: consolidated three inline home sections behind nav buttons. JSX was lifted into new view branches (groupsHub, clientsHub) — state lives on HomePage so closures work unchanged. Athletes were already non-participants in the inline GROUPS section (pre-existing trainer-only gate), so Groups button stays trainer-only for now. If athlete-members of groups need a view of their groups, that's a follow-up (athletes can currently access via the trainer's invite flow). Next slices: athlete-side groups view, maybe a unified GROUPS+CONTRIBUTIONS tab inside Leaderboards."
+    },
+    {
       "id": "contributions-leaderboard",
       "title": "Contributors leaderboard — credits surface for asset / QA / code / design contributions",
       "area": "Settings",
