@@ -6151,37 +6151,85 @@ function HomePage() {
 
   // ─── LOADING ────────────────────────────────────────────────────────
   if (authLoading || !splashDone) return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", position: "relative", overflow: "hidden", background: "#09090f" }}>
-      {/* Background gym image — very dark */}
-      <img src="/ai/home-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.13, filter: "blur(3px) saturate(0.6)", pointerEvents: "none", zIndex: 0 }} />
-      {/* Vignette overlay */}
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 30%, rgba(9,9,15,0.85) 100%)", pointerEvents: "none", zIndex: 0 }} />
-      {/* Single ambient glow */}
-      <div style={{ position: "absolute", top: "42%", left: "50%", transform: "translate(-50%,-50%)", width: "70vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.1) 0%, transparent 65%)", pointerEvents: "none", zIndex: 0 }} />
+    <div style={{ minHeight: "100dvh", position: "relative", overflow: "hidden", background: "#000" }}>
+      {/* Full-bleed hero image with slow camera drift. Falls back to
+          the dim gym photo if the new splash-hero asset isn't
+          uploaded yet. (qa: splash-polish) */}
+      <div className="splash-camera-drift" style={{ position: "absolute", inset: -16, zIndex: 0 }}>
+        <img
+          src="/ai/splash-hero.png"
+          alt=""
+          aria-hidden
+          onError={(e) => {
+            const img = e.target as HTMLImageElement;
+            img.onerror = null;
+            img.src = "/ai/home-hero.jpg";
+            img.style.opacity = "0.15";
+            img.style.filter = "blur(3px) saturate(0.6)";
+          }}
+          style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.85, animation: "fadeIn 0.6s ease both" }}
+        />
+      </div>
 
-      <div style={{ textAlign: "center", zIndex: 1 }}>
-        {/* BarbellMark */}
-        <div style={{ marginBottom: 18, animation: "fadeIn 0.4s ease both" }}>
-          <BarbellMark width={210} delay={0.05} loop={7000} />
-        </div>
-        {/* Logo + one-shot impact effects */}
+      {/* Layered vignettes — strong edges so logo + tagline read
+          cleanly over the rich hero. Top + bottom gradients give
+          text areas extra contrast. */}
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 25%, rgba(0,0,0,0.55) 95%)", pointerEvents: "none", zIndex: 1 }} />
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "38%", background: "linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%)", pointerEvents: "none", zIndex: 1 }} />
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "32%", background: "linear-gradient(0deg, rgba(0,0,0,0.75) 0%, transparent 100%)", pointerEvents: "none", zIndex: 1 }} />
+      {/* Brand-red ambient glow over the bar centre */}
+      <div style={{ position: "absolute", top: "55%", left: "50%", transform: "translate(-50%,-50%)", width: "82vw", height: "82vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.08) 0%, transparent 60%)", pointerEvents: "none", zIndex: 1 }} />
+
+      {/* Particles — dust motes drifting up. Randomised so each frame
+          differs. 10 is enough for atmospheric without distraction. */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 2 }}>
+        {Array.from({ length: 10 }).map((_, i) => {
+          const left = 8 + (i * 9.1) % 84;            // even-ish horizontal spread
+          const dur = 7 + ((i * 1.7) % 6);             // 7-13s
+          const drift = ((i % 4) - 2) * 8;             // ±8-16px horizontal drift
+          const delay = -((i * 1.9) % 9);              // negative delay so particles are mid-flight on first paint
+          const size = 2 + (i % 3);
+          return (
+            <span
+              key={i}
+              className="splash-particle"
+              style={{
+                left: `${left}%`,
+                bottom: "-2vh",
+                width: size,
+                height: size,
+                ['--dur' as any]: `${dur}s`,
+                ['--drift' as any]: `${drift}px`,
+                animationDelay: `${delay}s`,
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {/* Logo block — sits in the upper third so the hero's barbell
+          stays visible in the middle. */}
+      <div style={{ position: "absolute", top: "16vh", left: 0, right: 0, textAlign: "center", zIndex: 3 }}>
         <div style={{ position: "relative", display: "inline-block" }}>
-          {/* Impact glow — fires once when logo lands */}
-          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "90vw", height: "90vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.2) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 0.85s both", pointerEvents: "none" }} />
-          {/* Shockwave ring 1 */}
+          {/* Impact glow — fires once on land */}
+          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "95vw", height: "70vw", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,107,0.25) 0%, transparent 60%)", animation: "impactGlow 1.5s ease-out 0.85s both", pointerEvents: "none" }} />
+          {/* Shockwave rings */}
           <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "2px solid rgba(255,107,107,0.8)", animation: "shockwave 1s cubic-bezier(0.1,0.6,0.2,1) 0.85s both", pointerEvents: "none" }} />
-          {/* Shockwave ring 2 */}
           <div style={{ position: "absolute", left: "50%", top: "50%", marginLeft: -25, marginTop: -25, width: 50, height: 50, borderRadius: "50%", border: "1px solid rgba(255,107,107,0.4)", animation: "shockwave 1.4s cubic-bezier(0.1,0.6,0.2,1) 1.05s both", pointerEvents: "none" }} />
-          {/* Logo */}
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 68, fontWeight: 700, letterSpacing: 12, overflow: "visible", lineHeight: 1.1, position: "relative" }}>
-            <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+          {/* IRONLOG with 3D extrude + sweep highlight */}
+          <div className="splash-logo-sweep" style={{ position: "relative", display: "inline-block", padding: "4px 18px" }}>
+            <div className="splash-logo-3d" style={{ fontFamily: "'Space Mono', monospace", fontSize: 68, fontWeight: 700, letterSpacing: 12, overflow: "visible", lineHeight: 1.1, position: "relative" }}>
+              <span className="logo-iron" style={{ color: "#fff" }}>IRON</span><span className="logo-log" style={{ color: "#FF6B6B" }}>LOG</span>
+            </div>
           </div>
         </div>
         {/* Floor beam */}
-        <div style={{ width: 260, height: 1, margin: "8px auto 0", background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.9), transparent)", animation: "floorBeam 1.3s ease-out 0.85s both" }} />
-        {/* Tagline */}
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", letterSpacing: 7, fontWeight: 400, marginTop: 20, marginBottom: 56, animation: "fadeIn 0.5s ease 1.25s both", fontFamily: "'Space Mono', monospace" }}>LIFT · TRACK · PROGRESS</div>
-        {/* Loading bar */}
+        <div style={{ width: 260, height: 1, margin: "10px auto 0", background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.9), transparent)", animation: "floorBeam 1.3s ease-out 0.85s both" }} />
+      </div>
+
+      {/* Bottom block — tagline + shimmer loading bar */}
+      <div style={{ position: "absolute", bottom: "11vh", left: 0, right: 0, textAlign: "center", zIndex: 3 }}>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", letterSpacing: 7, fontWeight: 400, marginBottom: 22, animation: "fadeIn 0.5s ease 1.25s both", fontFamily: "'Space Mono', monospace", textShadow: "0 1px 8px rgba(0,0,0,0.7)" }}>LIFT · TRACK · PROGRESS</div>
         <div style={{ width: 160, height: 1.5, borderRadius: 2, background: "linear-gradient(90deg, transparent, rgba(255,107,107,0.6), transparent)", backgroundSize: "200% 100%", animation: "shimmer 1.4s linear infinite", margin: "0 auto" }} />
       </div>
     </div>

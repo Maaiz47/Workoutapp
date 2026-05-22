@@ -2,6 +2,64 @@
 
 ---
 
+## Polish · 2026-05-22 — Splash screen: 3D logo + light sweep + particles + camera drift (qa: splash-polish)
+
+@maaiz: "I really want a better modern aesthetic 3D splash screen
+still with animations. Can generate some stuff if you have any
+great ideas." → went with Direction A (cinematic chrome barbell).
+
+User generated a stunning 1080×1920 photoreal hero — chrome
+Olympic bar with red-stripe bumper plates, dramatic single-source
+light beam from upper-right, deep matte-black void with subtle
+atmospheric haze. Drop at `/public/ai/splash-hero.png` and the
+splash picks it up; falls back to the existing dim `home-hero.jpg`
+if the file isn't there yet.
+
+### Polish landed in the splash component
+
+- **Full-bleed hero image** at 0.85 opacity, replacing the
+  near-invisible 0.13-opacity gym photo backdrop. Wrapped in
+  `.splash-camera-drift` so the image subtly drifts ±0.5% scale
+  + translation over a 14s ease cycle — subliminal "the camera
+  is alive" feel.
+- **3D extruded IRONLOG logo** — `.splash-logo-3d` adds multi-
+  layer text-shadows that create chrome depth on the letters
+  without any 3D library. White IRON + red LOG read like
+  iron-stamped plate text.
+- **Light sweep** — `.splash-logo-sweep` slides a diagonal
+  highlight across the logo letters once per 3.6s loop. Polished-
+  surface-catching-the-light vibe.
+- **Particle drift** — 10 dust motes float up from below at
+  randomised speeds and lateral drifts. CSS-only, no library.
+  Each particle has slight red+white box-shadow so they read on
+  the dark hero.
+- **Layered vignettes** — radial centre-to-edge darkening + top
+  gradient (logo legibility) + bottom gradient (tagline
+  legibility). Strong enough that text reads cleanly over the
+  rich hero.
+- **Logo composition reflowed** — moved to the upper third of
+  the viewport so the hero image's barbell stays visible in the
+  middle. Tagline + shimmer loading bar pinned to bottom 11vh.
+- **BarbellMark removed** from the splash — the hero image is now
+  the barbell. Component still exists for other surfaces; this
+  just stops it competing with the new background.
+
+### Animations active during the splash (now)
+
+1. `splashCameraDrift` — 14s ambient image drift
+2. `logoFall` — IRON + LOG letters bounce in
+3. `impactGlow` — red flash on logo land
+4. `shockwave` — two expanding rings from the impact point
+5. `floorBeam` — horizontal light line under the logo
+6. `splashLogoSweep` — diagonal highlight sliding across letters
+7. `splashParticleDrift` — 10 dust motes drifting up
+8. `fadeIn` — tagline fades in after the impact
+9. `shimmer` — loading bar gradient continuously sweeps
+
+(qa: splash-polish)
+
+---
+
 ## Polish · 2026-05-22 — Home hub: single-row + contributors on /qa (qa: home-hub-singleline, contributions-on-qa-board)
 
 @maaiz: "The quick actions need to be dynamically changing to fit

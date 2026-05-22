@@ -2092,6 +2092,30 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     },
     {
+      "id": "splash-polish",
+      "title": "Splash screen — cinematic hero, 3D logo, light sweep, particles, camera drift",
+      "area": "Onboarding",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass splash-polish",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Cold-launch the app (clear cache / reinstall PWA / hard refresh). Watch the splash for the full ~2s before it auto-dismisses.",
+        "Verify the new full-bleed hero image renders: chrome barbell with red-stripe plates, dramatic light beam from upper-right, dark void. If /public/ai/splash-hero.png hasn't been uploaded yet, the dim home-hero.jpg fallback should render instead — verify the splash still works (no broken-image icon).",
+        "Verify the hero image subtly drifts (scale + translation) over the splash duration — barely perceptible camera-alive feel.",
+        "Verify the IRONLOG logo: white IRON + red LOG with multi-layer text-shadow giving 3D extruded depth.",
+        "Verify the 'IRON' and 'LOG' letters bounce in with the existing logoFall animation (no regression).",
+        "Verify a diagonal highlight slides across the logo letters ~1.3s after mount, then repeats every 3.6s. (Splash dismisses at 2s by default so user sees one full sweep cycle.)",
+        "Verify an impact glow + 2 shockwave rings fire ~0.85s after mount, centred on the logo.",
+        "Verify the red floor-beam light line appears under the logo at the same time.",
+        "Verify 10 small white dust-mote particles drift upward across the screen behind the logo. Each should have a slight red+white halo.",
+        "Verify layered vignettes darken the top and bottom of the viewport so the logo (top) and tagline + shimmer bar (bottom) read cleanly.",
+        "Verify the tagline 'LIFT · TRACK · PROGRESS' is pinned near the bottom (11vh from edge) with the shimmer loading bar below it.",
+        "Image upload: when user drops /public/ai/splash-hero.png (the generated 1080×1920 chrome-barbell hero), verify it auto-appears on next splash without a code change."
+      ],
+      "notes": "[2026-05-22 <sha7>] Direction A shipped: full-bleed cinematic hero with camera drift, 3D extruded logo via multi-layer text-shadow, light sweep highlight, particle drift, layered vignettes. BarbellMark removed from splash (hero image IS the barbell). Existing impact glow + shockwave + floorBeam preserved. Fallback to home-hero.jpg if splash-hero.png isn't uploaded yet — splash never breaks. ~80 LOC of new CSS keyframes + JSX restructure."
+    },
+    {
       "id": "home-hub-singleline",
       "title": "Home hub buttons — single row, centered, no section header",
       "area": "Home",

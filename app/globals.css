@@ -60,6 +60,79 @@ input[type="number"] { -moz-appearance: textfield; }
   100% { opacity: 0; }
 }
 
+/* ── Splash polish — 3D logo, light sweep, particles, camera drift ──── */
+
+/* Multi-layer text-shadow gives the IRONLOG letters a chrome/iron
+   extruded depth without a 3D library. Tuned to match the chrome
+   shaft + red plate accent in the hero image. */
+.splash-logo-3d {
+  text-shadow:
+    0 1px 0 rgba(255,255,255,0.18),
+    0 2px 0 rgba(0,0,0,0.55),
+    0 3px 0 rgba(0,0,0,0.50),
+    0 4px 0 rgba(0,0,0,0.42),
+    0 5px 0 rgba(0,0,0,0.32),
+    0 6px 14px rgba(0,0,0,0.7),
+    0 0 38px rgba(255,107,107,0.32);
+}
+
+/* Light sweep — a diagonal highlight slides across the logo once per
+   loop, like a polished surface catching a moving light. */
+.splash-logo-sweep {
+  position: relative;
+  overflow: hidden;
+}
+.splash-logo-sweep::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 70%;
+  height: 100%;
+  background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
+  transform: skewX(-20deg);
+  animation: splashLogoSweep 3.6s ease-in-out 1.3s infinite;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+@keyframes splashLogoSweep {
+  0%   { left: -120%; }
+  55%  { left: 130%; }
+  100% { left: 130%; }
+}
+
+/* Dust motes drifting upward behind the logo. Each particle gets
+   randomised --dur and --drift values inline so the swarm looks
+   organic rather than synced. */
+@keyframes splashParticleDrift {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  12%  { opacity: 0.65; }
+  88%  { opacity: 0.65; }
+  100% { transform: translateY(-110vh) translateX(var(--drift, 12px)); opacity: 0; }
+}
+.splash-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.55);
+  box-shadow: 0 0 5px rgba(255,255,255,0.4), 0 0 12px rgba(255,107,107,0.18);
+  animation: splashParticleDrift var(--dur, 9s) linear infinite;
+  will-change: transform, opacity;
+}
+
+/* Slow ambient camera drift — the hero image shifts ±0.5% with a
+   12s ease cycle. Subliminal "the camera is alive" effect. */
+@keyframes splashCameraDrift {
+  0%   { transform: scale(1.04) translate(-0.4%, -0.5%); }
+  50%  { transform: scale(1.06) translate(0.5%, 0.3%); }
+  100% { transform: scale(1.04) translate(-0.4%, -0.5%); }
+}
+.splash-camera-drift {
+  animation: splashCameraDrift 14s ease-in-out infinite;
+  will-change: transform;
+}
+
 @keyframes bbBarGrow {
   from { transform: scaleX(0); opacity: 0; }
   to   { transform: scaleX(1); opacity: 1; }
