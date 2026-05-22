@@ -2,6 +2,34 @@
 
 ---
 
+## Fix · 2026-05-21 — Volume × Muscle scales bodyweight by movement load coefficient (qa: progress-volume-heatmap)
+
+Crediting full bodyweight for every bodyweight rep was wildly over-
+counting — a push-up moves the upper-body portion (~65%), not your
+whole mass; a hanging leg raise moves the legs (~40%).
+
+- New `BW_LOAD_PCT` table in `lib/performance.ts` with per-exercise
+  coefficients drawn from rough sports-science approximations
+  (push-up 0.65, decline push-up 0.75, pull-up/dip 1.0, inverted
+  row 0.55, bodyweight squat 0.75, lunge 0.75, hanging leg raise
+  0.4, crunch 0.15, bicycle crunch 0.2, mountain climber 0.3,
+  burpee 0.7, plank 0, …).
+- New exported helper `bodyweightLoadPct(exId, exName)` — tries
+  the id-keyed table first, then a name-based fuzzy match so
+  default-plan short ids like `a7` (Hanging Leg Raises) resolve
+  to 0.4 via the name lookup. Conservative 0.5 default for
+  unknown bodyweight movements.
+- `volumeByMuscle` now takes an optional `exerciseNames: Record<
+  string, string>` map and scales rawWeight=0 sets by
+  `bodyweightKg × bodyweightLoadPct(...)`. VolumeHeatmap builds
+  the name map alongside the muscle map and passes both.
+
+So 3×15 hanging leg raises at 80 kg bodyweight now credit core
+with `15 × (80 × 0.4) × 3 = 1,440 kg-reps` (instead of 3,600 with
+the prior naive 100% credit, or 0 with the original silent skip).
+
+---
+
 ## Feature · 2026-05-21 — Trainer ⇄ Client Stats tab + form previews on warmups/cooldowns/stretches (qa: tier-trainer-keeps-athlete, workout-warmup, settings-identity-tiers)
 
 ### Trainer client view — new STATS tab

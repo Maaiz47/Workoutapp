@@ -1072,19 +1072,24 @@ function VolumeHeatmap({ history, customPlan, bodyweightKg }: { history: Record<
   //      lookupExMuscles(name) — fuzzy name match into the library.
   //   3. customPlan exercises by exerciseId → same resolver as a
   //      safety net for plans whose ids drifted from the library.
-  const muscleMap = useMemo(() => {
+  const { muscleMap, nameMap } = useMemo(() => {
     const m: Record<string, string[]> = {};
+    const names: Record<string, string> = {};
     // 1. Library IDs (real ids like "barbell-bench-press").
     for (const ex of (EXERCISES as any[])) {
       if (ex.id && Array.isArray(ex.primaryMuscles)) m[ex.id] = ex.primaryMuscles;
+      if (ex.id && ex.name) names[ex.id] = ex.name;
     }
     // 2. Default-plan short IDs.
     for (const day of WORKOUT_DATA) {
       for (const section of day.sections) {
         for (const ex of section.exercises as any[]) {
-          if (!ex.id || m[ex.id]) continue;
-          const muscles = lookupExMuscles(ex.name).muscles;
-          if (muscles.length > 0) m[ex.id] = muscles;
+          if (!ex.id) continue;
+          if (!m[ex.id]) {
+            const muscles = lookupExMuscles(ex.name).muscles;
+            if (muscles.length > 0) m[ex.id] = muscles;
+          }
+          if (!names[ex.id] && ex.name) names[ex.id] = ex.name;
         }
       }
     }
@@ -1093,20 +1098,23 @@ function VolumeHeatmap({ history, customPlan, bodyweightKg }: { history: Record<
       for (const day of customPlan as any[]) {
         for (const ex of (day.exercises ?? []) as any[]) {
           const id = ex.exerciseId ?? ex.id;
-          if (!id || m[id]) continue;
-          if (Array.isArray(ex.primaryMuscles) && ex.primaryMuscles.length > 0) {
-            m[id] = ex.primaryMuscles;
-          } else {
-            const muscles = lookupExMuscles(ex.name ?? "").muscles;
-            if (muscles.length > 0) m[id] = muscles;
+          if (!id) continue;
+          if (!m[id]) {
+            if (Array.isArray(ex.primaryMuscles) && ex.primaryMuscles.length > 0) {
+              m[id] = ex.primaryMuscles;
+            } else {
+              const muscles = lookupExMuscles(ex.name ?? "").muscles;
+              if (muscles.length > 0) m[id] = muscles;
+            }
           }
+          if (!names[id] && ex.name) names[id] = ex.name;
         }
       }
     }
-    return m;
+    return { muscleMap: m, nameMap: names };
   }, [customPlan]);
   const [windowDays, setWindowDays] = useState<7 | 14 | 30>(14);
-  const totals = useMemo(() => volumeByMuscle(history, muscleMap, windowDays, bodyweightKg), [history, muscleMap, windowDays, bodyweightKg]);
+  const totals = useMemo(() => volumeByMuscle(history, muscleMap, windowDays, bodyweightKg, nameMap), [history, muscleMap, windowDays, bodyweightKg, nameMap]);
   const muscles = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "calves", "core"];
   const maxV = Math.max(...muscles.map(m => totals[m] ?? 0), 1);
   return (

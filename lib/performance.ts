@@ -140,6 +140,107 @@ export function shouldSuggestDeload(opts: {
   return sessionsSince >= sessionThreshold;
 }
 
+// Per-exercise bodyweight load coefficient (0-1). Multiplied against
+// the user's bodyweight to estimate the actual load the muscle
+// moved on a bodyweight rep. Numbers are rough sports-science
+// approximations — pushup doesn't move your full body, just the
+// upper-body portion above the toes; hanging leg raise moves
+// roughly the legs (~40% of total mass), etc.
+//
+// (qa: maaiz — "Core muscle x volume using full bodyweight doesn't
+// seem right. Maybe it should use a portion of bodyweight if
+// entered on the app based on the movement")
+const BW_LOAD_PCT: Record<string, number> = {
+  // Upper-body push / pull
+  pushups: 0.65,
+  "incline-pushup": 0.5,
+  "decline-pushup": 0.75,
+  "diamond-pushups": 0.7,
+  pullup: 1.0,
+  chinup: 1.0,
+  "neutral-grip-pullup": 1.0,
+  "wide-grip-pullup": 1.0,
+  "australian-pullup": 0.55,
+  "inverted-row": 0.55,
+  dip: 1.0,
+  "bench-dip": 0.45,
+  burpee: 0.7,
+  // Legs
+  "bodyweight-squat": 0.75,
+  "bw-squat": 0.75,
+  "wu-bw-squat": 0.75,
+  "bulgarian-split-squat": 0.85,
+  "split-squat": 0.85,
+  lunge: 0.75,
+  "walking-lunge": 0.75,
+  "reverse-lunge": 0.75,
+  "step-up": 0.6,
+  "pistol-squat": 0.95,
+  "jump-squat": 0.85,
+  "calf-raise": 0.85,
+  "single-leg-calf-raise": 0.95,
+  "glute-bridge": 0.5,
+  "single-leg-glute-bridge": 0.6,
+  "donkey-kick": 0.3,
+  "wall-sit": 0.55,
+  // Core
+  "hanging-leg-raise": 0.4,
+  "leg-raises": 0.4,
+  "lying-leg-raise": 0.4,
+  "toes-to-bar": 0.45,
+  crunches: 0.15,
+  "bicycle-crunch": 0.2,
+  "russian-twist": 0.25,
+  "v-up": 0.4,
+  "sit-up": 0.4,
+  situp: 0.4,
+  "mountain-climbers": 0.3,
+  "flutter-kicks": 0.3,
+  "scissor-kicks": 0.3,
+  // Isometric — no per-rep load, skip
+  plank: 0,
+  "side-plank": 0,
+  "wu-plank": 0,
+};
+
+// Resolve a bodyweight load coefficient (0-1) for an exercise. Tries
+// id first, then a name-based fuzzy match. Falls back to 0.5 (a
+// conservative mid-point) for unknown bodyweight movements.
+export function bodyweightLoadPct(exId?: string, exName?: string): number {
+  if (exId && BW_LOAD_PCT[exId] !== undefined) return BW_LOAD_PCT[exId];
+  if (exName) {
+    const n = exName.toLowerCase();
+    if (n.includes("pull-up") || n.includes("pullup") || n.includes("chin-up") || n.includes("chinup")) return 1.0;
+    if (n.includes("hanging leg")) return 0.4;
+    if (n.includes("leg raise")) return 0.4;
+    if (n.includes("toes to bar") || n.includes("knees to elbow")) return 0.45;
+    if (n.includes("dip")) return n.includes("bench") ? 0.45 : 1.0;
+    if (n.includes("push-up") || n.includes("pushup") || n.includes("push up")) return n.includes("incline") ? 0.5 : n.includes("decline") ? 0.75 : 0.65;
+    if (n.includes("burpee")) return 0.7;
+    if (n.includes("pistol")) return 0.95;
+    if (n.includes("bulgarian") || n.includes("split squat")) return 0.85;
+    if (n.includes("jump squat")) return 0.85;
+    if (n.includes("squat") && (n.includes("bodyweight") || n.includes("air"))) return 0.75;
+    if (n.includes("lunge")) return 0.75;
+    if (n.includes("step-up") || n.includes("step up")) return 0.6;
+    if (n.includes("calf raise") || n.includes("calf-raise")) return 0.85;
+    if (n.includes("bridge")) return 0.5;
+    if (n.includes("crunch") && n.includes("bicycle")) return 0.2;
+    if (n.includes("crunch")) return 0.15;
+    if (n.includes("sit-up") || n.includes("situp") || n.includes("sit up")) return 0.4;
+    if (n.includes("v-up") || n.includes("v up")) return 0.4;
+    if (n.includes("russian twist")) return 0.25;
+    if (n.includes("flutter") || n.includes("scissor kick")) return 0.3;
+    if (n.includes("mountain climber")) return 0.3;
+    if (n.includes("plank")) return 0;
+    if (n.includes("wall sit")) return 0.55;
+    if (n.includes("inverted row") || n.includes("australian")) return 0.55;
+  }
+  // Unknown bodyweight movement — conservative ~50% so it shows
+  // SOMETHING (won't over-count) but isn't wildly off.
+  return 0.5;
+}
+
 // Aggregate volume by muscle group across the user's history. Returns a
 // Record keyed by muscle group, where each value is the total kg-reps
 // lifted that hit that primary muscle in the given window. Walks every
@@ -147,17 +248,21 @@ export function shouldSuggestDeload(opts: {
 // volume to each of them.
 //
 // `bodyweightKg` lets the caller pass the user's current body weight
-// so bodyweight movements (where the logged weight is 0 — e.g.
-// hanging leg raises, pull-ups) still contribute volume. Without it,
-// a tester who hammers core every session via HLR would see "core
-// skipped" because 0 × reps = 0. (qa: progress-volume-heatmap —
-// maaiz: "I did not skip core - I do hanging leg raises every
-// session but core says skipped")
+// so bodyweight movements still contribute volume — but ONLY the
+// portion that the movement actually moves (`bodyweightLoadPct`).
+// `exerciseNames` is an optional id→name map so the load-pct resolver
+// can fuzzy-match WORKOUT_DATA short ids like `a7` → "Hanging Leg
+// Raises" → 0.4. Without it, unknown ids fall back to 0.5.
+//
+// (qa: progress-volume-heatmap — "I did not skip core - I do
+// hanging leg raises every session" + "Maybe it should use a portion
+// of bodyweight if entered on the app based on the movement")
 export function volumeByMuscle(
   history: Record<string, any[]>,
   exerciseMuscles: Record<string, string[]>,
   windowDays: number = 14,
   bodyweightKg: number = 0,
+  exerciseNames: Record<string, string> = {},
 ): Record<string, number> {
   const cutoff = new Date(Date.now() - windowDays * 86400000).toISOString().slice(0, 10);
   const totals: Record<string, number> = {};
@@ -176,12 +281,17 @@ export function volumeByMuscle(
         const muscles = exerciseMuscles[exKey] ?? [];
         const reps = s.reps ?? 0;
         const rawWeight = s.weight ?? 0;
-        // Bodyweight fallback: zero added weight + positive reps =
-        // assume user moved their bodyweight. Use a conservative
-        // default (70 kg) when we don't know the user's actual mass.
+        // Bodyweight fallback. Zero added weight + positive reps =
+        // bodyweight movement → scale the user's actual mass (or
+        // 70 kg fallback) by the movement's load coefficient
+        // (pushup 0.65, leg raise 0.4, pullup 1.0, etc) so the
+        // contribution to volume reflects the portion of body
+        // actually being moved, not the full body mass.
         const effectiveWeight = rawWeight > 0
           ? rawWeight
-          : (reps > 0 ? Math.max(1, bodyweightKg || 70) : 0);
+          : reps > 0
+            ? Math.max(0, (bodyweightKg || 70) * bodyweightLoadPct(exKey, exerciseNames[exKey]))
+            : 0;
         const vol = effectiveWeight * reps;
         for (const m of muscles) {
           totals[m] = (totals[m] ?? 0) + vol;
