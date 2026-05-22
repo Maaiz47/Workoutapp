@@ -11966,114 +11966,119 @@ function HomePage() {
                       }
                     }}
                       style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: (allDone || wuDone) ? 0.3 : 1, cursor: "pointer", transition: "opacity 0.3s", borderLeft: ex.note === "HIIT circuit" ? "3px solid rgba(255,140,66,0.7)" : undefined }}>
-                      {/* Top row: image + name + completion marker. Action
-                          buttons (FORM / EDIT / DROP SET / SUPERSET) live
-                          on their own row below so the name is never
-                          truncated — they used to compete on a single
-                          row, ellipsis-ing long names like "Cable
-                          Crossover" to "Cabl…". */}
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                        {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? (
-                          <img src={tu[0]} alt="" onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }}
-                            style={{ width: 38, height: 38, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "#1a1a1a", cursor: "pointer" }}
-                            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                        ) : null; })()}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                            <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", lineHeight: 1.25, wordBreak: "break-word", flex: "1 1 auto", minWidth: 0 }}>{ex.name}</span>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                              {(allDone || wuDone) && <span style={{ fontSize: 16, color: "#2ecc71" }}>✓</span>}
-                              {!trackable && !wuDone && (
-                                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                                  {wuSetsCount > 1
-                                    ? `${wuDoneCount + wuSkipCount}/${wuSetsCount} · TAP`
-                                    : "TAP"}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {/* sets × reps line directly under the name */}
-                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 3, fontWeight: 300 }}>
-                            {trackable ? `${ex.sets} × ${ex.reps}` : ex.reps}{ex.rest ? ` · ${ex.rest}s rest` : ""}
-                          </div>
-                        </div>
-                      </div>
-                      {/* Status chips row — only renders if at least one chip applies. */}
+                      {/* Compact row. Name on its own line, metadata (sets ×
+                          reps · last session · status chips) on a single
+                          dim line beneath, action buttons (FORM / EDIT /
+                          DROP / SUPERSET) ONLY when the card is expanded
+                          — collapsed cards are name + meta + set chips
+                          so the list scans cleanly. The thumbnail itself
+                          opens the FORM modal so FORM-while-collapsed
+                          isn't lost. (qa: workout-set-logging) */}
                       {(() => {
                         const lib = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
                         const missing = lib ? missingEquipmentFor(lib as any, (ob.equipment ?? []) as any) : [];
                         const allMuscles = lib ? [...(lib.primaryMuscles ?? []), ...(lib.secondaryMuscles ?? [])] : [];
                         const hit = lib ? injuriesFor(allMuscles, readInjuries()) : [];
-                        const hasChips = ex.type || exIsDropSet || missing.length > 0 || hit.length > 0 || ex.note === "HIIT circuit";
-                        if (!hasChips) return null;
                         return (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-                            {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.7, letterSpacing: 1 }}>{ex.type.toUpperCase()}</span>}
-                            {exIsDropSet && <span style={{ fontSize: 9, fontWeight: 700, color: "#FFE66D", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>🔻 DROP SET</span>}
-                            {missing.length > 0 && (
-                              <button
-                                onClick={(e: any) => { e.stopPropagation(); setSubModal({ exerciseId: ex.id, name: ex.name, missing }); }}
-                                style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.1)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
-                              >⇄ NEED {missing[0].toUpperCase().replace("_", " ")}</button>
-                            )}
-                            {hit.length > 0 && (
-                              <button
-                                onClick={(e: any) => { e.stopPropagation(); setSubModal({ exerciseId: ex.id, name: ex.name, missing: [`INJURED ${hit[0].muscle.toUpperCase()}`] }); }}
-                                title={`Hits your injured ${hit[0].muscle}. Tap to swap.`}
-                                style={{ fontSize: 9, fontWeight: 700, color: "#FF6B6B", background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.35)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
-                              >🤕 INJURY · {hit[0].muscle.toUpperCase()}</button>
-                            )}
-                            {ex.note === "HIIT circuit" && <span style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT</span>}
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                            {(() => { const tu = getExerciseImageUrls(ex.id, ex.name); return tu ? (
+                              <img src={tu[0]} alt="" onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }}
+                                style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "#1a1a1a", cursor: "pointer" }}
+                                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                            ) : null; })()}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              {/* Name + completion marker. Name gets the
+                                  full width minus a tiny ✓/TAP cluster. */}
+                              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                                <span style={{ fontSize: 15, fontWeight: 600, color: "#fff", lineHeight: 1.2, wordBreak: "break-word", flex: "1 1 auto", minWidth: 0 }}>{ex.name}</span>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                  {(allDone || wuDone) && <span style={{ fontSize: 16, color: "#2ecc71" }}>✓</span>}
+                                  {!trackable && !wuDone && (
+                                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                                      {wuSetsCount > 1
+                                        ? `${wuDoneCount + wuSkipCount}/${wuSetsCount} · TAP`
+                                        : "TAP"}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {/* Meta line — sets × reps, last session,
+                                  and all status chips collapsed into one
+                                  dim row. */}
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>
+                                <span>{trackable ? `${ex.sets} × ${ex.reps}` : ex.reps}{ex.rest ? ` · ${ex.rest}s` : ""}</span>
+                                {trackable && lw > 0 && <span style={{ color: "rgba(255,255,255,0.35)" }}>· last {lw}kg×{lr || "?"}</span>}
+                                {ex.type && <span style={{ fontSize: 9, fontWeight: 600, color: bc[ex.type] || "#888", opacity: 0.85, letterSpacing: 1 }}>· {ex.type.toUpperCase()}</span>}
+                                {exIsDropSet && <span style={{ fontSize: 9, fontWeight: 700, color: "#FFE66D", background: "rgba(255,230,109,0.12)", border: "1px solid rgba(255,230,109,0.25)", borderRadius: 4, padding: "0 5px", letterSpacing: 1 }}>🔻 DROP</span>}
+                                {missing.length > 0 && (
+                                  <button
+                                    onClick={(e: any) => { e.stopPropagation(); setSubModal({ exerciseId: ex.id, name: ex.name, missing }); }}
+                                    style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.1)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "0 5px", letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                                  >⇄ NEED {missing[0].toUpperCase().replace("_", " ")}</button>
+                                )}
+                                {hit.length > 0 && (
+                                  <button
+                                    onClick={(e: any) => { e.stopPropagation(); setSubModal({ exerciseId: ex.id, name: ex.name, missing: [`INJURED ${hit[0].muscle.toUpperCase()}`] }); }}
+                                    title={`Hits your injured ${hit[0].muscle}. Tap to swap.`}
+                                    style={{ fontSize: 9, fontWeight: 700, color: "#FF6B6B", background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.35)", borderRadius: 4, padding: "0 5px", letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                                  >🤕 {hit[0].muscle.toUpperCase()}</button>
+                                )}
+                                {ex.note === "HIIT circuit" && <span style={{ fontSize: 9, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "0 5px", letterSpacing: 1 }}>⚡ HIIT</span>}
+                              </div>
+                              {ex.note && ex.note !== "HIIT circuit" && <div style={{ fontSize: 11, color: "#f0c040", marginTop: 4, fontStyle: "italic", opacity: 0.85 }}>{ex.note}</div>}
+                            </div>
                           </div>
                         );
                       })()}
-                      {ex.note && ex.note !== "HIIT circuit" && <div style={{ fontSize: 11, color: "#f0c040", marginTop: 5, fontStyle: "italic", opacity: 0.8 }}>{ex.note}</div>}
-                      {trackable && lw > 0 && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 6, fontFamily: "'Space Mono', monospace" }}>Last session: {lw}kg × {lr || "?"}</div>}
-                      {/* Action buttons on their own row so the name has
-                          room to breathe. Wraps if many buttons present. */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                        <button onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }} style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>FORM</button>
-                        {trackable && done > 0 && (
-                          <button onClick={(e) => { e.stopPropagation(); openEditModal(ex.id); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>EDIT</button>
-                        )}
-                        {trackable && (() => {
-                          const dsActive = isDropSetMode(ex);
-                          return (
+                      {/* Action buttons appear ONLY when the card is
+                          expanded — collapsed cards are clean. FORM
+                          tap target is still on the thumbnail in
+                          collapsed mode. */}
+                      {isExp && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginTop: 8, justifyContent: "flex-end" }}>
+                          <button onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }} style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>FORM</button>
+                          {trackable && done > 0 && (
+                            <button onClick={(e) => { e.stopPropagation(); openEditModal(ex.id); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>EDIT</button>
+                          )}
+                          {trackable && (() => {
+                            const dsActive = isDropSetMode(ex);
+                            return (
+                              <button onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDay(d => !d ? d : ({
+                                  ...d,
+                                  sections: d.sections.map(s => ({
+                                    ...s,
+                                    exercises: s.exercises.map(x => x.id !== ex.id ? x : { ...x, dropSet: !dsActive, dropSets: 0 })
+                                  }))
+                                }));
+                              }} title={dsActive ? "Drop set mode is ON for this exercise — tap to turn off. Each set will run as a chain: go to failure, drop the weight, again, until you tap DONE." : "Make this a drop set exercise — go to failure, drop the weight, again, until you're done. No rest between drops."} style={{ background: dsActive ? "rgba(255,230,109,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${dsActive ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: dsActive ? "#FFE66D" : "rgba(255,255,255,0.35)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                                {dsActive ? "🔻 DROP SET" : "+ DROP SET"}
+                              </button>
+                            );
+                          })()}
+                          {trackable && (!ex.groupId ? (
                             <button onClick={(e) => {
                               e.stopPropagation();
+                              setAddingSupersetForId(ex.id);
+                              setShowSessionExBrowser(true);
+                              setSessionExSearch("");
+                            }} style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 6, color: "#4ECDC4", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>+ SUPERSET</button>
+                          ) : (
+                            <button onClick={(e) => {
+                              e.stopPropagation();
+                              const gid = ex.groupId;
                               setActiveDay(d => !d ? d : ({
                                 ...d,
                                 sections: d.sections.map(s => ({
                                   ...s,
-                                  exercises: s.exercises.map(x => x.id !== ex.id ? x : { ...x, dropSet: !dsActive, dropSets: 0 })
+                                  exercises: s.exercises.map(x => x.groupId === gid ? { ...x, groupId: undefined, groupType: undefined } : x)
                                 }))
                               }));
-                            }} title={dsActive ? "Drop set mode is ON for this exercise — tap to turn off. Each set will run as a chain: go to failure, drop the weight, again, until you tap DONE." : "Make this a drop set exercise — go to failure, drop the weight, again, until you're done. No rest between drops."} style={{ background: dsActive ? "rgba(255,230,109,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${dsActive ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: dsActive ? "#FFE66D" : "rgba(255,255,255,0.35)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                              {dsActive ? "🔻 DROP SET" : "+ DROP SET"}
-                            </button>
-                          );
-                        })()}
-                        {trackable && (!ex.groupId ? (
-                          <button onClick={(e) => {
-                            e.stopPropagation();
-                            setAddingSupersetForId(ex.id);
-                            setShowSessionExBrowser(true);
-                            setSessionExSearch("");
-                          }} style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 6, color: "#4ECDC4", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>+ SUPERSET</button>
-                        ) : (
-                          <button onClick={(e) => {
-                            e.stopPropagation();
-                            const gid = ex.groupId;
-                            setActiveDay(d => !d ? d : ({
-                              ...d,
-                              sections: d.sections.map(s => ({
-                                ...s,
-                                exercises: s.exercises.map(x => x.groupId === gid ? { ...x, groupId: undefined, groupType: undefined } : x)
-                              }))
-                            }));
-                          }} style={{ background: "rgba(255,230,109,0.1)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 6, color: "#FFE66D", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>⟳ UNGROUP</button>
-                        ))}
-                      </div>
+                            }} style={{ background: "rgba(255,230,109,0.1)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 6, color: "#FFE66D", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>⟳ UNGROUP</button>
+                          ))}
+                        </div>
+                      )}
                       {trackable && (
                         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
                           {Array.from({ length: ex.sets }, (_, i) => {

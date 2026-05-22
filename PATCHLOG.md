@@ -2,6 +2,32 @@
 
 ---
 
+## Fix · 2026-05-22 — Tighter active workout row + name always visible (qa: workout-set-logging)
+
+Follow-up to the earlier row de-cramp. @maaiz pointed out
+that even the new layout still felt crowded — buttons stacked
+across every row regardless of whether the user was actively
+logging the exercise. Tightened it up:
+
+- **Name + image + ✓ marker** stay on the top row exactly as
+  before, with `wordBreak: break-word` so long names wrap to a
+  second line instead of truncating.
+- **All metadata + status chips merged onto ONE dim line**
+  under the name: `3 × 12-15 · 40s · last 9.1kg×12 · COMPOUND
+  🔻 DROP ⇄ NEED CABLE 🤕 SHOULDER ⚡ HIIT`. Saves two whole
+  rows per card vs the previous "sets / last / chips on
+  separate lines" layout.
+- **Action buttons (FORM, EDIT, +DROP SET, +SUPERSET) hide
+  when the card is collapsed.** They only appear when you've
+  expanded the exercise you're actively logging. Collapsed
+  cards become title + meta + set chips — a clean scannable
+  list. The thumbnail still opens the FORM modal in collapsed
+  mode so FORM-without-expanding isn't lost.
+- Name font bumped to 15 px / weight 600 from 14 / 500 so the
+  exercise title reads as the primary handle.
+
+---
+
 ## Fix · 2026-05-22 — Active workout sessions survive a refresh (qa: workout-set-logging)
 
 Reported by @maaiz: a user lost their session mid-workout to
