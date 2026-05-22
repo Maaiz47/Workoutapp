@@ -1,6 +1,26 @@
 {
   "items": [
     {
+      "id": "tier-themes",
+      "title": "Athlete tier theme system — Vivid (animals) vs Simple (medals)",
+      "area": "Tiers",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass tier-themes-rework",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → APP PREFERENCES → scroll to the new 🏆 TIER NAMES card. Verify two options shown side-by-side: Vivid (🐱 🦊 🐕 🦁 🦍 🐻 · Kitten → Bear) and Simple (🥉 🥈 🥇 🏆 💎 👑 · Bronze → Master). Default is Vivid.",
+        "Tap Simple. Verify it highlights gold + the request goes through (auto-save).",
+        "Return home. Verify your tier pill on the welcome card now shows the SIMPLE-theme label (e.g. Gold instead of Big Dawg). Open the tier explainer modal → verify the ATHLETE LADDER shows Bronze → Silver → Gold → Platinum → Diamond → Master.",
+        "Open Progress → Dashboard. Verify your tier card + headline + sub-ranks all read with Simple names.",
+        "Open the leaderboard / your group. Every row's tier label should re-skin to Simple names regardless of who owns the row (theme follows the VIEWER, not the row owner).",
+        "Switch back to Vivid. Verify everything flips back to Kitten/Fox/Big Dawg/Lion/Gorilla/Bear (NO Monkey, NO Tiger anymore — those are retired in the redesign).",
+        "Trigger a tier-up milestone (or clear localStorage.ironlog-milestones-v1 and log a session). Verify the celebration overlay shows 'Reached Tier N — <name>' (with the universal tier number plus the animal name) and the right CURRENT TIER / PASSED TIER chip.",
+        "Verify the TRAINER ladder (if you're a trainer) is unchanged across themes — still Rookie / Coach / Pro / Elite."
+      ],
+      "notes": "[2026-05-22] Shipped: schema field UserProfile.tierTheme String? (\"vivid\" | \"simple\" | null=vivid). lib/tiers.ts now exposes ATHLETE_TIER_THEMES and getAthleteTiers(theme). Athlete ladder names redesigned per @maaiz direction: Kitten → Fox → Big Dawg → Lion → Gorilla → Bear (Monkey + Tiger retired). Universal tierNum 1-6 on every tier so leaderboards / milestones / score thresholds stay theme-agnostic. Milestones rebuilt to check athleteTierNum (was: athleteTierLabel) so they fire correctly across themes; legacy milestone IDs (tier-monkey, tier-fox, etc.) preserved so existing achievements stay valid, but labels updated to 'Reached Tier N — <new name>'. Settings UI: new 🏆 TIER NAMES card under APP PREFERENCES with two-option picker + previews. (Reported by @maaiz)"
+    },
+    {
       "id": "tier-pills-clarity",
       "title": "Welcome card pills make COACH unmistakably a TIER of TRAINERS",
       "area": "UI",

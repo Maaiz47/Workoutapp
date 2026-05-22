@@ -2,6 +2,84 @@
 
 ---
 
+## Feat · 2026-05-22 — Athlete tier theme system + ladder redesign (qa: tier-themes)
+
+@maaiz: "Rework the athlete tier names: Kitten → Fox → Big
+Dawg → Lion → Gorilla → Bear" + "Universal tier numbers 1-N
+alongside the name" + "Simple theme uses Bronze → Silver →
+Gold → Diamond" + "Trainers tiers unchanged across themes".
+
+### The new athlete ladder (6 tiers, Monkey + Tiger retired)
+
+| # | Vivid (default) | Simple | Score |
+|---|---|---|---|
+| 1 | 🐱 Kitten   | 🥉 Bronze   | 0  |
+| 2 | 🦊 Fox      | 🥈 Silver   | 15 |
+| 3 | 🐕 Big Dawg | 🥇 Gold     | 30 |
+| 4 | 🦁 Lion     | 🏆 Platinum | 50 |
+| 5 | 🦍 Gorilla  | 💎 Diamond  | 70 |
+| 6 | 🐻 Bear     | 👑 Master   | 90 |
+
+The score thresholds match the previous breakpoints
+(0/15/30/50/70/90) so anyone mid-ladder doesn't get
+demoted by the rename.
+
+### Theme architecture (lib/tiers.ts)
+- New `tierNum: number` on `AnimalTier`. Universal across
+  themes — Tier 4 is the same achievement whether you see
+  "Lion" or "Platinum".
+- `ATHLETE_TIER_THEMES: Record<"vivid"|"simple", AnimalTier[]>`
+  catalogue. Both themes share `tierNum` + `min`; only
+  `label`, `icon`, and `color` differ.
+- `getAthleteTiers(theme)` returns the right array.
+  `computeAthleteTier(stats, theme)` resolves the headline
+  against the chosen theme.
+- Trainer ladder kept theme-agnostic (per user direction):
+  Rookie / Coach / Pro / Elite everywhere.
+
+### Persistence
+- `UserProfile.tierTheme String?` (Prisma) — null/"vivid" |
+  "simple". Whitelist-validated on PATCH so a junk theme
+  string can't break `getAthleteTiers`.
+- HomePage hydrates `tierTheme` from the profile fetch and
+  passes it into every tier-display surface
+  (`HomeGlobals` → `TierInfoModal`, leaderboard rows,
+  tier card on home, Progress dashboard).
+
+### Settings UI
+- New `🏆 TIER NAMES` card under APP PREFERENCES with two
+  options side-by-side (Vivid / Simple), each with a
+  6-emoji preview row + "Kitten → Bear" / "Bronze → Master"
+  subtitle. Tap to switch, auto-saves.
+
+### Leaderboards now theme-shift per viewer
+The server-side stats endpoint ships tier objects in the
+default Vivid theme. Client-side, each leaderboard row
+remaps the tier by `tierNum` into the viewer's chosen
+theme so a Simple-theme user sees Bronze/Silver/Gold even
+on rows owned by other users. (The viewer's identity
+drives the theme, not the row owner's.)
+
+### Milestones updated to use tierNum
+The 5 tier-up milestone checks were string-equality on
+`athleteTierLabel === "Tiger" || ...`. With Tiger and
+Monkey removed from the lineup, those checks would have
+fired incorrectly. Rebuilt to use
+`state.athleteTierNum >= N`, theme-agnostic. Labels
+updated to "Reached Tier N — <Vivid name>". Milestone IDs
+(tier-monkey, tier-fox, tier-tiger, tier-lion, tier-gorilla)
+preserved so users keep their earned badges; only the
+display strings + check semantics changed.
+
+### Why these specific 6 names
+Asked @maaiz directly. They said: drop Tiger entirely,
+keep Lion, replace Dawg with "Big Dawg". Final lineup:
+Kitten → Fox → Big Dawg → Lion → Gorilla → Bear. Bear at
+the top reads as a heavier, more grounded apex than the
+previous Gorilla-as-top.
+
+---
+
 ## QA pass · 2026-05-22 — 3 comments actioned (qa: plan-customise-add-remove, home-polish-v2, qa-dashboard)
 
 Processed three unprocessed comments from the `qa-comments/`

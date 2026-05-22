@@ -4,6 +4,10 @@
 // board row, group ranking) imports from here. No duplicate ladders.
 
 export type AnimalTier = {
+  // Universal 1-based tier rank. Shared across themes so the
+  // ladder semantics stay the same — Tier 3 is the same
+  // achievement whether you see "Big Dawg" or "Gold".
+  tierNum: number;
   label: string;
   icon: string;
   // The MIN headline score required to reach this tier (0-100).
@@ -13,22 +17,55 @@ export type AnimalTier = {
   border: string;
 };
 
-// Athlete ladder — animal tiers. Headline score = average of 4 sub-ranks.
-export const ATHLETE_TIERS: AnimalTier[] = [
-  { label: "Kitten",  icon: "🐱", min: 0,  color: "#94a3b8", bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.25)" },
-  { label: "Monkey",  icon: "🐒", min: 15, color: "#a78bfa", bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.3)"  },
-  { label: "Fox",     icon: "🦊", min: 30, color: "#fb923c", bg: "rgba(251,146,60,0.08)",  border: "rgba(251,146,60,0.3)"   },
-  { label: "Tiger",   icon: "🐯", min: 50, color: "#facc15", bg: "rgba(250,204,21,0.08)",  border: "rgba(250,204,21,0.3)"   },
-  { label: "Lion",    icon: "🦁", min: 70, color: "#f97316", bg: "rgba(249,115,22,0.10)",  border: "rgba(249,115,22,0.35)"  },
-  { label: "Gorilla", icon: "🦍", min: 90, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)"  },
-];
+// Theme catalogue for the athlete ladder. Each theme is a 6-tier
+// array indexed by tierNum-1; the `min` thresholds + `tierNum`
+// MUST match across themes so a Tier 3 user sees "Big Dawg" or
+// "Gold" depending on theme but they're objectively at the same
+// rung. Add a new theme by appending an entry — every tier-display
+// surface reads from `getAthleteTiers(theme)`.
+// (qa: tier-themes)
+export type AthleteTierTheme = "vivid" | "simple";
 
-// Trainer ladder — same animal vibe, different sub-ranks (see below).
+export const ATHLETE_TIER_THEMES: Record<AthleteTierTheme, AnimalTier[]> = {
+  vivid: [
+    { tierNum: 1, label: "Kitten",   icon: "🐱", min: 0,  color: "#94a3b8", bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.25)" },
+    { tierNum: 2, label: "Fox",      icon: "🦊", min: 15, color: "#fb923c", bg: "rgba(251,146,60,0.08)",  border: "rgba(251,146,60,0.3)"   },
+    { tierNum: 3, label: "Big Dawg", icon: "🐕", min: 30, color: "#a78bfa", bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.3)"  },
+    { tierNum: 4, label: "Lion",     icon: "🦁", min: 50, color: "#f97316", bg: "rgba(249,115,22,0.10)",  border: "rgba(249,115,22,0.35)"  },
+    { tierNum: 5, label: "Gorilla",  icon: "🦍", min: 70, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)"  },
+    { tierNum: 6, label: "Bear",     icon: "🐻", min: 90, color: "#92400e", bg: "rgba(146,64,14,0.12)",   border: "rgba(146,64,14,0.45)"   },
+  ],
+  simple: [
+    { tierNum: 1, label: "Bronze",   icon: "🥉", min: 0,  color: "#a8784a", bg: "rgba(168,120,74,0.08)",  border: "rgba(168,120,74,0.3)"  },
+    { tierNum: 2, label: "Silver",   icon: "🥈", min: 15, color: "#cbd5e1", bg: "rgba(203,213,225,0.08)", border: "rgba(203,213,225,0.3)" },
+    { tierNum: 3, label: "Gold",     icon: "🥇", min: 30, color: "#facc15", bg: "rgba(250,204,21,0.08)",  border: "rgba(250,204,21,0.35)" },
+    { tierNum: 4, label: "Platinum", icon: "🏆", min: 50, color: "#7dd3fc", bg: "rgba(125,211,252,0.10)", border: "rgba(125,211,252,0.35)"},
+    { tierNum: 5, label: "Diamond",  icon: "💎", min: 70, color: "#60a5fa", bg: "rgba(96,165,250,0.10)",  border: "rgba(96,165,250,0.4)"  },
+    { tierNum: 6, label: "Master",   icon: "👑", min: 90, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
+  ],
+};
+
+// Resolve a theme name to its ordered tier list. Falls back to
+// vivid for null/unknown values.
+export function getAthleteTiers(theme: string | null | undefined): AnimalTier[] {
+  if (theme === "simple") return ATHLETE_TIER_THEMES.simple;
+  return ATHLETE_TIER_THEMES.vivid;
+}
+
+// Backwards-compatible export — every existing call site that
+// imports `ATHLETE_TIERS` still works (gets the vivid theme).
+// Migrate call sites to `getAthleteTiers(profile.tierTheme)` as
+// you touch them.
+export const ATHLETE_TIERS: AnimalTier[] = ATHLETE_TIER_THEMES.vivid;
+
+// Trainer ladder — kept theme-agnostic for now. Same labels
+// regardless of the athlete tier theme the user has selected.
+// (qa: tier-themes — user direction: "For trainers tiers no change between themes yet")
 export const TRAINER_TIERS: AnimalTier[] = [
-  { label: "Rookie", icon: "🏅", min: 0,  color: "#A29BFE", bg: "rgba(162,155,254,0.10)", border: "rgba(162,155,254,0.3)" },
-  { label: "Coach",  icon: "🎯", min: 25, color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)"  },
-  { label: "Pro",    icon: "⚡", min: 50, color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
-  { label: "Elite",  icon: "👑", min: 75, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
+  { tierNum: 1, label: "Rookie", icon: "🏅", min: 0,  color: "#A29BFE", bg: "rgba(162,155,254,0.10)", border: "rgba(162,155,254,0.3)" },
+  { tierNum: 2, label: "Coach",  icon: "🎯", min: 25, color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)"  },
+  { tierNum: 3, label: "Pro",    icon: "⚡", min: 50, color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
+  { tierNum: 4, label: "Elite",  icon: "👑", min: 75, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
 ];
 
 export type SubRank = {
@@ -73,7 +110,7 @@ export type AthleteStatsForTier = {
   energyLoggedDays?: number;        // days in last 14 with an energy entry
 };
 
-export function computeAthleteTier(s: AthleteStatsForTier): TierBreakdown {
+export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null): TierBreakdown {
   // 5 sub-ranks. Numbers tuned to be motivating in the early game.
   const consistency = Math.round(
     0.6 * scoreFromCount(s.totalSessions, 100) +
@@ -104,8 +141,12 @@ export function computeAthleteTier(s: AthleteStatsForTier): TierBreakdown {
   ];
 
   const headlineScore = Math.round(subRanks.reduce((sum, r) => sum + r.score, 0) / subRanks.length);
-  let headline = ATHLETE_TIERS[0];
-  for (const t of ATHLETE_TIERS) if (headlineScore >= t.min) headline = t;
+  // Resolve against the theme the caller asked for so the headline
+  // tier carries the theme-correct label/icon. Sub-rank logic
+  // doesn't change.
+  const tiers = getAthleteTiers(theme);
+  let headline = tiers[0];
+  for (const t of tiers) if (headlineScore >= t.min) headline = t;
 
   const focusNext = pickFocusNext(subRanks);
 
@@ -157,6 +198,6 @@ function pickFocusNext(subRanks: SubRank[]): SubRank | null {
 }
 
 // Convenience for surfaces that only need the headline animal label.
-export function getAthleteTierFromBasics(s: AthleteStatsForTier): AnimalTier {
-  return computeAthleteTier(s).headline;
+export function getAthleteTierFromBasics(s: AthleteStatsForTier, theme?: string | null): AnimalTier {
+  return computeAthleteTier(s, theme).headline;
 }

@@ -14,7 +14,7 @@ import { pickWarmupForDay } from "../lib/warmups";
 import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutorial";
 import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTargetReps, detectPlateau, shouldSuggestDeload } from "../lib/performance";
-import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown } from "../lib/tiers";
+import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown, getAthleteTiers } from "../lib/tiers";
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
@@ -3053,7 +3053,7 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
 // needs to be inserted into EACH branch's return — there's no
 // single bottom render to attach to.
 function HomeGlobals({
-  user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, trainerBreakdown, onJumpToLeaderboard,
+  user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, trainerBreakdown, tierTheme, onJumpToLeaderboard,
 }: {
   user: { username: string; role: string; extraRoles?: string[] } | null;
   view: string;
@@ -3066,6 +3066,7 @@ function HomeGlobals({
   // leaderboard "you" row) renders the SAME tier.
   athleteBreakdown: TierBreakdown | null;
   trainerBreakdown: TierBreakdown | null;
+  tierTheme: "vivid" | "simple";
   // Optional callback wired from HomePage — closes the tier modal,
   // navigates to home view, scrolls to the user's "YOU" row in the
   // first visible leaderboard group. Lets the user jump from the
@@ -3100,6 +3101,7 @@ function HomeGlobals({
         athleteRaw={athleteBreakdown?.headlineScore ?? 0}
         trainerRaw={trainerBreakdown?.headlineScore ?? clients.length}
         trainerBreakdown={trainerBreakdown}
+        tierTheme={tierTheme}
         onJumpToLeaderboard={onJumpToLeaderboard}
       />
     </>
@@ -3120,13 +3122,16 @@ type TierLite = { label: string; emoji: string; min: number; color: string; bg: 
 
 // Bridge the new lib/tiers.ts AnimalTier shape (uses `icon`) to the
 // local TierLite shape (uses `emoji`) so TierInfoModal can render
-// the canonical score-based athlete ladder rather than the legacy
-// session-count ladder. Same labels (Kitten → Gorilla), different
-// thresholds (0/15/30/50/70/90 on a 0-100 score).
-const ATHLETE_TIERS_LITE: TierLite[] = ATHLETE_TIERS.map(t => ({
-  label: t.label, emoji: t.icon, min: t.min,
-  color: t.color, bg: t.bg, border: t.border,
-}));
+// the canonical score-based athlete ladder. Theme-aware now — the
+// caller passes their tierTheme so the modal shows the right names
+// (Kitten → Bear for vivid, Bronze → Master for simple).
+// (qa: tier-themes)
+function athleteTiersLite(theme: string | null | undefined): TierLite[] {
+  return getAthleteTiers(theme).map(t => ({
+    label: t.label, emoji: t.icon, min: t.min,
+    color: t.color, bg: t.bg, border: t.border,
+  }));
+}
 
 // Same bridge for the trainer ladder so future migrations to the
 // multi-dim trainer computation can use it without ceremony.
@@ -3141,6 +3146,7 @@ function TierInfoModal({
   athleteUnit, trainerUnit,
   athleteRaw, trainerRaw,
   trainerBreakdown,
+  tierTheme,
   onJumpToLeaderboard,
 }: {
   open: boolean;
@@ -3154,6 +3160,9 @@ function TierInfoModal({
   athleteRaw: number;        // user's raw session count for the athlete ladder
   trainerRaw: number;        // user's raw client count for the trainer ladder
   trainerBreakdown: TierBreakdown | null;
+  // Athlete tier theme — "vivid" (default) | "simple". Drives which
+  // ladder name set the modal renders. (qa: tier-themes)
+  tierTheme: "vivid" | "simple";
   onJumpToLeaderboard?: () => void;
 }) {
   if (!open) return null;
@@ -3218,7 +3227,7 @@ function TierInfoModal({
         <TierLadder
           title="ATHLETE LADDER"
           subtitle={`Earned by training · headline = average of 5 sub-ranks · ${athleteUnit}`}
-          tiers={ATHLETE_TIERS_LITE}
+          tiers={athleteTiersLite(tierTheme)}
           accent="#f0c040"
           highlight={athleteTier?.label ?? null}
           isParticipant={isAthlete}
@@ -3629,6 +3638,7 @@ function HomePage() {
         setTierModalOpen={setTierModalOpen}
         athleteBreakdown={myAthleteBreakdown}
         trainerBreakdown={myTrainerBreakdown}
+        tierTheme={tierTheme}
         onJumpToLeaderboard={() => {
           setTierModalOpen(false);
           setView("home");
@@ -3927,6 +3937,11 @@ function HomePage() {
   // appended to the strength split. Hydrated from profile on load,
   // editable in Settings → TRAINING. (qa: plan-cardio-day)
   const [cardioPreference, setCardioPreference] = useState("");
+  // Athlete tier theme: "vivid" (animals, default) or "simple"
+  // (Bronze → Master). Hydrated from profile.tierTheme. Affects only
+  // the names + icons on the athlete ladder; tier numbers + score
+  // breakpoints are universal. (qa: tier-themes)
+  const [tierTheme, setTierTheme] = useState<"vivid" | "simple">("vivid");
   const [saveRoutineName, setSaveRoutineName] = useState("");
   const [savingRoutine, setSavingRoutine] = useState(false);
   const [sharingRoutineId, setSharingRoutineId] = useState<string | null>(null);
@@ -4223,6 +4238,7 @@ function HomePage() {
         if ((p as any).hiitPreference) setHiitPreference((p as any).hiitPreference);
         if ((p as any).hiitIntensity) setHiitIntensity((p as any).hiitIntensity);
         if ((p as any).cardioPreference) setCardioPreference((p as any).cardioPreference);
+        if ((p as any).tierTheme === "simple" || (p as any).tierTheme === "vivid") setTierTheme((p as any).tierTheme);
         fetch("/api/plan").then(r => r.json()).then(planData => {
           if (planData.plan?.days?.length) setCustomPlan(planData.plan.days);
         });
@@ -5223,7 +5239,7 @@ function HomePage() {
               prCount: totalPRs,
               distinctExercises: 0,
               monthsOnApp: joinedDaysAgo / 30,
-            });
+            }, tierTheme);
             const mState: MilestoneState = {
               joinedDaysAgo,
               totalSessions,
@@ -5233,6 +5249,7 @@ function HomePage() {
               hasUsedDropSet: hasDrop,
               hasAcceptedDeload: (() => { try { return JSON.parse(localStorage.getItem("ironlog-deloads") ?? "[]").length > 0; } catch { return false; } })(),
               athleteTierLabel: newBreakdown.headline.label,
+              athleteTierNum: newBreakdown.headline.tierNum,
             };
             const achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
             const newOnes = detectNewMilestones(mState, achieved);
@@ -5494,8 +5511,8 @@ function HomePage() {
       sleepLoggedDays: wl.sleepLoggedDays,
       energyLoggedDays: wl.energyLoggedDays,
     };
-    return computeAthleteTier(stats);
-  }, [user, history, overall]);
+    return computeAthleteTier(stats, tierTheme);
+  }, [user, history, overall, tierTheme]);
   const bc: Record<string, string> = { compound: "#2ecc71", isolation: "#74b9ff", cardio: "#FF6B6B" };
 
   const sessionExSuggestions = useMemo(() => {
@@ -7308,9 +7325,13 @@ function HomePage() {
                 const h = myAthleteBreakdown?.headline;
                 if (!h) return null;
                 const score = myAthleteBreakdown!.headlineScore;
-                const hIdx = ATHLETE_TIERS.findIndex(x => x.label === h.label);
-                const next = ATHLETE_TIERS[hIdx + 1];
-                const curMin = ATHLETE_TIERS[hIdx].min;
+                // tierNum is universal across themes — match on it so
+                // we resolve neighbours correctly regardless of the
+                // active theme labels. (qa: tier-themes)
+                const themedTiers = getAthleteTiers(tierTheme);
+                const hIdx = themedTiers.findIndex(x => x.tierNum === h.tierNum);
+                const next = themedTiers[hIdx + 1];
+                const curMin = themedTiers[hIdx].min;
                 const progress = next
                   ? Math.max(0, Math.min(1, (score - curMin) / Math.max(1, next.min - curMin)))
                   : 1;
@@ -8019,7 +8040,18 @@ function HomePage() {
                     // may sit one rung below what the client sees on
                     // their own dashboard, but every leaderboard
                     // surface reads from the same source.
-                    const tier = c.tier ?? ATHLETE_TIERS[0];
+                    // Server ships tier object in the legacy vivid
+                    // theme. Re-map by tierNum to the viewer's chosen
+                    // theme so e.g. simple-theme viewers see Bronze
+                    // instead of Kitten on every row. (qa: tier-themes)
+                    const themedTiers = getAthleteTiers(tierTheme);
+                    const tier = (() => {
+                      const raw = c.tier;
+                      if (!raw) return themedTiers[0];
+                      const num = raw.tierNum ?? themedTiers.findIndex(t => t.label === raw.label) + 1;
+                      const themed = themedTiers.find(t => t.tierNum === num);
+                      return themed ?? raw;
+                    })();
                     return (
                       <div key={c.id} style={{ display: "grid", gridTemplateColumns: "28px 1fr 48px 48px 48px 48px", gap: 6, padding: "11px 12px", borderBottom: i < leaderboard.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.03)" : "transparent" }}>
                         <div style={{ fontSize: 14, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
@@ -8314,9 +8346,21 @@ function HomePage() {
                                     //    localStorage-only).
                                     // 3. Fallback if the API somehow
                                     //    omits tier → Kitten.
+                                    // Same theme remap as the trainer
+                                    // leaderboard row above — other
+                                    // users' tier objects ship in the
+                                    // vivid theme; the viewer's chosen
+                                    // theme rewrites the label/icon.
+                                    const themedTiers = getAthleteTiers(tierTheme);
                                     const tier = isMe && myAthleteBreakdown
                                       ? myAthleteBreakdown.headline
-                                      : (m.tier as { label: string; icon: string; color: string; bg: string; border: string } | undefined) ?? ATHLETE_TIERS[0];
+                                      : (() => {
+                                          const raw = m.tier as any;
+                                          if (!raw) return themedTiers[0];
+                                          const num = raw.tierNum ?? themedTiers.findIndex(t => t.label === raw.label) + 1;
+                                          const themed = themedTiers.find(t => t.tierNum === num);
+                                          return themed ?? raw;
+                                        })();
                                     const rowStyle: React.CSSProperties = { display: "grid", gap: 6, padding: "9px 10px", borderBottom: i < ranked.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.04)" : isMe ? "rgba(78,205,196,0.04)" : "transparent" };
                                     const nameCell = (
                                       <>
@@ -9893,6 +9937,44 @@ function HomePage() {
             </div>
           </div>
 
+          {/* ── TIER LADDER THEME ──
+              Switches the athlete ladder names + icons between
+              VIVID (Kitten → Bear, animal energy) and SIMPLE
+              (Bronze → Master, classic medal progression). The
+              underlying tier NUMBERS and the score thresholds stay
+              identical — only the dressing changes. Trainer ladder
+              is unaffected. (qa: tier-themes)
+          */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>🏆 TIER NAMES</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, marginBottom: 14 }}>Both themes use the same six tiers (T1 → T6) and the same score thresholds. Only the names + icons change. Trainer ladder isn't affected.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {([
+                { id: "vivid",  label: "Vivid",  preview: "🐱 🦊 🐕 🦁 🦍 🐻", desc: "Kitten → Bear" },
+                { id: "simple", label: "Simple", preview: "🥉 🥈 🥇 🏆 💎 👑", desc: "Bronze → Master" },
+              ] as const).map(t => {
+                const active = tierTheme === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setTierTheme(t.id);
+                      fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tierTheme: t.id }) }).catch(() => {});
+                    }}
+                    style={{ padding: "12px 10px", borderRadius: 12, background: active ? "rgba(240,192,64,0.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${active ? "rgba(240,192,64,0.4)" : "rgba(255,255,255,0.08)"}`, cursor: "pointer", textAlign: "left" }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: active ? "#f0c040" : "#fff" }}>{t.label}</span>
+                      {active && <span style={{ fontSize: 10, color: "#f0c040" }}>✓</span>}
+                    </div>
+                    <div style={{ fontSize: 13, marginBottom: 4 }}>{t.preview}</div>
+                    <div style={{ fontSize: 10, color: active ? "rgba(240,192,64,0.65)" : "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{t.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           </>)}
           {/* ── SECTION: YOUR PROFILE — who you are + your training data.
               Visually separated from the APP PREFERENCES block above so
@@ -10765,7 +10847,7 @@ function HomePage() {
                 sleepLoggedDays: wl.sleepLoggedDays,
                 energyLoggedDays: wl.energyLoggedDays,
               };
-              const breakdown = computeAthleteTier(stats);
+              const breakdown = computeAthleteTier(stats, tierTheme);
               const exp = effectiveExperience({
                 recorded: (ob.fitnessLevel as ExperienceLevel) || null,
                 monthsOnApp,
@@ -10774,9 +10856,10 @@ function HomePage() {
               });
               const expM = experienceMeta(exp.level);
               const tier = breakdown.headline;
-              const tierIdx = ATHLETE_TIERS.findIndex(t => t.label === tier.label);
-              const next = ATHLETE_TIERS[tierIdx + 1];
-              const curMin = ATHLETE_TIERS[tierIdx].min;
+              const themedTiers = getAthleteTiers(tierTheme);
+              const tierIdx = themedTiers.findIndex(t => t.tierNum === tier.tierNum);
+              const next = themedTiers[tierIdx + 1];
+              const curMin = themedTiers[tierIdx].min;
               const progress = next ? Math.min(1, Math.max(0, (breakdown.headlineScore - curMin) / (next.min - curMin))) : 1;
               return (
                 <div style={{ position: "relative", background: "linear-gradient(135deg, rgba(240,192,64,0.10), rgba(225,112,85,0.04) 60%, rgba(240,192,64,0.02))", border: "1px solid rgba(240,192,64,0.22)", borderRadius: 16, padding: "16px 20px 18px", marginBottom: 14, overflow: "hidden", boxShadow: "0 4px 24px -8px rgba(240,192,64,0.18), inset 0 1px 0 rgba(255,255,255,0.04)" }}>

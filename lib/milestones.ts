@@ -15,7 +15,11 @@ export type MilestoneState = {
   hasUsedSuperset: boolean;
   hasUsedDropSet: boolean;
   hasAcceptedDeload: boolean;
-  athleteTierLabel: string;   // current animal tier label
+  athleteTierLabel: string;   // current animal tier label (theme-specific)
+  // Universal 1-6 tier rank — preferred for milestone checks since
+  // the same rank can be labelled differently by theme (Tier 4 =
+  // Lion in vivid OR Platinum in simple). (qa: tier-themes)
+  athleteTierNum: number;
 };
 
 export type Milestone = {
@@ -63,25 +67,33 @@ export const MILESTONES: Milestone[] = [
   { id: "first-dropset", label: "First drop set",           body: "To failure, drop, again. Brutal.",                      icon: "🔻", category: "behaviour", requirement: "Mark an exercise as a drop set and complete it (toggle + DROP SET).",   check: s => s.hasUsedDropSet },
   { id: "first-deload",  label: "First deload accepted",    body: "Smart lifters take the foot off the gas. Good move.",   icon: "🛟", category: "behaviour", requirement: "Accept the 🛟 DELOAD SUGGESTED banner when the app offers one.",       check: s => s.hasAcceptedDeload },
 
-  // ── Tier-up — fire once per animal tier reached ──────────────────────
-  { id: "tier-monkey",   label: "Reached Monkey",           body: "Branching out, swinging from one PR to the next.",      icon: "🐒", category: "tier", requirement: "Reach the Monkey tier (headline tier score ≥ 15).", check: s => s.athleteTierLabel === "Monkey"  || s.athleteTierLabel === "Fox"  || s.athleteTierLabel === "Tiger" || s.athleteTierLabel === "Lion" || s.athleteTierLabel === "Gorilla" },
-  { id: "tier-fox",      label: "Reached Fox",              body: "Cunning. Quick. You know what you're doing now.",       icon: "🦊", category: "tier", requirement: "Reach the Fox tier (headline tier score ≥ 30).",    check: s => s.athleteTierLabel === "Fox"     || s.athleteTierLabel === "Tiger" || s.athleteTierLabel === "Lion" || s.athleteTierLabel === "Gorilla" },
-  { id: "tier-tiger",    label: "Reached Tiger",            body: "Stalking PRs with intent.",                             icon: "🐯", category: "tier", requirement: "Reach the Tiger tier (headline tier score ≥ 50).",  check: s => s.athleteTierLabel === "Tiger"   || s.athleteTierLabel === "Lion" || s.athleteTierLabel === "Gorilla" },
-  { id: "tier-lion",     label: "Reached Lion",             body: "King of your own training. The pride watches.",         icon: "🦁", category: "tier", requirement: "Reach the Lion tier (headline tier score ≥ 70).",   check: s => s.athleteTierLabel === "Lion"    || s.athleteTierLabel === "Gorilla" },
-  { id: "tier-gorilla",  label: "Reached Gorilla",          body: "Top of the food chain. Absolute unit.",                 icon: "🦍", category: "tier", requirement: "Reach the Gorilla tier (headline tier score ≥ 90).", check: s => s.athleteTierLabel === "Gorilla" },
+  // ── Tier-up — fire once per tier crossed. IDs are stable (any
+  //    existing achievement keeps its slot in localStorage). Checks
+  //    use athleteTierNum so they're correct regardless of which
+  //    theme (vivid / simple) the user has chosen — Tier 2 = Fox in
+  //    vivid OR Silver in simple, but the milestone fires either way.
+  //    Labels follow the VIVID default theme; the celebration overlay
+  //    overlays the user's CURRENT theme label at render time.
+  //    (qa: tier-themes)
+  { id: "tier-monkey",   label: "Reached Tier 2 — Fox",      body: "Cunning, quick, adaptive. You're past the starter line.", icon: "🦊", category: "tier", requirement: "Reach Tier 2 (headline tier score ≥ 15).", check: s => s.athleteTierNum >= 2 },
+  { id: "tier-fox",      label: "Reached Tier 3 — Big Dawg", body: "Big Dawg energy. The pack respects pace like yours.",     icon: "🐕", category: "tier", requirement: "Reach Tier 3 (headline tier score ≥ 30).", check: s => s.athleteTierNum >= 3 },
+  { id: "tier-tiger",    label: "Reached Tier 4 — Lion",     body: "King of your own training. The pride watches.",            icon: "🦁", category: "tier", requirement: "Reach Tier 4 (headline tier score ≥ 50).", check: s => s.athleteTierNum >= 4 },
+  { id: "tier-lion",     label: "Reached Tier 5 — Gorilla",  body: "Absolute unit. The work shows.",                            icon: "🦍", category: "tier", requirement: "Reach Tier 5 (headline tier score ≥ 70).", check: s => s.athleteTierNum >= 5 },
+  { id: "tier-gorilla",  label: "Reached Tier 6 — Bear",     body: "Apex. Top fraction of trainees. Untouchable foundation.",   icon: "🐻", category: "tier", requirement: "Reach Tier 6 (headline tier score ≥ 90).", check: s => s.athleteTierNum >= 6 },
 ];
 
-// Maps tier milestone id → animal name. Used to tag retroactive
-// unlocks as "passed" vs "current" so the celebration overlay can
-// say e.g. "Reached Monkey — PASSED TIER" for a user who is now
-// Tiger, instead of misleadingly suggesting they just became Monkey.
-// (qa: reported by @maaiz)
-const TIER_NAME_BY_ID: Record<string, string> = {
-  "tier-monkey":  "Monkey",
-  "tier-fox":     "Fox",
-  "tier-tiger":   "Tiger",
-  "tier-lion":    "Lion",
-  "tier-gorilla": "Gorilla",
+// Maps tier milestone id → universal tier number (1-6). The IDs are
+// frozen for backwards compatibility (users keep their earned
+// badges), but the underlying check now uses tierNum so labels can
+// shift between themes. "Current" vs "passed" tagging matches by
+// number so the overlay correctly labels which rank you're at.
+// (qa: tier-themes — reported by @maaiz)
+const TIER_NUM_BY_ID: Record<string, number> = {
+  "tier-monkey":  2,   // legacy id → Tier 2 (Fox in vivid, Silver in simple)
+  "tier-fox":     3,   // → Tier 3 (Big Dawg / Gold)
+  "tier-tiger":   4,   // → Tier 4 (Lion / Platinum)
+  "tier-lion":    5,   // → Tier 5 (Gorilla / Diamond)
+  "tier-gorilla": 6,   // → Tier 6 (Bear / Master)
 };
 
 // Milestone returned from detectNewMilestones with an optional badge
@@ -106,8 +118,8 @@ export function detectNewMilestones(
     if (alreadyAchieved.has(m.id)) continue;
     if (!m.check(state)) continue;
     if (m.category === "tier") {
-      const tierName = TIER_NAME_BY_ID[m.id];
-      const tierBadge: "current" | "passed" = tierName === state.athleteTierLabel ? "current" : "passed";
+      const milestoneTierNum = TIER_NUM_BY_ID[m.id];
+      const tierBadge: "current" | "passed" = milestoneTierNum === state.athleteTierNum ? "current" : "passed";
       out.push({ ...m, tierBadge });
     } else {
       out.push(m);
