@@ -1,5 +1,5 @@
 {
-  "version": "2026.05.22.06",
-  "commit": "cd7e78b",
-  "note": "varied core finisher per day in every generated plan"
+  "version": "2026.05.22.07",
+  "commit": "beeccb1",
+  "note": "milestone tier popup fix - only celebrates highest tier on retroactive unlock"
 }
