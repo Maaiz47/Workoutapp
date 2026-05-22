@@ -7401,11 +7401,14 @@ function HomePage() {
                                 setAvatarInventory(inv => inv ? { ...inv, selected: av.id } : inv);
                               }
                             } catch {}
-                          }} title={isUnlocked ? av.flavour : `${av.source === "tier" ? `Unlocks at Tier ${av.tier}` : "Rare drop — keep training!"}`} style={{ background: isSelected ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.45)" : isLucky ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.35, position: "relative", color: "#fff", textAlign: "left" }}>
-                            <img src={`/avatars/${av.id}.png`} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4, filter: isUnlocked ? "none" : "grayscale(1) brightness(0.6)" }} onError={e => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
-                            <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{av.name}</div>
+                          }} title={isUnlocked ? av.flavour : `${av.source === "tier" ? `Unlocks at Tier ${av.tier}` : "Rare drop — keep training!"}`} style={{ background: isSelected ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.45)" : isLucky ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.6, position: "relative", color: "#fff", textAlign: "left" }}>
+                            {isUnlocked ? (
+                              <img src={`/avatars/${av.id}.png`} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} onError={e => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
+                            ) : (
+                              <div style={{ width: "100%", aspectRatio: "1", borderRadius: 8, marginBottom: 4, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🔒</div>
+                            )}
+                            <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isUnlocked ? "#fff" : "rgba(255,255,255,0.55)" }}>{av.name}</div>
                             <div style={{ fontSize: 8, color: isLucky ? "#a855f7" : av.source === "tier" ? "#FFE66D" : "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 1, fontFamily: "'Space Mono', monospace" }}>{isLucky ? "RARE" : `TIER ${av.tier}`}</div>
-                            {!isUnlocked && <div style={{ position: "absolute", top: 6, right: 6, fontSize: 12 }}>🔒</div>}
                           </button>
                         );
                       })}
@@ -8017,21 +8020,20 @@ function HomePage() {
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.9) 0%, rgba(10,10,15,0.35) 35%, rgba(10,10,15,0) 60%, rgba(10,10,15,1) 100%)" }} />
         {/* Profile chip — compact horizontal layout */}
         <div ref={profileWrapperRef} style={{ position: "absolute", top: 10, left: 12, right: 12, zIndex: 10, transition: "transform 0.25s ease, opacity 0.25s ease", willChange: "transform" }}>
-          {/* Two separate top-level clickable boxes:
-              LEFT  → profile box (avatar + name + role chips) opens Settings/profile
-              RIGHT → tiers box (trainer + athlete pills with progress bars) opens TierInfoModal
-              Splitting them so each tap target has one unambiguous
-              destination (was previously a button-within-button with
-              stopPropagation). Both stay at the top of the hero;
-              flexWrap stacks them on very narrow phones. (qa: user —
-              "Make the profile tab and tiers separate but still both
-              at the top") */}
+          {/* Top-of-home chip strip — 3 buttons left-to-right:
+              Profile (narrow), Progress (narrow), Tier (wider).
+              User asked for Progress to sit between Profile and Tier,
+              with Profile+Progress sharing the left side and Tier
+              given the wider right side since its progress bars +
+              "+N → next" copy need more horizontal room.
+              flexWrap stacks them on very narrow phones.
+              (qa: home-hub-singleline) */}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "stretch" }}>
             {/* LEFT — profile button */}
             <button
               onClick={() => setView("profile")}
               style={{
-                flex: "1 1 180px", minWidth: 0,
+                flex: "1 1 100px", minWidth: 0,
                 background: "rgba(10,10,18,0.5)",
                 backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
                 border: "1px solid rgba(255,255,255,0.08)",
@@ -8062,14 +8064,38 @@ function HomePage() {
               <span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>›</span>
             </button>
 
+            {/* MIDDLE — progress button. Sits between Profile and Tier so
+                tapping into progress views is one tap from home. Matches
+                the chip styling of its neighbours. (qa: home-hub-singleline) */}
+            <button
+              onClick={() => { goTo("progress"); setProgressTab("dashboard"); }}
+              title="Progress"
+              style={{
+                flex: "1 1 100px", minWidth: 0,
+                background: "rgba(10,10,18,0.5)",
+                backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+                border: "1px solid rgba(255,107,107,0.2)",
+                borderRadius: 12, cursor: "pointer",
+                padding: "8px 12px",
+                boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                color: "rgba(255,255,255,0.85)",
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              <span style={{ fontSize: 18, lineHeight: 1 }}>📊</span>
+              <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: -0.2 }}>Progress</span>
+            </button>
+
             {/* RIGHT — tiers box. Whole card opens TierInfoModal; inner
                 pills are presentational divs so there's no nested-button
-                accessibility issue. */}
+                accessibility issue. Given a higher flex-grow (2) so
+                the trainer/athlete pills + progress bars get room. */}
             <button
               onClick={() => setTierModalOpen(true)}
               title="How tiers work — tap to see both ladders"
               style={{
-                flex: "1 1 180px", minWidth: 0,
+                flex: "2 1 220px", minWidth: 0,
                 background: "rgba(10,10,18,0.5)",
                 backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
                 border: "1px solid rgba(255,255,255,0.08)",
@@ -10864,7 +10890,7 @@ function HomePage() {
                 return (
                   <button onClick={() => setAvatarPickerOpen(true)} title="Change avatar" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", position: "relative" }}>
                     <img src={src} alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.3), 0 6px 18px rgba(255,107,107,0.18)" }} onError={(e) => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
-                    <span style={{ position: "absolute", bottom: -2, right: -2, width: 18, height: 18, borderRadius: "50%", background: "#4ECDC4", border: "2px solid #0a0a0c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#000", fontWeight: 800 }}>✎</span>
+                    <span style={{ position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: "50%", background: "#4ECDC4", border: "2px solid #0a0a0c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#000", fontWeight: 800 }}>✎</span>
                   </button>
                 );
               })()}
@@ -10892,6 +10918,13 @@ function HomePage() {
                 </div>
               </div>
             </div>
+
+            {/* Discoverable "change avatar" button — the 18×18 ✎ badge on
+                the avatar was too small to read as interactive on mobile,
+                so add an explicit text button here. (qa: profile-avatars) */}
+            <button onClick={() => setAvatarPickerOpen(true)} style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, padding: "7px 12px", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 2, cursor: "pointer", marginBottom: 12, fontFamily: "'Space Mono', monospace" }}>
+              ✎ CHANGE AVATAR
+            </button>
 
             {/* Role labels — explicit "what am I" indicators. */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
@@ -13027,15 +13060,16 @@ function HomePage() {
         })()}
         <div style={{ padding: "16px 20px 14px", background: `linear-gradient(180deg, ${activeDay.color}10, transparent)`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-            <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Home</button>
+            {/* Left cluster: Home nav + Music quick-launch. Music was
+                previously sat right next to QUIT × on the right, which
+                was an accident risk (mis-taps could trigger workout
+                abandon). Music + Home are both non-destructive, so they
+                pair safely on the left while QUIT sits alone on the
+                right. (qa: workout-session-start) */}
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              {/* Yellow ⟳ PAIR header button removed — each exercise card's
-                  + SUPERSET button is now strictly more powerful (picks
-                  recommended pairings, in-session OR library partners,
-                  SESSION vs ROUTINE save). The old button only redirected
-                  to the customise screen, which is redundant. */}
+              <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Home</button>
               {/* Music quick-launch — deep links into Spotify if installed,
-                  else opens Spotify web. Tiny chip, doesn't crowd the header. */}
+                  else opens Spotify web. */}
               <a
                 href="spotify:"
                 onClick={(e) => {
@@ -13047,8 +13081,11 @@ function HomePage() {
                 style={{ background: "rgba(30,215,96,0.08)", border: "1px solid rgba(30,215,96,0.3)", borderRadius: 6, padding: "5px 8px", color: "#1ed760", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer", textDecoration: "none" }}
                 title="Open your music app — Spotify deep link, falls back to web"
               >♪ MUSIC</a>
-              <button onClick={abandonWorkout} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.45)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>QUIT ×</button>
             </div>
+            {/* Right side: QUIT × alone — destructive, kept isolated so
+                accidental taps don't land here from sibling buttons.
+                (qa: workout-session-start) */}
+            <button onClick={abandonWorkout} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.45)", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 1 }}>QUIT ×</button>
           </div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginTop: 10 }}>{activeDay.title}</div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>{activeDay.focus}</div>

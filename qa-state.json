@@ -233,15 +233,17 @@
       "area": "Workout",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
       "steps": [
         "From the home screen tap a plan day card",
         "The workout preview screen shows the day title, focus, and exercise list",
         "Tap 'Start Workout' — the session begins and the elapsed timer starts",
-        "Verify the first exercise is expanded by default"
+        "Verify the first exercise is expanded by default",
+        "Active workout header: verify the ← Home button and the ♪ MUSIC chip are GROUPED ON THE LEFT (gap ~10px) and the destructive QUIT × button is ALONE ON THE RIGHT — no sibling buttons next to QUIT × to mis-tap. Tapping QUIT × should still fire the confirm dialog before abandoning.",
+        "Tap ♪ MUSIC — verify it tries to open Spotify (deep link), falling back to web Spotify if not installed. Tap QUIT × — verify the confirm prompt; cancel keeps the workout active."
       ],
-      "notes": ""
+      "notes": "[2026-05-22 <sha7>] Moved ♪ MUSIC chip from the right cluster (next to QUIT ×) to the left cluster (next to ← Home). User feedback: 'no accidents' — Music + Quit being adjacent on the right was an accident risk where a thumb-stretch to MUSIC could land on QUIT. Both buttons keep their behaviour; only positioning changed."
     },
     {
       "id": "workout-set-logging",
@@ -2091,7 +2093,7 @@
         "Spot-check that the Tier 1 starter pack now uses real art: open the picker as a tier-1 user and tap starter-spark / starter-dawn / starter-seedling — each should show flame-on-coals / sunrise-on-horizon / sprout-on-cracked-earth respectively.",
         "Spot-check that Tier 2 fox unlocks land correctly: advance to tier 2 and verify fox-sprint (running fox), fox-emberbolt (lightning + flame + fox tail) and fox-stride (silver paw prints) all surface as unlocked with their real art."
       ],
-      "notes": "[2026-05-22 <sha7>] Slice 3/N: shipped the final 6 avatars (3 starter + 3 fox) → avatar coverage now 30/30 ✅. Pulled via Drive MCP (download_file_content → base64 → decode), identified each via direct visual match against the catalogue. [2026-05-22 <sha7>] Slice 2/N: shipped 24/30 generated avatars (all dawg/lion/gorilla/bear + 10 lucky). Sorted 76 anonymously-named PNGs from a Drive batch via a 4-way parallel vision pipeline + 4 user-confirmed reassignments. [2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear."
+      "notes": "[2026-05-22 <sha7>] Slice 4/N: picker UX pass after user reported 'no way to change my avatar'. Added an explicit ✎ CHANGE AVATAR button under the IDENTITY card (the 18×18 ✎ badge on the avatar wasn't readable as interactive on mobile — bumped to 20×20 with 11px font, but the labelled button is the primary fix). Picker tiles now hide the preview image for LOCKED avatars and render a dashed-border placeholder with a centered 🔒 instead — per user spec 'locked ones can be greyed out without a preview'. Locked-opacity bumped 0.35 → 0.6 so the name + tier badge stay legible. [2026-05-22 <sha7>] Slice 3/N: shipped the final 6 avatars (3 starter + 3 fox) → avatar coverage now 30/30 ✅. Pulled via Drive MCP (download_file_content → base64 → decode), identified each via direct visual match against the catalogue. [2026-05-22 <sha7>] Slice 2/N: shipped 24/30 generated avatars (all dawg/lion/gorilla/bear + 10 lucky). Sorted 76 anonymously-named PNGs from a Drive batch via a 4-way parallel vision pipeline + 4 user-confirmed reassignments. [2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear."
     },
     {
       "id": "vercel-ignore-deploys",
@@ -2173,7 +2175,7 @@
         "Verify the tagline 'LIFT · TRACK · PROGRESS' is pinned near the bottom (11vh from edge) with the shimmer loading bar below it.",
         "Image upload: when user drops /public/ai/splash-hero.png (the generated 1080×1920 chrome-barbell hero), verify it auto-appears on next splash without a code change."
       ],
-      "notes": "[2026-05-22 <sha7>] Direction A shipped: full-bleed cinematic hero with camera drift, 3D extruded logo via multi-layer text-shadow, light sweep highlight, particle drift, layered vignettes. BarbellMark removed from splash (hero image IS the barbell). Existing impact glow + shockwave + floorBeam preserved. Fallback to home-hero.jpg if splash-hero.png isn't uploaded yet — splash never breaks. ~80 LOC of new CSS keyframes + JSX restructure."
+      "notes": "[2026-05-22 <sha7>] splash-hero.png is now LIVE at /public/ai/splash-hero.png (941×1672 — close to the 1080×1920 target spec; objectFit:cover handles the slight aspect difference). Chrome barbell with red-stripe plates and a dramatic light beam from upper-right against a dark void, exactly as specced. User reported splash 'wasn't visible' — the file had never been uploaded so the fallback (home-hero.jpg @ 15% opacity + blur(3px) + saturate(0.6)) was rendering near-invisibly behind the logo. Fixed by pulling the file via Drive MCP. [2026-05-22 <sha7>] Direction A shipped: full-bleed cinematic hero with camera drift, 3D extruded logo via multi-layer text-shadow, light sweep highlight, particle drift, layered vignettes. BarbellMark removed from splash (hero image IS the barbell). Existing impact glow + shockwave + floorBeam preserved. Fallback to home-hero.jpg if splash-hero.png isn't uploaded yet — splash never breaks. ~80 LOC of new CSS keyframes + JSX restructure."
     },
     {
       "id": "home-hub-singleline",
@@ -2190,9 +2192,11 @@
         "Verify each button shows: emoji icon (22px), short label (11px) below. Labels: Messages, Progress, Ranks (was 'Leaderboards'), Groups, Clients.",
         "Verify badges still display: Messages unread count, Clients count.",
         "On desktop (viewport > 480px), verify the buttons remain centered horizontally (the row maxes at 480px and centers).",
-        "Tap each button — verify it navigates to the correct view (messages / progress / globalLeaderboard / groupsHub / clientsHub)."
+        "Tap each button — verify it navigates to the correct view (messages / progress / globalLeaderboard / groupsHub / clientsHub).",
+        "Top-of-home chip strip (above the hero): verify three side-by-side chips in left-to-right order — Profile (avatar + name + role pill, narrow), Progress (📊 icon + 'Progress' label, narrow), Tier (trainer/athlete pills + progress bars, wider). On narrow phones the strip wraps; Tier should still be visibly wider than Profile or Progress on a typical viewport (≥360px wide).",
+        "Tap Profile in the chip strip → opens Settings/Profile view. Tap Progress → opens Progress view (dashboard tab). Tap Tier → opens the TierInfoModal."
       ],
-      "notes": "[2026-05-22 <sha7>] Layout switched grid → flex with flex:1 1 0 on each button and minWidth:0 so labels truncate on extremely narrow viewports instead of wrapping. Padding trimmed, label fontsize 12→11. 'Leaderboards' label shortened to 'Ranks' since the 🏆 icon carries the meaning. Container maxWidth:480 + margin auto centers on desktop."
+      "notes": "[2026-05-22 <sha7>] Top-of-home chip strip: added a Progress chip between Profile and Tier (user feedback: 'progress button can be between profile and tier'). Profile + Progress are now narrower (flex: 1 1 100px each), Tier widened to flex: 2 1 220px since its pill+progressbar+counter content needs more room. The hub-row Progress button (bottom of home) is kept as a secondary entry point. [2026-05-22 <sha7>] Layout switched grid → flex with flex:1 1 0 on each button and minWidth:0 so labels truncate on extremely narrow viewports instead of wrapping. Padding trimmed, label fontsize 12→11. 'Leaderboards' label shortened to 'Ranks' since the 🏆 icon carries the meaning. Container maxWidth:480 + margin auto centers on desktop."
     },
     {
       "id": "contributions-on-qa-board",

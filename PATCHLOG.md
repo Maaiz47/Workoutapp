@@ -2,6 +2,53 @@
 
 ---
 
+## Polish · 2026-05-22 — Splash hero live + avatar picker UX + home chip strip + music/quit separation (qa: splash-polish, profile-avatars, home-hub-singleline, workout-session-start)
+
+User flagged four concerns; bundled into one push.
+
+### 1. Splash hero (qa: splash-polish)
+`public/ai/splash-hero.png` was never uploaded — splash had been
+falling back to `home-hero.jpg` @ 15% opacity + blur(3px) +
+saturate(0.6), effectively invisible behind the logo. Pulled the
+user's freshly-generated chrome-barbell hero (941×1672) from Drive
+via the Drive MCP and dropped it in place. Splash now renders the
+cinematic intended visual.
+
+### 2. Avatar picker UX (qa: profile-avatars)
+User: "There's no way to change my avatar". The picker did exist,
+but the entry point was a 18×18 ✎ badge on the 52×52 avatar — too
+small to read as interactive on mobile. Fixes:
+
+- Added a clearly-labelled `✎ CHANGE AVATAR` button under the IDENTITY
+  card (cyan-tinted text-button, Space Mono caps).
+- Bumped the existing pencil badge from 18×18 / 9px font to 20×20 /
+  11px font as a secondary affordance.
+- Picker tiles for LOCKED avatars: per user spec ("greyed out without
+  a preview"), the image is replaced with a dashed-border placeholder
+  showing a centered 🔒 emoji. The tile's opacity is bumped from 0.35
+  to 0.6 so the name + tier badge stay legible. Unlocked tiles still
+  show their full-colour artwork.
+
+### 3. Home top chip strip (qa: home-hub-singleline)
+User: "progress button can be between profile and tier buttons; profile
+and progress on one side, tier wider on the other side". The top-of-home
+strip was a 2-button row (Profile, Tier). Now 3 chips in order
+Profile → Progress → Tier, with Profile + Progress narrower
+(`flex: 1 1 100px`) and Tier widened (`flex: 2 1 220px`) since its
+trainer/athlete pills + progress bars need the room. New Progress
+chip is a compact icon+label button styled like its neighbours;
+tapping opens the Progress dashboard. The existing Progress button
+in the bottom hub row stays as a secondary entry point.
+
+### 4. Music vs Quit separation (qa: workout-session-start)
+User: "Move the music button away from quit — no accidents". In the
+active workout header, ♪ MUSIC sat right next to QUIT × on the right
+with only `gap: 10px` between them. Moved MUSIC to the LEFT cluster
+(next to ← Home) so the right side has QUIT × alone. Mis-tap risk
+between Music and Quit eliminated; behaviours unchanged.
+
+---
+
 ## Assets · 2026-05-22 — Tier 1+2 avatars complete (30/30 avatars ✅) (qa: profile-avatars)
 
 @maaiz uploaded the missing 6 avatars (3 starter, 3 fox) to Drive
