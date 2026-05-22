@@ -24,14 +24,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   try {
     const metric = await prisma.bodyMetric.findUnique({ where: { id: params.id } });
     if (!metric || metric.userId !== uid) return json({ error: "Not found" }, 404);
-    const { weightKg, bodyFatPct, date } = await req.json();
+    const { weightKg, bodyFatPct, date, timeOfDay } = await req.json();
+    const parsedTod = timeOfDay === "morning" || timeOfDay === "evening" ? timeOfDay
+      : timeOfDay === null || timeOfDay === "" ? null
+      : undefined;
     const updated = await prisma.bodyMetric.update({
       where: { id: params.id },
       data: {
         ...(weightKg !== undefined && { weightKg: weightKg ? parseFloat(weightKg) : null }),
         ...(bodyFatPct !== undefined && { bodyFatPct: bodyFatPct ? parseFloat(bodyFatPct) : null }),
         ...(date !== undefined && { date: new Date(date) }),
-      },
+        ...(parsedTod !== undefined && { timeOfDay: parsedTod }),
+      } as any,
     });
     return json({ metric: updated });
   } catch (e: any) {

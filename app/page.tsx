@@ -19,7 +19,7 @@ import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
-import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap } from "../lib/challenges";
+import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState } from "../lib/challenges";
 import { isDeGamified, setDeGamified, pickTodayQuest, QuestState, isFullStackDay, recordFullStackDay, fullStackDayCount, checkBalancedWeek, recordBalancedWeek, detectNewHidden, HiddenState, HiddenAchievement } from "../lib/gamification";
 import { postWithQueue, drainQueue, queueCount } from "../lib/offlineSync";
 import { TIPS, pickDailyTip, TipContext, ProTip } from "../lib/proTips";
@@ -559,7 +559,15 @@ function getOverallStats(history: Record<string, any[]>) {
 }
 
 // Mini bar chart component
-function BodyTrendChart({ items, color, unit, goal }: { items: { value: number; date: string }[]; color: string; unit: string; goal?: number }) {
+// Trend chart with morning/evening colour coding. Morning dots
+// render in the chart's primary `color`; evening dots in the warmer
+// `eveningColor`. Items without a `timeOfDay` (historical entries
+// before the field existed) render in the primary colour at half
+// opacity so they're still visible but read as "no time set".
+// Legend at the bottom shows which colour means which time when at
+// least one of each appears. (qa: body-metric-timeofday)
+const EVENING_COLOR = "#FFB454";
+function BodyTrendChart({ items, color, unit, goal }: { items: { value: number; date: string; timeOfDay?: string | null }[]; color: string; unit: string; goal?: number }) {
   if (items.length < 2) return null;
   const W = 320, H = 90, PL = 36, PR = 8, PT = 10, PB = 22;
   const times = items.map(i => new Date(i.date).getTime());
@@ -573,6 +581,10 @@ function BodyTrendChart({ items, color, unit, goal }: { items: { value: number; 
   const cy = (v: number) => PT + ((maxV - v) / vRange) * (H - PT - PB);
   const pathD = items.map((it, i) => `${i === 0 ? "M" : "L"}${cx(it.date).toFixed(1)},${cy(it.value).toFixed(1)}`).join(" ");
   const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const dotColor = (it: typeof items[number]) => it.timeOfDay === "evening" ? EVENING_COLOR : color;
+  const hasMorning = items.some(i => !i.timeOfDay || i.timeOfDay === "morning");
+  const hasEvening = items.some(i => i.timeOfDay === "evening");
+  const showLegend = hasMorning && hasEvening;
   // Candidate label positions: first, second-to-last, last
   const LABEL_MIN_GAP = 38; // min px between label centres before suppressing
   const candidates = items.length === 2
@@ -588,6 +600,7 @@ function BodyTrendChart({ items, color, unit, goal }: { items: { value: number; 
   }
   // If only 1 survives and we had 2 candidates, still try to render just 1 centred label
   return (
+    <>
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block", overflow: "visible" }}>
       <line x1={PL} y1={PT} x2={PL} y2={H - PB} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
       <text x={PL - 4} y={PT + 5} fill="rgba(255,255,255,0.3)" fontSize="8" textAnchor="end" fontFamily="monospace">{maxV.toFixed(1)}</text>
@@ -595,7 +608,8 @@ function BodyTrendChart({ items, color, unit, goal }: { items: { value: number; 
       <path d={pathD} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
       {items.map((it, i) => {
         const isLast = i === items.length - 1;
-        return <circle key={i} cx={cx(it.date)} cy={cy(it.value)} r={isLast ? 4 : 2.5} fill={isLast ? color : `${color}70`} />;
+        const dc = dotColor(it);
+        return <circle key={i} cx={cx(it.date)} cy={cy(it.value)} r={isLast ? 4 : 2.5} fill={isLast ? dc : `${dc}80`} />;
       })}
       {goal != null && (() => {
         // extend minV/maxV range to include goal so it's always visible
@@ -619,6 +633,17 @@ function BodyTrendChart({ items, color, unit, goal }: { items: { value: number; 
         return <text key={idx} x={x} y={H - 5} fill="rgba(255,255,255,0.25)" fontSize="7.5" textAnchor={anchor} fontFamily="monospace">{fmt(it.date)}</text>;
       })}
     </svg>
+    {showLegend && (
+      <div style={{ display: "flex", gap: 14, marginTop: 6, fontSize: 10, color: "rgba(255,255,255,0.45)", fontFamily: "'Space Mono', monospace" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: color }} /> ☀️ morning
+        </span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: EVENING_COLOR }} /> 🌙 evening
+        </span>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -933,17 +958,118 @@ function ProgressPhotosCard({ currentWeight }: { currentWeight: number | null })
 // opt-in toggle + live progress bar against personal history. Global
 // leaderboard rank lands in a follow-up slice (needs server-side opt-in
 // table and aggregation).
-function ChallengesCard({ history }: { history: Record<string, any[]> }) {
+function ChallengesCard({ history, bodyMetrics }: { history: Record<string, any[]>; bodyMetrics?: any[] }) {
   const currentMonth = currentMonthIso();
   const active = CHALLENGES.filter(c => c.monthIso === currentMonth);
   const [, force] = useState(0);
-  if (active.length === 0) return null;
+  const metricsForMissions = bodyMetrics ?? [];
+  if (active.length === 0 && MISSIONS.length === 0) return null;
   return (
     <div style={{ background: "rgba(253,203,110,0.04)", border: "1px solid rgba(253,203,110,0.18)", borderRadius: 14, padding: 14, marginBottom: 12 }}>
+      {/* Long-running missions (6-month arcs etc.) — rendered ABOVE
+          monthly challenges since they're higher-commitment and the
+          user wants their progress front-and-centre.
+          (qa: mission-unlock-abs) */}
+      {MISSIONS.length > 0 && (
+        <>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#A29BFE", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>🎯 MISSIONS</span>
+            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>NO TIME LIMIT</span>
+          </div>
+          {MISSIONS.map(m => {
+            const state = computeMissionState(m, metricsForMissions);
+            const noReadings = state.currentValue == null;
+            // Open-ended progress bar — fills from "current observed
+            // highest BF reading" down to the target. If user is
+            // already below target, bar = full. If no readings, bar
+            // hidden and an inline error nudges them to log one.
+            const pct = noReadings
+              ? 0
+              : (() => {
+                  const observed = metricsForMissions.map((x: any) => x.bodyFatPct).filter((v: any) => typeof v === "number");
+                  const maxObserved = Math.max(state.currentValue ?? 30, ...observed);
+                  const denom = maxObserved - m.target;
+                  if (denom <= 0) return 100; // already at or below target
+                  return Math.min(100, Math.max(0, Math.round((1 - (state.currentValue! - m.target) / denom) * 100)));
+                })();
+            return (
+              <div key={m.id} style={{ padding: "12px 12px", background: "rgba(255,255,255,0.02)", border: `1px solid ${state.achieved ? "rgba(46,204,113,0.4)" : state.optedIn ? "rgba(162,155,254,0.35)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: 26 }}>{m.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: state.achieved ? "#2ecc71" : state.optedIn ? "#A29BFE" : "#fff" }}>{m.title} {state.achieved && "✓"}</div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2, lineHeight: 1.5 }}>{m.body}</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      // Block opt-in if no BF data — show the error
+                      // instead. Once they log one we'll let them join.
+                      if (!state.optedIn && noReadings) {
+                        force(n => n + 1); // re-render to surface the error
+                        return;
+                      }
+                      const isOptingIn = !state.optedIn;
+                      toggleMissionOptIn(m.id);
+                      // setsProfileGoal: when they JOIN, push the
+                      // target value into their profile so weight/BF
+                      // goals across the app align. (qa: mission-unlock-abs)
+                      if (isOptingIn && m.setsProfileGoal && m.metric === "body_fat_at_or_below") {
+                        // The PATCH persists the goal; the next /api/profile
+                        // refetch (on the Body tab open or page refresh)
+                        // hydrates goalBf state from the server. No need
+                        // to call setGoalBf from this scope.
+                        fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetBodyFatPct: m.target }) }).catch(() => {});
+                      }
+                      force(n => n + 1);
+                    }}
+                    style={{ padding: "5px 10px", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", background: state.optedIn ? "rgba(162,155,254,0.15)" : "rgba(255,255,255,0.05)", border: `1px solid ${state.optedIn ? "#A29BFE" : "rgba(255,255,255,0.15)"}`, borderRadius: 5, color: state.optedIn ? "#A29BFE" : "rgba(255,255,255,0.5)", cursor: "pointer", whiteSpace: "nowrap" }}
+                  >{state.optedIn ? "✓ JOINED" : "JOIN"}</button>
+                </div>
+                {/* Error: needs a body fat reading first. */}
+                {!state.optedIn && noReadings && (
+                  <div style={{ fontSize: 10, color: "#FF6B6B", padding: "8px 10px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, fontFamily: "'Space Mono', monospace" }}>
+                    ⚠ Log a body fat reading first (Progress → Body) so we know where you're starting.
+                  </div>
+                )}
+                {/* Pre-join preview (has BF data, not joined yet) */}
+                {!state.optedIn && !noReadings && (
+                  <div style={{ fontSize: 10, color: state.achieved ? "#2ecc71" : "rgba(162,155,254,0.75)", fontFamily: "'Space Mono', monospace" }}>
+                    {state.achieved
+                      ? `You're already at ${state.currentValue!.toFixed(1)}% — abs unlocked! Join to claim the badge.`
+                      : `You're at ${state.currentValue!.toFixed(1)}% · ${(state.currentValue! - m.target).toFixed(1)}% to unlock`}
+                  </div>
+                )}
+                {/* Joined view — open-ended, no countdown */}
+                {state.optedIn && (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontFamily: "'Space Mono', monospace" }}>
+                        {state.currentValue != null ? `${state.currentValue.toFixed(1)}% → ${m.target}%` : "Log a body fat reading to start tracking"}
+                      </span>
+                      <span style={{ fontSize: 10, color: state.achieved ? "#2ecc71" : "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>
+                        {state.achieved ? "✓ UNLOCKED" : `${pct}%`}
+                      </span>
+                    </div>
+                    <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden", marginBottom: 4 }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: state.achieved ? "#2ecc71" : "#A29BFE", borderRadius: 2, transition: "width 0.5s" }} />
+                    </div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>
+                      Goal body fat set to {m.target}%. {state.achieved ? "Milestone earned." : "No deadline — keep logging your BF readings, the bar fills as you progress."}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
+      {active.length > 0 && (
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: "#fdcb6e", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>🎯 MONTHLY CHALLENGES</span>
         <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{currentMonth.toUpperCase()}</span>
-      </div>
+      </div>)}
       {active.map(c => {
         const progress = computeChallengeProgress(c, history);
         const pct = Math.min(100, Math.round((progress / c.target) * 100));
@@ -4015,6 +4141,11 @@ function HomePage() {
   const [bodyMetricsLoaded, setBodyMetricsLoaded] = useState(false);
   const [metricWeight, setMetricWeight] = useState("");
   const [metricBf, setMetricBf] = useState("");
+  // Time-of-day for the metric entry. Defaults to "morning" since
+  // that's the recommended logging window (fasted, pre-workout —
+  // gives the most stable weight + BF readings). User can override
+  // each time. (qa: body-metric-timeofday)
+  const [metricTimeOfDay, setMetricTimeOfDay] = useState<"morning" | "evening">("morning");
   const [loggingMetric, setLoggingMetric] = useState(false);
   const [goalWeight, setGoalWeight] = useState("");
   const [goalBf, setGoalBf] = useState("");
@@ -4028,6 +4159,7 @@ function HomePage() {
   const [editMetricWeight, setEditMetricWeight] = useState("");
   const [editMetricBf, setEditMetricBf] = useState("");
   const [editMetricDate, setEditMetricDate] = useState("");
+  const [editMetricTimeOfDay, setEditMetricTimeOfDay] = useState<"morning" | "evening">("morning");
   const [savingMetric, setSavingMetric] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [regenConfirm, setRegenConfirm] = useState(false);
@@ -4350,6 +4482,17 @@ function HomePage() {
     const statusId = setInterval(pollStatus, 5000);
     return () => { clearInterval(id); clearInterval(statusId); };
   }, [view, activeConversation]);
+
+  // Eager-load body metrics on user mount so the Mission card on
+  // home can compute "current body fat" without waiting for the user
+  // to visit Progress → Body first. (qa: mission-unlock-abs)
+  useEffect(() => {
+    if (!user || bodyMetricsLoaded) return;
+    fetch("/api/metrics").then(r => r.json()).then(d => {
+      if (d.metrics) setBodyMetrics(d.metrics);
+      setBodyMetricsLoaded(true);
+    }).catch(() => setBodyMetricsLoaded(true));
+  }, [user, bodyMetricsLoaded]);
 
   useEffect(() => {
     if (!user) return;
@@ -4943,7 +5086,7 @@ function HomePage() {
       const res = await fetch("/api/metrics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weightKg: metricWeight || undefined, bodyFatPct: metricBf || undefined }),
+        body: JSON.stringify({ weightKg: metricWeight || undefined, bodyFatPct: metricBf || undefined, timeOfDay: metricTimeOfDay }),
       });
       const data = await res.json();
       if (data.metric) {
@@ -4974,6 +5117,23 @@ function HomePage() {
           setGoalCelebDetails(celebrations);
           setShowGoalCelebration(true);
         }
+        // Lightweight milestone check for body-fat thresholds — only
+        // fires on a BF log, so we don't need to spin up the full
+        // session-save milestone pipeline. (qa: mission-unlock-abs)
+        if (data.metric.bodyFatPct != null) {
+          try {
+            const achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
+            for (const m of MILESTONES) {
+              if (m.id !== "abs-unlocked") continue;
+              if (achieved.has(m.id)) continue;
+              if (m.check({ joinedDaysAgo: 0, totalSessions: 0, longestStreakDays: 0, prCount: 0, hasUsedSuperset: false, hasUsedDropSet: false, hasAcceptedDeload: false, athleteTierLabel: "", athleteTierNum: 1, currentBodyFatPct: data.metric.bodyFatPct })) {
+                achieved.add(m.id);
+                localStorage.setItem(MILESTONE_STORAGE_KEY, JSON.stringify(Array.from(achieved)));
+                setMilestoneQueue(q => [...q, m as MilestoneAward]);
+              }
+            }
+          } catch {}
+        }
       }
     } catch {}
     setLoggingMetric(false);
@@ -4997,6 +5157,7 @@ function HomePage() {
           ...(editMetricWeight && { weightKg: editMetricWeight }),
           ...(editMetricBf && { bodyFatPct: editMetricBf }),
           ...(editMetricDate && { date: editMetricDate }),
+          timeOfDay: editMetricTimeOfDay,
         }),
       });
       const data = await res.json();
@@ -5389,6 +5550,12 @@ function HomePage() {
               hasAcceptedDeload: (() => { try { return JSON.parse(localStorage.getItem("ironlog-deloads") ?? "[]").length > 0; } catch { return false; } })(),
               athleteTierLabel: newBreakdown.headline.label,
               athleteTierNum: newBreakdown.headline.tierNum,
+              // Most recent BF reading (newest-first in bodyMetrics).
+              // Feeds the "Abs Unlocked" milestone. (qa: mission-unlock-abs)
+              currentBodyFatPct: (() => {
+                const m = bodyMetrics.find((x: any) => x.bodyFatPct != null);
+                return m ? (m.bodyFatPct as number) : null;
+              })(),
             };
             const achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
             const newOnes = detectNewMilestones(mState, achieved);
@@ -10994,7 +11161,7 @@ function HomePage() {
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {progressTab === "dashboard" && (
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
-            {!deGamified && <ChallengesCard history={history} />}
+            {!deGamified && <ChallengesCard history={history} bodyMetrics={bodyMetrics} />}
             <WellnessCard />
             <VolumeHeatmap history={history} customPlan={customPlan} bodyweightKg={parseFloat(ob.weightKg || "0") || 70} />
             {/* Tier Card — multi-dim ladder. Hidden when de-gamify is on.
@@ -11647,7 +11814,13 @@ function HomePage() {
 
             {/* Log today */}
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "16px", marginBottom: 12 }}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 12 }}>LOG TODAY</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 600, marginBottom: 8 }}>LOG TODAY</div>
+              {/* Advisory: morning fasted readings are the most stable
+                  baseline. Tell the user once at the top of the card.
+                  (qa: body-metric-timeofday) */}
+              <div style={{ fontSize: 10, color: "rgba(255,209,102,0.7)", lineHeight: 1.5, marginBottom: 12, padding: "8px 10px", background: "rgba(255,209,102,0.06)", border: "1px solid rgba(255,209,102,0.18)", borderRadius: 8 }}>
+                💡 Best logged <strong>before workouts</strong>, ideally in the <strong>morning</strong> (fasted). Daily or weekly is great — stick with the same time of day for a stable trend.
+              </div>
               <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 1, marginBottom: 6 }}>WEIGHT (kg)</div>
@@ -11660,6 +11833,18 @@ function HomePage() {
                     style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 15, padding: "11px 12px", outline: "none", boxSizing: "border-box", fontFamily: "'Space Mono', monospace" }} />
                 </div>
               </div>
+              {/* Time-of-day picker. Pill toggle, defaults to morning.
+                  Colour matches the trend-chart colour code so the
+                  user can see which dots will use which colour. */}
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 1, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>WHEN WAS THIS RECORDED</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 12 }}>
+                {([{ id: "morning", label: "☀️ MORNING", color: "#4ECDC4" }, { id: "evening", label: "🌙 EVENING", color: "#FFB454" }] as const).map(t => {
+                  const active = metricTimeOfDay === t.id;
+                  return (
+                    <button key={t.id} onClick={() => setMetricTimeOfDay(t.id)} style={{ padding: "10px 8px", borderRadius: 10, background: active ? `${t.color}1F` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? t.color : "rgba(255,255,255,0.08)"}`, color: active ? t.color : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1, cursor: "pointer" }}>{t.label}</button>
+                  );
+                })}
+              </div>
               <button onClick={logBodyMetric} disabled={loggingMetric || (!metricWeight && !metricBf)} style={{ width: "100%", padding: "12px", background: metricWeight || metricBf ? "#4ECDC4" : "rgba(255,255,255,0.05)", border: "none", borderRadius: 10, color: metricWeight || metricBf ? "#000" : "rgba(255,255,255,0.2)", fontSize: 11, fontWeight: 700, letterSpacing: 2, cursor: metricWeight || metricBf ? "pointer" : "default", fontFamily: "'Space Mono', monospace", transition: "all 0.15s" }}>
                 {loggingMetric ? "LOGGING…" : "LOG NOW"}
               </button>
@@ -11668,8 +11853,8 @@ function HomePage() {
             {/* Trend + progress (if data exists) */}
             {bodyMetrics.length > 0 && (() => {
               const latest = bodyMetrics[0];
-              const weightItems = bodyMetrics.filter(m => m.weightKg != null).map(m => ({ value: m.weightKg as number, date: m.date as string })).reverse();
-              const bfItems = bodyMetrics.filter(m => m.bodyFatPct != null).map(m => ({ value: m.bodyFatPct as number, date: m.date as string })).reverse();
+              const weightItems = bodyMetrics.filter(m => m.weightKg != null).map(m => ({ value: m.weightKg as number, date: m.date as string, timeOfDay: m.timeOfDay as string | null | undefined })).reverse();
+              const bfItems = bodyMetrics.filter(m => m.bodyFatPct != null).map(m => ({ value: m.bodyFatPct as number, date: m.date as string, timeOfDay: m.timeOfDay as string | null | undefined })).reverse();
               const weightData = weightItems.map(i => i.value);
               const bfData = bfItems.map(i => i.value);
               const targetW = goalWeight ? parseFloat(goalWeight) : null;
@@ -11766,6 +11951,16 @@ function HomePage() {
                             <input type="number" value={editMetricBf} onChange={e => setEditMetricBf(e.target.value)} placeholder="—" style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, padding: "8px 10px", outline: "none", boxSizing: "border-box", fontFamily: "'Space Mono', monospace" }} />
                           </div>
                         </div>
+                        {/* Edit-mode time-of-day picker. (qa: body-metric-timeofday) */}
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: 1, marginBottom: 4, fontFamily: "'Space Mono', monospace" }}>WHEN RECORDED</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
+                          {([{ id: "morning", label: "☀️ MORNING", color: "#4ECDC4" }, { id: "evening", label: "🌙 EVENING", color: "#FFB454" }] as const).map(t => {
+                            const active = editMetricTimeOfDay === t.id;
+                            return (
+                              <button key={t.id} onClick={() => setEditMetricTimeOfDay(t.id)} style={{ padding: "8px 6px", borderRadius: 8, background: active ? `${t.color}1F` : "rgba(255,255,255,0.03)", border: `1px solid ${active ? t.color : "rgba(255,255,255,0.08)"}`, color: active ? t.color : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1, cursor: "pointer" }}>{t.label}</button>
+                            );
+                          })}
+                        </div>
                         <div style={{ display: "flex", gap: 8 }}>
                           <button onClick={saveBodyMetricEdit} disabled={savingMetric} style={{ flex: 1, padding: "8px", background: "#4ECDC4", border: "none", borderRadius: 8, color: "#000", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{savingMetric ? "SAVING…" : "SAVE"}</button>
                           <button onClick={() => setEditingMetricId(null)} style={{ padding: "8px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.4)", fontSize: 10, cursor: "pointer" }}>Cancel</button>
@@ -11774,7 +11969,12 @@ function HomePage() {
                     ) : (
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
-                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{new Date(m.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{new Date(m.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</div>
+                            {m.timeOfDay && (
+                              <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 6, background: m.timeOfDay === "evening" ? "rgba(255,180,84,0.12)" : "rgba(78,205,196,0.12)", color: m.timeOfDay === "evening" ? "#FFB454" : "#4ECDC4", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>{m.timeOfDay === "evening" ? "🌙 EVE" : "☀️ AM"}</span>
+                            )}
+                          </div>
                           <div style={{ fontSize: 13, color: "#fff", marginTop: 2, fontWeight: 500 }}>
                             {m.weightKg != null ? `${m.weightKg}kg` : ""}
                             {m.weightKg != null && m.bodyFatPct != null ? " · " : ""}
@@ -11782,7 +11982,7 @@ function HomePage() {
                           </div>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <button onClick={() => { setEditingMetricId(m.id); setEditMetricWeight(m.weightKg != null ? String(m.weightKg) : ""); setEditMetricBf(m.bodyFatPct != null ? String(m.bodyFatPct) : ""); setEditMetricDate(new Date(m.date).toISOString().slice(0, 10)); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 14, cursor: "pointer", padding: "4px 6px" }}>✎</button>
+                          <button onClick={() => { setEditingMetricId(m.id); setEditMetricWeight(m.weightKg != null ? String(m.weightKg) : ""); setEditMetricBf(m.bodyFatPct != null ? String(m.bodyFatPct) : ""); setEditMetricDate(new Date(m.date).toISOString().slice(0, 10)); setEditMetricTimeOfDay(m.timeOfDay === "evening" ? "evening" : "morning"); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 14, cursor: "pointer", padding: "4px 6px" }}>✎</button>
                           <button onClick={() => deleteBodyMetric(m.id)} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.4)", fontSize: 16, cursor: "pointer", padding: "4px 8px" }}>×</button>
                         </div>
                       </div>

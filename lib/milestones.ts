@@ -20,6 +20,10 @@ export type MilestoneState = {
   // the same rank can be labelled differently by theme (Tier 4 =
   // Lion in vivid OR Platinum in simple). (qa: tier-themes)
   athleteTierNum: number;
+  // Most recent body fat % the user has logged (null if they've
+  // never logged one). Feeds the "Unlock Your Abs" milestone.
+  // (qa: mission-unlock-abs)
+  currentBodyFatPct?: number | null;
 };
 
 export type Milestone = {
@@ -80,6 +84,10 @@ export const MILESTONES: Milestone[] = [
   { id: "tier-tiger",    label: "Reached Tier 4 — Lion",     body: "King of your own training. The pride watches.",            icon: "🦁", category: "tier", requirement: "Reach Tier 4 (headline tier score ≥ 50).", check: s => s.athleteTierNum >= 4 },
   { id: "tier-lion",     label: "Reached Tier 5 — Gorilla",  body: "Absolute unit. The work shows.",                            icon: "🦍", category: "tier", requirement: "Reach Tier 5 (headline tier score ≥ 70).", check: s => s.athleteTierNum >= 5 },
   { id: "tier-gorilla",  label: "Reached Tier 6 — Bear",     body: "Apex. Top fraction of trainees. Untouchable foundation.",   icon: "🐻", category: "tier", requirement: "Reach Tier 6 (headline tier score ≥ 90).", check: s => s.athleteTierNum >= 6 },
+
+  // ── Body composition unlocks ─────────────────────────────────────────
+  // (qa: mission-unlock-abs)
+  { id: "abs-unlocked",  label: "Abs Unlocked",              body: "Body fat at 15% or under — the six-pack reveal threshold. The work shows.", icon: "🔓", category: "behaviour", requirement: "Log a body fat reading of 15% or lower.", check: s => s.currentBodyFatPct != null && s.currentBodyFatPct <= 15 },
 ];
 
 // Maps tier milestone id → universal tier number (1-6). The IDs are

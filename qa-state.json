@@ -1012,6 +1012,45 @@
       "notes": "[2026-05-21] Tier card header completely rebuilt to be obviously a tier system: '🏆 YOUR RANK' + 'TIER N OF 6' explicit header, bigger animal icon (58px) + bigger name (26px in caps), horizontal animal ladder of all 6 tiers (current highlighted/glowing, past coloured, future greyed), explicit OVERALL SCORE row with breakpoint, '5 STATS FEED THIS RANK' label above the sub-rank grid."
     },
     {
+      "id": "body-metric-timeofday",
+      "title": "Weight/BF entries record time of day + colour-code chart",
+      "area": "Body metrics",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass body-metric-timeofday",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Body. Verify the LOG TODAY card shows a yellow advisory: 'Best logged before workouts, ideally in the morning (fasted). Daily or weekly is great — stick with the same time of day for a stable trend.'",
+        "Below the weight + BF inputs, verify a WHEN WAS THIS RECORDED row with two pill buttons: ☀️ MORNING (teal) and 🌙 EVENING (amber). Morning is selected by default.",
+        "Tap MORNING / EVENING — the active button highlights in its respective colour.",
+        "Type a weight and tap LOG NOW with MORNING selected. Verify the new entry appears in the history list with a small ☀️ AM badge next to the date.",
+        "Log a second entry with EVENING selected. Verify the new history row shows 🌙 EVE badge in amber.",
+        "Look at the WEIGHT TREND chart — morning dots render in teal, evening dots render in amber. A legend appears below the chart showing both colours when both kinds of readings exist.",
+        "Repeat the same checks on the BODY FAT TREND chart — morning dots in purple (the main BF colour), evening dots in amber.",
+        "Edit an existing entry (✎ icon) — verify the edit form ALSO has the morning/evening picker, pre-selected to the current entry's time-of-day."
+      ],
+      "notes": "[2026-05-22] Shipped: BodyMetric.timeOfDay nullable field on schema. POST/PATCH /api/metrics accept timeOfDay='morning'|'evening' (whitelisted). LOG TODAY card has new pill picker + yellow advisory. History row shows ☀️ AM / 🌙 EVE badges. BodyTrendChart colour-codes dots by timeOfDay; evening uses #FFB454 (amber). Legend rendered when both kinds present. Edit form has matching picker pre-seeded from the entry. (Reported by @maaiz: 'Make user select what time weight was recorded morning or evening / advise weight should be recorded prior to workouts ideally in the morning / make weight recordings recognisable on the graph by color code'.)"
+    },
+    {
+      "id": "mission-unlock-abs",
+      "title": "Unlock Your Abs — open-ended <15% BF mission + milestone",
+      "area": "Challenges",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass mission-unlock-abs",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open home. Verify a new 🎯 MISSIONS section appears above MONTHLY CHALLENGES with one item: 🔓 'Unlock Your Abs · Get your body fat to 15% or lower — that's the bar where the six-pack reveals itself. No deadline. Joining sets your goal body fat to 15% across the app.'",
+        "If no body fat readings exist for this user yet, JOIN is blocked: tapping the JOIN button surfaces an inline red error '⚠ Log a body fat reading first (Progress → Body) so we know where you're starting.' (Don't actually join.)",
+        "Open Progress → Body and log a body fat reading (e.g. 22%). Go back home — the mission card now shows 'You're at 22.0% · 7.0% to unlock' below the JOIN button.",
+        "Tap JOIN. Verify the button flips to ✓ JOINED (purple). The progress bar fills proportionally and the card shows '22.0% → 15%' with the percent fill on the right.",
+        "Open Settings → goals → verify goal body fat % is now 15 (auto-set by joining).",
+        "Log a new body fat reading at 14% (below target). Verify the mission card shows ✓ UNLOCKED with a green bar, AND the milestone overlay 'Abs Unlocked — Body fat at 15% or under, the six-pack reveal threshold' appears. The milestone is added to the achievements wall.",
+        "Reload home — the unlock state persists (LocalStorage and milestone storage both hold it)."
+      ],
+      "notes": "[2026-05-22] Shipped: new MISSIONS array in lib/challenges.ts (open-ended, no time cap). mission-unlock-abs-v1: body_fat_at_or_below 15%, setsProfileGoal=true. On JOIN: PATCH /api/profile sets targetBodyFatPct=15. JOIN blocked + inline error if user has no BF reading. New milestone 'abs-unlocked' triggers on logBodyMetric when bodyFatPct <= 15 — pipeline reads MILESTONE_STORAGE_KEY, pushes onto setMilestoneQueue so the celebration overlay fires. MissionState 'achieved' is sticky (won't unflip on a regression reading) AND fires immediately if user is already at or below target at any reading. bodyMetrics now eagerly-fetched on user mount so home Mission card has live data even before user visits Body tab. (Reported by @maaiz: 'Make a 6 month challenge for body fat under 15% and call it something about unlocking abs' → revised to 'Actually no need for a 6 month time limit / Can just be a challenge anyone joins and it should automatically update their goal body fat but show an error if they haven't recorded any / It can also be a milestone unlock if someone has or achieves under the abs %'.)"
+    },
+    {
       "id": "tier-scoring-fairness",
       "title": "Scoring rewards rest days + caps overtraining",
       "area": "Tiers",

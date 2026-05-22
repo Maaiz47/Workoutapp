@@ -25,11 +25,14 @@ export async function POST(req: NextRequest) {
   if (!uid) return json({ error: "Unauthorized" }, 401);
 
   try {
-    const { weightKg, bodyFatPct, date } = await req.json();
+    const { weightKg, bodyFatPct, date, timeOfDay } = await req.json();
     if (!weightKg && !bodyFatPct) return json({ error: "Provide at least one value" }, 400);
 
     const parsedWeight = weightKg ? parseFloat(weightKg) : null;
     const parsedBf = bodyFatPct ? parseFloat(bodyFatPct) : null;
+    // Whitelist timeOfDay so junk values can't end up in the DB.
+    // (qa: body-metric-timeofday)
+    const parsedTod = timeOfDay === "morning" || timeOfDay === "evening" ? timeOfDay : null;
 
     const metric = await prisma.bodyMetric.create({
       data: {
@@ -37,7 +40,8 @@ export async function POST(req: NextRequest) {
         weightKg: parsedWeight,
         bodyFatPct: parsedBf,
         date: date ? new Date(date) : new Date(),
-      },
+        timeOfDay: parsedTod,
+      } as any,
     });
 
     // Keep UserProfile current weight/bf in sync ONLY when this metric is the

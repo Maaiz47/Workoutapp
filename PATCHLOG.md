@@ -2,6 +2,68 @@
 
 ---
 
+## Feat · 2026-05-22 — Time-of-day for body metrics + Unlock Your Abs (qa: body-metric-timeofday, mission-unlock-abs)
+
+### 1. Weight/BF time-of-day capture
+@maaiz: "Make user select what time weight was recorded
+morning or evening. Advise that weight should be recorded
+prior to workouts, ideally in the morning and daily or
+once a week. Make weight recordings recognisable on the
+graph by the selection via color code. Same applies for
+body fat %."
+
+- **Schema**: `BodyMetric.timeOfDay String?` — nullable for
+  backwards compat. API POST/PATCH whitelist
+  `morning|evening`.
+- **UI**: LOG TODAY card now has a yellow advisory at the
+  top ("Best logged before workouts, ideally in the
+  morning, fasted") and a pill picker below the inputs
+  (☀️ MORNING teal / 🌙 EVENING amber). Default: morning.
+- **History rows**: small badge next to the date showing
+  ☀️ AM or 🌙 EVE.
+- **BodyTrendChart**: dots colour-coded — morning = primary
+  chart colour (teal for weight, purple for BF), evening
+  = amber #FFB454 for both. A legend appears below the
+  chart when both kinds of readings exist.
+- **Edit form**: same picker, pre-seeded from the entry.
+
+### 2. Unlock Your Abs mission
+@maaiz: "Make a 6 month challenge for body fat under 15%
+and call it something about unlocking abs (as 15% and
+under is when they really show right?)" → revised to
+"Actually no need for a 6 month time limit, can just be a
+challenge anyone joins and it should automatically update
+their goal body fat but show an error if they haven't
+recorded any. It can also be a milestone unlock if
+someone has or achieves under the abs %."
+
+- **lib/challenges.ts**: new `MISSIONS` array alongside
+  monthly `CHALLENGES`. Each mission supports an optional
+  `durationDays` (0 / undefined = open-ended) and
+  `setsProfileGoal: true` so JOIN writes the target into
+  `profile.targetBodyFatPct`.
+- **Mission**: id `mission-unlock-abs-v1`, target = 15% BF,
+  open-ended (no deadline).
+- **JOIN flow**: PATCH /api/profile updates
+  `targetBodyFatPct=15`. If the user has no BF reading
+  yet, JOIN is blocked with an inline error ⚠ "Log a
+  body fat reading first".
+- **Milestone**: new `abs-unlocked` in `lib/milestones.ts`
+  fires when `currentBodyFatPct <= 15`. Triggers from the
+  workout-save milestone pipeline AND from `logBodyMetric`
+  directly so the celebration fires the moment a sub-15%
+  reading lands. Sticky once earned.
+- **Card UI**: rendered above MONTHLY CHALLENGES section
+  in `ChallengesCard`. Pre-join preview shows current
+  gap. Joined state shows fill-bar + "Goal body fat set
+  to 15%. No deadline — keep logging your BF readings,
+  the bar fills as you progress."
+- bodyMetrics now eagerly-fetched on user mount so the
+  mission card on home has data without visiting Body
+  tab first.
+
+---
+
 ## Feat · 2026-05-22 — Global tier leaderboard + scoring fairness (qa: tier-global-leaderboard, tier-scoring-fairness)
 
 @maaiz: "Is there a tier global leaderboard anywhere? Should

@@ -259,6 +259,11 @@ model BodyMetric {
   date       DateTime @default(now())
   weightKg   Float?
   bodyFatPct Float?
+  // When the user logged the metric: "morning" or "evening".
+  // Lets the trend chart colour-code points and reminds the user
+  // that morning-fasted readings are more reliable. Nullable for
+  // backwards compat with historical entries. (qa: body-metric-timeofday)
+  timeOfDay  String?
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
