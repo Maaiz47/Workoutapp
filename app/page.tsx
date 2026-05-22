@@ -4495,7 +4495,11 @@ function HomePage() {
 
   // Minimum splash duration so the fall animation completes
   useEffect(() => {
-    const t = setTimeout(() => setSplashDone(true), 2000);
+    // 2.4s lets the impact + shockwave land (0.85s), the tagline fade
+    // in (1.25s), AND one full light-sweep cycle across the logo
+    // (1.0s delay + 1.4s duration = completes at 2.4s). Any shorter
+    // and the user only sees a partial sweep. (qa: splash-polish)
+    const t = setTimeout(() => setSplashDone(true), 2400);
     return () => clearTimeout(t);
   }, []);
 

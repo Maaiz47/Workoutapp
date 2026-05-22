@@ -91,13 +91,13 @@ input[type="number"] { -moz-appearance: textfield; }
   height: 100%;
   background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
   transform: skewX(-20deg);
-  animation: splashLogoSweep 3.6s ease-in-out 1.3s infinite;
+  animation: splashLogoSweep 1.4s ease-in-out 1.0s infinite;
   pointer-events: none;
   mix-blend-mode: screen;
 }
 @keyframes splashLogoSweep {
   0%   { left: -120%; }
-  55%  { left: 130%; }
+  65%  { left: 130%; }
   100% { left: 130%; }
 }
 

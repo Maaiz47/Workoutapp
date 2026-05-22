@@ -2092,6 +2092,27 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: see random-rare-rewards for the same shipped code. UserProfile.avatarId persists the user's choice; UserAvatarUnlock rows track everything they own. Tier-source unlocks are backfilled lazily on /api/avatars GET. Picker UI: grid of all 30 avatars with locked/unlocked state, RARE vs TIER N tags, and a 'Default' option to clear. Next slice: generated art (user is generating with ChatGPT from the prompts file)."
     },
     {
+      "id": "image-batch-script",
+      "title": "Image-batch unpack helper — bulk-import zip or folder into /public/",
+      "area": "Trainer",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass image-batch-script",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Set up a test directory: /tmp/test-batch/avatars/foo.png, /tmp/test-batch/stretches/cd-pigeon/0.png, /tmp/test-batch/stretches/cd-pigeon/1.png, plus a /tmp/test-batch/junk.txt control file.",
+        "Run: `npx tsx scripts/unpack-image-batch.ts /tmp/test-batch`",
+        "Verify the script logs: 'Found 4 files. Routing 3, skipping 1.' and shows each ✓ route line.",
+        "Verify junk.txt is skipped with reason 'not-png'.",
+        "Verify the three .png files were copied to: public/avatars/foo.png, public/stretches/cd-pigeon/0.png, public/stretches/cd-pigeon/1.png.",
+        "Test zip input: zip the test dir → `zip -r /tmp/test.zip *` from inside /tmp/test-batch → `npx tsx scripts/unpack-image-batch.ts /tmp/test.zip` — same routing should occur.",
+        "Test idempotence: run twice. Second run overwrites cleanly without errors.",
+        "Test malformed inputs: subdir deeper than expected (e.g. avatars/sub/x.png) should skip with reason 'deeper-than-expected'.",
+        "Verify the script prints the suggested `git add / commit / push` next-steps at the end."
+      ],
+      "notes": "[2026-05-22 <sha7>] Walk + route + copy. System `unzip` shells out for .zip inputs. Idempotent (overwrites). Skips files outside the expected layout (avatars/<id>.png, stretches/<id>/{0,1}.png). Verified locally with a synthetic batch — routed 3, skipped 2 (junk.txt + nested wrong.png)."
+    },
+    {
       "id": "splash-polish",
       "title": "Splash screen — cinematic hero, 3D logo, light sweep, particles, camera drift",
       "area": "Onboarding",

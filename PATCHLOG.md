@@ -2,6 +2,51 @@
 
 ---
 
+## Polish · 2026-05-22 — Splash duration bump + image-batch unpack helper (qa: splash-polish, image-batch-script)
+
+Two small wins in one commit:
+
+### Splash: 2.0s → 2.4s
+
+Previous 2s window cut the light-sweep cycle mid-flight. Bumped
+to 2.4s and tightened the sweep to a 1.4s cycle with 1.0s delay
+so the user sees one full sweep complete before the splash
+dismisses. Math:
+- 0.85s — impact + shockwave fire
+- 1.00s — sweep starts
+- 1.25s — tagline fades in
+- 2.40s — sweep first cycle completes, splash dismisses
+
+### Image-batch unpack script
+
+New `scripts/unpack-image-batch.ts`. Takes either a directory or
+a .zip file with this layout:
+
+```
+avatars/<id>.png
+stretches/<id>/0.png
+stretches/<id>/1.png
+```
+
+Routes each into the right `/public/...` destination, skips
+anything outside the pattern (logs the reason), idempotent on
+re-run. System `unzip` required if you pass a .zip.
+
+Usage:
+```
+npx tsx scripts/unpack-image-batch.ts ~/Downloads/ironlog-images-batch.zip
+git add public/avatars public/stretches
+git commit -m "chore: import image batch"
+git push origin main
+```
+
+Designed for Amanii's 80-image batch handover but generalises for
+any future bulk image drops.
+
+(qa: splash-polish, image-batch-script)
+
+---
+
 ## Polish · 2026-05-22 — Splash screen: 3D logo + light sweep + particles + camera drift (qa: splash-polish)
 
 @maaiz: "I really want a better modern aesthetic 3D splash screen
