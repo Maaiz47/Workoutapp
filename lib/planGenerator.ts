@@ -564,6 +564,50 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
     planDays.push(buildCardioDay(profile, new Set()));
   }
 
+  // ── Core finisher (varied across days) ──────────────────────────────
+  // Append a single core exercise to every day that doesn't already
+  // have one. Pool is ordered by general suitability — the canonical
+  // hanging leg raise wins day 1, then we rotate through complementary
+  // movement patterns (anti-extension plank, loaded flexion cable
+  // crunch, rotation russian/bicycle, hip flexion v-ups, etc.). A
+  // single shared `coreUsed` set means each day gets a DIFFERENT
+  // core exercise until the pool runs out, while still respecting
+  // the user's equipment + level via pickExercise's normal filters.
+  // (qa: workout-plan-generator)
+  const corePool = [
+    "hanging-leg-raise", // hip flexion, advanced
+    "cable-crunch",      // loaded flexion
+    "plank",             // anti-extension isometric
+    "russian-twist",     // rotation
+    "bicycle-crunch",    // flexion + rotation
+    "v-ups",             // hip flexion bodyweight
+    "ab-rollout",        // anti-extension dynamic
+    "dead-bug",          // anti-extension supine
+    "side-plank",        // anti-lateral-flexion
+    "leg-raises",        // hip flexion alternative
+    "bird-dog",          // anti-rotation kneeling
+  ];
+  const coreUsed = new Set<string>();
+  for (const day of planDays) {
+    const hasCore = day.exercises.some(e => {
+      const ex = EXERCISES.find(x => x.id === e.exerciseId);
+      return ex?.primaryMuscles.includes("core");
+    });
+    if (hasCore) continue;
+    const coreId = pickExercise("core", profile, corePool, coreUsed);
+    if (!coreId) continue;
+    const reps = coreId === "plank" || coreId === "side-plank" || coreId === "dead-bug" || coreId === "bird-dog"
+      ? "30–45 sec"
+      : coreId === "hanging-leg-raise" || coreId === "v-ups" || coreId === "ab-rollout"
+      ? "10–12"
+      : "15–20";
+    const ex = makeEx(coreId, profile.goals, profile.fitnessLevel, { sets: 3, reps, rest: 45, notes: "Core finisher" });
+    if (ex) {
+      day.exercises.push(ex);
+      coreUsed.add(coreId);
+    }
+  }
+
   const areas = (profile.targetAreas?.filter(a => a !== "none") ?? []).length > 0
     ? profile.targetAreas!.filter(a => a !== "none")
     : (profile.targetArea && profile.targetArea !== "none" ? [profile.targetArea] : []);

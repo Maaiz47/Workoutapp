@@ -2,6 +2,57 @@
 
 ---
 
+## Feat · 2026-05-22 — Varied core exercise per day in every generated plan (qa: plan-rebuild)
+
+@maaiz: "Want variations of core exercises in a routine being
+built — different core variations on different days at least."
+Previously the default WORKOUT_DATA put 'Hanging Leg Raises'
+on every single day, and the plan generator didn't add any
+core finisher at all to push/pull/leg days. So a user with a
+generated 5-day split saw zero dedicated core; a user on the
+default fallback plan did 5×HLR per week.
+
+### planGenerator now adds a rotating core finisher
+After all day-builders run (push/pull/leg/upper/lower/cardio),
+the generator walks each planDay and — if it doesn't already
+carry a core-primary exercise — appends one from an
+11-exercise pool:
+
+`hanging-leg-raise → cable-crunch → plank → russian-twist →
+bicycle-crunch → v-ups → ab-rollout → dead-bug → side-plank →
+leg-raises → bird-dog`
+
+A single shared `coreUsed` set across days ensures no
+duplicates until the pool is exhausted. Each pick respects
+the user's equipment + level via the existing `pickExercise`
+filters (e.g. no-bar users skip HLR, no-cable users skip
+cable crunch). Movement patterns intentionally rotate
+between hip flexion, anti-extension, rotation, and loaded
+flexion so the user hits the whole core anatomically across
+the week, not just one slice.
+
+Rep schemes auto-pick per exercise: isometrics get
+`30-45 sec`, advanced hip-flexion movements get `10-12`,
+everything else `15-20`. Rest = 45s, sets = 3.
+
+### Default WORKOUT_DATA finishers also varied
+For users still on the seed plan (haven't completed profile),
+the 5 default days now end with 5 distinct exercises:
+
+- Push Heavy (a7): Hanging Leg Raises (kept canonical)
+- Pull Width (b8): Cable Crunch
+- Legs (c7): Plank (45 sec hold)
+- Push Volume (d7): Russian Twists
+- Pull Thickness (e7): Bicycle Crunches
+
+`lib/exerciseImages.ts` `b8`/`c7`/`d7`/`e7` mappings
+repointed to `Cable_Crunch` / `Plank` / `Russian_Twist` /
+`Air_Bike` so the FORM modal animations still match the
+exercise name (verified all four resolve 200 from
+free-exercise-db).
+
+---
+
 ## Fix · 2026-05-22 — Real form demos for 13 of 22 stretches + plan for the rest (qa: workout-warmup)
 
 @maaiz: "Surely we can have the stretch and warm up/down

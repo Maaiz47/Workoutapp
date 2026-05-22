@@ -53,7 +53,7 @@ export const WORKOUT_DATA: WorkoutDay[] = [
       { name: "Extras", exercises: [
         { id: "b7", name: "Face Pulls", sets: 4, reps: "15", type: "isolation", rest: 35, note: "Shoulder health + rear delts" },
       ]},
-      { name: "Finisher", exercises: [{ id: "b8", name: "Hanging Leg Raises", sets: 3, reps: "15", type: "isolation", rest: 30 }] },
+      { name: "Finisher", exercises: [{ id: "b8", name: "Cable Crunch", sets: 3, reps: "15", type: "isolation", rest: 30 }] },
     ],
   },
   {
@@ -71,7 +71,7 @@ export const WORKOUT_DATA: WorkoutDay[] = [
         { id: "c5", name: "Leg Curl Machine", sets: 3, reps: "12-15", type: "isolation", rest: 45 },
         { id: "c6", name: "Standing Calf Raises", sets: 4, reps: "15-20", type: "isolation", rest: 35 },
       ]},
-      { name: "Finisher", exercises: [{ id: "c7", name: "Hanging Leg Raises", sets: 3, reps: "15", type: "isolation", rest: 30 }] },
+      { name: "Finisher", exercises: [{ id: "c7", name: "Plank", sets: 3, reps: "45 sec", type: "isolation", rest: 30 }] },
     ],
   },
   {
@@ -91,7 +91,7 @@ export const WORKOUT_DATA: WorkoutDay[] = [
       { name: "Extras", exercises: [
         { id: "d6", name: "Lateral Raises", sets: 4, reps: "15", type: "isolation", rest: 35, note: "Light & slow — capped delts" },
       ]},
-      { name: "Finisher", exercises: [{ id: "d7", name: "Hanging Leg Raises", sets: 3, reps: "15", type: "isolation", rest: 30 }] },
+      { name: "Finisher", exercises: [{ id: "d7", name: "Russian Twists", sets: 3, reps: "20", type: "isolation", rest: 30 }] },
     ],
   },
   {
@@ -111,7 +111,7 @@ export const WORKOUT_DATA: WorkoutDay[] = [
       { name: "Extras", exercises: [
         { id: "e6", name: "Face Pulls", sets: 4, reps: "15", type: "isolation", rest: 35, note: "Rear delts + shoulder health" },
       ]},
-      { name: "Finisher", exercises: [{ id: "e7", name: "Hanging Leg Raises", sets: 3, reps: "15", type: "isolation", rest: 30 }] },
+      { name: "Finisher", exercises: [{ id: "e7", name: "Bicycle Crunches", sets: 3, reps: "20", type: "isolation", rest: 30 }] },
     ],
   },
 ];

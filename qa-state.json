@@ -430,17 +430,18 @@
       "area": "Plan",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
       "steps": [
         "Go to Settings (gear icon in profile card)",
         "Tap '↺ REBUILD MY WEEKLY PLAN'",
         "The onboarding flow should re-open at Step 3 (location/equipment)",
         "Change one or more settings (e.g. days per week)",
         "Tap 'Generate my plan'",
-        "Return to the home screen — the plan days should reflect the new settings"
+        "Return to the home screen — the plan days should reflect the new settings",
+        "Verify EVERY plan day now ends with a 'Core finisher' exercise (3 sets, ~15-20 reps or 30-45 sec for planks), and that NO TWO DAYS USE THE SAME CORE EXERCISE until the pool runs out (pool of 11: hanging leg raise, cable crunch, plank, russian twist, bicycle crunch, v-ups, ab rollout, dead bug, side plank, leg raises, bird dog). For a 5-day split you should see 5 distinct core exercises."
       ],
-      "notes": ""
+      "notes": "[2026-05-22] Updated: planGenerator now sprinkles a varied core finisher onto every generated day (rotating through anti-extension, loaded flexion, rotation, hip flexion patterns). Default WORKOUT_DATA also updated — push1 keeps Hanging Leg Raises, but pull1/legs/push2/pull2 now use Cable Crunch / Plank / Russian Twists / Bicycle Crunches respectively. Image mappings (`b8`, `c7`, `d7`, `e7`) repointed accordingly. (Reported by @maaiz)"
     },
     {
       "id": "plan-hiit-preference",
