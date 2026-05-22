@@ -994,7 +994,7 @@
       "area": "Progress",
       "introduced": "2026-05-21",
       "introducedBy": "QA pass tier-trainer-athlete",
-      "lastTested": "2026-05-21",
+      "lastTested": "2026-05-22",
       "status": "regression-retest",
       "steps": [
         "Log in as a TRAINER (or admin with the trainer extra-role)",
@@ -1002,9 +1002,28 @@
         "Verify the athlete tier card now appears (previously hidden because the gate was role === 'user'). Shows the headline animal tier + 5 sub-rank bars + experience badge + 'path to next' callout",
         "Verify the card reflects the trainer's OWN training history — their own sessions / PRs / volume / mastery / habits — not their clients'",
         "Verify other role-specific cards (e.g. trainer-only client roster cards in the trainer section) still appear correctly elsewhere",
-        "Toggle Pure Mode ON — verify the athlete tier card hides for the trainer too (same de-gamify treatment)"
+        "Toggle Pure Mode ON — verify the athlete tier card hides for the trainer too (same de-gamify treatment)",
+        "Open the tier explainer modal (tap your tier chip on home). Verify a new 🎯 YOUR TRAINER SUB-RANKS panel appears below the trainer ladder with 4 bars (Roster / Progression / Retention / Reach), each showing N/100 score + a short detail line. Verify a 'Path to next' callout points at the lowest sub-rank."
       ],
-      "notes": "[2026-05-21] Removed the `role === 'user'` gate from the athlete tier card so trainers and admins get to see their personal training rank alongside whatever role-specific surfaces they have. Trainers also train; rewarding them for it makes the app feel less like 'two separate apps'. Card is still hidden in Pure Mode for users who opt out of gamification."
+      "notes": "[2026-05-22] Shipped server-side multi-dim trainer tier: new GET /api/trainer/me/tier endpoint computes the full TierBreakdown via computeTrainerTier() from the trainer's roster stats (rosterCount, clientsWithRecentPR, clientsWithActiveStreak, totalClientPRs, totalClientVolumeKg). HomePage fetches it on mount, passes through HomeGlobals → TierInfoModal as `trainerBreakdown`. Modal renders the 4 sub-rank bars + Path-to-Next callout when the breakdown is present, and the headline tier in the trainer ladder ribbon now sources from the breakdown (with getTrainerTier(clients.length) as fallback during loading).\n[2026-05-21] Removed the `role === 'user'` gate from the athlete tier card so trainers and admins get to see their personal training rank alongside whatever role-specific surfaces they have. Trainers also train; rewarding them for it makes the app feel less like 'two separate apps'. Card is still hidden in Pure Mode for users who opt out of gamification."
+    },
+    {
+      "id": "qa-per-step-comments",
+      "title": "Per-step comments on /qa items",
+      "area": "QA",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass per-step-comments",
+      "lastTested": "2026-05-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open /qa, expand any item with multiple steps in its `steps[]` array (e.g. workout-set-logging).",
+        "Verify each step now has a small 💬 button on the right. Steps that have existing comments scoped to them show the count next to the icon (e.g. 💬 2).",
+        "Tap the 💬 button on step 3 — verify the page scrolls to the comment form, the form shows a '💬 STEP 3' indicator chip at the top, and the indicator has a '× CLEAR' button.",
+        "Type a note, pick a status, tap save. Verify the new comment renders in the thread with a small '💬 STEP 3' chip next to the tester name + timestamp.",
+        "Tap '× CLEAR' on the indicator before saving another comment — verify the next comment saves WITHOUT a step scope (legacy item-level behaviour).",
+        "Refresh the page — verify the step counts on the 💬 buttons stay accurate (read from the comments thread), and the per-step chips on saved comments persist."
+      ],
+      "notes": "[2026-05-22] Slice 1 shipped: schema (QAComment.stepIndex Int?), POST /api/qa/comment accepts + validates stepIndex (0-99), GET returns it, /qa UI renders 💬 buttons per step + comment-form indicator + per-comment chip in the thread. Step scope is OPTIONAL — comments without one stay item-level as before so the upgrade is non-breaking. Slice 2 (analytics: group thread by step in the admin view, filter all comments by step) deferred."
     },
     {
       "id": "milestone-info-overlay",

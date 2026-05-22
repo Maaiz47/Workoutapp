@@ -2,6 +2,63 @@
 
 ---
 
+## Feat · 2026-05-22 — Pending backlog clear (parts 4–5) (qa: tier-trainer-keeps-athlete, qa-per-step-comments)
+
+Closes the remaining two items from the backlog clear after
+parts 1-3 below.
+
+### 4. Trainer tier — server-side multi-dim (qa: tier-trainer-keeps-athlete)
+The trainer tier in the modal + Settings IDENTITY was still
+computed from `clients.length` only (legacy
+`getTrainerTier(N)`). The canonical multi-dim
+`computeTrainerTier(stats)` already existed in lib/tiers.ts
+but wasn't wired. Now:
+- New `GET /api/trainer/me/tier` endpoint walks the
+  trainer's roster, calls `computeStatsForUsers`, aggregates
+  4 dimensions: `rosterCount`, `clientsWithRecentPR`
+  (prCount > 0 AND last session ≤ 30 days), `clientsWithActiveStreak`
+  (streak ≥ 7), `totalClientPRs`, `totalClientVolumeKg`,
+  then calls `computeTrainerTier()` and returns the full
+  `TierBreakdown`.
+- HomePage fetches on mount when the user is a trainer,
+  stores as `myTrainerBreakdown`, passes through HomeGlobals
+  → TierInfoModal.
+- Modal gains a new 🎯 YOUR TRAINER SUB-RANKS panel
+  (renders only when breakdown is loaded + isTrainer) with
+  4 bars (Roster / Progression / Retention / Reach), each
+  showing N/100 score + a detail line. Plus a "Path to
+  next" callout pointing at the lowest sub-rank — same
+  shape as the athlete one on Progress Dashboard.
+- Headline trainer tier in the ladder ribbon now sources
+  from the breakdown when available, falls back to
+  `getTrainerTier(clients.length)` while loading so we
+  never render an empty badge.
+
+### 5. /qa per-step comments (qa: qa-per-step-comments)
+QAComments were item-level only — a tester saying "step 3
+of the warmup flow is broken" had to write that in prose
+and hope the next pass parsed it correctly. Now:
+- Schema: `QAComment.stepIndex Int?` (nullable; null =
+  item-level legacy behaviour). Index on
+  `[itemId, stepIndex]` for thread queries.
+- `POST /api/qa/comment` accepts + validates `stepIndex`
+  (non-negative integer 0–99). `GET` returns it in the
+  payload.
+- /qa UI changes:
+  - Each step in the STEPS TO TEST list grows a small 💬
+    button on the right. Steps that already have scoped
+    comments show the count (e.g. `💬 2`).
+  - Tapping 💬 → sets `draft.stepIndex = i`, smooth-scrolls
+    to the comment form, and the form shows a
+    `💬 STEP N` indicator chip with a `× CLEAR` button.
+  - Saved comments render the chip inline next to the
+    tester name in the thread so reviewers see at a
+    glance which step each comment is about.
+- Step scope is optional — comments without one stay
+  item-level. Existing data unaffected.
+
+---
+
 ## Feat · 2026-05-22 — Pending backlog clear (parts 1–3) (qa: plan-cardio-day, onboarding-profile-setup, tier-info-modal)
 
 Working the deferred slice-2 / next-pass items @maaiz

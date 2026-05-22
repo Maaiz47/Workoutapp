@@ -21,7 +21,7 @@ async function readProcessedManifest(): Promise<Record<string, { ts: string; sha
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { itemId, tester, status, note, screenshotUrl } = body || {};
+    const { itemId, tester, status, note, screenshotUrl, stepIndex } = body || {};
 
     if (!itemId || typeof itemId !== "string") {
       return NextResponse.json({ error: "itemId is required" }, { status: 400 });
@@ -37,6 +37,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "note is required" }, { status: 400 });
     }
 
+    // Per-step scoping: stepIndex is the 0-indexed step within the
+    // item's steps[] array that this comment refers to. Null/omitted
+    // = comment is about the item as a whole. Validate that it's a
+    // non-negative integer if provided. (qa: qa-per-step-comments)
+    let parsedStepIndex: number | null = null;
+    if (stepIndex !== undefined && stepIndex !== null) {
+      const n = Number(stepIndex);
+      if (!Number.isInteger(n) || n < 0 || n > 99) {
+        return NextResponse.json({ error: "stepIndex must be a non-negative integer" }, { status: 400 });
+      }
+      parsedStepIndex = n;
+    }
+
     // If the request carries the ironlog-uid cookie, attach the user to the
     // comment so the admin view can group by submitter. Public anonymous
     // submissions still work (userId stays null).
@@ -45,6 +58,7 @@ export async function POST(req: NextRequest) {
     const row = await (prisma as any).qAComment.create({
       data: {
         itemId,
+        stepIndex: parsedStepIndex,
         tester: tester.trim(),
         userId: uid,
         status,
@@ -77,7 +91,7 @@ export async function GET(req: NextRequest) {
     where,
     orderBy: { ts: "asc" },
     select: {
-      id: true, itemId: true, tester: true, userId: true, status: true,
+      id: true, itemId: true, stepIndex: true, tester: true, userId: true, status: true,
       note: true, screenshotUrl: true, ts: true, processed: true,
     },
   });

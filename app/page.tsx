@@ -3053,7 +3053,7 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
 // needs to be inserted into EACH branch's return — there's no
 // single bottom render to attach to.
 function HomeGlobals({
-  user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, onJumpToLeaderboard,
+  user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, trainerBreakdown, onJumpToLeaderboard,
 }: {
   user: { username: string; role: string; extraRoles?: string[] } | null;
   view: string;
@@ -3065,6 +3065,7 @@ function HomeGlobals({
   // surface (welcome card pill, Settings IDENTITY, TierInfoModal,
   // leaderboard "you" row) renders the SAME tier.
   athleteBreakdown: TierBreakdown | null;
+  trainerBreakdown: TierBreakdown | null;
   // Optional callback wired from HomePage — closes the tier modal,
   // navigates to home view, scrolls to the user's "YOU" row in the
   // first visible leaderboard group. Lets the user jump from the
@@ -3077,7 +3078,13 @@ function HomeGlobals({
   const athleteTier: TierLite | null = athleteBreakdown
     ? { label: athleteBreakdown.headline.label, emoji: athleteBreakdown.headline.icon, min: athleteBreakdown.headline.min, color: athleteBreakdown.headline.color, bg: athleteBreakdown.headline.bg, border: athleteBreakdown.headline.border }
     : null;
-  const trainerTier = isTrainer ? getTrainerTier(clients.length) : null;
+  // Trainer tier — prefer the server-computed multi-dim breakdown.
+  // Falls back to client-count-only getTrainerTier when the breakdown
+  // hasn't loaded yet so we never render an empty tier badge.
+  const trainerTier: TierLite | null = !isTrainer ? null
+    : trainerBreakdown
+    ? { label: trainerBreakdown.headline.label, emoji: trainerBreakdown.headline.icon, min: trainerBreakdown.headline.min, color: trainerBreakdown.headline.color, bg: trainerBreakdown.headline.bg, border: trainerBreakdown.headline.border }
+    : getTrainerTier(clients.length);
   return (
     <>
       <QuickFeedbackFab username={user?.username || ""} view={view} />
@@ -3091,7 +3098,8 @@ function HomeGlobals({
         athleteUnit="raw athlete score (0–100). Five sub-ranks feed it."
         trainerUnit="more active clients unlocks the next tier"
         athleteRaw={athleteBreakdown?.headlineScore ?? 0}
-        trainerRaw={clients.length}
+        trainerRaw={trainerBreakdown?.headlineScore ?? clients.length}
+        trainerBreakdown={trainerBreakdown}
         onJumpToLeaderboard={onJumpToLeaderboard}
       />
     </>
@@ -3132,6 +3140,7 @@ function TierInfoModal({
   athleteTier, trainerTier,
   athleteUnit, trainerUnit,
   athleteRaw, trainerRaw,
+  trainerBreakdown,
   onJumpToLeaderboard,
 }: {
   open: boolean;
@@ -3144,6 +3153,7 @@ function TierInfoModal({
   trainerUnit: string;       // "clients"
   athleteRaw: number;        // user's raw session count for the athlete ladder
   trainerRaw: number;        // user's raw client count for the trainer ladder
+  trainerBreakdown: TierBreakdown | null;
   onJumpToLeaderboard?: () => void;
 }) {
   if (!open) return null;
@@ -3226,6 +3236,45 @@ function TierInfoModal({
           unitWord="clients"
           currentRaw={trainerRaw}
         />
+
+        {/* Trainer sub-rank breakdown — only renders if the modal
+            visitor is a trainer AND we have the server-computed
+            breakdown loaded. Four bars (Roster / Progression /
+            Retention / Reach) with raw detail under each, and a
+            "weakest dim" Path-to-Next callout. Matches the athlete
+            sub-rank pattern on Progress → Dashboard. (qa:
+            tier-trainer-keeps-athlete) */}
+        {isTrainer && trainerBreakdown && (
+          <div style={{
+            marginTop: 12, padding: "12px 14px",
+            background: "rgba(78,205,196,0.05)",
+            border: "1px solid rgba(78,205,196,0.2)",
+            borderRadius: 12,
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 3, color: "#4ECDC4", fontFamily: "'Space Mono', monospace", marginBottom: 10 }}>
+              🎯 YOUR TRAINER SUB-RANKS · HEADLINE {trainerBreakdown.headlineScore}/100
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {trainerBreakdown.subRanks.map(r => (
+                <div key={r.id}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                    <div style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{r.icon} {r.label}</div>
+                    <div style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(78,205,196,0.85)", fontWeight: 700 }}>{r.score}/100</div>
+                  </div>
+                  <div style={{ height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden", marginBottom: 3 }}>
+                    <div style={{ width: `${Math.max(2, r.score)}%`, height: "100%", background: "linear-gradient(90deg, #4ECDC4, #44b09e)" }} />
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{r.detail}</div>
+                </div>
+              ))}
+            </div>
+            {trainerBreakdown.focusNext && (
+              <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(240,192,64,0.07)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 8, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+                <strong style={{ color: "#f0c040" }}>↑ Path to next:</strong> {trainerBreakdown.focusNext.label.toLowerCase()} is your lowest sub-rank ({trainerBreakdown.focusNext.score}/100) — pushing it up is the cheapest way to bump your headline.
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{
           marginTop: 8, padding: "10px 12px",
@@ -3579,6 +3628,7 @@ function HomePage() {
         tierModalOpen={tierModalOpen}
         setTierModalOpen={setTierModalOpen}
         athleteBreakdown={myAthleteBreakdown}
+        trainerBreakdown={myTrainerBreakdown}
         onJumpToLeaderboard={() => {
           setTierModalOpen(false);
           setView("home");
@@ -3750,6 +3800,12 @@ function HomePage() {
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [respondingRequest, setRespondingRequest] = useState<string | null>(null);
   const [clients, setClients] = useState<any[]>([]);
+  // Trainer's full multi-dim TierBreakdown — fetched from
+  // /api/trainer/me/tier on mount when the user is a trainer. Null
+  // until loaded (or for athletes). Replaces the legacy single-dim
+  // getTrainerTier(clients.length) for the modal and Settings IDENTITY.
+  // (qa: tier-trainer-keeps-athlete)
+  const [myTrainerBreakdown, setMyTrainerBreakdown] = useState<TierBreakdown | null>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -4033,6 +4089,12 @@ function HomePage() {
       }).catch(() => {});
       fetch("/api/trainer/clients").then(r => r.json()).then(data => {
         if (data.clients) setClients(data.clients);
+      }).catch(() => {});
+      // Trainer tier — full multi-dim breakdown from server. Replaces
+      // the legacy client-count-only getTrainerTier(clients.length).
+      // (qa: tier-trainer-keeps-athlete)
+      fetch("/api/trainer/me/tier").then(r => r.json()).then(data => {
+        if (data.breakdown) setMyTrainerBreakdown(data.breakdown);
       }).catch(() => {});
       fetch("/api/trainer/exercises").then(r => r.json()).then(data => {
         if (data.exercises) setCustomExercises(data.exercises);

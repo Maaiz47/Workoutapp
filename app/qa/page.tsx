@@ -25,6 +25,9 @@ interface QAState { items: QAItem[]; }
 interface Comment {
   id: string;
   itemId: string;
+  // 0-indexed step within the item's steps[] this comment is about.
+  // null = comment is about the item as a whole (default + legacy).
+  stepIndex?: number | null;
   tester: string;
   userId?: string | null;
   user?: { username: string; email: string | null; role: string } | null;
@@ -39,6 +42,10 @@ interface Draft {
   status: ItemStatus;
   note: string;
   screenshotUrl: string;
+  // 0-indexed step within the item's steps[] this comment is about.
+  // null/undefined = comment is about the item as a whole (legacy).
+  // (qa: qa-per-step-comments)
+  stepIndex?: number | null;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -671,6 +678,7 @@ function ItemCard({
           status: draft.status,
           note: draft.note.trim(),
           screenshotUrl: draft.screenshotUrl.trim() || undefined,
+          stepIndex: draft.stepIndex ?? undefined,
         }),
       });
       if (!res.ok) {
@@ -687,11 +695,12 @@ function ItemCard({
         status: draft.status,
         note: draft.note.trim(),
         screenshotUrl: draft.screenshotUrl.trim() || null,
+        stepIndex: draft.stepIndex ?? null,
         ts: data.ts || new Date().toISOString(),
         processed: false,
       });
       // Clear the draft after a successful save so the next comment starts fresh.
-      setDraft({ status: draft.status, note: "", screenshotUrl: "" });
+      setDraft({ status: draft.status, note: "", screenshotUrl: "", stepIndex: null });
     } catch {
       setError("Network error");
     } finally {
@@ -747,12 +756,41 @@ function ItemCard({
                 fontFamily: "'Space Mono', monospace", marginBottom: 8,
               }}>STEPS TO TEST</div>
               <ol style={{ margin: 0, paddingLeft: 18 }}>
-                {item.steps.map((s, i) => (
-                  <li key={i} style={{
-                    fontSize: 12, color: "rgba(255,255,255,0.7)",
-                    fontFamily: "'DM Sans', sans-serif", marginBottom: 5, lineHeight: 1.5,
-                  }}>{s}</li>
-                ))}
+                {item.steps.map((s, i) => {
+                  // Count existing comments scoped to this step so a
+                  // tester can see "this step has 2 reports" at a
+                  // glance and tap to read them in the thread.
+                  const stepCommentCount = comments.filter(c => c.stepIndex === i).length;
+                  return (
+                    <li key={i} style={{
+                      fontSize: 12, color: "rgba(255,255,255,0.7)",
+                      fontFamily: "'DM Sans', sans-serif", marginBottom: 7, lineHeight: 1.5,
+                      display: "flex", gap: 6, alignItems: "flex-start",
+                    }}>
+                      <span style={{ flex: 1 }}>{s}</span>
+                      <button
+                        onClick={() => {
+                          setDraft({ ...draft, stepIndex: i });
+                          // Defer scroll one frame so the indicator
+                          // chip is visible before we jump.
+                          setTimeout(() => {
+                            const el = document.getElementById(`comment-form-${item.id}`);
+                            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                          }, 40);
+                        }}
+                        title={`Comment on step ${i + 1}${stepCommentCount > 0 ? ` (${stepCommentCount} existing)` : ""}`}
+                        style={{
+                          fontSize: 9, fontWeight: 700, letterSpacing: 1,
+                          background: stepCommentCount > 0 ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.04)",
+                          border: `1px solid ${stepCommentCount > 0 ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.08)"}`,
+                          color: stepCommentCount > 0 ? "#FF6B6B" : "rgba(255,255,255,0.4)",
+                          borderRadius: 4, padding: "1px 6px", cursor: "pointer",
+                          fontFamily: "'Space Mono', monospace", flexShrink: 0,
+                        }}
+                      >💬{stepCommentCount > 0 ? ` ${stepCommentCount}` : ""}</button>
+                    </li>
+                  );
+                })}
               </ol>
             </div>
           )}
@@ -815,6 +853,9 @@ function ItemCard({
                       {c.user?.role === "trainer" && (
                         <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 3, padding: "1px 5px" }}>TRAINER</span>
                       )}
+                      {c.stepIndex != null && (
+                        <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#FF6B6B", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 3, padding: "1px 5px" }}>💬 STEP {c.stepIndex + 1}</span>
+                      )}
                     </div>
                     <div style={{
                       display: "flex", alignItems: "center", gap: 6,
@@ -842,15 +883,27 @@ function ItemCard({
             </div>
           )}
 
-          <div style={{
+          <div id={`comment-form-${item.id}`} style={{
             background: "rgba(255,107,107,0.04)",
             border: "1px dashed rgba(255,107,107,0.25)",
             borderRadius: 10, padding: 12,
           }}>
-            <div style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#FF6B6B",
-              fontFamily: "'Space Mono', monospace", marginBottom: 8,
-            }}>ADD A COMMENT</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#FF6B6B",
+                fontFamily: "'Space Mono', monospace",
+              }}>ADD A COMMENT</div>
+              {draft.stepIndex != null && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#FF6B6B", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                  💬 STEP {draft.stepIndex + 1}
+                  <button
+                    onClick={() => setDraft({ ...draft, stepIndex: null })}
+                    aria-label="Clear step scope — comment about the item as a whole"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 4, color: "rgba(255,255,255,0.5)", fontSize: 9, padding: "1px 5px", cursor: "pointer" }}
+                  >× CLEAR</button>
+                </div>
+              )}
+            </div>
 
             <div style={{ marginBottom: 8 }}>
               <label style={{
