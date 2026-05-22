@@ -2,6 +2,61 @@
 
 ---
 
+## Fix · 2026-05-22 — Real form demos for 13 of 22 stretches + plan for the rest (qa: workout-warmup)
+
+@maaiz: "Surely we can have the stretch and warm up/down
+forms." Up until now the FORM modal for any stretch fell
+straight through to the decorative chained-circles icon and
+"NO FORM DEMO" text. Audited the open-source
+free-exercise-db catalogue and mapped 13 of our 22 stretches
+straight onto real demo photos:
+
+- **Warmups → free-exercise-db model id**
+  - `wu-treadmill` → `Jogging_Treadmill`
+  - `wu-rower` → `Rowing_Stationary`
+  - `wu-bike` → `Bicycling_Stationary`
+  - `wu-arm-circles` → `Arm_Circles`
+  - `wu-band-pullapart` → `Band_Pull_Apart`
+  - `wu-hip-openers` → `Worlds_Greatest_Stretch`
+  - `wu-cat-cow` → `Cat_Stretch`
+  - `wu-bw-squat` → `Bodyweight_Squat`
+  - `wu-inchworm` → `Inchworm`
+- **Cooldowns / stretches → free-exercise-db model id**
+  - `cd-childs-pose` → `Childs_Pose`
+  - `cd-quad-standing` → `Quad_Stretch`
+  - `cd-calf-wall` → `Calf_Stretch_Hands_Against_Wall`
+  - `cd-tri-overhead` → `Triceps_Stretch`
+  - `cd-bicep-wall` → `Standing_Biceps_Stretch`
+  - `cd-cat-cow` → `Cat_Stretch`
+  - `cd-shoulder-cross` → `Shoulder_Stretch`
+
+### The 9 stretches with no good match in any open library
+- `cd-chest-doorway` Doorway Chest Stretch
+- `cd-pigeon` Pigeon Pose
+- `cd-hamstring-lay` Lying Hamstring Stretch
+- `cd-lat-stretch` Overhead Lat Stretch
+- `cd-glute-pretzel` Figure-Four Stretch
+- `wu-leg-swings` Leg Swings
+- `wu-scap-shrugs` Scap Push-Ups
+- (sticking with chained-circles fallback in the interim)
+
+For these, infrastructure now supports locally-hosted demos:
+`getExerciseImageUrls()` checks a `LOCAL_STRETCH_IDS` set
+first and returns `/stretches/<id>/{0,1}.jpg` when present,
+so when we generate the missing demos we just drop the JPG
+pair under `/public/stretches/<id>/` and register the id —
+no code changes needed.
+
+A full generation plan lives at `public/stretches/README.md`
+with: required dimensions, style guide that matches
+free-exercise-db's photographic look (white tank, black
+shorts, black backdrop, even lighting), per-stretch start +
+end pose prompts ready to paste into ChatGPT image-gen, and
+fallback sources (Wikimedia, Pixabay) for anything that
+can't be generated cleanly.
+
+---
+
 ## Fix · 2026-05-22 — Tighter active workout row + name always visible (qa: workout-set-logging)
 
 Follow-up to the earlier row de-cramp. @maaiz pointed out

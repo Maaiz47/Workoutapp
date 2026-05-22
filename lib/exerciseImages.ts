@@ -4,7 +4,20 @@ function norm(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+// Locally-hosted custom stretch/warmup demos. Drop frames at
+// /public/stretches/<id>/0.jpg and /1.jpg and add the id below to
+// override the free-exercise-db lookup. Lets us ship demos for
+// stretches that don't exist in the open library (doorway chest
+// stretch, pigeon pose, figure-four, etc.). See PATCHLOG entry
+// "Stretch form-image plan" for the generation prompts.
+const LOCAL_STRETCH_IDS = new Set<string>([
+  // populated as we add /public/stretches/<id>/{0,1}.jpg pairs
+]);
+
 export function getExerciseImageUrls(exerciseId: string, exerciseName?: string): [string, string] | null {
+  if (LOCAL_STRETCH_IDS.has(exerciseId)) {
+    return [`/stretches/${exerciseId}/0.jpg`, `/stretches/${exerciseId}/1.jpg`];
+  }
   let dbId = EXERCISE_DB_MAP[exerciseId];
   if (!dbId && exerciseName) {
     const key = norm(exerciseName);
@@ -288,4 +301,31 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   "good-morning":                   "Good_Morning",
   "pike-pushup":                    "Pushups",
   "terminal-knee-extension":        "Lying_Leg_Curls",
+
+  // ── Warmups (lib/stretching.ts → ALL_WARMUPS) ───────────────────────────
+  // Maps each warmup's `id` to a free-exercise-db model so the FORM
+  // modal animates a real demo instead of falling back to the
+  // decorative chained-circles icon. Missing entries fall through to
+  // the icon (logged in PATCHLOG plan for sourcing).
+  "wu-treadmill":                   "Jogging_Treadmill",
+  "wu-rower":                       "Rowing_Stationary",
+  "wu-bike":                        "Bicycling_Stationary",
+  "wu-arm-circles":                 "Arm_Circles",
+  "wu-band-pullapart":              "Band_Pull_Apart",
+  "wu-hip-openers":                 "Worlds_Greatest_Stretch",
+  "wu-cat-cow":                     "Cat_Stretch",
+  "wu-bw-squat":                    "Bodyweight_Squat",
+  "wu-inchworm":                    "Inchworm",
+  // wu-leg-swings, wu-scap-shrugs — pending custom asset (see PATCHLOG)
+
+  // ── Cooldowns / Stretches (lib/stretching.ts → ALL_COOLDOWNS) ───────────
+  "cd-childs-pose":                 "Childs_Pose",
+  "cd-quad-standing":               "Quad_Stretch",
+  "cd-calf-wall":                   "Calf_Stretch_Hands_Against_Wall",
+  "cd-tri-overhead":                "Triceps_Stretch",
+  "cd-bicep-wall":                  "Standing_Biceps_Stretch",
+  "cd-cat-cow":                     "Cat_Stretch",
+  "cd-shoulder-cross":              "Shoulder_Stretch",
+  // cd-chest-doorway, cd-pigeon, cd-hamstring-lay, cd-lat-stretch,
+  // cd-glute-pretzel — pending custom asset (see PATCHLOG)
 };
