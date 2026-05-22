@@ -6641,90 +6641,123 @@ function HomePage() {
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(10,10,15,0.9) 0%, rgba(10,10,15,0.35) 35%, rgba(10,10,15,0) 60%, rgba(10,10,15,1) 100%)" }} />
         {/* Profile chip — compact horizontal layout */}
         <div ref={profileWrapperRef} style={{ position: "absolute", top: 10, left: 12, right: 12, zIndex: 10, transition: "transform 0.25s ease, opacity 0.25s ease", willChange: "transform" }}>
-          <button onClick={() => setView("profile")} style={{ position: "relative", zIndex: 1, background: "rgba(10,10,18,0.5)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, cursor: "pointer", textAlign: "left", padding: "8px 12px", width: "100%", boxSizing: "border-box", boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)", display: "flex", alignItems: "center", gap: 10 }}>
-            <img src="/ai/avatar-default.png" alt="" style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {/* Top row: name + role micro-chips (admin / reviewing). */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", letterSpacing: -0.3, marginRight: 2 }}>{user.username}</div>
-                {user.role === "user" && user.roleRequest && (
-                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 4, padding: "1px 5px" }}>REVIEWING</span>
-                )}
-                {userHasRole(user, "admin") && (
-                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 4, padding: "1px 5px" }}>ADMIN</span>
-                )}
+          {/* Two separate top-level clickable boxes:
+              LEFT  → profile box (avatar + name + role chips) opens Settings/profile
+              RIGHT → tiers box (trainer + athlete pills with progress bars) opens TierInfoModal
+              Splitting them so each tap target has one unambiguous
+              destination (was previously a button-within-button with
+              stopPropagation). Both stay at the top of the hero;
+              flexWrap stacks them on very narrow phones. (qa: user —
+              "Make the profile tab and tiers separate but still both
+              at the top") */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "stretch" }}>
+            {/* LEFT — profile button */}
+            <button
+              onClick={() => setView("profile")}
+              style={{
+                flex: "1 1 180px", minWidth: 0,
+                background: "rgba(10,10,18,0.5)",
+                backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 12, cursor: "pointer", textAlign: "left",
+                padding: "8px 12px",
+                boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)",
+                display: "flex", alignItems: "center", gap: 10,
+              }}
+            >
+              <img src="/ai/avatar-default.png" alt="" style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", letterSpacing: -0.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.username}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
+                  {userHasRole(user, "admin") && (
+                    <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#a29bfe", background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 3, padding: "1px 5px", fontFamily: "'Space Mono', monospace" }}>ADMIN</span>
+                  )}
+                  {userHasRole(user, "trainer") && (
+                    <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 3, padding: "1px 5px", fontFamily: "'Space Mono', monospace" }}>TRAINER</span>
+                  )}
+                  {!userHasRole(user, "trainer") && !userHasRole(user, "admin") && (
+                    <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 3, padding: "1px 5px", fontFamily: "'Space Mono', monospace" }}>ATHLETE</span>
+                  )}
+                  {user.role === "user" && user.roleRequest && (
+                    <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 3, padding: "1px 5px", fontFamily: "'Space Mono', monospace" }}>REVIEWING</span>
+                  )}
+                </div>
               </div>
-              {/* Tier row — Trainer + Athlete pills side-by-side, each
-                  with its own mini progress bar to the next rung +
-                  remaining points readout so the user can see how
-                  close they are at a glance. Falls back to stacked
-                  on very narrow phones via flexWrap. (qa: home ·
-                  user-feedback) */}
-              <div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
-                {userHasRole(user, "trainer") && (() => {
-                  const t = getTrainerTier(clients.length);
-                  const tIdx = TRAINER_TIERS.findIndex(x => x.label === t.label);
-                  const next = TRAINER_TIERS[tIdx + 1];
-                  const curMin = TRAINER_TIERS[tIdx].min;
-                  const progress = next
-                    ? Math.max(0, Math.min(1, (clients.length - curMin) / Math.max(1, next.min - curMin)))
-                    : 1;
-                  const remaining = next ? Math.max(0, next.min - clients.length) : 0;
-                  return (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }}
-                      title={`Trainer tier · ${clients.length} client${clients.length === 1 ? "" : "s"} · tap to see how tiers work`}
-                      style={{ flex: "1 1 130px", minWidth: 120, padding: "5px 8px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, cursor: "pointer", textAlign: "left", fontFamily: "'Space Mono', monospace" }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{t.emoji} {t.label.toUpperCase()}</span>
-                        <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
-                          {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
-                        </span>
+              <span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>›</span>
+            </button>
+
+            {/* RIGHT — tiers box. Whole card opens TierInfoModal; inner
+                pills are presentational divs so there's no nested-button
+                accessibility issue. */}
+            <button
+              onClick={() => setTierModalOpen(true)}
+              title="How tiers work — tap to see both ladders"
+              style={{
+                flex: "1 1 180px", minWidth: 0,
+                background: "rgba(10,10,18,0.5)",
+                backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 12, cursor: "pointer", textAlign: "left",
+                padding: "6px 10px",
+                boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)",
+                display: "flex", flexDirection: "column", justifyContent: "center", gap: 4,
+                fontFamily: "'Space Mono', monospace",
+              }}
+            >
+              {userHasRole(user, "trainer") && (() => {
+                const t = getTrainerTier(clients.length);
+                const tIdx = TRAINER_TIERS.findIndex(x => x.label === t.label);
+                const next = TRAINER_TIERS[tIdx + 1];
+                const curMin = TRAINER_TIERS[tIdx].min;
+                const progress = next
+                  ? Math.max(0, Math.min(1, (clients.length - curMin) / Math.max(1, next.min - curMin)))
+                  : 1;
+                const remaining = next ? Math.max(0, next.min - clients.length) : 0;
+                return (
+                  <div style={{ padding: "3px 6px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{t.emoji} {t.label.toUpperCase()}</span>
+                      <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                        {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
+                      </span>
+                    </div>
+                    {next && (
+                      <div style={{ marginTop: 3, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${progress * 100}%`, background: `linear-gradient(90deg, ${t.color}, ${next.color})`, borderRadius: 2, transition: "width 0.4s" }} />
                       </div>
-                      {next && (
-                        <div style={{ marginTop: 3, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${progress * 100}%`, background: `linear-gradient(90deg, ${t.color}, ${next.color})`, borderRadius: 2, transition: "width 0.4s" }} />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })()}
-                {(() => {
-                  const h = myAthleteBreakdown?.headline;
-                  if (!h) return null;
-                  const score = myAthleteBreakdown!.headlineScore;
-                  const hIdx = ATHLETE_TIERS.findIndex(x => x.label === h.label);
-                  const next = ATHLETE_TIERS[hIdx + 1];
-                  const curMin = ATHLETE_TIERS[hIdx].min;
-                  const progress = next
-                    ? Math.max(0, Math.min(1, (score - curMin) / Math.max(1, next.min - curMin)))
-                    : 1;
-                  const remaining = next ? Math.max(0, next.min - score) : 0;
-                  return (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setTierModalOpen(true); }}
-                      title={`Athlete tier · ${score} / 100 pts · tap to see how tiers work`}
-                      style={{ flex: "1 1 130px", minWidth: 120, padding: "5px 8px", background: h.bg, border: `1px solid ${h.border}`, borderRadius: 8, cursor: "pointer", textAlign: "left", fontFamily: "'Space Mono', monospace" }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h.icon} {h.label.toUpperCase()}</span>
-                        <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
-                          {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
-                        </span>
+                    )}
+                  </div>
+                );
+              })()}
+              {(() => {
+                const h = myAthleteBreakdown?.headline;
+                if (!h) return null;
+                const score = myAthleteBreakdown!.headlineScore;
+                const hIdx = ATHLETE_TIERS.findIndex(x => x.label === h.label);
+                const next = ATHLETE_TIERS[hIdx + 1];
+                const curMin = ATHLETE_TIERS[hIdx].min;
+                const progress = next
+                  ? Math.max(0, Math.min(1, (score - curMin) / Math.max(1, next.min - curMin)))
+                  : 1;
+                const remaining = next ? Math.max(0, next.min - score) : 0;
+                return (
+                  <div style={{ padding: "3px 6px", background: h.bg, border: `1px solid ${h.border}`, borderRadius: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h.icon} {h.label.toUpperCase()}</span>
+                      <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                        {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
+                      </span>
+                    </div>
+                    {next && (
+                      <div style={{ marginTop: 3, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${progress * 100}%`, background: `linear-gradient(90deg, ${h.color}, ${next.color})`, borderRadius: 2, transition: "width 0.4s" }} />
                       </div>
-                      {next && (
-                        <div style={{ marginTop: 3, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${progress * 100}%`, background: `linear-gradient(90deg, ${h.color}, ${next.color})`, borderRadius: 2, transition: "width 0.4s" }} />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })()}
-              </div>
-            </div>
-            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.25)", flexShrink: 0 }}>›</span>
-          </button>
+                    )}
+                  </div>
+                );
+              })()}
+            </button>
+          </div>
         </div>
         {/* Tagline overlay — compact, lower in the hero */}
         <div style={{ position: "absolute", top: "70%", left: 0, right: 0, transform: "translateY(-50%)", textAlign: "center", pointerEvents: "none" }}>

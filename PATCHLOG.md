@@ -2,6 +2,27 @@
 
 ---
 
+## Polish · 2026-05-21 — Welcome card split into separate profile + tiers boxes (qa: tier-pills-clarity)
+
+The hero welcome card was a single button (avatar + name + tier
+pills inside, plus a chevron) — but the inner tier pills became
+clickable in a recent slice, which gave us a button-within-button
+that only worked because of `stopPropagation`. Confusing tap
+target.
+
+- Split into **two side-by-side boxes**, each its own clear tap
+  target. flexWrap so they stack on very narrow phones.
+- **LEFT (profile)** — avatar + username + role chip (ADMIN /
+  TRAINER / ATHLETE / REVIEWING) + chevron → opens profile.
+- **RIGHT (tiers)** — trainer + athlete tier mini-cards with
+  gradient progress bars and "+N → NEXT" remaining-points
+  readouts → opens TierInfoModal.
+- Inner tier rows are now presentational divs (parent button
+  handles the tap), removing the nested-button accessibility
+  smell.
+
+---
+
 ## Feature · 2026-05-21 — /qa Dashboard Metrics + open-/qa overlay from the floating pill (qa: qa-dashboard, quick-feedback-fab)
 
 ### Dashboard Metrics card
