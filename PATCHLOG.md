@@ -2,6 +2,39 @@
 
 ---
 
+## Polish · 2026-05-21 — PB persists for full rest duration + clearer effort scale (qa: workout-set-logging)
+
+### PB stays visible through the whole rest timer
+The set-log button set a hard `setTimeout(() => setNewPBs([]),
+5000)` after detecting a PB. With a long rest (e.g. 90 s) the
+PB dismissed at 5 s and the user saw just the timer afterwards.
+Now the manual 5-second timeout only runs when there's no rest
+planned for the exercise; otherwise the existing
+`rest.start(ex.rest, () => setNewPBs([]))` callback clears the
+PB on rest completion. So the PB card sits at the top of the
+rest overlay for the entire rest.
+
+### Effort scale clarity (RPE chips)
+The 1-10 chip row offered no in-context explanation — the
+RPE/RIR meta only appeared after the user picked a value, so a
+new tester had to guess what 7 vs 9 meant.
+- New band-label strip above the chips: `EASY (5+ left) ·
+  MODERATE (4-5) · HARD (2-3) · NEAR (1) · MAX (fail)`, each
+  segment proportional to its chip count and colour-coded.
+- Chips ship with a faint band-tint by default (`color1a`
+  background + `color44` border) so the cool→warm gradient
+  reads at a glance even before selection. Active chip flips
+  to the band's full colour.
+- Plain-English helper line below the chips when no value is
+  picked: "Tap the number that matches how many more reps you
+  could have squeezed out at the same weight. 10 = couldn't
+  have done one more."
+- Header reads `EFFORT — HOW HARD?` with `RIR = reps in
+  reserve` shown as a hint until selection, then swaps to the
+  full meta (e.g. `HARD · 3 RIR`).
+
+---
+
 ## Fix · 2026-05-21 — Share routines reliability + per-set marking for warmups/cooldowns/stretches (qa: workout-warmup, workout-set-logging)
 
 ### Share routines — case-insensitive lookup + dedupe + clearer errors

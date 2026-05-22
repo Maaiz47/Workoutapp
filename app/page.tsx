@@ -12390,37 +12390,73 @@ function HomePage() {
                           </div>
                         )}
 
-                        {/* EFFORT chip row — 1-10 scale, optional. Skipped
-                            values stay null and don't get persisted. The
-                            chip rgb maps to perceived difficulty (cool →
-                            warm). Hover/long-press shows RPE + RIR labels
-                            via the parent estimate1RM / EFFORT_SCALE meta. */}
+                        {/* EFFORT chip row — 1-10 scale, optional.
+                            Now ships with explicit band labels above
+                            (EASY / MODERATE / HARD / NEAR MAX / MAX)
+                            and a one-line "reps left in the tank"
+                            tip so users don't have to guess what 7
+                            vs 9 means. Chips stay colour-tinted by
+                            default (faint) so the band gradient
+                            reads at a glance; active chip flips to
+                            the band's full colour. (qa: maaiz —
+                            "Make effort scale clearer for user") */}
                         <div style={{ marginBottom: 14 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>EFFORT (optional)</span>
-                            {effortInput != null && (() => {
-                              const meta = EFFORT_SCALE.find(e => e.value === effortInput);
-                              return meta ? (
-                                <span style={{ fontSize: 10, color: meta.color, letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>
-                                  {meta.rpe} · {meta.rir.toUpperCase()}
-                                </span>
-                              ) : null;
-                            })()}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6, gap: 6 }}>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>EFFORT — HOW HARD?</span>
+                            {effortInput != null
+                              ? (() => {
+                                  const meta = EFFORT_SCALE.find(e => e.value === effortInput);
+                                  return meta ? (
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: meta.color, letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>
+                                      {meta.rpe} · {meta.rir.toUpperCase()}
+                                    </span>
+                                  ) : null;
+                                })()
+                              : (
+                                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 0.5 }}>RIR = reps in reserve</span>
+                                )}
                           </div>
+
+                          {/* Band labels — proportional to the chips they sit above.
+                              1-4 = EASY (4 chips), 5-6 = MODERATE (2), 7-8 = HARD (2),
+                              9 = NEAR MAX (1), 10 = MAX (1). */}
+                          <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+                            {[
+                              { width: 4, label: "EASY",     sub: "5+ left",  color: "#74b9ff" },
+                              { width: 2, label: "MODERATE", sub: "4-5 left", color: "#55efc4" },
+                              { width: 2, label: "HARD",     sub: "2-3 left", color: "#fdcb6e" },
+                              { width: 1, label: "NEAR",     sub: "1 left",   color: "#FF6B6B" },
+                              { width: 1, label: "MAX",      sub: "fail",     color: "#FF6B6B" },
+                            ].map((band, i) => (
+                              <div key={i} style={{
+                                flex: band.width, minWidth: 0,
+                                padding: "2px 0",
+                                textAlign: "center",
+                                borderBottom: `1px dashed ${band.color}55`,
+                              }}>
+                                <div style={{ fontSize: 8, fontWeight: 800, color: band.color, letterSpacing: 0.5, fontFamily: "'Space Mono', monospace" }}>{band.label}</div>
+                                <div style={{ fontSize: 7, color: "rgba(255,255,255,0.4)", letterSpacing: 0.5, fontFamily: "'Space Mono', monospace" }}>{band.sub}</div>
+                              </div>
+                            ))}
+                          </div>
+
                           <div style={{ display: "flex", gap: 4 }}>
                             {EFFORT_SCALE.map(meta => {
                               const active = effortInput === meta.value;
+                              // Faint band-tint when inactive so the gradient is visible.
+                              const idleBg = `${meta.color}1a`;
+                              const idleBorder = `${meta.color}44`;
                               return (
                                 <button
                                   key={meta.value}
                                   onClick={() => setEffortInput(active ? null : meta.value)}
-                                  title={`${meta.rpe} · ${meta.rir}`}
+                                  title={`${meta.value}: ${meta.rpe} · ${meta.rir}`}
                                   style={{
                                     flex: 1, minWidth: 0, padding: "8px 0",
-                                    background: active ? meta.color : "rgba(255,255,255,0.04)",
-                                    border: `1px solid ${active ? meta.color : "rgba(255,255,255,0.08)"}`,
+                                    background: active ? meta.color : idleBg,
+                                    border: `1px solid ${active ? meta.color : idleBorder}`,
                                     borderRadius: 6,
-                                    color: active ? "#000" : "rgba(255,255,255,0.55)",
+                                    color: active ? "#000" : meta.color,
                                     fontSize: 12, fontWeight: 700,
                                     fontFamily: "'Space Mono', monospace",
                                     cursor: "pointer",
@@ -12429,6 +12465,14 @@ function HomePage() {
                               );
                             })}
                           </div>
+
+                          {/* Plain-English helper line that stays
+                              visible until the user picks. */}
+                          {effortInput == null && (
+                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 6, lineHeight: 1.5, fontFamily: "'DM Sans', sans-serif" }}>
+                              Tap the number that matches how many more reps you could have squeezed out at the same weight. 10 = couldn't have done one more.
+                            </div>
+                          )}
                         </div>
 
                         <button
@@ -12441,7 +12485,18 @@ function HomePage() {
                             if (w > 0 && w > prevBest && w > (shownPBs.current.get(ex.id) ?? 0)) {
                               shownPBs.current.set(ex.id, w);
                               setNewPBs([{ name: ex.name, weight: w, reps: parseFloat(rInput) || 0 }]);
-                              setTimeout(() => setNewPBs([]), 5000);
+                              // When the set kicks off a rest timer,
+                              // let rest's onComplete callback clear
+                              // the PB so it stays visible for the
+                              // entire rest duration. Without this
+                              // skip, the 5-second timeout race-
+                              // dismissed the PB mid-rest. (qa:
+                              // maaiz — "PB can show with timer for
+                              // the entire timer duration when it
+                              // comes with a rest timer")
+                              if (!ex.rest || ex.rest <= 0) {
+                                setTimeout(() => setNewPBs([]), 5000);
+                              }
                             }
                           }}
                           className={logFlashId === ex.id ? "log-flash" : ""}
