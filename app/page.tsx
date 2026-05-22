@@ -5818,7 +5818,32 @@ function HomePage() {
 
   // ─── CUSTOMISE ──────────────────────────────────────────────────────
   if (view === "customise") {
-    const planDays = customPlan ?? [];
+    // For users on the default WORKOUT_DATA plan (customPlan === null),
+    // map the default days into the customPlan shape so the per-day
+    // editor + day list still work. Editing a default day will create
+    // a customPlan entry on save. Previously this just rendered an
+    // empty page with "No plan yet — complete the questionnaire" even
+    // though the user clearly had a plan visible on the home grid.
+    // (qa: maaiz — "Customise screen isn't working, can't see
+    // individual sessions in the customise view to edit per session")
+    const planDays: any[] = customPlan ?? (WORKOUT_DATA as any[]).map((d, i) => ({
+      id: d.id,
+      title: d.title,
+      subtitle: d.focus,
+      focus: d.focus,
+      dayIndex: i,
+      exercises: d.sections.flatMap(sec => sec.exercises.map(ex => ({
+        exerciseId: ex.id,
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        rest: ex.rest ?? 60,
+        notes: (ex as any).note,
+        kind: sec.type === "warmup" ? "warmup" : sec.type === "cooldown" ? "cooldown" : "main",
+        type: (ex as any).type,
+        order: 0,
+      }))),
+    }));
     const EXERCISES_LIST = (EXERCISES as any[]);
     const exMovement = (e: any): string => {
       const pm: string[] = e.primaryMuscles;
@@ -6454,8 +6479,47 @@ function HomePage() {
               </div>
             </div>
           ))}
+          {/* Manually add a day — for cardio / mobility / extra
+              session on top of the generated plan. Bootstraps a
+              custom plan from defaults if the user is still on
+              WORKOUT_DATA so the added day persists. (qa: maaiz —
+              "Able to manually add session days from customise?") */}
+          <button
+            onClick={async () => {
+              const title = window.prompt("New day title", "Cardio Day")?.trim();
+              if (!title) return;
+              const focus = window.prompt(`Focus (e.g. "Treadmill · Bike · Conditioning")`, "Conditioning")?.trim() ?? "";
+              try {
+                const res = await fetch("/api/plan", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "add-day", title, focus }),
+                });
+                if (!res.ok) {
+                  alert("Couldn't add day. Try again in a moment.");
+                  return;
+                }
+                const reloaded = await fetch("/api/plan").then(r => r.json());
+                if (reloaded?.plan?.days) {
+                  setCustomPlan(reloaded.plan.days);
+                  const added = reloaded.plan.days[reloaded.plan.days.length - 1];
+                  if (added) setEditingDay(added);
+                }
+              } catch {
+                alert("Couldn't add day. Check your connection.");
+              }
+            }}
+            style={{
+              display: "block", width: "100%", marginTop: 6, padding: "16px",
+              background: "rgba(78,205,196,0.06)",
+              border: "1px dashed rgba(78,205,196,0.35)",
+              borderRadius: 14, color: "#4ECDC4",
+              fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: "pointer",
+              fontFamily: "'Space Mono', monospace",
+            }}
+          >+ ADD DAY (CARDIO / MOBILITY / CUSTOM)</button>
           {planDays.length === 0 && (
-            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 14, textAlign: "center", marginTop: 40 }}>No plan yet. Complete the questionnaire first.</div>
+            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 14, textAlign: "center", marginTop: 40 }}>No plan yet — tap + ADD DAY above to start, or REBUILD MY WEEKLY PLAN to generate one from your profile.</div>
           )}
         </div>
       </div>
@@ -10391,7 +10455,7 @@ function HomePage() {
                                   <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{idx + 1}</span>}</div>
                                   <div>
                                     <div style={{ fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? "#FFE66D" : "#fff" }}>@{entry.username}{isMe ? " (you)" : ""}</div>
-                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier}</div>
+                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier?.icon ?? "🐱"} {entry.tier?.label ?? "Kitten"}</div>
                                   </div>
                                 </>
                               );

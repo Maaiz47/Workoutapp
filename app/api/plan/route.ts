@@ -29,6 +29,52 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
 
+    // ── Append a new (typically empty) day to the user's plan ──
+    // Used by the "+ ADD DAY" button on the customise view so users
+    // can drop in an extra cardio / mobility / custom session on top
+    // of the planGenerator output. Bootstraps a plan from
+    // WORKOUT_DATA first if the user has none yet.
+    // (qa: maaiz — "Able to manually add session days from
+    // customise? One user wants to add an extra cardio day on top
+    // of the workouts built manually")
+    if (body.action === "add-day") {
+      let plan = await prisma.workoutPlan.findUnique({ where: { userId: uid } });
+      if (!plan) {
+        plan = await prisma.workoutPlan.create({
+          data: {
+            userId: uid,
+            days: {
+              create: WORKOUT_DATA.map((wd, i) => ({
+                id: wd.id,
+                dayIndex: i,
+                title: wd.title,
+                subtitle: wd.focus,
+                focus: wd.focus,
+                exercises: {
+                  create: wd.sections.flatMap(s => s.exercises).filter(e => e.trackable !== false).map((ex, j) => ({
+                    order: j, exerciseId: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest ?? 60, notes: ex.note ?? null,
+                  })),
+                },
+              })),
+            },
+          },
+        });
+      }
+      const last = await prisma.planDay.findFirst({ where: { planId: plan.id }, orderBy: { dayIndex: "desc" } });
+      const nextIdx = last ? last.dayIndex + 1 : 0;
+      const created = await prisma.planDay.create({
+        data: {
+          planId: plan.id,
+          dayIndex: nextIdx,
+          title: typeof body.title === "string" && body.title.trim() ? body.title.trim() : "New Day",
+          subtitle: typeof body.focus === "string" ? body.focus : "",
+          focus: typeof body.focus === "string" ? body.focus : "",
+        },
+        include: { exercises: true },
+      });
+      return json({ day: created });
+    }
+
     // ── Init from WORKOUT_DATA defaults (for existing users without a profile) ──
     if (body.action === "init") {
       const existing = await prisma.workoutPlan.findUnique({ where: { userId: uid } });

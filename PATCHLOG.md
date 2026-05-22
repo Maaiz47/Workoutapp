@@ -2,6 +2,38 @@
 
 ---
 
+## Fix · 2026-05-21 — Customise screen + leaderboard error + add-day affordance (qa: home-polish-v2, qa-dashboard, tier-pills-clarity)
+
+### Customise — default-plan users couldn't edit
+The customise view's day list was iterating `customPlan ?? []`, so
+users on the default `WORKOUT_DATA` plan (no `customPlan` set yet)
+saw "No plan yet — complete the questionnaire first" even though
+their home grid was clearly populated.
+- Fall back to mapping `WORKOUT_DATA` into the customPlan shape
+  when the user has no custom plan, so all days are visible and
+  tappable. Editing a default day persists to a new custom plan
+  on save (existing PUT flow).
+
+### Add a manual session day
+New `+ ADD DAY (CARDIO / MOBILITY / CUSTOM)` button at the
+bottom of the customise day list. Prompts for title + focus
+text, hits a new `/api/plan POST { action: "add-day" }`
+endpoint, then opens the new (empty) day in the per-day editor
+so the user can add exercises immediately. The server-side
+add-day bootstraps a workout plan from `WORKOUT_DATA` first if
+the user has none yet, so the new day persists no matter what.
+
+### Leaderboard render crash
+The `/api/leaderboard/mine` route now ships canonical
+`stats.tier` as an OBJECT (`CanonicalTier`), but one leaderboard
+row render still rendered `{entry.tier}` directly as text —
+React threw "Objects are not valid as a React child" and the
+whole leaderboard pane errored. Switched the render to
+`{entry.tier?.icon} {entry.tier?.label}` (with Kitten
+fallbacks).
+
+---
+
 ## Feature · 2026-05-21 — Suggested Next Workout card on home (qa: home-polish-v2)
 
 New `▶ SUGGESTED NEXT` card above the YOUR SPLIT grid that picks
