@@ -32,8 +32,10 @@ const NAME_OVERRIDES: Record<string, string> = {
   [norm("Pec Deck Machine Fly")]:              "Butterfly",
   [norm("Machine Fly")]:                       "Butterfly",
   [norm("Cable Flyes")]:                       "Cable_Crossover",
-  [norm("Cable Flyes (Low-to-High)")]:         "Cable_Crossover",
-  [norm("Cable Flyes Low-to-High")]:           "Cable_Crossover",
+  [norm("Cable Flyes (Low-to-High)")]:         "Low_Cable_Crossover",
+  [norm("Cable Flyes Low-to-High")]:           "Low_Cable_Crossover",
+  [norm("Low Cable Fly")]:                     "Low_Cable_Crossover",
+  [norm("Low Cable Flyes")]:                   "Low_Cable_Crossover",
   [norm("Cable Flyes (High-to-Low)")]:         "Cable_Crossover",
   [norm("Cable Flyes High-to-Low")]:           "Cable_Crossover",
   // Back
@@ -107,7 +109,7 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   // ── WORKOUT_DATA short IDs (a1–e7) ──────────────────────────────────────
   "a1": "Barbell_Bench_Press_-_Medium_Grip",
   "a2": "Incline_Dumbbell_Press",
-  "a3": "Cable_Crossover",
+  "a3": "Low_Cable_Crossover",
   "a4": "Triceps_Pushdown",
   "a5": "Lying_Dumbbell_Tricep_Extension",
   "a6": "Side_Lateral_Raise",

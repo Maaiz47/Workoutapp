@@ -2,6 +2,45 @@
 
 ---
 
+## Fix · 2026-05-22 — Active workout row de-cramped + correct cable-fly image (qa: workout-set-logging)
+
+### Exercise row no longer truncates the name
+Reported by @maaiz with a screenshot showing "Cabl..." in the
+active workout view — full name was "Cable Crossover" but the
+row had FORM + EDIT + + DROP SET + + SUPERSET buttons stacked
+next to the title, ellipsis-ing it. Restructured the row:
+- Top sub-row: 38 px image + name (now allowed to `wordBreak`
+  + 1.25 line-height — can wrap to two lines if needed) + ✓
+  completion marker or `TAP` hint on the right.
+- Sets × reps line sits directly under the name, inside the
+  same column as the title (visually grouped, not floating
+  beneath the whole row).
+- Status chips (`COMPOUND`, `🔻 DROP SET`, `⇄ NEED EQUIP`,
+  `🤕 INJURY`, `⚡ HIIT`) collapse onto their own conditional
+  row beneath — entire row hides when no chips apply, so
+  simple exercises don't gain visual weight.
+- Action buttons (`FORM`, `EDIT`, `+ DROP SET`, `+ SUPERSET` /
+  `⟳ UNGROUP`) moved to a dedicated row at the bottom of the
+  card, flex-wrap enabled, so they never compete with the
+  title for horizontal space.
+
+### Cable Flyes (Low-to-High) form preview now shows the right movement
+Reported by @maaiz: the FORM DEMO modal for `Cable Flyes
+(Low-to-High)` was animating a guy doing a normal mid-height
+cable crossover. The free-exercise-db has both
+`Cable_Crossover` (the standard depiction the modal was
+showing) AND `Low_Cable_Crossover` (proper low-pulley start,
+hands sweep up to chest height). Remapped:
+- `a3` WORKOUT_DATA short id → `Low_Cable_Crossover`
+- `NAME_OVERRIDES["Cable Flyes (Low-to-High)"]` →
+  `Low_Cable_Crossover`
+- Added `Low Cable Fly` / `Low Cable Flyes` aliases for
+  custom-routine entries.
+- `High-to-Low` and plain `Cable Flyes` keep `Cable_Crossover`
+  since that's what the standard image depicts.
+
+---
+
 ## Polish · 2026-05-21 — PB persists for full rest duration + clearer effort scale (qa: workout-set-logging)
 
 ### PB stays visible through the whole rest timer

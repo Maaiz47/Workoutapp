@@ -227,9 +227,12 @@
       "area": "Workout",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": "2026-05-21",
+      "lastTested": "2026-05-22",
       "status": "regression-retest",
       "steps": [
+        "On the active workout view, verify each exercise card has THREE clear rows: image+name+✓ marker, status chips (only if COMPOUND/DROP SET/INJURY etc apply), then action buttons (FORM, EDIT, + DROP SET, + SUPERSET) on their own row at the bottom",
+        "Verify long names like 'Cable Flyes (Low-to-High)' or 'Cable Crossover' are NEVER truncated to 'Cabl…' or similar — they wrap to two lines if needed",
+        "Tap FORM on 'Cable Flyes (Low-to-High)' — verify the animation actually shows the low-to-high cable crossover (cables come up from low pulleys, hands sweep upward), NOT the standard mid-height crossover",
         "Start a workout session and expand a brand-new exercise you've NEVER logged before",
         "Verify the weight + reps inputs are pre-filled with reasonable values and a ★ SUGGESTED badge appears",
         "Verify a NEW 'EFFORT (optional)' row sits between the reps input and LOG SET — 10 chips labelled 1-10 with colour mapped to perceived difficulty (cool blue at the low end, fiery red at the high end)",
@@ -242,7 +245,7 @@
         "Tap CLEAR in the modal — verify the dot disappears",
         "Verify the yellow ⟳ PAIR header button is GONE — replaced by the per-exercise + SUPERSET picker which is strictly more powerful"
       ],
-      "notes": "[2026-05-21] Slice A · Commit 1: capture layer for per-set effort + notes. Combined 1-10 EFFORT chip (RPE label + RIR shown together) below the weight/reps inputs, optional. Long-press a logged set badge → set-note modal (240 char limit, persists in the WorkoutLog sets JSON). estimate1RM() helper added in lib/performance.ts (Epley formula, used by the upcoming history graphs). Also killed the yellow ⟳ PAIR header button — fully redundant now that + SUPERSET per exercise picks recommended pairings, in-session OR library partners, and offers SESSION vs ROUTINE save.\n[2026-05-21] Earlier: first-time exercises pre-fill with a computed SUGGESTED weight × reps via suggestedStartingSet()."
+      "notes": "[2026-05-22] Fixed: active workout exercise row no longer truncates long names — image+name+✓ on top row, status chips on their own conditional row, action buttons (FORM/EDIT/+ DROP SET/+ SUPERSET) on a dedicated wrap row underneath. Also remapped `a3` and `Cable Flyes (Low-to-High)` to `Low_Cable_Crossover` in lib/exerciseImages.ts so the FORM modal shows the correct low-to-high movement instead of the standard cable crossover image.\n[2026-05-21] Slice A · Commit 1: capture layer for per-set effort + notes. Combined 1-10 EFFORT chip (RPE label + RIR shown together) below the weight/reps inputs, optional. Long-press a logged set badge → set-note modal (240 char limit, persists in the WorkoutLog sets JSON). estimate1RM() helper added in lib/performance.ts (Epley formula, used by the upcoming history graphs). Also killed the yellow ⟳ PAIR header button — fully redundant now that + SUPERSET per exercise picks recommended pairings, in-session OR library partners, and offers SESSION vs ROUTINE save.\n[2026-05-21] Earlier: first-time exercises pre-fill with a computed SUGGESTED weight × reps via suggestedStartingSet()."
     },
     {
       "id": "workout-rest-timer",
