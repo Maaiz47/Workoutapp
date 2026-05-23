@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const groups = await prisma.leaderboardGroup.findMany({
       where: { id: { in: groupIds } },
       include: {
-        members: { include: { user: { select: { id: true, username: true } } } },
+        members: { include: { user: { select: { id: true, username: true, profile: { select: { avatarId: true } } } } } },
         workout: {
           include: { subscriptions: { select: { userId: true, activated: true } } },
         },
@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
           return {
             userId: m.userId,
             username: m.user.username,
+            avatarId: (m.user as any)?.profile?.avatarId ?? null,
             role: m.role,
             // stats.tier is the canonical CanonicalTier object from
             // computeStatsForUsers (lib/leaderboardStats.ts) —

@@ -1,6 +1,27 @@
 {
   "items": [
     {
+      "id": "profile-avatars-everywhere",
+      "title": "Profile avatars show alongside the tier icon in chats + leaderboards",
+      "area": "Leaderboards",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass profile-avatars-everywhere",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open a group leaderboard. Verify each row shows TWO icons next to the username: a circular avatar chip (24px) and the tier badge PNG (10-11px), in that order.",
+        "Use the lbMode toggle to switch between SESSIONS, WEIGHT Δ, BF LOSS, BF NOW — all four views show the avatar + tier icon pair.",
+        "Open the global leaderboard view (/leaderboard or Settings → 🏆 GLOBAL RANK). Verify each row shows avatar + tier icon.",
+        "Toggle 'Hide me from global board' in Settings — your row on the global board should still appear but with the DEFAULT avatar (anonymity preserved).",
+        "Open a group chat. Verify each non-self message shows a small 18px avatar chip next to the `@username` label above the message bubble.",
+        "Send a message yourself. Verify your own messages do NOT show an avatar (you know who you are).",
+        "Open the in-chat 🏆 STANDINGS mini-leaderboard. Verify each row in that compact list also shows avatar + tier badge.",
+        "Verify trainer-role users show the trainer default avatar (clipboard + stopwatch) when they haven't equipped one.",
+        "Fallback test: temporarily rename one user's equipped avatar PNG. Reload — verify the chip falls back to the default avatar, then to the initial-letter circle if even the default 404s."
+      ],
+      "notes": "[2026-05-23] Shipped: new <UserAvatarChip> helper in app/page.tsx (right next to <TierGlyph>). Three leaderboard APIs updated to include profile.avatarId in their prisma includes + return it in rankedMembers / rows shapes (mine, groups, global both athleteBoard + trainerBoard). Group chat API also extended with fromAvatarId per message. Five render surfaces switched over: group chat message rows, group chat in-line standings, group leaderboard rows (4 lbModes), global leaderboard rows, discovery groups leaderboard. Anonymity rule: anonymous=true on global rows forces avatarId=null in the API response so anonymous users render the default avatar regardless of what they've equipped."
+    },
+    {
       "id": "tier-icons-vivid",
       "title": "Athlete Vivid tier ladder — raster crest icons replace emoji",
       "area": "Tiers",

@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       where: { id: { in: groupIds } },
       include: {
         members: {
-          include: { user: { select: { id: true, username: true } } }
+          include: { user: { select: { id: true, username: true, profile: { select: { avatarId: true } } } } }
         },
         invites: {
           where: { status: "pending" },

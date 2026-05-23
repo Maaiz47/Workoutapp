@@ -70,7 +70,7 @@ async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", 
     select: {
       id: true,
       username: true,
-      profile: { select: { hideFromGlobalLeaderboard: true } },
+      profile: { select: { hideFromGlobalLeaderboard: true, avatarId: true } },
       _count: { select: { workoutLogs: true } },
     },
   });
@@ -80,7 +80,7 @@ async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", 
   }
 
   const statsByUser = await computeStatsForUsers(qualifiedIds);
-  type Row = { rank: number; userId: string; username: string; anonymous: boolean; tierNum: number; score: number; totalSessions: number; streak: number; prCount: number; };
+  type Row = { rank: number; userId: string; username: string; avatarId: string | null; anonymous: boolean; tierNum: number; tierIconPath?: string; tierEmoji?: string; score: number; totalSessions: number; streak: number; prCount: number; };
 
   const allRows: Row[] = candidates
     .filter((c: any) => qualifiedIds.includes(c.id))
@@ -88,12 +88,16 @@ async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", 
       const s = statsByUser.get(c.id);
       const score = s?.tier?.score ?? 0;
       const tierNum = (s?.tier as any)?.tierNum ?? 1;
+      const anonymous = c.profile?.hideFromGlobalLeaderboard === true && c.id !== viewerUid;
       return {
         rank: 0, // filled in below
         userId: c.id,
         username: c.username,
-        anonymous: c.profile?.hideFromGlobalLeaderboard === true && c.id !== viewerUid,
+        avatarId: anonymous ? null : (c.profile?.avatarId ?? null),
+        anonymous,
         tierNum,
+        tierIconPath: s?.tier?.iconPath,
+        tierEmoji: s?.tier?.icon,
         score,
         totalSessions: s?.totalSessions ?? 0,
         streak: s?.streak ?? 0,
@@ -140,7 +144,7 @@ async function trainerBoard(viewerUid: string, lens: "top" | "band" | "around", 
   if (!showTestUsers) trainerWhere.isTestUser = false;
   const trainerCandidates = await prisma.user.findMany({
     where: trainerWhere,
-    select: { id: true, username: true },
+    select: { id: true, username: true, profile: { select: { avatarId: true } } },
   });
 
   if (trainerCandidates.length === 0) {
@@ -166,7 +170,7 @@ async function trainerBoard(viewerUid: string, lens: "top" | "band" | "around", 
   const statsByUser = await computeStatsForUsers(Array.from(allUids));
 
   const thirtyDaysAgo = Date.now() - 30 * 86400000;
-  type TRow = { rank: number; userId: string; username: string; anonymous: boolean; tierNum: number; score: number; rosterCount: number; clientsWithRecentPR: number; selfAthleteScore: number; };
+  type TRow = { rank: number; userId: string; username: string; avatarId: string | null; anonymous: boolean; tierNum: number; tierIconPath?: string; tierEmoji?: string; score: number; rosterCount: number; clientsWithRecentPR: number; selfAthleteScore: number; };
   const allRows: TRow[] = trainerCandidates.map(t => {
     const roster = rosterByTrainer.get(t.id) ?? [];
     let clientsWithRecentPR = 0;
@@ -195,8 +199,11 @@ async function trainerBoard(viewerUid: string, lens: "top" | "band" | "around", 
       rank: 0,
       userId: t.id,
       username: t.username,
+      avatarId: (t as any)?.profile?.avatarId ?? null,
       anonymous: false, // trainers always public per user direction
       tierNum: breakdown.headline.tierNum,
+      tierIconPath: breakdown.headline.iconPath,
+      tierEmoji: breakdown.headline.icon,
       score: breakdown.headlineScore,
       rosterCount: roster.length,
       clientsWithRecentPR,

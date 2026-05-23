@@ -84,6 +84,38 @@ async function subscribeToPush(): Promise<"granted" | "denied" | "unsupported" |
   }
 }
 
+// Renders a user's profile avatar as a circular chip — picks the
+// equipped avatar if avatarId is provided + the avatar exists in
+// the catalogue, otherwise falls back to the default avatar PNG, and
+// then to an initial-letter circle if even that 404s.
+// Sized for inline use next to usernames / leaderboard rows.
+// (qa: profile-avatars-everywhere)
+function UserAvatarChip({ avatarId, username, size, role, style }: { avatarId?: string | null; username?: string | null; size: number; role?: string | null; style?: React.CSSProperties }) {
+  const [errored, setErrored] = useState(false);
+  const av = findAvatar(avatarId ?? null);
+  const isTrainer = role === "trainer";
+  const defaultSrc = isTrainer ? "/ai/avatar-default-trainer.png" : "/ai/avatar-default.png";
+  const src = av ? `/avatars/${av.id}.png` : defaultSrc;
+  if (errored) {
+    const initial = (username ?? "?").trim().charAt(0).toUpperCase() || "?";
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: size, height: size, borderRadius: "50%", background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)", fontSize: Math.max(8, Math.round(size * 0.45)), fontWeight: 700, fontFamily: "'Space Mono', monospace", verticalAlign: "middle", flexShrink: 0, ...style }}>
+        {initial}
+      </span>
+    );
+  }
+  return (
+    <img
+      src={src}
+      width={size}
+      height={size}
+      alt=""
+      onError={() => setErrored(true)}
+      style={{ display: "inline-block", verticalAlign: "middle", borderRadius: "50%", objectFit: "cover", flexShrink: 0, ...style }}
+    />
+  );
+}
+
 // Renders a tier icon — image PNG if a path is provided + still loadable,
 // emoji fallback otherwise. Drop-in replacement for inline `{tier.icon}`
 // renders that previously showed an emoji glyph.
@@ -4687,9 +4719,12 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
             return (
               <div key={r.userId} style={{ display: "grid", gridTemplateColumns: "32px 1fr 48px 40px", gap: 8, padding: "10px 12px", borderBottom: i < rows.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: isMe ? "rgba(78,205,196,0.05)" : (medal ? "rgba(240,192,64,0.03)" : "transparent"), alignItems: "center" }}>
                 <div style={{ fontSize: 13, color: medal ? undefined : "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{medal ?? `#${r.rank}`}</div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : displayName}</div>
-                  <div style={{ fontSize: 10, color: tier.color, marginTop: 1 }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={11} /> T{displayTierNum(tier.tierNum)} · {tier.label}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                  <UserAvatarChip avatarId={r.anonymous ? null : r.avatarId} username={r.anonymous ? null : r.username} size={24} role={kind === "trainer" ? "trainer" : null} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : displayName}</div>
+                    <div style={{ fontSize: 10, color: tier.color, marginTop: 1 }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={11} /> T{displayTierNum(tier.tierNum)} · {tier.label}</div>
+                  </div>
                 </div>
                 <div style={{ textAlign: "right", fontSize: 13, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>{r.score}</div>
                 <div style={{ textAlign: "right", fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{kind === "athlete" ? `${r.totalSessions} S` : `${r.rosterCount} C`}</div>
@@ -5239,7 +5274,7 @@ function HomePage() {
   // Messages are fetched fresh on each open. (qa: group-chat-system-messages)
   const [activeGroupChatId, setActiveGroupChatId] = useState<string | null>(null);
   const [activeGroupChatName, setActiveGroupChatName] = useState<string>("");
-  const [groupChatMessages, setGroupChatMessages] = useState<Array<{ id: string; fromId: string | null; fromUsername: string | null; body: string; type: string; createdAt: string }>>([]);
+  const [groupChatMessages, setGroupChatMessages] = useState<Array<{ id: string; fromId: string | null; fromUsername: string | null; fromAvatarId: string | null; body: string; type: string; createdAt: string }>>([]);
   const [groupChatInput, setGroupChatInput] = useState("");
   const [groupChatSending, setGroupChatSending] = useState(false);
   const [groupChatLoading, setGroupChatLoading] = useState(false);
@@ -11067,10 +11102,11 @@ function HomePage() {
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: 6 }}>No ranked members yet.</div>
             ) : sortedMembers.map((m: any, i: number) => (
               <div key={m.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", marginBottom: 4, background: m.userId === user.id ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 8, border: `1px solid ${m.userId === user.id ? "rgba(255,107,107,0.25)" : "transparent"}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
                   <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", width: 18 }}>{i + 1}.</span>
-                  <span style={{ fontSize: 13, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{m.user?.username ?? "—"}</span>
+                  <UserAvatarChip avatarId={m.avatarId ?? m.user?.profile?.avatarId ?? null} username={m.user?.username} size={20} role={m.role} />
                   {m.stats?.tier && <TierGlyph src={m.stats.tier.iconPath} emoji={m.stats.tier.icon} size={13} />}
+                  <span style={{ fontSize: 13, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>@{m.user?.username ?? "—"}</span>
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(240,192,64,0.8)", fontFamily: "'Space Mono', monospace" }}>{m.stats?.tier?.score ?? 0}</span>
               </div>
@@ -11100,7 +11136,10 @@ function HomePage() {
             return (
               <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", maxWidth: "82%" }}>
                 {!isMine && (
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 2, paddingLeft: 12 }}>@{msg.fromUsername ?? "—"}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 3, paddingLeft: 2 }}>
+                    <UserAvatarChip avatarId={msg.fromAvatarId} username={msg.fromUsername} size={18} />
+                    <span>@{msg.fromUsername ?? "—"}</span>
+                  </div>
                 )}
                 <div style={{ padding: "10px 14px", background: isMine ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.05)", border: isMine ? "none" : "1px solid rgba(255,255,255,0.08)", borderRadius: 14, color: "#fff", fontSize: 13.5, lineHeight: 1.45, wordBreak: "break-word" }}>
                   {msg.body}
@@ -11587,6 +11626,7 @@ function HomePage() {
                             .map((m: any) => ({
                               userId: m.userId,
                               username: m.user?.username ?? "unknown",
+                              avatarId: m.user?.profile?.avatarId ?? null,
                               role: m.role,
                               totalSessions: m.stats?.totalSessions ?? 0,
                               streak: m.stats?.streak ?? 0,
@@ -11728,9 +11768,12 @@ function HomePage() {
                                     const nameCell = (
                                       <>
                                         <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
-                                        <div style={{ minWidth: 0 }}>
-                                          <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : `@${m.username}`}</div>
-                                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={10} /> {tier.label}{m.role === "trainer" ? " · TRAINER" : ""}</div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                                          <UserAvatarChip avatarId={m.avatarId} username={m.username} size={24} role={m.role} />
+                                          <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : `@${m.username}`}</div>
+                                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={10} /> {tier.label}{m.role === "trainer" ? " · TRAINER" : ""}</div>
+                                          </div>
                                         </div>
                                       </>
                                     );
@@ -13827,9 +13870,12 @@ function HomePage() {
                               const nameBlock = (
                                 <>
                                   <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{idx + 1}</span>}</div>
-                                  <div>
-                                    <div style={{ fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? "#FFE66D" : "#fff" }}>@{entry.username}{isMe ? " (you)" : ""}</div>
-                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}><TierGlyph src={entry.tier?.iconPath} emoji={entry.tier?.icon ?? "🐱"} size={11} /> {entry.tier?.label ?? "Kitten"}</div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                                    <UserAvatarChip avatarId={entry.avatarId} username={entry.username} size={24} role={entry.role} />
+                                    <div style={{ minWidth: 0 }}>
+                                      <div style={{ fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? "#FFE66D" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{entry.username}{isMe ? " (you)" : ""}</div>
+                                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}><TierGlyph src={entry.tier?.iconPath} emoji={entry.tier?.icon ?? "🐱"} size={11} /> {entry.tier?.label ?? "Kitten"}</div>
+                                    </div>
                                   </div>
                                 </>
                               );

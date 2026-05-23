@@ -2,6 +2,28 @@
 
 ---
 
+## Profile avatars on leaderboards + chats · 2026-05-23 — Avatar chip next to tier icon everywhere a user is listed (qa: profile-avatars-everywhere)
+
+Per @maaiz: "I want the profile avatars to show where appropriate like message logs and in chats, and on leaderboards along with their tier icon next to each other."
+
+Shipped a new `<UserAvatarChip avatarId={...} username={...} size={N} role={...} />` helper in app/page.tsx that resolves the user's equipped avatar from `lib/avatars.ts` and renders a circular chip (with role-aware default avatar fallback for trainers, then initial-letter circle if even the default 404s). Drop-in next to existing tier icons everywhere a user appears in a list.
+
+Surfaces wired this pass:
+- **Group chat messages** — `/api/leaderboard/groups/[id]/messages` now includes `fromAvatarId` on each message. Chat row prepends an 18px avatar chip next to the `@username` label.
+- **Group leaderboard sidebar** (chat-attached "🏆 STANDINGS" mini list) — 20px avatar chip + tier glyph next to username, all inline.
+- **Group leaderboard rows** (main `lbMode` modes — sessions / weight / BF) — 24px avatar chip beside the username/tier-label two-row block.
+- **Global leaderboard rows** (`/leaderboard` view) — 24px avatar chip beside username/tier-label block, anonymous rows force the default avatar so the toggle still hides identity.
+- **Discovery groups leaderboard** (the leaderboard panel inside each "join this group" card) — same 24px chip pattern.
+
+API + type changes:
+- `/api/leaderboard/mine` — `members.include.user.select` adds `profile.avatarId`; rankedMembers ship `avatarId` at the top level.
+- `/api/leaderboard/groups` — same prisma include addition so `m.user.profile.avatarId` is available.
+- `/api/leaderboard/global` (both athleteBoard + trainerBoard) — selects `profile.avatarId`, response rows ship `avatarId` + `tierIconPath` + `tierEmoji` so the renderer never has to refetch.
+
+The default trainer avatar is automatically picked when role="trainer" and the user hasn't equipped one — uses `/ai/avatar-default-trainer.png` (Batch 6 image-gen v2).
+
+---
+
 ## Tier badges full sweep · 2026-05-23 — All tier-icon render surfaces switched to PNG (qa: tier-icons-vivid, tier-icons-simple, tier-icons-trainer)
 
 Follow-up to the tier-badges-ship push. Per @maaiz: "No emojis, I want only these icons to be used and see how it is" — so this sweep replaces every remaining emoji-string tier render in `app/page.tsx` with `<TierGlyph>`. After this push there should be no more raw emoji rendering of tier badges anywhere in the UI.

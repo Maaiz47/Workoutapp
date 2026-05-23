@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       where: { groupId: params.id },
       orderBy: { createdAt: "asc" },
       take: 100,
-      include: { from: { select: { id: true, username: true } } },
+      include: { from: { select: { id: true, username: true, profile: { select: { avatarId: true } } } } },
     });
 
     return json({
@@ -32,6 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         id: m.id,
         fromId: m.fromId,
         fromUsername: m.from?.username ?? null,
+        fromAvatarId: (m.from as any)?.profile?.avatarId ?? null,
         body: m.body,
         type: m.type,
         createdAt: m.createdAt.toISOString(),
