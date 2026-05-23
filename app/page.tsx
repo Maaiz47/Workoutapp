@@ -4133,7 +4133,13 @@ function TierInfoModal({
                       <div style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: r.hasData ? "rgba(240,192,64,0.85)" : "rgba(255,255,255,0.3)", fontWeight: 700 }}>{r.hasData ? `${r.score}/100` : "—"}</div>
                     </div>
                     <div style={{ height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden", marginBottom: 3 }}>
-                      <div style={{ width: `${Math.max(2, r.score)}%`, height: "100%", background: r.hasData ? "linear-gradient(90deg, #f0c040, #f97316)" : "rgba(255,255,255,0.15)" }} />
+                      {/* Flat teal fill matching the home tier modal —
+                          one colour across all sub-ranks so the user
+                          reads the score from the WIDTH, not a colour
+                          shift. Orange gradient previously clashed
+                          with the trainer Mentor tier orange.
+                          (qa: tier-modal-action-tips) */}
+                      <div style={{ width: `${Math.max(2, r.score)}%`, height: "100%", background: r.hasData ? "#4ECDC4" : "rgba(255,255,255,0.15)" }} />
                     </div>
                     <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{r.detail}</div>
                   </div>
@@ -13814,7 +13820,15 @@ function HomePage() {
                       </div>
                     </div>
                     <div style={{ height: 6, background: "rgba(240,192,64,0.10)", borderRadius: 3, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.25)" }}>
-                      <div style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #f0c040, #e17055)", borderRadius: 3, transition: "width 0.5s", boxShadow: "0 0 8px rgba(240,192,64,0.4)" }} />
+                      {/* Tier progress bar — gold → coral-red gradient.
+                          Dropped the warm-orange mid-stop (#e17055)
+                          because it clashed with the trainer Mentor
+                          tier orange (#fb923c). Gold → coral gives the
+                          same "climb energy" without the colour echo.
+                          Distinct from the flat-teal sub-rank fills
+                          above so users can read the two bar types
+                          at a glance. (qa: tier-progress-bar-recolour) */}
+                      <div style={{ height: "100%", width: `${progress * 100}%`, background: "linear-gradient(90deg, #f0c040, #FF6B6B)", borderRadius: 3, transition: "width 0.5s", boxShadow: "0 0 8px rgba(240,192,64,0.4)" }} />
                     </div>
                   </div>
 
@@ -13829,7 +13843,15 @@ function HomePage() {
                           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{sr.score}</div>
                         </div>
                         <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden", marginBottom: 4 }}>
-                          <div style={{ height: "100%", width: `${sr.score}%`, background: sr.score >= 70 ? "#FF6B6B" : sr.score >= 40 ? "#f0c040" : "#a78bfa", borderRadius: 2 }} />
+                          {/* Sub-rank fill: ONE flat colour across all
+                              dims so the score is read by the WIDTH,
+                              not a traffic-light tint. Per @maaiz —
+                              previous violet/gold/red by-threshold
+                              tint conflicted with the trainer Mentor
+                              orange + made low-score dims look
+                              "wrong" instead of just low.
+                              (qa: tier-modal-action-tips) */}
+                          <div style={{ height: "100%", width: `${sr.score}%`, background: "#4ECDC4", borderRadius: 2 }} />
                         </div>
                         <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>{sr.detail}</div>
                       </div>
