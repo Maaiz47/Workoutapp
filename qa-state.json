@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "workout-completed-summary",
+      "title": "Show this-session sets + last-session best on completed exercise row",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass workout-completed-summary",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout, log all sets of an exercise (3 of 3). Verify the row dims with the green ✓ chips for completed sets.",
+        "Verify a TWO-LINE summary appears below the chip strip: `THIS  60kg×10 · 60kg×9 · 60kg×8` and `LAST  70kg × 12` (only if a previous session exists for this exercise).",
+        "For an assisted set (logged via − ASSISTED with 15kg input), verify the summary line shows `-15kg×10` instead of `0kg×10`.",
+        "For a brand-new exercise with no prior session, verify only the THIS line appears (no LAST line)."
+      ],
+      "notes": "[2026-05-23] Shipped: small dim summary line under the per-set chip strip, only when allDone. Reads each logged set's weight×reps from log[], plus lastSessionBest() for the LAST line. Assisted sets render as -<assistance>kg×<reps> so the user sees the band/machine help they used. (Reported by @maaiz: 'show last session weights+reps AND this session weights+reps in grey when exercise completed'.)"
+    },
+    {
       "id": "workout-effort-prompt",
       "title": "Effort backfill prompt after LOG SET (when no chip was tapped)",
       "area": "Workout",

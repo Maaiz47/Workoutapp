@@ -13736,6 +13736,42 @@ function HomePage() {
                           ))}
                         </div>
                       )}
+                      {/* Post-completion summary — once every set is
+                          logged, fade in a dim two-line strip showing
+                          this session's weight×reps per set + last
+                          session's best for quick comparison. Surfaces
+                          the data without needing to open EDIT SETS.
+                          (qa: workout-completed-summary) */}
+                      {trackable && allDone && (() => {
+                        const sets: string[] = [];
+                        for (let i = 1; i <= ex.sets; i++) {
+                          const e: any = log[`${ex.id}-${i}`];
+                          if (!e || e.skipped) continue;
+                          const w = e.weight ?? 0;
+                          const r = e.reps ?? 0;
+                          const ai = e.assistance ?? 0;
+                          // Assisted exercise: stored weight is 0 +
+                          // assistance kg. Display as "-15kg" so the
+                          // user sees they used 15kg of band assist.
+                          const label = ai > 0 ? `-${ai}kg×${r}` : `${w}kg×${r}`;
+                          sets.push(label);
+                        }
+                        if (sets.length === 0) return null;
+                        return (
+                          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 2, fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>
+                            <div style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
+                              <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 700, letterSpacing: 1, fontSize: 9 }}>THIS</span>
+                              <span style={{ color: "rgba(255,255,255,0.55)" }}>{sets.join(" · ")}</span>
+                            </div>
+                            {lw > 0 && (
+                              <div style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
+                                <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 700, letterSpacing: 1, fontSize: 9 }}>LAST</span>
+                                <span style={{ color: "rgba(255,255,255,0.35)" }}>{lw}kg × {lr || "?"}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {trackable && (
                         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
                           {Array.from({ length: ex.sets }, (_, i) => {

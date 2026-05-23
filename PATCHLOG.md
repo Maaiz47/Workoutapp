@@ -2,6 +2,12 @@
 
 ---
 
+## QA pass · 2026-05-23 — Completed exercise summary line (qa: workout-completed-summary)
+
+Adds a small dim two-line strip under the per-set chip ticks once an exercise is fully logged. Line 1: `THIS <set1> · <set2> · ... ` showing weight×reps for each logged set this session. Line 2: `LAST <best>kg × <reps>` for quick comparison vs last session (only if a prior session exists). Assisted sets render as `-<assistance>kg×<reps>` so band/machine help is visible. No collapse/expand needed — the data is right where the user just finished tapping ✓ chips.
+
+---
+
 ## Nudge · 2026-05-23 — force redeploy (production stuck at 6c7b47e)
 
 Vercel did not pick up the 3 commits after the cron-schedule change (d012874 workout polish · 538a274 effort prompt · deaa9db effort suggestion hint) — production stayed pinned to 6c7b47e ~57 minutes after the last real-content push. ignoreCommand confirmed PROCEED locally for the diff, so this is either a quota/queue issue or a missed webhook. Empty-ish nudge commit to force a fresh build attempt.
