@@ -2,6 +2,12 @@
 
 ---
 
+## QA pass · 2026-05-23 — Completed-summary directional arrows (qa: workout-completed-summary)
+
+Slice 2: each set in the THIS line now carries a tiny ▲ (green, this set's e1RM > last session's best by ≥0.5%), ▼ (red, < by ≥0.5%), or `=` (dim grey, within ±0.5%). Reference is `estimate1RM(lastWeight, lastReps)` from `lib/performance.ts`. Assisted sets render with no arrow until workout-assisted-exercise slice 2 wires bodyweight-aware effective load.
+
+---
+
 ## QA pass · 2026-05-23 — Completed exercise summary line (qa: workout-completed-summary)
 
 Adds a small dim two-line strip under the per-set chip ticks once an exercise is fully logged. Line 1: `THIS <set1> · <set2> · ... ` showing weight×reps for each logged set this session. Line 2: `LAST <best>kg × <reps>` for quick comparison vs last session (only if a prior session exists). Assisted sets render as `-<assistance>kg×<reps>` so band/machine help is visible. No collapse/expand needed — the data is right where the user just finished tapping ✓ chips.

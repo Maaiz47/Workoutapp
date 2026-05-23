@@ -12,9 +12,14 @@
         "Start a workout, log all sets of an exercise (3 of 3). Verify the row dims with the green ✓ chips for completed sets.",
         "Verify a TWO-LINE summary appears below the chip strip: `THIS  60kg×10 · 60kg×9 · 60kg×8` and `LAST  70kg × 12` (only if a previous session exists for this exercise).",
         "For an assisted set (logged via − ASSISTED with 15kg input), verify the summary line shows `-15kg×10` instead of `0kg×10`.",
-        "For a brand-new exercise with no prior session, verify only the THIS line appears (no LAST line)."
+        "For a brand-new exercise with no prior session, verify only the THIS line appears (no LAST line).",
+        "Log a set that beats your last-session best e1RM (heavier weight or more reps at same weight). Verify a small green ▲ appears next to that set in the THIS line.",
+        "Log a set that's clearly weaker than last session's best. Verify a small red ▼ appears.",
+        "Log a set within ±0.5% e1RM of last session's best. Verify a dim grey `=` appears.",
+        "On a brand-new exercise (no prior history): verify NO arrows appear on any set (no reference to compare against).",
+        "Assisted sets currently skip the arrow because bodyweight-aware effective load isn't wired into the comparison yet (waiting on workout-assisted-exercise slice 2). Verify assisted-set entries render with `-<n>kg×<reps>` and NO arrow."
       ],
-      "notes": "[2026-05-23] Shipped: small dim summary line under the per-set chip strip, only when allDone. Reads each logged set's weight×reps from log[], plus lastSessionBest() for the LAST line. Assisted sets render as -<assistance>kg×<reps> so the user sees the band/machine help they used. (Reported by @maaiz: 'show last session weights+reps AND this session weights+reps in grey when exercise completed'.)"
+      "notes": "[2026-05-23] Slice 2: added per-set directional arrows. Each THIS set carries a tiny ▲ (green, set e1RM > last session's best e1RM × 1.005), ▼ (red, < × 0.995), or = (dim grey, within 0.5%). Reference e1RM = estimate1RM(lw, lr). Assisted sets skip the arrow (no bodyweight-aware effective load yet — slice 2 of workout-assisted-exercise). (Reported by @maaiz: 'the lines can be grey, with a small green or red arrow to indicate direction this session'.)\n[2026-05-23] Slice 1 shipped: small dim summary line under the per-set chip strip, only when allDone. Reads each logged set's weight×reps from log[], plus lastSessionBest() for the LAST line. Assisted sets render as -<assistance>kg×<reps> so the user sees the band/machine help they used. (Reported by @maaiz: 'show last session weights+reps AND this session weights+reps in grey when exercise completed'.)"
     },
     {
       "id": "workout-effort-prompt",

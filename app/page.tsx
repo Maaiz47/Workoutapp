@@ -13737,31 +13737,56 @@ function HomePage() {
                         </div>
                       )}
                       {/* Post-completion summary — once every set is
-                          logged, fade in a dim two-line strip showing
-                          this session's weight×reps per set + last
-                          session's best for quick comparison. Surfaces
-                          the data without needing to open EDIT SETS.
+                          logged, render a dim two-line strip showing
+                          each set's weight×reps with a directional
+                          arrow (▲ green / ▼ red / = grey) based on
+                          e1RM vs last session's best. LAST line
+                          carries the reference number. Assisted sets
+                          render as -<assistance>kg.
                           (qa: workout-completed-summary) */}
                       {trackable && allDone && (() => {
-                        const sets: string[] = [];
+                        type SetCell = { w: number; r: number; ai: number; dir: "up" | "down" | "flat" | "none" };
+                        const cells: SetCell[] = [];
+                        const refE1RM = lw > 0 && lr > 0 ? estimate1RM(lw, lr) : 0;
                         for (let i = 1; i <= ex.sets; i++) {
                           const e: any = log[`${ex.id}-${i}`];
                           if (!e || e.skipped) continue;
                           const w = e.weight ?? 0;
                           const r = e.reps ?? 0;
                           const ai = e.assistance ?? 0;
-                          // Assisted exercise: stored weight is 0 +
-                          // assistance kg. Display as "-15kg" so the
-                          // user sees they used 15kg of band assist.
-                          const label = ai > 0 ? `-${ai}kg×${r}` : `${w}kg×${r}`;
-                          sets.push(label);
+                          let dir: SetCell["dir"] = "none";
+                          if (refE1RM > 0 && (w > 0 || ai > 0)) {
+                            // Assisted: effective load is unknown without
+                            // bodyweight integration (slice 2). Until then
+                            // skip direction for assisted sets.
+                            if (ai === 0) {
+                              const setE1RM = estimate1RM(w, r);
+                              dir = setE1RM > refE1RM * 1.005 ? "up"
+                                  : setE1RM < refE1RM * 0.995 ? "down"
+                                  : "flat";
+                            }
+                          }
+                          cells.push({ w, r, ai, dir });
                         }
-                        if (sets.length === 0) return null;
+                        if (cells.length === 0) return null;
+                        const arrowColor = { up: "#2ecc71", down: "#FF6B6B", flat: "rgba(255,255,255,0.3)", none: "transparent" } as const;
+                        const arrowChar = { up: "▲", down: "▼", flat: "=", none: "" } as const;
                         return (
                           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 2, fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>
-                            <div style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
+                            <div style={{ display: "flex", gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
                               <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 700, letterSpacing: 1, fontSize: 9 }}>THIS</span>
-                              <span style={{ color: "rgba(255,255,255,0.55)" }}>{sets.join(" · ")}</span>
+                              {cells.map((c, i) => {
+                                const text = c.ai > 0 ? `-${c.ai}kg×${c.r}` : `${c.w}kg×${c.r}`;
+                                return (
+                                  <span key={i} style={{ color: "rgba(255,255,255,0.55)", display: "inline-flex", alignItems: "center", gap: 2 }}>
+                                    {text}
+                                    {c.dir !== "none" && (
+                                      <span style={{ color: arrowColor[c.dir], fontSize: 9, lineHeight: 1 }}>{arrowChar[c.dir]}</span>
+                                    )}
+                                    {i < cells.length - 1 && <span style={{ color: "rgba(255,255,255,0.2)", marginLeft: 4 }}>·</span>}
+                                  </span>
+                                );
+                              })}
                             </div>
                             {lw > 0 && (
                               <div style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
