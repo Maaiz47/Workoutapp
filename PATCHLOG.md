@@ -2,6 +2,12 @@
 
 ---
 
+## QA pass · 2026-05-23 — Effort prompt suggestion hint (qa: workout-effort-prompt)
+
+Slice 2 of the effort backfill prompt — added a ★ LIKELY badge above whichever chip matches the user's most recent RPE for the same exercise (this-session first, then last-session). Pure visual cue: the chip is NOT pre-selected, the user still has to tap to confirm. New help line `★ HINT BASED ON YOUR RECENT EFFORT — TAP TO CONFIRM` only renders when a suggestion is available. Brand-new exercises with no history show the prompt with no hint.
+
+---
+
 ## QA pass · 2026-05-23 — Effort backfill prompt (qa: workout-effort-prompt)
 
 Quick follow-up to the polish batch — added the post-LOG-SET prompt the user asked for. When the user logs a set without picking an effort chip, a small bottom-sheet appears with the 1-10 chips inline; tapping one backfills the just-logged set's rpe via `patchSet`. SKIP dismisses without saving; DON'T ASK AGAIN sets a session-scoped suppression flag that resets when the workout ends. Works across all three log-set branches (standard, superset, drop set).

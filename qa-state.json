@@ -15,9 +15,12 @@
         "Log another set without effort, tap SKIP instead. Verify the prompt dismisses and the set has no rpe.",
         "Log another set without effort, tap DON'T ASK AGAIN. Verify the prompt dismisses and SUBSEQUENT log-set actions in this session do NOT fire the prompt.",
         "Finish the workout. Start a new one. Log a set without effort. Verify the prompt RE-APPEARS (the suppression is session-scoped, not persistent).",
-        "Pick an effort chip before LOG SET. Verify the prompt does NOT fire (only fires when the chip was untouched at the time of logging)."
+        "Pick an effort chip before LOG SET. Verify the prompt does NOT fire (only fires when the chip was untouched at the time of logging).",
+        "On the SECOND set of an exercise where you've already tapped a chip on set 1: log set 2 without picking effort. Verify the prompt shows a ★ LIKELY badge above whichever chip matches set 1's effort. The chip is NOT pre-selected — you still have to tap to confirm.",
+        "On the FIRST set of an exercise you've logged before: verify the ★ LIKELY badge appears above whichever chip matches your last session's best-set effort.",
+        "On a brand-new exercise with no current-session and no prior history: verify NO ★ LIKELY badge appears (no suggestion to make)."
       ],
-      "notes": "[2026-05-23] Shipped: small bottom-sheet prompt fires after each LOG SET when effortInput was null. Tapping a chip calls patchSet({rpe: meta.value}) on the just-logged set key. SKIP dismisses; DON'T ASK AGAIN sets a session-scoped flag (effortPromptDisabled) that suppresses for the rest of the active workout. Suppression auto-resets when the workout finishes / starts fresh. (Reported by @maaiz: 'prompt to select effort scale of not selected between sets/exercises')."
+      "notes": "[2026-05-23] Slice 2: added a ★ LIKELY suggestion hint above the chip that matches the user's most recent RPE for the same exercise (current session first, then last session's best). Pure visual cue — no auto-selection. Help line below the row reads `★ HINT BASED ON YOUR RECENT EFFORT — TAP TO CONFIRM`. (Reported by @maaiz: 'use a suggested effort highlight under effort chip, but don't actually select it for the user — just helps them decide quickly'.)\n[2026-05-23] Slice 1 shipped: small bottom-sheet prompt fires after each LOG SET when effortInput was null. Tapping a chip calls patchSet({rpe: meta.value}) on the just-logged set key. SKIP dismisses; DON'T ASK AGAIN sets a session-scoped flag (effortPromptDisabled) that suppresses for the rest of the active workout. Suppression auto-resets when the workout finishes / starts fresh. (Reported by @maaiz: 'prompt to select effort scale of not selected between sets/exercises')."
     },
     {
       "id": "workout-warmup-skip",

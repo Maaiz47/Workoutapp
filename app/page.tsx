@@ -4347,8 +4347,11 @@ function HomePage() {
   // Effort backfill prompt — fires after LOG SET when no effort chip
   // was tapped. User can pick an effort to backfill the just-logged
   // set, skip, or disable the prompt for the rest of the session.
+  // `suggested` is the chip we highlight as a hint (the user's most
+  // recent RPE for the same exercise — this-session first, then last-
+  // session). We DON'T auto-select — the hint just speeds the choice.
   // (qa: workout-effort-prompt)
-  const [effortPrompt, setEffortPrompt] = useState<{ key: string; setLabel: string; exName: string } | null>(null);
+  const [effortPrompt, setEffortPrompt] = useState<{ key: string; setLabel: string; exName: string; suggested: number | null } | null>(null);
   const [effortPromptDisabled, setEffortPromptDisabled] = useState(false);
   const [logFlashId, setLogFlashId] = useState<string | null>(null);
   const [newPBs, setNewPBs] = useState<{ name: string; weight: number; reps: number }[]>([]);
@@ -13485,21 +13488,34 @@ function HomePage() {
                   // (qa: workout-effort-prompt)
                   const setKey = `${ex.id}-${ns}`;
                   const shouldPromptEffort = effortInput == null && !effortPromptDisabled;
+                  // Compute a suggested chip — most recent RPE the user
+                  // logged for this exercise (current session first, then
+                  // last session's best). Hint only; never auto-selects.
+                  // (qa: workout-effort-prompt — suggestion hint)
+                  let suggestedRpe: number | null = null;
+                  for (let i = ns - 1; i >= 1; i--) {
+                    const v: any = log[`${ex.id}-${i}`];
+                    if (v && typeof v.rpe === "number") { suggestedRpe = v.rpe; break; }
+                  }
+                  if (suggestedRpe == null) {
+                    const prevBest = lastSessionBest(ex.id);
+                    if (typeof prevBest.rpe === "number") suggestedRpe = prevBest.rpe;
+                  }
                   if (superCtx && superCtx.idx < superCtx.group.length - 1) {
                     logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
-                    if (shouldPromptEffort) setEffortPrompt({ key: setKey, setLabel: `Set ${ns}`, exName: ex.name });
+                    if (shouldPromptEffort) setEffortPrompt({ key: setKey, setLabel: `Set ${ns}`, exName: ex.name, suggested: suggestedRpe });
                     const nextEx = superCtx.group[superCtx.idx + 1];
                     const { weight: nw, reps: nr } = lastSessionBest(nextEx.id);
                     setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false); setAssistedBW(false); setManualBW(false); setEffortInput(null); setProgression(null);
                   } else if (dropCount > 0) {
                     logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
-                    if (shouldPromptEffort) setEffortPrompt({ key: setKey, setLabel: `Set ${ns}`, exName: ex.name });
+                    if (shouldPromptEffort) setEffortPrompt({ key: setKey, setLabel: `Set ${ns}`, exName: ex.name, suggested: suggestedRpe });
                     const w = parseFloat(effectiveWeight) || 0;
                     setPendingDrop({ exId: ex.id, setNum: ns, dropNum: 1 });
                     setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput(""); setEffortInput(null); setProgression(null);
                   } else {
                     logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
-                    if (shouldPromptEffort) setEffortPrompt({ key: setKey, setLabel: `Set ${ns}`, exName: ex.name });
+                    if (shouldPromptEffort) setEffortPrompt({ key: setKey, setLabel: `Set ${ns}`, exName: ex.name, suggested: suggestedRpe });
                     setEffortInput(null); setProgression(null);
                     if (ns + 1 > ex.sets) {
                       setExpanded(null);
@@ -14912,18 +14928,31 @@ function HomePage() {
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 4, fontFamily: "'DM Sans', sans-serif" }}>
               How hard was <strong style={{ color: "#fff" }}>{effortPrompt.exName}</strong> · {effortPrompt.setLabel.toLowerCase()}?
             </div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 1, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>1 = WARM-UP · 10 = FAILURE</div>
-            <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
-              {EFFORT_SCALE.map(meta => (
-                <button
-                  key={meta.value}
-                  onClick={() => { patchSet(effortPrompt.key, { rpe: meta.value }); setEffortPrompt(null); }}
-                  title={`${meta.value}: ${meta.rpe} · ${meta.rir}`}
-                  style={{ flex: 1, minWidth: 0, padding: "9px 0", background: `${meta.color}1a`, border: `1px solid ${meta.color}44`, borderRadius: 5, color: meta.color, fontSize: 12, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
-                >{meta.value}</button>
-              ))}
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 1, fontFamily: "'Space Mono', monospace", marginBottom: 10 }}>1 = WARM-UP · 10 = FAILURE</div>
+            <div style={{ display: "flex", gap: 3, marginBottom: 4, paddingTop: 12, position: "relative" }}>
+              {EFFORT_SCALE.map(meta => {
+                const isSuggested = effortPrompt.suggested === meta.value;
+                return (
+                  <div key={meta.value} style={{ flex: 1, minWidth: 0, position: "relative" }}>
+                    {/* ★ HINT badge sits above the suggested chip —
+                        visible cue without auto-selecting. (qa:
+                        workout-effort-prompt — suggestion hint) */}
+                    {isSuggested && (
+                      <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#FFE66D", whiteSpace: "nowrap", fontFamily: "'Space Mono', monospace", pointerEvents: "none" }}>★ LIKELY</div>
+                    )}
+                    <button
+                      onClick={() => { patchSet(effortPrompt.key, { rpe: meta.value }); setEffortPrompt(null); }}
+                      title={`${meta.value}: ${meta.rpe} · ${meta.rir}${isSuggested ? " — matches your recent effort here" : ""}`}
+                      style={{ width: "100%", padding: "9px 0", background: `${meta.color}1a`, border: `1px solid ${isSuggested ? "#FFE66D" : `${meta.color}44`}`, borderRadius: 5, color: meta.color, fontSize: 12, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer", boxShadow: isSuggested ? "0 0 0 1px rgba(255,230,109,0.25)" : "none" }}
+                    >{meta.value}</button>
+                  </div>
+                );
+              })}
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "space-between", marginTop: 4 }}>
+            {effortPrompt.suggested != null && (
+              <div style={{ fontSize: 9, color: "rgba(255,230,109,0.65)", letterSpacing: 1, marginTop: 8, fontFamily: "'Space Mono', monospace", textAlign: "center" }}>★ HINT BASED ON YOUR RECENT EFFORT — TAP TO CONFIRM</div>
+            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "space-between", marginTop: 6 }}>
               <button onClick={() => setEffortPrompt(null)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer", padding: "6px 0" }}>SKIP</button>
               <button onClick={() => { setEffortPromptDisabled(true); setEffortPrompt(null); }} style={{ background: "transparent", border: "none", color: "rgba(255,107,107,0.55)", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer", padding: "6px 0" }}>DON&apos;T ASK AGAIN</button>
             </div>
