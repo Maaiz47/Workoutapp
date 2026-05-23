@@ -1,5 +1,41 @@
 {
   "processedIds": {
+    "cmphnt24i0002z9q55072kezp": {
+      "ts": "2026-05-23T02:00:00Z",
+      "summary": "@maaiz: 'stretches/warm-ups don't let me mark each set done'. Per-set chip panel always renders (single + multi set) with explicit ✓ DONE / ↷ SKIP buttons replacing the hidden tap-cycle. (qa: workout-warmup-skip + workout-warmup-mark-each-set)"
+    },
+    "cmphnteme0003z9q5exghwtsw": {
+      "ts": "2026-05-23T02:00:00Z",
+      "summary": "@maaiz: 'can't mark stretch or warm ups skip'. Same fix — explicit SKIP button per set, plus the ↷ SKIP ALL bulk action on multi-set rows. (qa: workout-warmup-skip)"
+    },
+    "cmphnu3uk00024bl2kqkuoexf": {
+      "ts": "2026-05-23T02:00:00Z",
+      "summary": "@maaiz: 'scap push ups animations is wrong'. Frames showed a man standing (not a plank-position scap push-up). Removed wu-scap-shrugs from LOCAL_STRETCH_IDS so users see the emoji fallback. CLAUDE.md pending reminder added for proper regeneration. (qa: exercise-local-images — slice 1/2)"
+    },
+    "cmphnx8bh00074bl2h46f8n22": {
+      "ts": "2026-05-23T02:00:00Z",
+      "summary": "@maaiz: 'effort scale 1 and 2 not readable'. Were rgba(255,255,255,0.3) / 0.4 — near-invisible text & border. Bumped to slate (#94a3b8, #a3b3c1) for proper contrast. (qa: workout-set-logging)"
+    },
+    "cmphnxtwe00084bl2s7txfu0u": {
+      "ts": "2026-05-23T02:00:00Z",
+      "summary": "@maaiz: 'session restored notice is annoying — can be silent'. Removed the resumeOverlay state + render. Restoration is silent now; the home active-session card already telegraphs the resumed workout. (qa: session-autoresume-silent)"
+    },
+    "cmpho0olj0002ibg7hpexzw5y": {
+      "ts": "2026-05-23T02:00:00Z",
+      "summary": "@maaiz: 'need a way to mark assisted exercises'. Slice 1/2 shipped: − ASSISTED button alongside + ADD WEIGHT for BW exercises. Weight input becomes ASSISTANCE (kg); sets store `assistance: N`. Slice 2 (next): wire bodyweight-aware volume math. (qa: workout-assisted-exercise)"
+    },
+    "cmpho48dh000059xsahe189ca": {
+      "ts": "2026-05-23T02:00:00Z",
+      "summary": "@maaiz: 'want both Spotify and Apple Music buttons with real icons'. Split the single Spotify-only pill into two branded buttons with inline-SVG marks. Deep-link via spotify:// and music:// with web fallback after 400ms. (qa: workout-music-launcher)"
+    },
+    "cmpho6mgt000159xs2kuu4jho": {
+      "ts": "2026-05-23T02:00:00Z",
+      "summary": "@maaiz: 'profile + progress next to each other on left half, tier(s) on right half'. Switched top row from flex+min-widths (wrapped on narrow phones) to a hard 1:1:2 CSS grid. (qa: home-hub-singleline)"
+    },
+    "cmphoj19h000659xszxy2uw7c": {
+      "ts": "2026-05-23T02:00:00Z",
+      "summary": "@munchy: 'profile edit pencil + avatar button not working'. Root cause: picker render was inside view === 'customise' so opening from Settings/Profile silently no-op'd. Moved to top-level. (qa: profile-avatars)"
+    },
     "cmpgat2tw00001ukzu87h9mhv": {
       "ts": "2026-05-22T08:00:00Z",
       "summary": "@maaiz: 'Gray out other sessions while a session is active' + suggest-next visibility. Locked day cards now use opacity 0.22 + grayscale(85%) + pointer-events:none for a clearly paused look; Suggested Next card hidden while started=true. (qa: home-polish-v2)"

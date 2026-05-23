@@ -2,6 +2,32 @@
 
 ---
 
+## QA pass · 2026-05-23 — Workout polish batch (qa: workout-warmup-skip, workout-warmup-mark-each-set, workout-set-edit-after-done, workout-set-edit-effort, exercise-local-images, session-autoresume-silent, workout-assisted-exercise, workout-music-launcher, home-hub-singleline, profile-avatars, workout-equipment-aware-input)
+
+Processing pass for the 9 unprocessed QA comments + two new bug reports surfaced mid-session by @maaiz. 12 distinct fixes shipped in a single push.
+
+### Addressed
+- **workout-warmup-skip + workout-warmup-mark-each-set** (@maaiz) — Warm-ups/stretches now ALWAYS expand on tap (removed the hidden single-set tap-cycle). Per-set chip panel shows explicit ✓ MARK DONE and ↷ SKIP buttons side by side for every set, regardless of set count. Multi-set rows also keep the ✓ ALL DONE / ↷ SKIP ALL bulk actions.
+- **workout-set-edit-after-done** (@maaiz) — Exercise rows used to early-return on tap once all sets were logged, making EDIT SETS unreachable. Now the row still expands so the EDIT SETS button stays available.
+- **workout-set-edit-effort** (@maaiz) — Added a 1-10 EFFORT chip row to the set-edit modal (mirrors the in-session UX). Includes a CLEAR link when a value is selected. RPE was already in the stored set shape; UI just hadn't exposed it.
+- **exercise-local-images / scap push-ups** (@maaiz) — Removed `wu-scap-shrugs` from `LOCAL_STRETCH_IDS` so users see the emoji fallback instead of the wrong frames (which depicted a man standing instead of a plank-position scap push-up). Added a pending reminder to `CLAUDE.md` so the user can regenerate the correct frames later.
+- **workout-set-logging / effort scale contrast** (@maaiz) — Effort levels 1 and 2 used `rgba(255,255,255,0.3)` / `0.4` which made the text and border near-invisible. Bumped to slate (`#94a3b8`, `#a3b3c1`).
+- **session-autoresume-silent** (@maaiz) — Removed the `resumeOverlay` state + the full-screen "SESSION RESTORED · GOT IT" panel. Restoration is silent now; the home active-session card already telegraphs the resumed workout.
+- **workout-assisted-exercise** (@maaiz) — Slice 1/2: added a `− ASSISTED` button alongside `+ ADD WEIGHT` for bodyweight exercises. When active, the weight input represents ASSISTANCE in kg and gets stored on the set as `assistance: N`. Mutually exclusive with ADD WEIGHT. **Slice 2 (next pass)** wires bodyweight-aware volume math in `lib/leaderboardStats.ts`: for sets with `assistance` field, volume += max(0, bodyweight − assistance) × reps.
+- **workout-music-launcher** (@maaiz) — Replaced the single Spotify-only `♪ MUSIC` pill with TWO branded buttons: Spotify (green, circular-bars mark, spotify:// deep link) and Apple Music (pink gradient, eighth-note square mark, music:// deep link). Both fall back to the web player after a 400ms scheme-resolution window.
+- **home-hub-singleline** (@maaiz) — Switched the top-row layout from flex+min-widths (which wrapped the tier card onto a second line on narrow phones) to a hard `gridTemplateColumns: 1fr 1fr 2fr`. Profile + progress now reliably occupy the left half; the tier card holds the right half at all widths. Athletes see only the athlete tier; trainers see both (trainer + athlete) stacked inside the right half.
+- **profile-avatars** (@munchy) — The avatar picker render was mounted inside `view === "customise"` so tapping the ✎ pencil from Settings/Profile silently no-op'd. Moved the entire render to HomePage's top-level return next to the tier promotion toast — picker now opens from any view.
+- **workout-equipment-aware-input** (@maaiz — flagged mid-session) — Per-equipment ± increments on the weight input. Barbell + dumbbell: 2.5kg (plate). Machine + cable: 5kg (pin). Everything else: 1.25kg (fine). Label hint surfaces both the step size and the equipment type. No regression for manual typing.
+
+### Slices / partials
+- `exercise-local-images` — slice 1/2. Wrong asset hidden, regeneration pending. Logged as a CLAUDE.md reminder.
+- `workout-assisted-exercise` — slice 1/2. UI + storage shipped, volume math integration is the next slice.
+
+### Files touched
+`app/page.tsx` (warmup chip panel, set-edit modal RPE row, allDone tap handler, music launcher, top-row grid, avatar picker mount, assisted state + button + step-aware ± buttons, silent restore), `lib/performance.ts` (EFFORT_SCALE colors), `lib/exerciseImages.ts` (wu-scap-shrugs removal), `CLAUDE.md` (pending reminder), `qa-state.json` (11 new/updated items), `qa-processed.json` (9 new entries).
+
+---
+
 ## QA pass · 2026-05-23 — Test user generator (qa: test-user-generator)
 
 Synthetic test-user system for observing how tier evolution + trainer client data shape up over time. Lets the admin seed a fixed roster, advance their activity manually OR via daily cron, toggle whether they show on public boards, and bulk-wipe them.

@@ -4338,6 +4338,12 @@ function HomePage() {
   const [showDeloadBanner, setShowDeloadBanner] = useState(false);
   const [bwAddWeight, setBwAddWeight] = useState(false);
   const [manualBW, setManualBW] = useState(false);
+  // Assisted bodyweight mode — when on, the weight input represents
+  // ASSISTANCE in kg (band/machine) and gets stored on the set as
+  // `assistance: N`. Mutually exclusive with bwAddWeight.
+  // (qa: workout-assisted-exercise — slice 1/2: UI + storage; volume
+  // integration in next slice.)
+  const [assistedBW, setAssistedBW] = useState(false);
   const [logFlashId, setLogFlashId] = useState<string | null>(null);
   const [newPBs, setNewPBs] = useState<{ name: string; weight: number; reps: number }[]>([]);
   const [restStartTime, setRestStartTime] = useState<number>(0);
@@ -4363,7 +4369,8 @@ function HomePage() {
   const [editSets, setEditSets] = useState<Record<string, { weight: number; reps: number; skipped?: boolean; rpe?: number; note?: string }>>({});
   const [showFinishPrompt, setShowFinishPrompt] = useState(false);
   const [adjustedDuration, setAdjustedDuration] = useState("");
-  const [resumeOverlay, setResumeOverlay] = useState<{ title: string; ageStr: string } | null>(null);
+  // resumeOverlay removed — session restore is silent now. (qa:
+  // session-autoresume-silent)
   const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history" | "body">("dashboard");
   const [calDateSel, setCalDateSel] = useState<string | null>(null);
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
@@ -4943,16 +4950,10 @@ function HomePage() {
       setSessionIP(typeof session.sessionIP === "number" ? session.sessionIP : 0);
       setStarted(true);
       timer.resumeT(session.startTime);
-      // Show a brief "session restored" banner so the user knows
-      // their progress survived the refresh / app reload.
-      const mins = Math.max(0, Math.floor((Date.now() - session.startTime) / 60000));
-      const ageStr = mins < 1 ? "just now" : mins < 60 ? `${mins} min ago` : `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
-      const setCount = Object.keys(session.log || {}).length;
-      setResumeOverlay({
-        title: setCount > 0 ? `Session restored · ${setCount} set${setCount === 1 ? "" : "s"} saved` : "Session restored",
-        ageStr,
-      });
-      // Stay on home — the active card will show the live session
+      // Restore silently — the active-session card on home already
+      // shows the resumed workout, so the dedicated "Session restored"
+      // overlay was just an extra tap for no benefit. (qa:
+      // session-autoresume-silent)
     } catch { try { localStorage.removeItem("ironlog-session"); } catch {} }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -6054,11 +6055,16 @@ function HomePage() {
     } catch {}
   };
 
-  const logSet = (eid: string, sn: number, w: string, r: string, dropNum?: number, opts?: { rpe?: number | null; note?: string | null; cardio?: { minutes?: number; incline?: number; speed?: number; distance?: number } }) => {
+  const logSet = (eid: string, sn: number, w: string, r: string, dropNum?: number, opts?: { rpe?: number | null; note?: string | null; assistance?: number | null; cardio?: { minutes?: number; incline?: number; speed?: number; distance?: number } }) => {
     const key = typeof dropNum === "number" && dropNum > 0 ? `${eid}-${sn}-d${dropNum}` : `${eid}-${sn}`;
     const entry: any = { weight: parseFloat(w) || 0, reps: parseInt(r) || 0 };
     if (opts?.rpe != null) entry.rpe = opts.rpe;
     if (opts?.note != null && opts.note.trim()) entry.note = opts.note.trim();
+    // Assistance (band/machine) kg for assisted bodyweight exercises.
+    // weight stays 0; assistance carries the reduction. Future slice
+    // will wire this into the volume calc (effective = bodyweight -
+    // assistance). (qa: workout-assisted-exercise)
+    if (opts?.assistance != null && opts.assistance > 0) entry.assistance = opts.assistance;
     if (opts?.cardio) {
       // Cardio sets keep weight=0 reps=0 (so volumeByMuscle correctly
       // skips them) and carry the actual session details in a
@@ -7720,76 +7726,11 @@ function HomePage() {
           </div>
         )}
 
-        {avatarPickerOpen && (() => {
-          // Lazy-fetch inventory on open. (qa: profile-avatars)
-          if (!avatarInventory) {
-            fetch("/api/avatars").then(r => r.json()).then((data) => {
-              if (!data.error) {
-                setAvatarInventory(data);
-                if (typeof data.selected === "string" || data.selected === null) setCurrentAvatarId(data.selected);
-              }
-            }).catch(() => {});
-          }
-          const unlockedIds = new Set([
-            ...(avatarInventory?.tierUnlocked ?? []).map(a => a.id),
-            ...(avatarInventory?.luckyUnlocked ?? []).map(a => a.id),
-          ]);
-          const all = avatarInventory?.all ?? AVATARS;
-          return (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 460, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }} onClick={() => setAvatarPickerOpen(false)}>
-              <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto", background: "rgba(15,15,18,0.98)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, padding: 18, color: "#fff" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, letterSpacing: 3, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>AVATAR</div>
-                  <button onClick={() => setAvatarPickerOpen(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 18, cursor: "pointer" }}>✕</button>
-                </div>
-                {!avatarInventory ? (
-                  <div style={{ textAlign: "center", padding: "30px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Loading…</div>
-                ) : (
-                  <>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>Current tier: <span style={{ color: "#FFE66D" }}>{avatarInventory.tier}/6</span> · Lucky bonus: <span style={{ color: "#34d399" }}>+{avatarInventory.tierScoreBonus}</span> score</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-                      <button onClick={async () => {
-                        try {
-                          await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: null }) });
-                          setCurrentAvatarId(null);
-                          setAvatarInventory(inv => inv ? { ...inv, selected: null } : inv);
-                        } catch {}
-                      }} style={{ background: currentAvatarId === null ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${currentAvatarId === null ? "rgba(78,205,196,0.45)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: "pointer", color: "#fff" }}>
-                        <img src="/ai/avatar-default.png" alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} />
-                        <div style={{ fontSize: 10, fontWeight: 600 }}>Default</div>
-                      </button>
-                      {all.map((av: Avatar) => {
-                        const isUnlocked = unlockedIds.has(av.id);
-                        const isSelected = currentAvatarId === av.id;
-                        const isLucky = av.source === "lucky";
-                        return (
-                          <button key={av.id} disabled={!isUnlocked} onClick={async () => {
-                            if (!isUnlocked) return;
-                            try {
-                              const res = await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: av.id }) });
-                              if (res.ok) {
-                                setCurrentAvatarId(av.id);
-                                setAvatarInventory(inv => inv ? { ...inv, selected: av.id } : inv);
-                              }
-                            } catch {}
-                          }} title={isUnlocked ? av.flavour : `${av.source === "tier" ? `Unlocks at Tier ${av.tier}` : "Rare drop — keep training!"}`} style={{ background: isSelected ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.45)" : isLucky ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.6, position: "relative", color: "#fff", textAlign: "left" }}>
-                            {isUnlocked ? (
-                              <img src={`/avatars/${av.id}.png`} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} onError={e => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
-                            ) : (
-                              <div style={{ width: "100%", aspectRatio: "1", borderRadius: 8, marginBottom: 4, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🔒</div>
-                            )}
-                            <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isUnlocked ? "#fff" : "rgba(255,255,255,0.55)" }}>{av.name}</div>
-                            <div style={{ fontSize: 8, color: isLucky ? "#a855f7" : av.source === "tier" ? "#FFE66D" : "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 1, fontFamily: "'Space Mono', monospace" }}>{isLucky ? "RARE" : `TIER ${av.tier}`}</div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })()}
+        {/* Avatar picker render moved to HomePage's top-level return
+            so it shows regardless of which view is active. Previously
+            mounted inside view === "customise" which made the pencil
+            icon a silent no-op when tapped from Settings → Profile.
+            (qa: profile-avatars — @munchy bug report) */}
 
         {recencyPopover && (() => {
           const r = recencyForExercise(recencyPopover.exerciseId, exerciseRecencies);
@@ -8399,12 +8340,19 @@ function HomePage() {
               "+N → next" copy need more horizontal room.
               flexWrap stacks them on very narrow phones.
               (qa: home-hub-singleline) */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "stretch" }}>
+          {/* Top row: LEFT HALF = profile + progress side by side
+              (each takes 25% of width); RIGHT HALF = tier card(s).
+              Switched from flex with min-widths (which caused tier
+              to wrap below on narrow phones) to a hard 1:1:2 grid so
+              the proportions hold at all screen widths. Athletes see
+              just the athlete tier; trainers see both stacked.
+              (qa: home-hub-singleline) */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8, alignItems: "stretch" }}>
             {/* LEFT — profile button */}
             <button
               onClick={() => setView("profile")}
               style={{
-                flex: "1 1 100px", minWidth: 0,
+                minWidth: 0,
                 background: "rgba(10,10,18,0.5)",
                 backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
                 border: "1px solid rgba(255,255,255,0.08)",
@@ -8442,7 +8390,7 @@ function HomePage() {
               onClick={() => { goTo("progress"); setProgressTab("dashboard"); }}
               title="Progress"
               style={{
-                flex: "1 1 100px", minWidth: 0,
+                minWidth: 0,
                 background: "rgba(10,10,18,0.5)",
                 backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
                 border: "1px solid rgba(255,107,107,0.2)",
@@ -8466,7 +8414,7 @@ function HomePage() {
               onClick={() => setTierModalOpen(true)}
               title="How tiers work — tap to see both ladders"
               style={{
-                flex: "2 1 220px", minWidth: 0,
+                minWidth: 0,
                 background: "rgba(10,10,18,0.5)",
                 backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
                 border: "1px solid rgba(255,255,255,0.08)",
@@ -13055,14 +13003,8 @@ function HomePage() {
             </div>
           </div>
         )}
-        {resumeOverlay && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 32 }}>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 32 }}>SESSION RESTORED</div>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 8, textAlign: "center" }}>{resumeOverlay.title}</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", marginBottom: 48 }}>Started {resumeOverlay.ageStr}</div>
-            <button onClick={() => setResumeOverlay(null)} style={{ padding: "16px 48px", background: "linear-gradient(135deg, #FF6B6B, #ee5a24)", border: "none", borderRadius: 14, color: "#fff", fontSize: 14, fontWeight: 700, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>GOT IT</button>
-          </div>
-        )}
+        {/* "Session restored" overlay removed — restoration is silent
+            now (qa: session-autoresume-silent). */}
 
         {showFinishPrompt && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.97)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 32 }}>
@@ -13115,6 +13057,7 @@ function HomePage() {
                         </div>
                       </div>
                       {!isSkipped && (
+                        <>
                         <div style={{ display: "flex", gap: 8 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6 }}>WEIGHT (kg)</div>
@@ -13139,6 +13082,46 @@ function HomePage() {
                             </div>
                           </div>
                         </div>
+                        {/* EFFORT row — same 1-10 chips as in-session.
+                            Was missing from the edit modal; users
+                            couldn't backfill or correct RPE after the
+                            fact even though the set stored the field.
+                            (qa: workout-set-edit-effort) */}
+                        {(() => { const vAny = v as { rpe?: number }; return (
+                        <div style={{ marginTop: 12 }}>
+                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <span>EFFORT (optional)</span>
+                            {typeof vAny.rpe === "number" && (
+                              <button onClick={() => setEditSets(prev => { const cur = { ...prev[k] } as any; delete cur.rpe; return { ...prev, [k]: cur }; })} style={{ background: "none", border: "none", color: "rgba(255,107,107,0.65)", fontSize: 10, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>CLEAR</button>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", gap: 3 }}>
+                            {EFFORT_SCALE.map(meta => {
+                              const active = vAny.rpe === meta.value;
+                              const idleBg = `${meta.color}1a`;
+                              const idleBorder = `${meta.color}44`;
+                              return (
+                                <button
+                                  key={meta.value}
+                                  onClick={() => setEditSets(prev => ({ ...prev, [k]: { ...prev[k], rpe: meta.value } }))}
+                                  title={`${meta.value}: ${meta.rpe} · ${meta.rir}`}
+                                  style={{
+                                    flex: 1, minWidth: 0, padding: "7px 0",
+                                    background: active ? meta.color : idleBg,
+                                    border: `1px solid ${active ? meta.color : idleBorder}`,
+                                    borderRadius: 5,
+                                    color: active ? "#000" : meta.color,
+                                    fontSize: 11, fontWeight: 700,
+                                    fontFamily: "'Space Mono', monospace",
+                                    cursor: "pointer",
+                                  }}
+                                >{meta.value}</button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        ); })()}
+                        </>
                       )}
                     </div>
                   );
@@ -13369,19 +13352,43 @@ function HomePage() {
                 right. (qa: workout-session-start) */}
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Home</button>
-              {/* Music quick-launch — deep links into Spotify if installed,
-                  else opens Spotify web. */}
+              {/* Music quick-launch — dual Spotify + Apple Music
+                  buttons with branded marks. Each deep-links into its
+                  native app first, falls back to web. User asked for
+                  both so they can pick their service. (qa: workout-
+                  music-launcher) */}
               <a
                 href="spotify:"
-                onClick={(e) => {
-                  // Fallback to web if scheme doesn't resolve. Most modern
-                  // browsers swallow scheme failures silently; we wait a
-                  // tick then nudge to the web player as a backup.
-                  setTimeout(() => { try { window.open("https://open.spotify.com", "_blank"); } catch {} }, 400);
-                }}
-                style={{ background: "rgba(30,215,96,0.08)", border: "1px solid rgba(30,215,96,0.3)", borderRadius: 6, padding: "5px 8px", color: "#1ed760", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer", textDecoration: "none" }}
-                title="Open your music app — Spotify deep link, falls back to web"
-              >♪ MUSIC</a>
+                onClick={() => { setTimeout(() => { try { window.open("https://open.spotify.com", "_blank"); } catch {} }, 400); }}
+                style={{ background: "rgba(30,215,96,0.10)", border: "1px solid rgba(30,215,96,0.35)", borderRadius: 6, padding: "5px 8px", color: "#1ed760", fontSize: 10, fontWeight: 700, letterSpacing: 0.5, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}
+                title="Open Spotify"
+              >
+                {/* Spotify mark — three curved bars in a circle */}
+                <svg width="14" height="14" viewBox="0 0 168 168" aria-hidden style={{ flexShrink: 0 }}>
+                  <circle cx="84" cy="84" r="84" fill="#1ed760" />
+                  <path fill="#000" d="M122.5 116c-1.7 2.8-5.4 3.7-8.2 2-22.4-13.7-50.6-16.8-83.8-9.2-3.2.7-6.4-1.3-7.1-4.5-.7-3.2 1.3-6.4 4.5-7.1 36.3-8.3 67.5-4.7 92.6 10.6 2.8 1.7 3.7 5.4 2 8.2zm10.3-22.7c-2.1 3.5-6.7 4.6-10.2 2.5-25.6-15.7-64.6-20.3-94.9-11.1-4 1.2-8.1-1-9.3-5-1.2-4 1-8.1 5-9.3 34.7-10.5 77.7-5.4 107.1 12.7 3.5 2.1 4.6 6.7 2.5 10.2zm.9-23.7C103.1 51.3 53.8 49.7 25.1 58.4c-4.8 1.4-9.9-1.3-11.4-6.1-1.4-4.8 1.3-9.9 6.1-11.4 33-10 87.4-8.1 121.7 12.2 4.3 2.6 5.8 8.2 3.2 12.5-2.6 4.4-8.2 5.8-12.5 3.2z"/>
+                </svg>
+                Spotify
+              </a>
+              <a
+                href="music://"
+                onClick={() => { setTimeout(() => { try { window.open("https://music.apple.com", "_blank"); } catch {} }, 400); }}
+                style={{ background: "rgba(252,67,108,0.10)", border: "1px solid rgba(252,67,108,0.35)", borderRadius: 6, padding: "5px 8px", color: "#fc436c", fontSize: 10, fontWeight: 700, letterSpacing: 0.5, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}
+                title="Open Apple Music"
+              >
+                {/* Apple Music mark — circular gradient with eighth-note */}
+                <svg width="14" height="14" viewBox="0 0 200 200" aria-hidden style={{ flexShrink: 0 }}>
+                  <defs>
+                    <linearGradient id="am-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#fa233b"/>
+                      <stop offset="100%" stopColor="#fb5c74"/>
+                    </linearGradient>
+                  </defs>
+                  <rect width="200" height="200" rx="46" fill="url(#am-grad)" />
+                  <path fill="#fff" d="M138 50c-1 0-2 .1-3 .3l-55 11c-3 .6-5 3-5 6v68c-4-2-9-2-14-1-10 2-17 11-15 20s11 13 21 11 16-11 16-21V94l50-10v52c-4-2-9-2-14-1-10 2-17 11-15 20s11 13 21 11 16-11 16-21V57c0-4-3-7-7-7z"/>
+                </svg>
+                Apple Music
+              </a>
             </div>
             {/* Right side: QUIT × alone — destructive, kept isolated so
                 accidental taps don't land here from sibling buttons.
@@ -13446,15 +13453,30 @@ function HomePage() {
                 // is now open-ended — the user taps DONE when they're spent.
                 const dropCount = exIsDropSet ? 99 : 0;
 
-                const effectiveWeight = activeBW && !bwAddWeight ? "0" : wInput;
+                // BW + assisted mode → weight input represents
+                // assistance (band/machine), stored separately. Set
+                // weight is 0 (pure BW reference) and `assistance`
+                // carries the kg subtracted. (qa: workout-assisted-
+                // exercise)
+                const effectiveWeight = activeBW && assistedBW ? "0" : activeBW && !bwAddWeight ? "0" : wInput;
+                const assistanceKg = activeBW && assistedBW ? (parseFloat(wInput) || 0) : 0;
+                // Equipment-aware weight step. Barbell + dumbbell use
+                // the standard 2.5kg plate/DB increment; machines step
+                // by the pin's 5kg (typical commercial-gym stack). All
+                // others fall back to 1.25kg fine-grain. (qa: workout-
+                // equipment-aware-input)
+                const equipList: string[] = Array.isArray(exLibData?.equipment) ? exLibData.equipment : [];
+                const isMachine = equipList.includes("machine") || equipList.includes("cable");
+                const isBarbellOrDB = equipList.includes("barbell") || equipList.includes("dumbbell");
+                const weightStep = isMachine ? 5 : isBarbellOrDB ? 2.5 : 1.25;
                 const handleLog = () => {
                   if (!ns) return;
-                  const logOpts = { rpe: effortInput, note: null };
+                  const logOpts = { rpe: effortInput, note: null, assistance: assistanceKg > 0 ? assistanceKg : null };
                   if (superCtx && superCtx.idx < superCtx.group.length - 1) {
                     logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
                     const nextEx = superCtx.group[superCtx.idx + 1];
                     const { weight: nw, reps: nr } = lastSessionBest(nextEx.id);
-                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false); setManualBW(false); setEffortInput(null); setProgression(null);
+                    setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false); setAssistedBW(false); setManualBW(false); setEffortInput(null); setProgression(null);
                   } else if (dropCount > 0) {
                     logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
                     const w = parseFloat(effectiveWeight) || 0;
@@ -13500,20 +13522,20 @@ function HomePage() {
                   <div key={ex.id} className="fade-in">
                     <div onClick={() => {
                       if (!trackable) {
-                        // Single-set warmup → tap toggles the
-                        // single set's done/pending state for
-                        // backward compat (one-tap quick mark).
-                        // Multi-set warmup → expand the row so the
-                        // per-set chip panel surfaces.
-                        if (wuSetsCount <= 1) {
-                          const key = `${ex.id}-1`;
-                          setWarmupSetState(prev => ({ ...prev, [key]: prev[key] === "done" ? "skipped" as const : prev[key] === "skipped" ? undefined as any : "done" as const }));
-                        } else {
-                          setExpanded(isExp ? null : ex.id);
-                        }
+                        // Always expand on tap — the chip panel below
+                        // hosts explicit ✓ DONE / ↷ SKIP buttons per
+                        // set (works for single-set and multi-set
+                        // warmups/stretches). Previously single-set
+                        // had a hidden cycle (pending → done →
+                        // skipped → pending) that wasn't discoverable.
+                        // (qa: workout-warmup-skip)
+                        setExpanded(isExp ? null : ex.id);
                         return;
                       }
-                      if (allDone) return;
+                      // Trackable exercises: when fully logged, expand
+                      // anyway so the user can open EDIT SETS to fix
+                      // mistakes. (qa: workout-set-edit-after-done)
+                      if (allDone) { setExpanded(isExp ? null : ex.id); return; }
                       setManualBW(false);
                       setBwAddWeight(isBW && lw > 0);
                       setExpanded(isExp ? null : ex.id);
@@ -13776,72 +13798,73 @@ function HomePage() {
                         inputs. The regular weight/reps block below
                         is gated on `!isCardioExercise(ex)` so they
                         don't both render. */}
-                    {/* Per-set chip panel for non-trackable warmups
-                        / cooldowns / stretches with multiple sets.
-                        Each set gets a tappable chip that cycles
-                        pending → done → skipped → pending. (qa:
-                        maaiz) */}
-                    {isExp && !trackable && wuSetsCount > 1 && (() => {
+                    {/* Per-set DONE / SKIP panel for non-trackable
+                        warmups / cooldowns / stretches. Renders for
+                        BOTH single-set and multi-set items — explicit
+                        two-button affordance replaces the old hidden
+                        cycle (qa: workout-warmup-skip,
+                        workout-warmup-mark-each-set). */}
+                    {isExp && !trackable && (() => {
                       return (
                         <div className="fade-in" style={{ padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>SETS · TAP TO MARK</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{wuSetsCount > 1 ? "SETS · TAP ✓ DONE OR ↷ SKIP" : "TAP ✓ DONE OR ↷ SKIP"}</span>
                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace" }}>{wuDoneCount}/{wuSetsCount} DONE{wuSkipCount > 0 ? ` · ${wuSkipCount} SKIPPED` : ""}</span>
                           </div>
-                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                             {Array.from({ length: wuSetsCount }).map((_, i) => {
                               const setNum = i + 1;
                               const key = `${ex.id}-${setNum}`;
                               const state = warmupSetState[key];
-                              const color = state === "done" ? "#2ecc71" : state === "skipped" ? "#FF6B6B" : "rgba(255,255,255,0.45)";
-                              const bg = state === "done" ? "rgba(46,204,113,0.12)" : state === "skipped" ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)";
-                              const border = state === "done" ? "rgba(46,204,113,0.35)" : state === "skipped" ? "rgba(255,107,107,0.3)" : "rgba(255,255,255,0.1)";
-                              const label = state === "done" ? "✓ DONE" : state === "skipped" ? "↷ SKIP" : "·";
+                              const isDone = state === "done";
+                              const isSkipped = state === "skipped";
+                              const setNum2 = setNum;
+                              const setKey = key;
                               return (
-                                <button
-                                  key={setNum}
-                                  onClick={() => {
-                                    setWarmupSetState(prev => {
-                                      const cur = prev[key];
+                                <div key={setNum2} style={{ display: "grid", gridTemplateColumns: wuSetsCount > 1 ? "44px 1fr 1fr" : "1fr 1fr", gap: 6, alignItems: "stretch" }}>
+                                  {wuSetsCount > 1 && (
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>SET {setNum2}</div>
+                                  )}
+                                  <button
+                                    onClick={() => setWarmupSetState(prev => {
                                       const next = { ...prev };
-                                      if (!cur) next[key] = "done";
-                                      else if (cur === "done") next[key] = "skipped";
-                                      else delete next[key];
+                                      if (next[setKey] === "done") delete next[setKey]; else next[setKey] = "done";
                                       return next;
-                                    });
-                                  }}
-                                  style={{
-                                    minWidth: 56, padding: "8px 10px",
-                                    background: bg, border: `1px solid ${border}`, borderRadius: 8,
-                                    color, fontSize: 11, fontWeight: 700, letterSpacing: 1,
-                                    fontFamily: "'Space Mono', monospace", cursor: "pointer",
-                                  }}
-                                >
-                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 1 }}>SET {setNum}</div>
-                                  <div>{label}</div>
-                                </button>
+                                    })}
+                                    style={{ padding: "8px 10px", background: isDone ? "rgba(46,204,113,0.18)" : "rgba(46,204,113,0.05)", border: `1px solid ${isDone ? "rgba(46,204,113,0.5)" : "rgba(46,204,113,0.18)"}`, borderRadius: 8, color: isDone ? "#2ecc71" : "rgba(46,204,113,0.65)", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                                  >{isDone ? "✓ DONE" : "✓ MARK DONE"}</button>
+                                  <button
+                                    onClick={() => setWarmupSetState(prev => {
+                                      const next = { ...prev };
+                                      if (next[setKey] === "skipped") delete next[setKey]; else next[setKey] = "skipped";
+                                      return next;
+                                    })}
+                                    style={{ padding: "8px 10px", background: isSkipped ? "rgba(255,107,107,0.15)" : "rgba(255,107,107,0.04)", border: `1px solid ${isSkipped ? "rgba(255,107,107,0.4)" : "rgba(255,107,107,0.15)"}`, borderRadius: 8, color: isSkipped ? "#FF6B6B" : "rgba(255,107,107,0.55)", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                                  >{isSkipped ? "↷ SKIPPED" : "↷ SKIP"}</button>
+                                </div>
                               );
                             })}
                           </div>
-                          {/* Quick actions */}
-                          <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                            <button
-                              onClick={() => setWarmupSetState(prev => {
-                                const next = { ...prev };
-                                for (let i = 1; i <= wuSetsCount; i++) next[`${ex.id}-${i}`] = "done";
-                                return next;
-                              })}
-                              style={{ flex: 1, padding: "6px", background: "rgba(46,204,113,0.08)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 6, color: "#2ecc71", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
-                            >✓ ALL DONE</button>
-                            <button
-                              onClick={() => setWarmupSetState(prev => {
-                                const next = { ...prev };
-                                for (let i = 1; i <= wuSetsCount; i++) next[`${ex.id}-${i}`] = "skipped";
-                                return next;
-                              })}
-                              style={{ flex: 1, padding: "6px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.22)", borderRadius: 6, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
-                            >↷ SKIP ALL</button>
-                          </div>
+                          {wuSetsCount > 1 && (
+                            <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                              <button
+                                onClick={() => setWarmupSetState(prev => {
+                                  const next = { ...prev };
+                                  for (let i = 1; i <= wuSetsCount; i++) next[`${ex.id}-${i}`] = "done";
+                                  return next;
+                                })}
+                                style={{ flex: 1, padding: "6px", background: "rgba(46,204,113,0.08)", border: "1px solid rgba(46,204,113,0.25)", borderRadius: 6, color: "#2ecc71", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                              >✓ ALL DONE</button>
+                              <button
+                                onClick={() => setWarmupSetState(prev => {
+                                  const next = { ...prev };
+                                  for (let i = 1; i <= wuSetsCount; i++) next[`${ex.id}-${i}`] = "skipped";
+                                  return next;
+                                })}
+                                style={{ flex: 1, padding: "6px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.22)", borderRadius: 6, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                              >↷ SKIP ALL</button>
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -13976,8 +13999,11 @@ function HomePage() {
                           {isBW && (
                             <>
                               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>BODYWEIGHT</div>
-                              <button onClick={() => { setBwAddWeight(!bwAddWeight); if (!bwAddWeight) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${bwAddWeight ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.15)"}`, background: bwAddWeight ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)", color: bwAddWeight ? "#FF6B6B" : "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                              <button onClick={() => { setBwAddWeight(!bwAddWeight); setAssistedBW(false); if (!bwAddWeight) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${bwAddWeight ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.15)"}`, background: bwAddWeight ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)", color: bwAddWeight ? "#FF6B6B" : "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
                                 {bwAddWeight ? "− REMOVE WEIGHT" : "+ ADD WEIGHT"}
+                              </button>
+                              <button onClick={() => { setAssistedBW(!assistedBW); setBwAddWeight(false); if (!assistedBW) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${assistedBW ? "rgba(116,185,255,0.4)" : "rgba(255,255,255,0.15)"}`, background: assistedBW ? "rgba(116,185,255,0.1)" : "rgba(255,255,255,0.04)", color: assistedBW ? "#74b9ff" : "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                                {assistedBW ? "✓ ASSISTED" : "− ASSISTED"}
                               </button>
                             </>
                           )}
@@ -13993,13 +14019,20 @@ function HomePage() {
                           )}
                         </div>
                         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                          {(!activeBW || bwAddWeight) && (
+                          {(!activeBW || bwAddWeight || assistedBW) && (
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>{activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}</div>
+                              {/* Label adapts: regular weight / added weight (BW + load) /
+                                  assistance (BW - help). Step size adapts to equipment:
+                                  barbell+dumbbell 2.5kg, machine 5kg, default 1.25kg.
+                                  (qa: workout-equipment-aware-input) */}
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500, display: "flex", justifyContent: "space-between" }}>
+                                <span>{assistedBW ? "ASSISTANCE (kg)" : activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}</span>
+                                <span style={{ color: "rgba(255,255,255,0.25)" }}>±{weightStep}{isMachine ? " · pin" : isBarbellOrDB ? " · plate" : ""}</span>
+                              </div>
                               <div style={{ display: "flex", alignItems: "center" }}>
-                                <button onClick={() => setWInput(String(Math.max(0, (parseFloat(wInput) || 0) - 1.25)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                                <button onClick={() => setWInput(String(Math.max(0, +((parseFloat(wInput) || 0) - weightStep).toFixed(2))))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                                 <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
-                                <button onClick={() => setWInput(String((parseFloat(wInput) || 0) + 1.25))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                                <button onClick={() => setWInput(String(+((parseFloat(wInput) || 0) + weightStep).toFixed(2)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                               </div>
                               {wDiff(parseFloat(wInput))}
                               {(() => {
@@ -14779,6 +14812,79 @@ function HomePage() {
           {_content}
         </motion.div>
       </AnimatePresence>
+      {/* Avatar picker — mounted at top level so the pencil icon
+          works from any view (Settings → Profile, etc.). Previously
+          gated behind view === "customise" which made the pencil a
+          silent no-op everywhere else. (qa: profile-avatars) */}
+      {avatarPickerOpen && (() => {
+        if (!avatarInventory) {
+          fetch("/api/avatars").then(r => r.json()).then((data) => {
+            if (!data.error) {
+              setAvatarInventory(data);
+              if (typeof data.selected === "string" || data.selected === null) setCurrentAvatarId(data.selected);
+            }
+          }).catch(() => {});
+        }
+        const unlockedIds = new Set([
+          ...(avatarInventory?.tierUnlocked ?? []).map(a => a.id),
+          ...(avatarInventory?.luckyUnlocked ?? []).map(a => a.id),
+        ]);
+        const all = avatarInventory?.all ?? AVATARS;
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 9990, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }} onClick={() => setAvatarPickerOpen(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto", background: "rgba(15,15,18,0.98)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, padding: 18, color: "#fff" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ fontSize: 11, letterSpacing: 3, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>AVATAR</div>
+                <button onClick={() => setAvatarPickerOpen(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 18, cursor: "pointer" }}>✕</button>
+              </div>
+              {!avatarInventory ? (
+                <div style={{ textAlign: "center", padding: "30px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Loading…</div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>Current tier: <span style={{ color: "#FFE66D" }}>{avatarInventory.tier}/6</span> · Lucky bonus: <span style={{ color: "#34d399" }}>+{avatarInventory.tierScoreBonus}</span> score</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                    <button onClick={async () => {
+                      try {
+                        await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: null }) });
+                        setCurrentAvatarId(null);
+                        setAvatarInventory(inv => inv ? { ...inv, selected: null } : inv);
+                      } catch {}
+                    }} style={{ background: currentAvatarId === null ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${currentAvatarId === null ? "rgba(78,205,196,0.45)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: "pointer", color: "#fff" }}>
+                      <img src="/ai/avatar-default.png" alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} />
+                      <div style={{ fontSize: 10, fontWeight: 600 }}>Default</div>
+                    </button>
+                    {all.map((av: Avatar) => {
+                      const isUnlocked = unlockedIds.has(av.id);
+                      const isSelected = currentAvatarId === av.id;
+                      const isLucky = av.source === "lucky";
+                      return (
+                        <button key={av.id} disabled={!isUnlocked} onClick={async () => {
+                          if (!isUnlocked) return;
+                          try {
+                            const res = await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: av.id }) });
+                            if (res.ok) {
+                              setCurrentAvatarId(av.id);
+                              setAvatarInventory(inv => inv ? { ...inv, selected: av.id } : inv);
+                            }
+                          } catch {}
+                        }} title={isUnlocked ? av.flavour : `${av.source === "tier" ? `Unlocks at Tier ${av.tier}` : "Rare drop — keep training!"}`} style={{ background: isSelected ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.45)" : isLucky ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.6, position: "relative", color: "#fff", textAlign: "left" }}>
+                          {isUnlocked ? (
+                            <img src={`/avatars/${av.id}.png`} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} onError={e => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
+                          ) : (
+                            <div style={{ width: "100%", aspectRatio: "1", borderRadius: 8, marginBottom: 4, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🔒</div>
+                          )}
+                          <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isUnlocked ? "#fff" : "rgba(255,255,255,0.55)" }}>{av.name}</div>
+                          <div style={{ fontSize: 8, color: isLucky ? "#a855f7" : av.source === "tier" ? "#FFE66D" : "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 1, fontFamily: "'Space Mono', monospace" }}>{isLucky ? "RARE" : `TIER ${av.tier}`}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
       {/* Tier promotion toast — fires once when the user's headline
           tier number crosses up. Tap to dismiss. (qa: tier-promotion-toast) */}
       {tierPromoToast && (

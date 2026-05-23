@@ -30,7 +30,10 @@ const LOCAL_STRETCH_IDS = new Set<string>([
   "cd-lat-stretch",
   "cd-glute-pretzel",
   "wu-leg-swings",
-  "wu-scap-shrugs",
+  // wu-scap-shrugs temporarily removed — current frames show a man
+  // standing, not the plank-position scap push-up. Falls back to the
+  // emoji icon until correct frames land. Re-add once regenerated.
+  // (qa: exercise-local-images; CLAUDE.md pending reminder)
   // Plyometric / conditioning (no DB mapping)
   "bear-crawl",
   "broad-jump",

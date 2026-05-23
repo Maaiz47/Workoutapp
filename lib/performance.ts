@@ -339,8 +339,11 @@ export function buildHistoryCSV(history: Record<string, any[]>): string {
 // interpretations onto the same 1-10 scale so the UI works for both schools
 // of thought without forcing a Settings toggle.
 export const EFFORT_SCALE: Array<{ value: number; rpe: string; rir: string; color: string }> = [
-  { value: 1,  rpe: "WARM-UP",   rir: "many left", color: "rgba(255,255,255,0.3)" },
-  { value: 2,  rpe: "VERY EASY", rir: "9+ RIR",    color: "rgba(255,255,255,0.4)" },
+  // Bumped from low-opacity white → slate so they're actually legible
+  // against the chip background. Old values rendered near-invisible
+  // text/borders. (qa: workout-set-logging — effort 1+2 unreadable)
+  { value: 1,  rpe: "WARM-UP",   rir: "many left", color: "#94a3b8" },
+  { value: 2,  rpe: "VERY EASY", rir: "9+ RIR",    color: "#a3b3c1" },
   { value: 3,  rpe: "EASY",      rir: "8 RIR",     color: "#74b9ff" },
   { value: 4,  rpe: "LIGHT",     rir: "7 RIR",     color: "#74b9ff" },
   { value: 5,  rpe: "MODERATE",  rir: "5 RIR",     color: "#55efc4" },

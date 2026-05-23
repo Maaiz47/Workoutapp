@@ -1,6 +1,186 @@
 {
   "items": [
     {
+      "id": "workout-warmup-skip",
+      "title": "Warm-up / stretch DONE + SKIP per-set buttons (always-expand panel)",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass workout-warmup-skip",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout with a warm-up that has multiple sets (e.g. scapular work). Tap the row to expand.",
+        "Verify each set displays two explicit buttons: ✓ MARK DONE and ↷ SKIP (side by side). Tap ✓ → row marks DONE; tap ↷ → row marks SKIPPED. Re-tap to clear.",
+        "Tap the ✓ ALL DONE and ↷ SKIP ALL quick-action buttons at the bottom. Verify all chips reflect the bulk choice.",
+        "Open a single-set warm-up or stretch (most stretches are 1 set). Tap to expand. Verify the same two-button row shows for the lone set — no more hidden tap-to-cycle behaviour.",
+        "Verify the chip header reads `0/N DONE` and updates live as you mark sets."
+      ],
+      "notes": "[2026-05-23] Shipped: removed the hidden pending→done→skipped tap-cycle for single-set warmups. The per-set chip panel now always shows (regardless of set count) with explicit DONE / SKIP buttons. Row tap always expands. (Reported by @maaiz: 'can't mark stretch or warm ups skip', 'stretches/warm-ups don't let me mark each set done')."
+    },
+    {
+      "id": "workout-set-edit-after-done",
+      "title": "Exercise row stays tappable after all sets logged → expands to EDIT SETS",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass workout-set-edit-after-done",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout. Log all sets of an exercise (e.g. 3/3 done).",
+        "Tap the now-faded exercise row. Verify it expands and reveals the standard EDIT SETS button instead of being inert.",
+        "Tap EDIT SETS — modal opens with each set's weight / reps / EFFORT editable.",
+        "Edit a value, tap SAVE CHANGES. Verify the log updates and the row collapses again."
+      ],
+      "notes": "[2026-05-23] Shipped: the trackable-exercise tap handler used to early-return on `allDone`. Now it expands the row instead, so the EDIT SETS modal stays reachable post-completion. (Reported by @maaiz: 'can't seem to edit sets after all sets for the exercise done')."
+    },
+    {
+      "id": "workout-set-edit-effort",
+      "title": "Effort (RPE) editable in the set-edit modal",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass workout-set-edit-effort",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "During a workout, log a set without tapping an effort chip. Open EDIT SETS for that exercise.",
+        "Scroll the edited set card. Verify a new EFFORT row sits below weight/reps with the 1-10 chips and a CLEAR link (when a value is selected).",
+        "Tap an effort chip (e.g. 8). Verify it highlights. Tap SAVE CHANGES.",
+        "Open EDIT SETS again — the previously-set effort persists.",
+        "Tap CLEAR while editing — chip clears, set saves with no rpe."
+      ],
+      "notes": "[2026-05-23] Shipped: the EFFORT row was missing from the edit modal even though the field was stored on the set. Added a 1-10 chip row mirroring the in-session UX. (Reported by @maaiz: 'effort is not editable on the set edit function')."
+    },
+    {
+      "id": "exercise-local-images",
+      "title": "Exercise / stretch animation frames map to the correct exercise",
+      "area": "Assets",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass exercise-local-images",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open a warm-up day. Tap a stretch with local frames. Verify the animation matches the named exercise.",
+        "Specifically scap push-ups: should fall back to the emoji icon — the previous PNG frames showed a man standing instead of a plank position, and have been temporarily removed from LOCAL_STRETCH_IDS until correct frames land.",
+        "Other locally-mapped stretches (cd-chest-doorway, cd-pigeon, wu-leg-swings, etc.) should still show their PNG pairs as before."
+      ],
+      "notes": "[2026-05-23] Slice 1/2 (partial): wu-scap-shrugs removed from LOCAL_STRETCH_IDS in lib/exerciseImages.ts so users currently see the emoji fallback. Next slice: regenerate the two frames per the spec in public/stretches/README.md (plank position, retracted vs protracted scapula). CLAUDE.md pending-reminder added for the regeneration. (Reported by @maaiz: 'scap push ups animations is wrong')."
+    },
+    {
+      "id": "session-autoresume-silent",
+      "title": "Silent session restore on app reopen",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass session-autoresume-silent",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout, log a couple sets, force-close the app (or refresh).",
+        "Reopen. Verify the workout is silently restored: NO full-screen 'SESSION RESTORED' overlay with a GOT IT button. The active-session card on home shows the resumed workout instead.",
+        "Tap the active card. Verify all previously-logged sets are intact.",
+        "Verify no overlay/banner about restoration appears anywhere."
+      ],
+      "notes": "[2026-05-23] Shipped: removed the resumeOverlay state + render. Restoration is silent now — the home active-session card already telegraphs the resumed workout, and the overlay was just an extra tap. (Reported by @maaiz: 'session restored notice on app reopen is annoying — can be restored without user being told, they'll see the active session in home')."
+    },
+    {
+      "id": "workout-music-launcher",
+      "title": "Dual Spotify + Apple Music launcher with real branded marks",
+      "area": "Workout",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass workout-music-launcher",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout. In the top-left header, verify TWO music buttons: a green Spotify pill (with the Spotify circular-bars mark) and a pink Apple Music pill (with the Apple Music note-in-rounded-square mark).",
+        "Tap Spotify on iOS — should deep-link into Spotify if installed, else open open.spotify.com.",
+        "Tap Apple Music on iOS — should deep-link into Apple Music if installed, else open music.apple.com.",
+        "Verify both buttons show their real branded marks (not generic ♪ icons)."
+      ],
+      "notes": "[2026-05-23] Shipped: split the single Spotify-only ♪ MUSIC button into two branded buttons. Each uses an inline SVG mark (Spotify's circular bars + Apple Music's gradient square with eighth note). Deep-link via spotify:// and music:// schemes with web fallback after 400ms. (Reported by @maaiz: 'current music button opens Spotify — I want both a Spotify and Apple Music button that has the actual icons or logos')."
+    },
+    {
+      "id": "home-hub-singleline",
+      "title": "Home top row — 1:1:2 grid (profile + progress left half, tier right half)",
+      "area": "Home",
+      "introduced": "2026-05-22",
+      "introducedBy": "QA pass home-hub-singleline",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open home on a narrow phone (≤375px wide). Verify the top row stays ONE line: profile chip, progress chip, tier chip — no wrap-below.",
+        "Verify the left half (~50% width) hosts profile + progress side by side; the right half (~50% width) hosts the tier card.",
+        "Athletes: tier card shows ONLY the athlete tier chip with its progress bar.",
+        "Trainers: tier card shows BOTH the trainer tier and the athlete tier, stacked vertically.",
+        "Tap tier card → tier modal opens. Tap profile → settings/profile view. Tap progress → progress dashboard."
+      ],
+      "notes": "[2026-05-23] Shipped: switched the flex+min-width layout (which wrapped tier below on narrow screens) to a hard CSS grid `1fr 1fr 2fr`. Proportions hold at all widths. Athlete-only / trainer-both rendering was already correct. (Reported by @maaiz: 'profile and progress next to each other on the left half of top, other right side half can be the two tiers stacked on each other or just the athlete tier for athletes')."
+    },
+    {
+      "id": "profile-avatars",
+      "title": "Avatar picker opens from any view (pencil + main button)",
+      "area": "Profile",
+      "introduced": "2026-05-21",
+      "introducedBy": "QA pass profile-avatars",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → Profile view. Tap the ✎ pencil overlay on the avatar circle. Verify the AVATAR picker overlay opens.",
+        "Close the picker. Tap the standalone CHANGE AVATAR button below the profile fields. Verify the picker opens again.",
+        "From the picker: tap an unlocked avatar to equip it. Verify it appears in the profile circle.",
+        "Pick the 'Default' tile to clear back to the initial-letter chip."
+      ],
+      "notes": "[2026-05-23] Shipped: moved the avatar picker render from inside `view === 'customise'` (where it was invisible to taps from Settings/Profile) to HomePage's top-level return alongside the tier promotion toast. Now mounts regardless of active view. (Reported by @munchy: 'profile edit pencil icon on avatar and avatar button not working')."
+    },
+    {
+      "id": "workout-assisted-exercise",
+      "title": "Assisted bodyweight exercises (band/machine) — separate input mode",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass workout-assisted-exercise",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout. Open a bodyweight exercise like Pull-Ups.",
+        "In the input panel header verify THREE chips: BODYWEIGHT label, + ADD WEIGHT, − ASSISTED.",
+        "Tap − ASSISTED. Verify the weight input label changes to ASSISTANCE (kg). Enter 15. Log the set.",
+        "Open EDIT SETS for the exercise. Verify the saved set carries an `assistance: 15` field (visible via the saved value). Volume math still treats it as 0kg for now — slice 2 will subtract assistance from bodyweight in the volume calc.",
+        "Tap + ADD WEIGHT — assistance mode auto-clears, weighted mode engages.",
+        "For non-BW exercises, the BW toggle + ASSISTED button do NOT appear."
+      ],
+      "notes": "[2026-05-23] Slice 1/2 shipped: UI for assisted bodyweight + storage. Sets store `assistance: N` field alongside weight. Volume integration deferred — currently assisted sets log as 0kg toward volume (same as pure BW today). Next slice: extend lib/leaderboardStats.ts to compute effective load = max(0, bodyweight - assistance) for sets with `assistance` field. (Reported by @maaiz: 'need a way to mark assisted exercises like assisted pull-ups as such instead of just bodyweight — should consider into volume stat for this exercise as it's even less weight technically than bodyweight'.)"
+    },
+    {
+      "id": "workout-equipment-aware-input",
+      "title": "Per-equipment weight input — increment + label",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass workout-equipment-aware-input",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open a BARBELL exercise (e.g. squat). Verify the ± buttons step by 2.5kg and the label shows `±2.5 · plate`.",
+        "Open a DUMBBELL exercise (e.g. DB curl). Verify ± step is 2.5kg with `·plate` hint (dumbbell increments match the standard plate).",
+        "Open a MACHINE / CABLE exercise (e.g. lat pulldown). Verify ± step is 5kg with `·pin` hint (matching the pin stack increments).",
+        "Open a bodyweight or kettlebell exercise. Verify ± step falls back to 1.25kg with no hint.",
+        "These changes only affect the ± button increments and label hint — typing a manual value still works at any precision."
+      ],
+      "notes": "[2026-05-23] Shipped: detect equipment from the exercise library and pick weight step accordingly — barbell/dumbbell 2.5kg (plate), machine/cable 5kg (pin), anything else 1.25kg (fine). Label hint surfaces the step + equipment type. (Reported by @maaiz: 'where's the distinction for user to input and system suggested way for recording barbell vs machine vs dumbbell weights inputted? I thought we attended this' — confirmed not previously addressed; added in this slice.)"
+    },
+    {
+      "id": "workout-warmup-mark-each-set",
+      "title": "Mark EACH warm-up/stretch set as done individually (alias of workout-warmup-skip)",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass workout-warmup-mark-each-set",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "See workout-warmup-skip — same fix covers both per-set DONE and per-set SKIP.",
+        "Verify multi-set warm-ups expand to per-set chip panel with explicit ✓ MARK DONE / ↷ SKIP buttons for each set.",
+        "Verify single-set warm-ups now also expand to the same panel (used to be a hidden tap-cycle)."
+      ],
+      "notes": "[2026-05-23] Tracked alongside workout-warmup-skip; same code path. (Reported by @maaiz: 'stretches/warm-ups don't let me mark each set done')."
+    },
+    {
       "id": "test-user-generator",
       "title": "Test user generator — seed/tick/advance/wipe synthetic users for tier evolution observation",
       "area": "Dev tools",

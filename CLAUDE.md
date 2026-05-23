@@ -21,6 +21,15 @@ nudge, not nag.
   → place. Avatars are at `/public/avatars/<id>.png`; exercise pairs
   at `/public/stretches/<id>/{0,1}.png`. Splash hero (chrome barbell)
   also landed at `/public/ai/splash-hero.png`.
+- [ ] **Wrong form/asset images — user will regenerate later**
+  (flagged 2026-05-23 by @maaiz). Known wrong:
+  `public/stretches/wu-scap-shrugs/{0,1}.png` show a man standing
+  instead of plank-position scap push-ups. The id has been removed
+  from `LOCAL_STRETCH_IDS` in `lib/exerciseImages.ts` so users
+  currently see the emoji fallback instead of the wrong image.
+  Re-add the id once correct frames are in place. Other exercises
+  may have similar issues — when one is surfaced, apply the same
+  remove-from-set pattern and append it to this reminder.
 
 ## Always push to `main`
 
