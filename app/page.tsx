@@ -715,7 +715,24 @@ function WellnessCard() {
   const [sleep, setSleep] = useState<SleepEntry>({});
   const [soreness, setSoreness] = useState<SorenessMap>({});
   const [injuries, setInjuries] = useState<Injury[]>([]);
+  // Default collapsed. Persisted to localStorage so a user who
+  // explicitly opens (or re-closes) the card sees the same state
+  // next session — no surprise re-expansion. Per @maaiz: keep it
+  // collapsed by default. (qa: wellness-collapsed-default)
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("ironlog-wellness-open");
+      if (stored === "1") setOpen(true);
+    } catch {}
+  }, []);
+  const toggleOpen = useCallback(() => {
+    setOpen(o => {
+      const next = !o;
+      try { localStorage.setItem("ironlog-wellness-open", next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }, []);
   const [addingInjury, setAddingInjury] = useState(false);
   const [pickedMuscle, setPickedMuscle] = useState<string | null>(null);
 
@@ -780,7 +797,7 @@ function WellnessCard() {
 
   return (
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, marginBottom: 12 }}>
-      <button onClick={() => setOpen(o => !o)} style={{ width: "100%", padding: 14, background: "transparent", border: "none", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+      <button onClick={toggleOpen} style={{ width: "100%", padding: 14, background: "transparent", border: "none", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>🌱 WELLNESS</span>
         <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{summaryBits.join(" · ")} {open ? "▲" : "▼"}</span>
       </button>
@@ -2276,6 +2293,14 @@ function WatermarkBackdrop({ phrase, opacity = 0.022 }: { phrase: string; opacit
 // timer overlay (single source of truth). Per @maaiz request: expand
 // inventory so rest timers (which fire many times per session) don't
 // feel repetitive.
+//
+// Watermark uses a SHORT subset only — the rotated 52px rendering
+// breaks layout when phrases get too long (long phrase + rotation
+// overflows the container's clip + nudges parent scrollHeight),
+// which made the whole page feel like it was shifting on phrase
+// rotation. Filter is applied in code, not by maintaining a separate
+// list, so adding short phrases here also feeds the watermark.
+// (qa: workout-rest-motivational-phrases)
 const PHRASES = [
   "Trust the process.",
   "Stay disciplined.",
@@ -2339,6 +2364,12 @@ const PHRASES = [
   "Effort is a renewable resource.",
   "Stronger is a verb.",
 ];
+
+// Watermark-safe phrases — short enough that the rotated 52px render
+// stays inside the container's clip rect at typical mobile widths.
+// Keep ≤ 22 chars; longer ones cause horizontal overflow and a
+// "page shifts on rotation" feeling.
+const WATERMARK_PHRASES = PHRASES.filter(p => p.length <= 22);
 
 // ─── PASSWORD INPUT ─────────────────────────────────────────────────────
 // Standard password input + an eye toggle on the right that flips between
@@ -4976,6 +5007,14 @@ function HomePage() {
     return () => clearInterval(id);
   }, []);
   const phrase = PHRASES[phraseIdx];
+  // Watermark uses a stable short phrase keyed off a session-stable
+  // index. Won't rotate as the hero tagline does — long phrases
+  // breaking the rotated 52px render were causing the whole page
+  // to "shift" on rotation. (qa: workout-rest-motivational-phrases)
+  const watermarkPhrase = useMemo(() => {
+    const idx = Math.floor(Math.random() * WATERMARK_PHRASES.length);
+    return WATERMARK_PHRASES[idx];
+  }, []);
 
   // ── Theme ──
   useEffect(() => {
@@ -8728,18 +8767,24 @@ function HomePage() {
                 where username + role chips + avatar picker + tier
                 badges all live. (qa: home-hub-singleline +
                 profile-avatars-home-fix) */}
+            {/* Profile button — avatar image fills the button corner-
+                to-corner, no surrounding chrome. Per @maaiz: avatar
+                should fill the button or no box at all. We keep the
+                rounded-rect tap target but lose the inner padding +
+                glass background; the avatar image IS the button.
+                (qa: home-hub-singleline) */}
             <button
               onClick={() => setView("profile")}
               title="Profile"
               style={{
                 minWidth: 0,
-                background: "rgba(10,10,18,0.5)",
-                backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+                background: "transparent",
                 border: "1px solid rgba(255,255,255,0.08)",
                 borderRadius: 12, cursor: "pointer",
-                padding: "8px 12px",
+                padding: 0,
                 boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                overflow: "hidden",
+                display: "flex", alignItems: "stretch", justifyContent: "stretch",
               }}
             >
               {(() => {
@@ -8750,7 +8795,7 @@ function HomePage() {
                     src={src}
                     alt=""
                     onError={(e) => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }}
-                    style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)", flexShrink: 0 }}
+                    style={{ width: "100%", height: "100%", minHeight: 52, objectFit: "cover", display: "block" }}
                   />
                 );
               })()}
@@ -8803,10 +8848,11 @@ function HomePage() {
                 const tIdx = TRAINER_TIERS.findIndex(x => x.label === t.label);
                 const next = TRAINER_TIERS[tIdx + 1];
                 const remaining = next ? Math.max(0, next.min - clients.length) : 0;
+                const tierNum = tIdx + 1;
                 return (
                   <div style={{ padding: "3px 6px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{t.emoji} {t.label.toUpperCase()}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{t.emoji} {t.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{tierNum}</span></span>
                       <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
                         {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
                       </span>
@@ -8833,7 +8879,7 @@ function HomePage() {
                 return (
                   <div style={{ padding: "3px 6px", background: h.bg, border: `1px solid ${h.border}`, borderRadius: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h.icon} {h.label.toUpperCase()}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h.icon} {h.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{h.tierNum}</span></span>
                       <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
                         {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
                       </span>
@@ -12561,7 +12607,7 @@ function HomePage() {
 
     return (
       <div key="progress" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
-        <WatermarkBackdrop phrase={phrase} opacity={0.022} />
+        <WatermarkBackdrop phrase={watermarkPhrase} opacity={0.022} />
         <div style={{ padding: "24px 20px 0" }}>
           <button onClick={() => { setView("home"); setOpenHist(null); setSelectedExDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 12, letterSpacing: 1 }}>Progress</div>
@@ -12585,6 +12631,46 @@ function HomePage() {
         {progressTab === "dashboard" && (
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
             {!deGamified && <ChallengesCard history={history} bodyMetrics={bodyMetrics} gender={ob.gender || null} />}
+            {/* Achievements wall on the Progress dashboard — per
+                @maaiz: 'cant find milestones/achievements anywhere
+                — they should be in progress tab'. Surfaces above
+                Wellness so the gamification surface is the FIRST
+                thing on the dashboard. Same toggle state as the
+                Settings copy so tapping either expands both.
+                (qa: achievements-discoverability-progress) */}
+            {!deGamified && (() => {
+              let achieved = new Set<string>();
+              try { achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]")); } catch {}
+              const total = MILESTONES.length;
+              const got = MILESTONES.filter(m => achieved.has(m.id)).length;
+              return (
+                <>
+                  <button
+                    onClick={() => setShowAchievements(s => !s)}
+                    style={{ width: "100%", marginBottom: 8, padding: "14px", background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.25)", borderRadius: 12, color: "#f0c040", fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                  ><span>🏆 ACHIEVEMENTS ({got}/{total})</span><span style={{ fontSize: 10, color: "rgba(240,192,64,0.6)" }}>{showAchievements ? "▲" : "▼"}</span></button>
+                  {showAchievements && (
+                    <div className="fade-in" style={{ marginBottom: 12, background: "rgba(240,192,64,0.03)", border: "1px solid rgba(240,192,64,0.12)", borderRadius: 12, padding: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                      {MILESTONES.map(m => {
+                        const isGot = achieved.has(m.id);
+                        return (
+                          <button
+                            key={m.id}
+                            onClick={() => setMilestoneInfo({ milestone: m, earned: isGot })}
+                            style={{ padding: "10px 8px", background: isGot ? "rgba(240,192,64,0.1)" : "rgba(255,255,255,0.02)", border: `1px solid ${isGot ? "rgba(240,192,64,0.35)" : "rgba(255,255,255,0.06)"}`, borderRadius: 8, textAlign: "center", opacity: isGot ? 1 : 0.55, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+                            title={isGot ? "Tap for details" : "Tap to see how to unlock"}
+                          >
+                            <div style={{ fontSize: 24, filter: isGot ? "none" : "grayscale(1) opacity(0.4)" }}>{m.icon}</div>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: isGot ? "#f0c040" : "rgba(255,255,255,0.4)", marginTop: 4, lineHeight: 1.2 }}>{m.label}</div>
+                            {isGot && <div style={{ fontSize: 8, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{m.body.slice(0, 60)}{m.body.length > 60 ? "…" : ""}</div>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             <WellnessCard />
             <VolumeHeatmap history={history} customPlan={customPlan} bodyweightKg={parseFloat(ob.weightKg || "0") || 70} />
             {/* Tier Card — multi-dim ladder. Hidden when de-gamify is on.
@@ -13443,7 +13529,7 @@ function HomePage() {
       return (
         <div key="workout-prep" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: "80vw", height: "80vw", borderRadius: "50%", background: `radial-gradient(circle, ${activeDay.color}12 0%, transparent 60%)`, pointerEvents: "none", animation: "breathe 4s ease infinite" }} />
-          <WatermarkBackdrop phrase={phrase} opacity={0.03} />
+          <WatermarkBackdrop phrase={watermarkPhrase} opacity={0.03} />
           <div className="slide-up" style={{ zIndex: 1 }}>
             <button onClick={() => { setView("home"); setActiveDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 48 }}>← Back</button>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: activeDay.color, letterSpacing: 4, marginBottom: 12, opacity: 0.7 }}>DAY {activeDay.label}</div>
