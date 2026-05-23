@@ -121,6 +121,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Diagnostic: surface every distinct exercise id present in the
+  // user's history + how many sets fall on each. Helps debug zero-
+  // match dry-runs (e.g. user uses custom exercise ids that aren't
+  // in the static EXERCISES catalogue). Sorted by set count desc.
+  const exerciseUsage: Record<string, { sets: number; matched: "barbell" | "ez-bar" | null }> = {};
+  for (const log of logs) {
+    const sets = (log.sets ?? {}) as Record<string, any>;
+    for (const k in sets) {
+      const v = sets[k];
+      if (!v || typeof v !== "object") continue;
+      const exId = parseSetKey(k);
+      if (!exerciseUsage[exId]) {
+        const matched: "barbell" | "ez-bar" | null = ezBarIds.has(exId) ? "ez-bar" : barbellIds.has(exId) ? "barbell" : null;
+        exerciseUsage[exId] = { sets: 0, matched };
+      }
+      exerciseUsage[exId].sets += 1;
+    }
+  }
+  const usageList = Object.entries(exerciseUsage)
+    .sort((a, b) => b[1].sets - a[1].sets)
+    .map(([id, info]) => ({ exerciseId: id, sets: info.sets, matched: info.matched }));
+
   return json({
     user: { id: user.id, username: user.username },
     dryRun,
@@ -133,5 +155,6 @@ export async function POST(req: NextRequest) {
     barbellExerciseCount: barbellIds.size,
     ezBarExerciseCount: ezBarIds.size,
     sample: mutations.slice(0, 20),
+    exerciseUsage: usageList,
   });
 }
