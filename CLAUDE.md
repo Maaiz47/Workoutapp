@@ -51,6 +51,23 @@ nudge, not nag.
 This repo uses direct-to-`main` development. Never open PRs, never create feature
 branches, unless the user explicitly asks. Vercel auto-deploys `main` on every push.
 
+## Commit always, deploy on explicit signal (updated 2026-05-23)
+
+**Commit your work as you go**, even mid-iteration — local commits cost
+nothing and protect the work from being lost. The stop-hook
+(`~/.claude/stop-hook-git-check.sh`) warns about unpushed commits;
+that warning is informational, NOT a deploy trigger.
+
+**Do NOT push to `origin/main` until the user explicitly tells you to.**
+Trigger phrases for deploy: "push", "ship it", "deploy", "send it",
+"go live". Until any of these, hold all commits locally regardless of
+how many accumulate. When the user says one of the trigger phrases,
+push everything pending in a single `git push -u origin main`.
+
+This rule supersedes "bundle related work into ONE push" below. The
+batching is now manual rather than time-of-iteration heuristic — the
+user controls deploy timing explicitly.
+
 ## Deploy frugality — bundle work before pushing
 
 Vercel free tier caps daily deploys and the user has hit the limit before. Be

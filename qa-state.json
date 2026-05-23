@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "profile-avatars-page",
+      "title": "Avatar picker is a full-page view with swipe-back (not a modal overlay)",
+      "area": "Profile",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass profile-avatars-page",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → Profile. Tap the ✎ pencil overlay on the avatar circle. Verify a FULL PAGE slides in from the right (with `← Back` button at top-left), NOT a modal overlay covering the previous page.",
+        "Swipe right from the left edge — verify swipe-back returns to the Settings → Profile view (same behaviour as Progress / Messages / etc.).",
+        "Tap CHANGE AVATAR button in Settings → Profile. Verify the same full-page view opens.",
+        "Pick an avatar inside the page. Verify it persists and tapping ← Back lands on Settings → Profile with the new avatar already reflected.",
+        "Locked avatars show 🔒 placeholder with `Unlocks at Tier X` tooltip. Tier-source unlocks (3/tier × your current tier) and lucky-drop unlocks both appear with their proper tags."
+      ],
+      "notes": "[2026-05-23] Refactored: the avatar picker was a fixed-inset modal overlay (zIndex 9990 over everything). Per @maaiz it should be a routed page like Progress/Settings — supports native swipe-back and feels less intrusive on mobile. Added a new `view === \"avatarPicker\"` branch with AvatarPickerView component (full-page wrapper, ← Back button, swipeBackViews registered). Triggers (✎ pencil + CHANGE AVATAR button) now call setView(\"avatarPicker\") instead of setAvatarPickerOpen(true). The old avatarPickerOpen state is gone. (Reported by @maaiz: 'profile view doesn't need to be an overlay, it can be another page that can be swiped back from, like the progress page'.)"
+    },
+    {
       "id": "profile-role-stack",
       "title": "Profile view shows ALL roles a user holds (athlete + trainer + admin stack)",
       "area": "Profile",

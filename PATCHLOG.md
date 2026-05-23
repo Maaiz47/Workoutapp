@@ -2,6 +2,21 @@
 
 ---
 
+## QA pass · 2026-05-23 — Avatar picker is now a swipe-back page (qa: profile-avatars-page)
+
+Per @maaiz: the avatar picker shouldn't be a modal overlay — it should be a routed page like Progress, with swipe-back support. Refactored from a `fixed inset: 0` overlay into a full `AvatarPickerView` component routed under `view === "avatarPicker"`. Same inventory + selection behaviour; new wrapper.
+
+Side effects of the refactor:
+- Removed `avatarPickerOpen` state — triggers now call `setView("avatarPicker")` instead.
+- HomeGlobals no longer carries the picker render or its 6 prop slots.
+- `swipeBackViews` registers `avatarPicker` so the gesture works.
+- Back nav: `avatarPicker → profile`.
+- Home profile chip restored to `1fr 1fr 2fr` grid (was `56px 1fr 2fr` — same size as Progress button per @maaiz follow-up).
+
+Workflow rule update: CLAUDE.md now says **commit always, deploy only on explicit user signal** ("push", "ship it", "deploy"). Stop-hook warnings about unpushed commits are informational, not deploy triggers. Supersedes the earlier "bundle related work into one push" heuristic — batching is now user-controlled.
+
+---
+
 ## QA pass · 2026-05-23 — Home chip avatar-only + profile role stack (qa: profile-avatars-home-fix, profile-role-stack)
 
 Two related UX tightening follow-ups.
