@@ -1,0 +1,10 @@
+{
+  "id": "cmphqronw0008frouiah11umr",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=workout] Want to be able to place new exercise added during session at wanted order (before cooldowns especially)",
+  "screenshotUrl": null,
+  "ts": "2026-05-23T02:40:55.196Z"
+}
