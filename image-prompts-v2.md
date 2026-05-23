@@ -94,57 +94,64 @@ icons. User wants them **aggressive at the top tiers** — Lion / Gorilla /
 Bear should feel earned. Kitten + Fox should still feel friendly so the
 progression has emotional pacing.
 
+**Background policy (updated 2026-05-23):** these icons replace
+emojis inside a tier chip that ALREADY has its own dark background
++ CSS glow. So render on a **transparent background** — subject
+only, no built-in halo, no gradient. The chip's existing glow
+wraps the icon and the visual treatment stays consistent across
+both themes.
+
 ### Style guide (paste into every Vivid tier prompt as a prefix)
 
-> Generate a 512×512 PNG icon for a fitness app tier badge. Style:
-> **dark-mode app icon**, centred subject on a deep matte radial gradient
-> background, premium gym-app aesthetic. Subject is a stylised animal
-> head/bust facing the camera at a slight 3/4 angle, NO body below the
-> shoulders, NO text, NO numbers. Soft rim-light in the tier's accent
-> colour. Background: tier-coloured radial halo fading to near-black at
-> the edges. Square 512×512, centred composition, ~10% safe margin so it
-> reads at 64px in a chip. Reference cues: trading-card character
-> portraits, video-game class-select icons, Premier League team crests.
+> Generate a 512×512 PNG icon for a fitness app tier badge with a
+> FULLY TRANSPARENT background (alpha channel, no fill, no halo, no
+> gradient). Style: **subject-only sticker**, no scene, no
+> background imagery. Subject is a stylised animal head/bust facing
+> the camera at a slight 3/4 angle, NO body below the shoulders, NO
+> text, NO numbers. Soft rim-light in the tier's accent colour
+> outlining the subject's silhouette. Square 512×512, centred
+> composition, ~10% safe margin so it reads at 64px in a chip.
+> Reference cues: trading-card character portraits, video-game
+> class-select icons, Premier League team crests rendered as
+> transparent stickers.
 
 ### `vivid/kitten.png` — Tier 1
 > [style guide] · Subject: a calm grey kitten face, alert eyes, tiny pink
 > nose, ears upright but soft. Mood: hopeful, fresh-start energy.
-> Accent colour `#94a3b8` (slate). Halo: subtle silver glow.
+> Rim-light accent colour `#94a3b8` (slate).
 
 ### `vivid/fox.png` — Tier 2
 > [style guide] · Subject: a sharp-eyed orange fox face with a quick,
 > sly expression. Ears pricked, white chest tuft just visible. Mood:
-> sharpening, hungry, kinetic. Accent colour `#fb923c` (orange).
-> Halo: warm amber glow.
+> sharpening, hungry, kinetic. Rim-light accent colour `#fb923c`
+> (orange).
 
 ### `vivid/big-dawg.png` — Tier 3
 > [style guide] · Subject: a wide-shouldered American Bully / Cane Corso
 > head in 3/4 angle, focused gaze, jaw set, no aggression-snarl but
 > clear power. Cropped collar suggested at the bottom edge. Mood:
-> formidable, dependable, ready. Accent colour `#a78bfa` (violet).
-> Halo: purple glow.
+> formidable, dependable, ready. Rim-light accent colour `#a78bfa`
+> (violet).
 
 ### `vivid/lion.png` — Tier 4 (AGGRESSIVE)
 > [style guide] · Subject: a male lion's head with a thick mane, mouth
 > slightly open in a controlled half-roar showing canine teeth, eyes
 > locked on the viewer. Mane catches the rim-light dramatically. Mood:
-> commanding, regal, dangerous. Accent colour `#f97316` (deep orange).
-> Halo: orange-red glow with embers.
+> commanding, regal, dangerous. Rim-light accent colour `#f97316`
+> (deep orange).
 
 ### `vivid/gorilla.png` — Tier 5 (AGGRESSIVE)
 > [style guide] · Subject: a silverback gorilla's head + upper chest,
 > chest-pounding stance suggested by raised fist crossing the lower
 > third of the frame. Heavy brow, bared teeth in a snarl, silver fur
-> catches the rim-light. Mood: dominant, primal, overwhelming. Accent
-> colour `#FF6B6B` (coral red). Halo: red-black smoky glow.
+> catches the rim-light. Mood: dominant, primal, overwhelming.
+> Rim-light accent colour `#FF6B6B` (coral red).
 
 ### `vivid/bear.png` — Tier 6 (TOP TIER, MOST AGGRESSIVE)
 > [style guide] · Subject: a massive grizzly bear's head + raised paw
 > with claws extended, mouth wide in a roar showing all teeth, scars on
-> snout. Steam from breath visible in the cold air around the muzzle.
-> Mood: apex predator, untouchable, mountain-king. Accent colour
-> `#92400e` (dark amber/brown). Halo: golden-amber glow with subtle
-> motion blur on the swing.
+> snout. Mood: apex predator, untouchable, mountain-king. Rim-light
+> accent colour `#92400e` (dark amber/brown).
 
 ---
 
@@ -153,58 +160,60 @@ progression has emotional pacing.
 Mirror the Vivid set with abstract medal/gemstone icons. Same "aggressive
 at the top" feel — Master / Diamond should look earned, not generic.
 
+**Background policy (updated 2026-05-23):** same as Batch 2 —
+**transparent background**, subject only. The chip's existing
+glow wraps the icon.
+
 ### Style guide (paste into every Simple tier prompt as a prefix)
 
-> Generate a 512×512 PNG icon for a fitness app tier badge. Style:
-> **dark-mode app icon**, centred medal/gemstone subject on a deep matte
-> radial gradient background, premium product-shot aesthetic. NO text,
-> NO numbers, NO ribbons. Soft rim-light in the tier's accent colour
-> picks out the surface texture. Background: tier-coloured radial halo
-> fading to near-black at the edges. Square 512×512, centred
-> composition, ~10% safe margin. Reference cues: high-end watch face
-> close-ups, jewellery catalogue product shots, Apple Watch
-> activity-ring icons.
+> Generate a 512×512 PNG icon for a fitness app tier badge with a
+> FULLY TRANSPARENT background (alpha channel, no fill, no halo, no
+> gradient). Style: **subject-only sticker**, premium product-shot
+> aesthetic. NO text, NO numbers, NO ribbons. Soft rim-light in the
+> tier's accent colour picks out the surface texture of the medal /
+> gemstone. Square 512×512, centred composition, ~10% safe margin.
+> Reference cues: high-end watch face close-ups, jewellery catalogue
+> product shots, Apple Watch activity-ring icons rendered as
+> transparent stickers.
 
 ### `simple/bronze.png` — Tier 1
 > [style guide] · Subject: a circular bronze medallion with a subtle
 > hammered finish and a small embossed flame motif in the centre.
-> Slight oxidation patina. Accent colour `#a8784a`. Mood: humble,
-> earned, weighty.
+> Slight oxidation patina. Rim-light accent colour `#a8784a`. Mood:
+> humble, earned, weighty.
 
 ### `simple/silver.png` — Tier 2
 > [style guide] · Subject: a circular polished silver medallion with a
 > brushed radial texture and a small embossed lightning-bolt motif in
-> the centre. Mirror-sharp edges. Accent colour `#cbd5e1`. Mood: clean,
-> precise, building.
+> the centre. Mirror-sharp edges. Rim-light accent colour `#cbd5e1`.
+> Mood: clean, precise, building.
 
 ### `simple/gold.png` — Tier 3
 > [style guide] · Subject: a circular polished gold medallion with a
 > deeply embossed laurel-wreath motif framing a central diamond cut-out.
-> Rich warm gold finish, micro-scratches catching the light. Accent
-> colour `#facc15`. Mood: established, professional, respected.
+> Rich warm gold finish, micro-scratches catching the light. Rim-light
+> accent colour `#facc15`. Mood: established, professional, respected.
 
 ### `simple/platinum.png` — Tier 4 (REFRESH — aggressive)
 > [style guide] · Subject: a platinum medallion BROKEN OUT of its
 > circular frame on one edge as if exploding outward, jagged
 > platinum-white shards radiating from the break. Centre carries a
 > stylised lifting-figure silhouette. Mood: breaking through, elite,
-> kinetic. Accent colour `#7dd3fc` (icy blue). Halo: icy-white glow
-> with crystalline highlights.
+> kinetic. Rim-light accent colour `#7dd3fc` (icy blue).
 
 ### `simple/diamond.png` — Tier 5 (REFRESH — aggressive)
 > [style guide] · Subject: a faceted brilliant-cut diamond gemstone
 > floating above a fractured platinum base, blue-white light refracting
 > through its facets into beam-like rays. Aggressive geometry — no soft
-> edges. Mood: untouchable, hard-earned, sharp. Accent colour `#60a5fa`
-> (electric blue). Halo: bright cyan glow with prismatic streaks.
+> edges. Mood: untouchable, hard-earned, sharp. Rim-light accent colour
+> `#60a5fa` (electric blue).
 
 ### `simple/master.png` — Tier 6 (TOP TIER — MOST AGGRESSIVE)
 > [style guide] · Subject: a stylised crown rendered in molten-red
 > metal floating above a fractured black-and-red obsidian base, flames
 > licking up around the crown's points, sparks scattering outward.
 > Centre of crown holds a single coral-red gem. Mood: apex, conquered,
-> on-fire. Accent colour `#FF6B6B`. Halo: deep red glow fading to dark
-> with ember particles.
+> on-fire. Rim-light accent colour `#FF6B6B`.
 
 ---
 
@@ -525,16 +534,21 @@ Render size: ~32px in chips, ~48px in the modal. Generate at 256×256
 PNG, compress to 96×96 / quality 85 (target <12 KB each). Total
 batch budget: ~130 KB.
 
+**Background policy (updated 2026-05-23):** same as Batches 2 + 3
+— **transparent background**, glyph only. These slot into existing
+chips that carry their own background + glow.
+
 ### Style guide (paste into every Sub-rank icon prompt)
 
 > Generate a 256×256 PNG icon for a fitness app tier-breakdown
-> sub-rank chip. Style: **dark-mode UI icon**, centred glyph on a
-> deep matte black circular background, soft rim-light in the
-> sub-rank's accent colour, premium app aesthetic. NO text, NO
-> numbers. The glyph is a single recognisable monoline icon — think
-> Apple Fitness Health-app glyph energy. Background: subtle
-> sub-rank-coloured radial halo fading to near-black. Square
-> 256×256, ~15% safe margin so the glyph reads at 32px.
+> sub-rank chip with a FULLY TRANSPARENT background (alpha channel,
+> no fill, no halo, no gradient). Style: **subject-only monoline
+> glyph**, premium app aesthetic. NO text, NO numbers, NO bounding
+> circle, NO scene. The glyph is a single recognisable monoline
+> icon in the sub-rank's accent colour with subtle inner highlights
+> — think Apple Fitness Health-app glyph energy rendered as a
+> transparent sticker. Square 256×256, ~15% safe margin so the
+> glyph reads at 32px.
 
 ### Athlete sub-ranks (7)
 
@@ -579,7 +593,9 @@ functional).
 Render size: ~24px in the sub-header strip. Generate at 256×256 PNG,
 compress to 96×96 / quality 85. Total batch budget: ~130 KB.
 
-### Style guide (same as Batch 8 — dark-mode monoline glyph)
+**Background policy:** transparent — same as Batch 8.
+
+### Style guide (same as Batch 8 — transparent-background monoline glyph)
 
 ### Categories (11)
 
