@@ -17,8 +17,23 @@ if [ -z "$VERCEL_GIT_PREVIOUS_SHA" ]; then
   exit 1
 fi
 
+# Vercel uses shallow clones — the previous SHA can be missing from the
+# local repo (especially after manual redeploys of older commits that
+# Vercel never fetched into this build's clone). When that happens the
+# `git diff` below errors with "fatal: bad object <sha>" and our old
+# `|| true` fallback silently swallowed the error into an empty diff,
+# which then matched the "no changes — skip" branch. Result: every
+# push since the manual redeploy got cancelled in ~8s with no build
+# attempted. The fix: verify the previous SHA exists in the clone
+# BEFORE diffing, and proceed with the deploy when it doesn't.
+# (qa: planner-equipment-strict — incident on 2026-05-23)
+if ! git cat-file -e "$VERCEL_GIT_PREVIOUS_SHA" 2>/dev/null; then
+  echo "vercel-should-skip: previous SHA $VERCEL_GIT_PREVIOUS_SHA not in shallow clone — cannot diff safely, proceeding with deploy."
+  exit 1
+fi
+
 # All files changed since the last successful deploy.
-CHANGES=$(git diff "$VERCEL_GIT_PREVIOUS_SHA" HEAD --name-only || true)
+CHANGES=$(git diff "$VERCEL_GIT_PREVIOUS_SHA" HEAD --name-only)
 
 if [ -z "$CHANGES" ]; then
   echo "vercel-should-skip: no file diffs detected — skipping deploy."

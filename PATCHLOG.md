@@ -2,6 +2,14 @@
 
 ---
 
+## Hotfix · 2026-05-23 — vercel-should-skip false-positive skipping all deploys (qa: planner-equipment-strict)
+
+Real root cause of the "deploys not landing" saga: my own `scripts/vercel-should-skip.sh` had a silent fallback that treated missing `VERCEL_GIT_PREVIOUS_SHA` (common after a manual redeploy of an older commit) as "no changes — skip" instead of "can't diff — proceed". Vercel uses shallow clones, so after the manual redeploy of `6c7b47e` the script could never resolve that SHA → `git diff` errored with "fatal: bad object" → `|| true` swallowed the error → empty `$CHANGES` → exit 0 (skip). Every push since the manual redeploy got cancelled in ~8s with no build attempted.
+
+Fix: probe `git cat-file -e "$VERCEL_GIT_PREVIOUS_SHA"` before diffing; when the object isn't in the clone, proceed with the deploy unconditionally. The build's own commit SHA becomes the new previous-sha for subsequent runs, so this self-heals after one successful deploy.
+
+---
+
 ## Webhook diagnostic · 2026-05-23 — does Vercel still receive pushes? (qa: planner-equipment-strict)
 
 Tiny diagnostic commit. Production is stuck on `6c7b47e` from ~2h ago with ~10 newer commits that NEVER appeared in Vercel's Deployments tab. Pushing this no-op edit to PATCHLOG.md (which is outside the `ignoreCommand` safe-set, so it WILL trigger a build) to test whether the GitHub → Vercel webhook is alive. If this commit appears as a deploy attempt within ~30s of push, the webhook is healthy and earlier commits were just dropped one-time. If it doesn't appear, the integration needs reconnecting in Vercel → Settings → Git.
