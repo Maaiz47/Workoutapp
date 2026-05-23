@@ -163,6 +163,43 @@ export function recordBalancedWeek(): boolean {
   } catch { return false; }
 }
 
+// ── BALANCED FORTNIGHT REWARD ───────────────────────────────────────
+// Fires when the user covers all 7 Balance sub-rank buckets in the
+// rolling 14-day window (chest / back / shoulders / arms / quads /
+// posterior / core, each with ≥3 sets). Counterpart to the Balance
+// sub-rank's neglect penalty — celebrates the positive case.
+//
+// Keyed by ISO week (Monday) so the user earns at most ONE balanced
+// fortnight per week even if the rolling Balance score sits at 100
+// for multiple days running. Earning every week = 52 / year max.
+// (qa: tier-balance-subrank — reward counterpart)
+
+export const BALANCED_FORTNIGHT_KEY = "ironlog-balanced-fortnights-v1";
+
+const BALANCE_BUCKETS = ["chest", "back", "shoulders", "arms", "quads", "posterior", "core"] as const;
+const MIN_SETS_PER_BUCKET = 3;
+
+export function isBalancedFortnight(setsByMuscleGroup: Record<string, number> | undefined | null): boolean {
+  if (!setsByMuscleGroup) return false;
+  return BALANCE_BUCKETS.every(b => (setsByMuscleGroup[b] ?? 0) >= MIN_SETS_PER_BUCKET);
+}
+
+export function recordBalancedFortnight(): { earned: boolean; isFirst: boolean; totalCount: number } {
+  try {
+    const key = weekKey(new Date());
+    const arr: string[] = JSON.parse(localStorage.getItem(BALANCED_FORTNIGHT_KEY) ?? "[]");
+    if (arr.includes(key)) return { earned: false, isFirst: false, totalCount: arr.length };
+    const isFirst = arr.length === 0;
+    arr.push(key);
+    localStorage.setItem(BALANCED_FORTNIGHT_KEY, JSON.stringify(arr));
+    return { earned: true, isFirst, totalCount: arr.length };
+  } catch { return { earned: false, isFirst: false, totalCount: 0 }; }
+}
+
+export function balancedFortnightCount(): number {
+  try { return (JSON.parse(localStorage.getItem(BALANCED_FORTNIGHT_KEY) ?? "[]") as string[]).length; } catch { return 0; }
+}
+
 // ── HIDDEN ACHIEVEMENTS ─────────────────────────────────────────────
 // Surprise badges — don't appear in the wall until earned. Stored
 // alongside the main milestone-achieved list.

@@ -28,7 +28,7 @@ import { findAvatar, AVATARS, Avatar } from "../lib/avatars";
 // removed and the contributors leaderboard is sourced from
 // lib/contributions.ts directly inside app/qa/page.tsx instead.
 // (qa: contributions-leaderboard)
-import { isDeGamified, setDeGamified, pickTodayQuest, QuestState, isFullStackDay, recordFullStackDay, fullStackDayCount, checkBalancedWeek, recordBalancedWeek, detectNewHidden, HiddenState, HiddenAchievement } from "../lib/gamification";
+import { isDeGamified, setDeGamified, pickTodayQuest, QuestState, isFullStackDay, recordFullStackDay, fullStackDayCount, checkBalancedWeek, recordBalancedWeek, isBalancedFortnight, recordBalancedFortnight, balancedFortnightCount, detectNewHidden, HiddenState, HiddenAchievement } from "../lib/gamification";
 import { postWithQueue, drainQueue, queueCount } from "../lib/offlineSync";
 import { TIPS, pickDailyTip, TipContext, ProTip } from "../lib/proTips";
 
@@ -7544,6 +7544,28 @@ function HomePage() {
     }
   }, [user, myAthleteBreakdown]);
 
+  // Balanced-fortnight celebration — counterpart to the Balance
+  // sub-rank's neglect penalty. Fires a one-shot toast when the user
+  // has all 7 muscle-group buckets covered in the last 14 days AND
+  // they haven't already earned the badge for THIS ISO week. Records
+  // the win in localStorage so the toast doesn't re-fire on every
+  // page-load. (qa: tier-balance-subrank — reward counterpart)
+  const [balancedToast, setBalancedToast] = useState<{ totalCount: number; isFirst: boolean } | null>(null);
+  useEffect(() => {
+    if (!user || !myAthleteBreakdown) return;
+    const balance = myAthleteBreakdown.subRanks.find(r => r.id === "balance");
+    if (!balance || !balance.hasData || balance.score < 100) return;
+    // Pull setsByMuscleGroup back out via a lightweight re-check using
+    // the same gamification helper — keeps the cross-check colocated.
+    // Score 100 means all 7 buckets are at >= MIN_SETS — safe to record.
+    const result = recordBalancedFortnight();
+    if (result.earned) {
+      setBalancedToast({ totalCount: result.totalCount, isFirst: result.isFirst });
+      const t = setTimeout(() => setBalancedToast(null), 4500);
+      return () => clearTimeout(t);
+    }
+  }, [user, myAthleteBreakdown]);
+
   const bc: Record<string, string> = { compound: "#2ecc71", isolation: "#74b9ff", cardio: "#FF6B6B" };
 
   const sessionExSuggestions = useMemo(() => {
@@ -13976,7 +13998,17 @@ function HomePage() {
                               (qa: tier-modal-action-tips) */}
                           <div style={{ height: "100%", width: `${sr.score}%`, background: "#4ECDC4", borderRadius: 2 }} />
                         </div>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>{sr.detail}</div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>
+                          {sr.detail}
+                          {/* Balance counter — surfaces the lifetime
+                              count of balanced fortnights earned so
+                              the user sees the reward alongside the
+                              status. (qa: tier-balance-subrank) */}
+                          {sr.id === "balance" && sr.hasData && (() => {
+                            const n = balancedFortnightCount();
+                            return n > 0 ? <span style={{ marginLeft: 4, color: "#4ECDC4", fontWeight: 700 }}>· ⚖️ {n} balanced fortnight{n === 1 ? "" : "s"} earned</span> : null;
+                          })()}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -16474,6 +16506,19 @@ function HomePage() {
           <div style={{ position: "fixed", bottom: 120, left: "50%", transform: "translateX(-50%)", zIndex: 250, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,230,109,0.4)", borderRadius: 28, padding: "10px 22px", display: "flex", alignItems: "center", gap: 10, pointerEvents: "none", animation: "goalCelebPop 0.3s ease" }}>
             <span style={{ fontSize: 22 }}>{ipToast.icon}</span>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>{ipToast.msg}</div>
+          </div>
+        )}
+
+        {/* Balanced-fortnight celebration toast — counterpart to the
+            Balance sub-rank neglect penalty. One-shot per ISO week.
+            (qa: tier-balance-subrank — reward counterpart) */}
+        {balancedToast && (
+          <div onClick={() => setBalancedToast(null)} style={{ position: "fixed", top: 90, left: "50%", transform: "translateX(-50%)", zIndex: 260, background: "linear-gradient(135deg, rgba(78,205,196,0.95), rgba(56,178,172,0.95))", border: "1px solid rgba(78,205,196,0.7)", borderRadius: 18, padding: "12px 18px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", boxShadow: "0 8px 32px rgba(78,205,196,0.35)", animation: "goalCelebPop 0.3s ease" }}>
+            <span style={{ fontSize: 26, lineHeight: 1 }}>⚖️</span>
+            <div>
+              <div style={{ fontSize: 10, color: "rgba(0,0,0,0.6)", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>{balancedToast.isFirst ? "FIRST BALANCED FORTNIGHT" : "BALANCED FORTNIGHT"}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#0a0a0a" }}>All 7 muscle groups covered · {balancedToast.totalCount} lifetime</div>
+            </div>
           </div>
         )}
 

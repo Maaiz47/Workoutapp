@@ -2,6 +2,19 @@
 
 ---
 
+## Feat · 2026-05-23 — Balance reward counterpart: balanced-fortnight celebration + lifetime counter (qa: tier-balance-subrank)
+
+Per @maaiz: "We penalise for the neglect but maybe would be good to have a reward for attending and working on it". Paired the Balance sub-rank's penalty with a positive-reinforcement loop:
+
+- **One-shot celebration toast** when the user covers all 7 muscle groups in the rolling 14-day window — fires top-of-screen with a teal gradient + "⚖️ BALANCED FORTNIGHT · All 7 muscle groups covered · N lifetime". Auto-dismisses after 4.5s; tap to close.
+- **Lifetime counter** persisted in localStorage (`ironlog-balanced-fortnights-v1`), keyed by ISO week (Monday) so the user earns at most ONE per week even if Balance stays at 100 for multiple days running.
+- **First-fortnight callout** — the toast prefix reads "FIRST BALANCED FORTNIGHT" the very first time it fires.
+- **Counter visible in the tier modal** under the Balance sub-rank detail: `4/7 groups (14d) · neglected: quads, posterior · ⚖️ 3 balanced fortnights earned`.
+
+Implementation: new `isBalancedFortnight(setsByMuscleGroup)` + `recordBalancedFortnight()` + `balancedFortnightCount()` helpers in `lib/gamification.ts` (parallels the existing `fullStackDay` + `balancedWeek` patterns). New useEffect in app/page.tsx fires the toast + records when `myAthleteBreakdown.balance === 100`.
+
+---
+
 ## Fix · 2026-05-23 — Balance window 180d → 14d (qa: tier-balance-subrank)
 
 Per @maaiz: "180d is a long time to be looking at neglected areas, it should be considered on a shorter time span like fortnightly at most". First cut tracked muscle-group coverage over 180 days — too lenient. A user who hadn't done legs for 3 weeks wasn't being warned.
