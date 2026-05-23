@@ -4,7 +4,7 @@
   "crons": [
     {
       "path": "/api/admin/test-users/cron-tick",
-      "schedule": "0 9 * * *"
+      "schedule": "0 23 * * *"
     }
   ]
 }
