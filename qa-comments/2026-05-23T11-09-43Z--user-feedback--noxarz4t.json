@@ -1,0 +1,10 @@
+{
+  "id": "cmpi8y0j90004atccnoxarz4t",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=profile] Roles in profile look like they are toggle selectable because the athlete one is grey\nJust make it say athlete and trainer",
+  "screenshotUrl": null,
+  "ts": "2026-05-23T11:09:43.605Z"
+}
