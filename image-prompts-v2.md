@@ -105,15 +105,15 @@ both themes.
 
 > Generate a 512×512 PNG icon for a fitness app tier badge with a
 > FULLY TRANSPARENT background (alpha channel, no fill, no halo, no
-> gradient). Style: **subject-only sticker**, no scene, no
+> gradient). Style: **subject-only crest sticker**, no scene, no
 > background imagery. Subject is a stylised animal head/bust facing
-> the camera at a slight 3/4 angle, NO body below the shoulders, NO
-> text, NO numbers. Soft rim-light in the tier's accent colour
-> outlining the subject's silhouette. Square 512×512, centred
-> composition, ~10% safe margin so it reads at 64px in a chip.
-> Reference cues: trading-card character portraits, video-game
-> class-select icons, Premier League team crests rendered as
-> transparent stickers.
+> the camera DIRECTLY HEAD-ON (front-facing, symmetrical), eyes
+> locked on the viewer, NO body below the shoulders, NO text, NO
+> numbers. Soft rim-light in the tier's accent colour outlining the
+> subject's silhouette. Square 512×512, centred composition, ~10%
+> safe margin so it reads at 64px in a chip. Reference cues:
+> Premier League team crests, sports league badge logos, NFL team
+> animal crests — iconic, symmetrical, badge-not-portrait.
 
 ### `vivid/kitten.png` — Tier 1
 > [style guide] · Subject: a calm grey kitten face, alert eyes, tiny pink
@@ -128,17 +128,17 @@ both themes.
 
 ### `vivid/big-dawg.png` — Tier 3
 > [style guide] · Subject: a wide-shouldered American Bully / Cane Corso
-> head in 3/4 angle, focused gaze, jaw set, no aggression-snarl but
-> clear power. Cropped collar suggested at the bottom edge. Mood:
-> formidable, dependable, ready. Rim-light accent colour `#a78bfa`
+> head facing the camera head-on, focused gaze, jaw set, no aggression-
+> snarl but clear power. Cropped collar suggested at the bottom edge.
+> Mood: formidable, dependable, ready. Rim-light accent colour `#a78bfa`
 > (violet).
 
 ### `vivid/lion.png` — Tier 4 (AGGRESSIVE)
-> [style guide] · Subject: a male lion's head with a thick mane, mouth
-> slightly open in a controlled half-roar showing canine teeth, eyes
-> locked on the viewer. Mane catches the rim-light dramatically. Mood:
-> commanding, regal, dangerous. Rim-light accent colour `#f97316`
-> (deep orange).
+> [style guide] · Subject: a male lion's head with a thick mane facing
+> the camera head-on, mouth slightly open in a controlled half-roar
+> showing canine teeth, eyes locked on the viewer. Mane catches the
+> rim-light dramatically. Mood: commanding, regal, dangerous. Rim-light
+> accent colour `#f97316` (deep orange).
 
 ### `vivid/gorilla.png` — Tier 5 (AGGRESSIVE)
 > [style guide] · Subject: a silverback gorilla's head + upper chest,
