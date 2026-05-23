@@ -84,17 +84,31 @@ export async function POST(req: NextRequest) {
     if (!toUsername || typeof toUsername !== "string") {
       return json({ error: "toUsername required" }, 400);
     }
-    const trimmed = toUsername.trim();
-    if (!trimmed) return json({ error: "toUsername required" }, 400);
-    if (trimmed.toLowerCase() === me.username.toLowerCase()) {
+    // Normalise the handle: strip leading @ symbols + lowercase so the
+    // DB lookup matches the registration-enforced lowercase usernames.
+    // Without this, "@Maaiz", "Maaiz", or any non-lowercase spelling
+    // would 404 even though the user exists. Case-insensitive
+    // fallback mirrors /api/routines/[id]/share for legacy accounts
+    // that were created before usernames were forced lowercase.
+    // (qa: friend-search-case-insensitive)
+    const handle = toUsername.trim().replace(/^@+/, "").toLowerCase();
+    if (!handle) return json({ error: "toUsername required" }, 400);
+    if (handle === me.username.toLowerCase()) {
       return json({ error: "You can't friend yourself" }, 400);
     }
 
-    const target = await prisma.user.findUnique({
-      where: { username: trimmed },
+    let target = await prisma.user.findUnique({
+      where: { username: handle },
       select: { id: true, username: true },
     });
-    if (!target) return json({ error: "User not found" }, 404);
+    if (!target) {
+      const fallback = await prisma.user.findFirst({
+        where: { username: { equals: handle, mode: "insensitive" } },
+        select: { id: true, username: true },
+      });
+      if (fallback) target = fallback;
+    }
+    if (!target) return json({ error: `No user @${handle}. Check the spelling.` }, 404);
 
     // Existing row in either direction blocks a new request.
     const existing = await prisma.friendship.findFirst({

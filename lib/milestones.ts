@@ -24,14 +24,57 @@ export type MilestoneState = {
   // never logged one). Feeds the "Unlock Your Abs" milestone.
   // (qa: mission-unlock-abs)
   currentBodyFatPct?: number | null;
+  // Best weight ever logged by lowercased exercise name. Feeds the
+  // strength-benchmark milestones (bench press 60/100/140 etc.) so
+  // they don't depend on a specific internal exercise id. Caller
+  // walks history and pre-computes this. Missing names map to 0.
+  // (qa: achievements-strength-benchmarks)
+  maxByName?: Record<string, number>;
+  // Lifetime total volume in kg×reps. Feeds the volume milestones.
+  totalVolumeKg?: number;
+  // Lifetime count of sessions where AT LEAST ONE exercise was
+  // tagged with category=hiit OR category=cardio (or modality
+  // equivalents). Feeds HIIT / cardio milestones. (qa:
+  // achievements-cardio-hiit)
+  hiitSessionCount?: number;
+  cardioSessionCount?: number;
+  // Estimated total cardio distance + minutes across history.
+  // Distance = time × speed where speed is taken from the cardio
+  // exercise metadata (treadmill 8 km/h, run 10 km/h, etc.). Used
+  // for the cardio-distance milestones.
+  totalCardioMinutes?: number;
+  totalCardioKm?: number;
+  // First-use behaviour flags. Track when a user explores a feature.
+  hasUsedWarmup?: boolean;
+  hasUsedCooldown?: boolean;
 };
+
+// Pick the best weight across one or more exercise-name substrings.
+// e.g. `bestForNames(state, ["bench press"])` returns the max kg
+// across any exercise whose lowercased name contains "bench press".
+// Returns 0 if no matching exercise has been logged. Multiple names
+// let one milestone catch synonyms ("OHP" / "overhead press" /
+// "shoulder press"). (qa: achievements-strength-benchmarks)
+export function bestForNames(state: MilestoneState, names: string[]): number {
+  const map = state.maxByName ?? {};
+  let best = 0;
+  for (const exName in map) {
+    for (const target of names) {
+      if (exName.includes(target.toLowerCase())) {
+        if (map[exName] > best) best = map[exName];
+        break;
+      }
+    }
+  }
+  return best;
+}
 
 export type Milestone = {
   id: string;
   label: string;       // headline shown on the celebration overlay
   body: string;        // 1-2 sentence flavour text
   icon: string;        // single emoji
-  category: "anniversary" | "consistency" | "strength" | "behaviour" | "tier";
+  category: "anniversary" | "consistency" | "strength" | "behaviour" | "tier" | "hiit" | "cardio" | "volume";
   // Plain-English "how to earn this" string. Shown in the info modal for
   // locked milestones so users know what to work toward. New ids should
   // always include one; missing falls back to body.
@@ -88,6 +131,54 @@ export const MILESTONES: Milestone[] = [
   // ── Body composition unlocks ─────────────────────────────────────────
   // (qa: mission-unlock-abs)
   { id: "abs-unlocked",  label: "Abs Unlocked",              body: "Body fat at 15% or under — the six-pack reveal threshold. The work shows.", icon: "🔓", category: "behaviour", requirement: "Log a body fat reading of 15% or lower.", check: s => s.currentBodyFatPct != null && s.currentBodyFatPct <= 15 },
+
+  // ── Strength benchmarks — specific weight targets on the big lifts.
+  //    Per @maaiz: 'Strength achievements like difficult to achieve
+  //    target weights on particular major exercises (like a bench
+  //    press goal)'. Each check uses bestForNames(state, [...]) so it
+  //    matches any variant (barbell bench, incline bench all count).
+  //    Bench press benchmarks pace the industry plate counts:
+  //      60kg ≈ "1 plate on a 20kg bar" (10kg per side)
+  //      100kg ≈ "1 big plate per side" (40kg per side + bar)
+  //      140kg ≈ "3 plates per side"
+  //    Same logic for squat / deadlift / overhead press / row.
+  //    (qa: achievements-strength-benchmarks)
+  { id: "bench-60kg",    label: "Bench Press · 60 kg",       body: "1 plate per side. The first real bench milestone.", icon: "🏋️", category: "strength", requirement: "Log a bench press set at 60 kg or more.",  check: s => bestForNames(s, ["bench press"]) >= 60 },
+  { id: "bench-100kg",   label: "Bench Press · 100 kg",      body: "1 big plate per side + bar. A genuine strength benchmark.", icon: "🥉", category: "strength", requirement: "Log a bench press set at 100 kg or more.", check: s => bestForNames(s, ["bench press"]) >= 100 },
+  { id: "bench-140kg",   label: "Bench Press · 140 kg",      body: "3 plates per side. Top 5% of intermediate lifters.", icon: "🥈", category: "strength", requirement: "Log a bench press set at 140 kg or more.", check: s => bestForNames(s, ["bench press"]) >= 140 },
+  { id: "bench-180kg",   label: "Bench Press · 180 kg",      body: "4 plates per side. Genuinely strong.",              icon: "🥇", category: "strength", requirement: "Log a bench press set at 180 kg or more.", check: s => bestForNames(s, ["bench press"]) >= 180 },
+  { id: "squat-100kg",   label: "Squat · 100 kg",            body: "1 plate per side + bar. The squat club's door opens here.", icon: "🦵", category: "strength", requirement: "Log a squat set at 100 kg or more.",      check: s => bestForNames(s, ["squat"]) >= 100 },
+  { id: "squat-140kg",   label: "Squat · 140 kg",            body: "3 plates per side. Strong-club territory.",         icon: "🥋", category: "strength", requirement: "Log a squat set at 140 kg or more.",      check: s => bestForNames(s, ["squat"]) >= 140 },
+  { id: "squat-180kg",   label: "Squat · 180 kg",            body: "4 plates per side. Elite intermediate range.",       icon: "🐂", category: "strength", requirement: "Log a squat set at 180 kg or more.",      check: s => bestForNames(s, ["squat"]) >= 180 },
+  { id: "deadlift-100kg",label: "Deadlift · 100 kg",         body: "1 plate per side. Floor pulled clean.",              icon: "🪨", category: "strength", requirement: "Log a deadlift set at 100 kg or more.",   check: s => bestForNames(s, ["deadlift"]) >= 100 },
+  { id: "deadlift-180kg",label: "Deadlift · 180 kg",         body: "4 plates per side. Real pulling strength.",          icon: "⚓", category: "strength", requirement: "Log a deadlift set at 180 kg or more.",   check: s => bestForNames(s, ["deadlift"]) >= 180 },
+  { id: "deadlift-220kg",label: "Deadlift · 220 kg",         body: "5 plates per side. Top of the intermediate ladder.", icon: "🐉", category: "strength", requirement: "Log a deadlift set at 220 kg or more.",   check: s => bestForNames(s, ["deadlift"]) >= 220 },
+  { id: "ohp-60kg",      label: "Overhead Press · 60 kg",    body: "Straight bar to lockout. Real shoulder strength.",   icon: "🗿", category: "strength", requirement: "Log an overhead/military/shoulder press set at 60 kg or more.", check: s => bestForNames(s, ["overhead press", "military press", "shoulder press"]) >= 60 },
+  { id: "ohp-80kg",      label: "Overhead Press · 80 kg",    body: "Few lifters get here without years of work.",        icon: "🏛️", category: "strength", requirement: "Log an overhead/military/shoulder press set at 80 kg or more.", check: s => bestForNames(s, ["overhead press", "military press", "shoulder press"]) >= 80 },
+  { id: "row-80kg",      label: "Barbell Row · 80 kg",       body: "Heavy back work pays compound dividends.",           icon: "🚣", category: "strength", requirement: "Log a barbell row set at 80 kg or more.", check: s => bestForNames(s, ["barbell row", "bent over row", "pendlay"]) >= 80 },
+  { id: "1000-club",     label: "1,000 lb Club (total)",     body: "Bench + squat + deadlift summed past 1,000 lb (455 kg). A classic strength milestone.", icon: "💎", category: "strength", requirement: "Have lifetime PBs in bench + squat + deadlift summing to 455 kg or more.", check: s => (bestForNames(s, ["bench press"]) + bestForNames(s, ["squat"]) + bestForNames(s, ["deadlift"])) >= 455 },
+
+  // ── HIIT — short-burst conditioning sessions. (qa: achievements-cardio-hiit)
+  { id: "hiit-first",    label: "First HIIT session",        body: "Heart rate slammed. Conditioning gains start now.",  icon: "⚡", category: "hiit", requirement: "Complete a HIIT-tagged workout once.",                check: s => (s.hiitSessionCount ?? 0) >= 1 },
+  { id: "hiit-10",       label: "10 HIIT sessions",          body: "Conditioning is sharpening.",                        icon: "🌀", category: "hiit", requirement: "Complete 10 HIIT-tagged workouts.",                  check: s => (s.hiitSessionCount ?? 0) >= 10 },
+  { id: "hiit-50",       label: "50 HIIT sessions",          body: "Your engine is built different now.",                icon: "🌪️", category: "hiit", requirement: "Complete 50 HIIT-tagged workouts.",                  check: s => (s.hiitSessionCount ?? 0) >= 50 },
+
+  // ── Cardio — dedicated cardio sessions. (qa: achievements-cardio-hiit)
+  { id: "cardio-first",  label: "First cardio session",      body: "Steady-state engine work. Heart benefits compound.", icon: "🏃", category: "cardio", requirement: "Complete a cardio-tagged workout once.",            check: s => (s.cardioSessionCount ?? 0) >= 1 },
+  { id: "cardio-10",     label: "10 cardio sessions",        body: "Aerobic base building.",                              icon: "🚴", category: "cardio", requirement: "Complete 10 cardio-tagged workouts.",                check: s => (s.cardioSessionCount ?? 0) >= 10 },
+  { id: "cardio-50",     label: "50 cardio sessions",        body: "Endurance levels other lifters envy.",                icon: "🚣", category: "cardio", requirement: "Complete 50 cardio-tagged workouts.",                check: s => (s.cardioSessionCount ?? 0) >= 50 },
+  { id: "cardio-50km",   label: "50 km cumulative",          body: "Real distance covered.",                              icon: "🛣️", category: "cardio", requirement: "Log 50 km of cumulative cardio distance.",            check: s => (s.totalCardioKm ?? 0) >= 50 },
+  { id: "cardio-250km",  label: "250 km cumulative",         body: "Marathon×6. You've covered serious ground.",          icon: "🗺️", category: "cardio", requirement: "Log 250 km of cumulative cardio distance.",           check: s => (s.totalCardioKm ?? 0) >= 250 },
+  { id: "cardio-1000km", label: "1,000 km cumulative",       body: "Four-figure kilometres. Endurance athlete tier.",     icon: "🌍", category: "cardio", requirement: "Log 1,000 km of cumulative cardio distance.",         check: s => (s.totalCardioKm ?? 0) >= 1000 },
+
+  // ── Volume — total kg×reps lifted lifetime. (qa: achievements-volume)
+  { id: "volume-100k",   label: "100,000 kg-reps",           body: "Six figures of total work done.",                     icon: "📦", category: "volume", requirement: "Lift 100,000 kg-reps cumulative across your history.", check: s => (s.totalVolumeKg ?? 0) >= 100_000 },
+  { id: "volume-500k",   label: "500,000 kg-reps",           body: "Half a million in volume. The body adapts.",          icon: "🏗️", category: "volume", requirement: "Lift 500,000 kg-reps cumulative across your history.", check: s => (s.totalVolumeKg ?? 0) >= 500_000 },
+  { id: "volume-1m",     label: "1,000,000 kg-reps",         body: "Seven-figure volume. You move mountains.",            icon: "🗿", category: "volume", requirement: "Lift 1,000,000 kg-reps cumulative across your history.", check: s => (s.totalVolumeKg ?? 0) >= 1_000_000 },
+
+  // ── Behaviour — first-time feature use. (qa: achievements-behaviour-expanded)
+  { id: "first-warmup",  label: "First warmup logged",       body: "Joints warm, injury risk down.",                      icon: "🔥", category: "behaviour", requirement: "Complete a warmup row in any session.",            check: s => !!s.hasUsedWarmup },
+  { id: "first-cooldown",label: "First cooldown logged",     body: "Recovery starts with the last set, not the next morning.", icon: "🌬️", category: "behaviour", requirement: "Complete a cooldown row in any session.",          check: s => !!s.hasUsedCooldown },
 ];
 
 // Maps tier milestone id → universal tier number (1-6). The IDs are

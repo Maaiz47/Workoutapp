@@ -2,6 +2,51 @@
 
 ---
 
+## QA pass · 2026-05-23 — Friend search fix + achievements expansion + weight input clarity + bottom-hub Progress removal (qa: friend-search-case-insensitive, achievements-strength-benchmarks, achievements-cardio-hiit, achievements-volume, achievements-behaviour-expanded, weight-input-convention-clarity, home-hub-progress-bottom-removed)
+
+@maaiz: 'Not getting any search results from find and add friends. Remove progress tab button from the bottom of main as it's already at the top. We need like way more achievements like HIIT related, cardio based etc I thought we discussed this. Strength achievements like difficult to achieve target weights on particular major exercises (like a bench press goal). Have you decided what the best way is to input weights?'
+
+### friend-search-case-insensitive — bug fix
+- POST /api/friends was failing for any handle that wasn't already in lowercase (e.g. '@Maaiz', 'MAAIZ'). Usernames are stored lowercase by /api/auth register; the friends route did a raw findUnique that 404'd on case mismatch.
+- Fix mirrors /api/routines/[id]/share: strip leading `@` + lowercase first, then a case-insensitive findFirst fallback for legacy non-lowercase rows.
+- Error copy now reads 'No user @<handle>. Check the spelling.' so the user gets a clearer signal.
+
+### achievements-strength-benchmarks (14 new)
+- Bench Press: 60 / 100 / 140 / 180 kg
+- Squat: 100 / 140 / 180 kg
+- Deadlift: 100 / 180 / 220 kg
+- Overhead Press: 60 / 80 kg
+- Barbell Row: 80 kg
+- 1,000 lb Club total (bench + squat + deadlift ≥ 455 kg)
+- New `bestForNames()` helper + `maxByName` field on MilestoneState. Substring matching so incline / decline / dumbbell variants all count toward the lift benchmark.
+
+### achievements-cardio-hiit (9 new)
+- HIIT: first / 10 / 50 sessions
+- Cardio: first / 10 / 50 sessions + 50 / 250 / 1000 km cumulative
+- Detection: any exercise with `hiit: true` in the catalogue = HIIT session; `type === 'cardio'` = cardio session. Distance estimator: minutes × 10 km/h.
+
+### achievements-volume (3 new)
+- 100k / 500k / 1M kg-reps lifetime. Computed from every non-skipped set in history.
+
+### achievements-behaviour-expanded (2 new)
+- First warmup logged (`wu-*` set key)
+- First cooldown logged (`cd-*` set key)
+
+**Catalogue total**: 22 → 50 milestones.
+
+### weight-input-convention-clarity
+- Equipment-aware hint after the existing WEIGHT label clarifies what the number represents:
+  - Barbell → 'total on bar (incl. bar)'
+  - Dumbbell → 'per dumbbell'
+  - Machine / Cable → 'stack pin'
+  - Bodyweight → 'added kg' (or 'assistance kg' when assisted)
+- No data migration. Going forward the hint makes the convention explicit so PRs + e1RM + tier scoring stay reliable.
+
+### home-hub-progress-bottom-removed
+- Removed the duplicate Progress button from the bottom hub row. The top chip strip's Progress button (between Profile and Tier) stays as the canonical entry point.
+
+---
+
 ## QA pass · 2026-05-23 — Power User rebrand (no new role) + group chat slice 1 (qa: power-user-role, group-chat-system-messages)
 
 @maaiz follow-up clarification: 'Power user doesn't need to be a new role, it is the trainer role renamed. But we just want to make it clear that power user is what trainers want but still benefits for anyone upgrading.' Plus: 'Group chat for each group with the group leaderboards in there as a button to open. Automatic System messages here regarding group missions set, any group members hitting major PB and achievements so members can chat about it.'

@@ -6666,6 +6666,63 @@ function HomePage() {
               distinctExercises: 0,
               monthsOnApp: joinedDaysAgo / 30,
             }, tierTheme);
+            // Walk history once to accumulate inputs for the expanded
+            // milestone catalogue (strength benchmarks, HIIT/cardio
+            // sessions, volume, warmup/cooldown usage). One pass keeps
+            // the cost flat regardless of how many milestones tap
+            // into these signals. (qa: achievements-cardio-hiit,
+            // achievements-strength-benchmarks, achievements-volume)
+            const exById: Record<string, any> = {};
+            for (const ex of EXERCISES as any[]) exById[ex.id] = ex;
+            const maxByName: Record<string, number> = {};
+            let totalVolumeKg = 0;
+            let hiitSessionCount = 0;
+            let cardioSessionCount = 0;
+            let totalCardioMinutes = 0;
+            let totalCardioKm = 0;
+            let hasUsedWarmup = false;
+            let hasUsedCooldown = false;
+            for (const dayId in history) {
+              for (const session of history[dayId]) {
+                const sets = (session.sets ?? {}) as Record<string, any>;
+                let sessionHasHiit = false;
+                let sessionHasCardio = false;
+                let sessionCardioMinutes = 0;
+                for (const k in sets) {
+                  const v = sets[k];
+                  if (!v || v.skipped) continue;
+                  const exKey = k.replace(/-d\d+$/, "").replace(/-\d+$/, "");
+                  if (exKey.startsWith("wu-")) hasUsedWarmup = true;
+                  if (exKey.startsWith("cd-")) hasUsedCooldown = true;
+                  const w = Number(v.weight) || 0;
+                  const r = Number(v.reps) || 0;
+                  if (w > 0 && r > 0) totalVolumeKg += w * r;
+                  const ex = exById[exKey];
+                  if (ex) {
+                    if (ex.hiit) sessionHasHiit = true;
+                    if (ex.type === "cardio") {
+                      sessionHasCardio = true;
+                      // Best-effort cardio distance: time-based reps
+                      // come in seconds for cardio exercises in this
+                      // codebase. Approximate distance using a fixed
+                      // 10 km/h running pace; close enough for a
+                      // milestone trigger. (qa: achievements-cardio-hiit)
+                      const minutes = r / 60;
+                      sessionCardioMinutes += minutes;
+                    }
+                    const nm = (ex.name as string).toLowerCase();
+                    if (w > 0 && w > (maxByName[nm] ?? 0)) maxByName[nm] = w;
+                  }
+                }
+                if (sessionHasHiit) hiitSessionCount += 1;
+                if (sessionHasCardio) {
+                  cardioSessionCount += 1;
+                  totalCardioMinutes += sessionCardioMinutes;
+                  totalCardioKm += (sessionCardioMinutes / 60) * 10; // 10 km/h estimator
+                }
+              }
+            }
+
             const mState: MilestoneState = {
               joinedDaysAgo,
               totalSessions,
@@ -6682,6 +6739,14 @@ function HomePage() {
                 const m = bodyMetrics.find((x: any) => x.bodyFatPct != null);
                 return m ? (m.bodyFatPct as number) : null;
               })(),
+              maxByName,
+              totalVolumeKg,
+              hiitSessionCount,
+              cardioSessionCount,
+              totalCardioMinutes,
+              totalCardioKm,
+              hasUsedWarmup,
+              hasUsedCooldown,
             };
             const achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
             const newOnes = detectNewMilestones(mState, achieved);
@@ -9951,10 +10016,12 @@ function HomePage() {
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Messages</span>
             {unreadCount > 0 && <span style={{ position: "absolute", top: 4, right: 4, background: "#4ECDC4", color: "#000", borderRadius: 10, padding: "1px 6px", fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
           </button>
-          <button className="card-hover nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} title="Progress" style={{ flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: "rgba(255,107,107,0.04)", border: "1px solid rgba(255,107,107,0.14)", borderRadius: 12, color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box" }}>
-            <span style={{ fontSize: 22, lineHeight: 1 }}>📊</span>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Progress</span>
-          </button>
+          {/* Progress button removed from the bottom hub — already
+              lives in the top chip strip (between Profile and Tier).
+              Per @maaiz: 'Remove progress tab button from the bottom
+              of main as it's already at the top'. Doesn't widen the
+              remaining buttons too much because Friends + Clients
+              still take their slots. (qa: home-hub-singleline) */}
           {/* Leaderboards — opens GlobalLeaderboardView (athletes +
               trainers, app-wide). Visible to all roles. Used to live
               behind the TierInfoModal; now first-class.
@@ -14804,8 +14871,28 @@ function HomePage() {
                 // equipment-aware-input)
                 const equipList: string[] = Array.isArray(exLibData?.equipment) ? exLibData.equipment : [];
                 const isMachine = equipList.includes("machine") || equipList.includes("cable");
-                const isBarbellOrDB = equipList.includes("barbell") || equipList.includes("dumbbell");
+                const isBarbell = equipList.includes("barbell");
+                const isDumbbell = equipList.includes("dumbbell");
+                const isBarbellOrDB = isBarbell || isDumbbell;
                 const weightStep = isMachine ? 5 : isBarbellOrDB ? 2.5 : 1.25;
+                // Convention hint shown under the weight input so the
+                // user knows what the number represents. Per @maaiz:
+                // ambiguity about per-side vs total / per-dumbbell vs
+                // combined / machine-stack made PRs and tier scoring
+                // unreliable. Standard conventions used here:
+                //   barbell   → TOTAL on the bar (incl. bar weight)
+                //   dumbbell  → PER dumbbell (each hand)
+                //   machine   → the pin's stack weight
+                //   cable     → the pin's stack weight
+                //   bodyweight → added/assistance weight
+                // (qa: weight-input-convention-clarity)
+                const weightConvention = activeBW
+                  ? (assistedBW ? "assistance kg" : "added kg")
+                  : isBarbell ? "total on bar (incl. bar)"
+                  : isDumbbell ? "per dumbbell"
+                  : equipList.includes("machine") ? "stack pin"
+                  : equipList.includes("cable") ? "stack pin"
+                  : null;
                 const handleLog = () => {
                   if (!ns) return;
                   const logOpts = { rpe: effortInput, note: null, assistance: assistanceKg > 0 ? assistanceKg : null };
@@ -15491,8 +15578,8 @@ function HomePage() {
                                   assistance (BW - help). Step size adapts to equipment:
                                   barbell+dumbbell 2.5kg, machine 5kg, default 1.25kg.
                                   (qa: workout-equipment-aware-input) */}
-                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500, display: "flex", justifyContent: "space-between" }}>
-                                <span>{assistedBW ? "ASSISTANCE (kg)" : activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}</span>
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
+                                <span>{assistedBW ? "ASSISTANCE (kg)" : activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}{weightConvention ? <span style={{ marginLeft: 6, color: "rgba(162,155,254,0.7)", textTransform: "none", letterSpacing: 0.5 }}>· {weightConvention}</span> : null}</span>
                                 <span style={{ color: "rgba(255,255,255,0.25)" }}>±{weightStep}{isMachine ? " · pin" : isBarbellOrDB ? " · plate" : ""}</span>
                               </div>
                               <div style={{ display: "flex", alignItems: "center" }}>
