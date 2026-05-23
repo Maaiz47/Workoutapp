@@ -2,6 +2,16 @@
 
 ---
 
+## Fix · 2026-05-23 — Barbell weight-input convention always visible (qa: weight-input-convention-clarity)
+
+Per @maaiz: "Nothing helping users know in the session on the exercise that the weight input for barbell exercise needs to be in the format of both side plates plus the bar weight". The plate-breakdown hint only fired once the user entered ≥20 kg, so before that they had no idea the input expected total (including bar).
+
+Now the helper renders the moment a barbell exercise is open — even with the input empty — reading `🏋 TOTAL WEIGHT — INCLUDES BAR + BOTH SIDES · Olympic bar = 20kg` (or `EZ bar ≈ 10kg` for EZ-curl detected by name match). As soon as the user enters a weight ≥ the bar weight, the same chip flips to the existing live plate breakdown plus the bar label.
+
+EZ-bar detection: exercise name match on "ez bar" / "ez-bar" / "ez curl" → 10 kg default. Everything else → Olympic 20 kg.
+
+---
+
 ## Polish · 2026-05-23 — Tutorial v6, README catch-up, BIG label truncation, CLAUDE.md image-gen tracker (qa: tier-modal-action-tips, docs-catch-up)
 
 Per @maaiz: "have you been updating tutorial, qa, patch log, readme, and other necessities?" — PATCHLOG + qa-state were current but tutorial + README had fallen behind. Catch-up pass:

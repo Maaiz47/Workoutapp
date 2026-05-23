@@ -16139,17 +16139,38 @@ function HomePage() {
                               </div>
                               {wDiff(parseFloat(wInput))}
                               {(() => {
-                                // Plate calculator hint — only useful for
-                                // barbell lifts. Dumbbell/machine/bodyweight
-                                // skip the breakdown (would just be noise).
+                                // Barbell weight-input convention helper.
+                                // Two-part display:
+                                //   (a) Always-visible reminder of the
+                                //       convention so users know the
+                                //       number includes the bar +
+                                //       BOTH sides' plates (per @maaiz —
+                                //       PB suggestions assume total
+                                //       including bar; users had no way
+                                //       to know that without this).
+                                //   (b) Live plate breakdown once they
+                                //       enter a weight ≥ bar weight.
+                                // EZ-bar detection: exercises whose name
+                                // contains "ez" use a 10kg default bar
+                                // (common gym EZ-curl), everything else
+                                // uses the Olympic 20kg standard.
+                                // (qa: weight-input-convention-clarity)
                                 const lib = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
                                 const kind = loadingKindFor(lib?.equipment ?? []);
+                                if (kind !== "barbell") return null;
+                                const exNameLower = (lib?.name ?? "").toLowerCase();
+                                const isEZ = exNameLower.includes("ez bar") || exNameLower.includes("ez-bar") || exNameLower.includes("ez curl");
+                                const barKg = isEZ ? 10 : 20;
+                                const barLabel = isEZ ? "EZ bar ≈ 10kg" : "Olympic bar = 20kg";
                                 const w = parseFloat(wInput);
-                                if (kind !== "barbell" || !w || w < 20) return null;
-                                const load = calcPlates(w, 20);
+                                const hasInput = w > 0;
+                                const load = hasInput && w >= barKg ? calcPlates(w, barKg) : null;
                                 return (
-                                  <div style={{ fontSize: 9, color: "rgba(78,205,196,0.85)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, marginTop: 6, padding: "4px 8px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 5 }}>
-                                    🏋 BAR + {formatPlateLabel(load).toUpperCase()}{load.shortfall > 0 ? ` (${load.shortfall}KG SHORT)` : ""}
+                                  <div style={{ fontSize: 9, color: "rgba(78,205,196,0.85)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, marginTop: 6, padding: "5px 8px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 5, lineHeight: 1.5 }}>
+                                    {load
+                                      ? <>🏋 BAR + {formatPlateLabel(load).toUpperCase()}{load.shortfall > 0 ? ` (${load.shortfall}KG SHORT)` : ""} · {barLabel}</>
+                                      : <>🏋 TOTAL WEIGHT — INCLUDES BAR + BOTH SIDES · {barLabel}{hasInput && w < barKg ? ` · ${barKg}kg minimum` : ""}</>
+                                    }
                                   </div>
                                 );
                               })()}
