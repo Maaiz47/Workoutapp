@@ -1,0 +1,10 @@
+{
+  "id": "cmpho6mgt000159xs2kuu4jho",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · UI · view=home] Nooo - profile and progress next to each other on the left half of top\nOther right side half can be the two tiers stacked on each other or just the athlete tier for athletes",
+  "screenshotUrl": null,
+  "ts": "2026-05-23T01:28:33.338Z"
+}
