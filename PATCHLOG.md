@@ -2,6 +2,24 @@
 
 ---
 
+## QA pass · 2026-05-23 — QA dashboard priority sort + visual chips (qa: qa-priority-sort)
+
+@maaiz: 'Add a sort by priority in the qa testing too please by default and visually identifiable priority levels'.
+
+- New `priority: 'critical' | 'high' | 'medium' | 'low'` optional field on QAItem. Items without it default to medium.
+- Color hierarchy:
+  - P0 CRITICAL — red (#ff4d4d) with a glowing dot
+  - P1 HIGH — orange (#ff8c42) with a dot
+  - P2 MEDIUM — blue (#5db8e0)
+  - P3 LOW — grey
+- New `PriorityBadge` rendered next to `StatusBadge` on every row.
+- Sort order rewritten — items sort by **priority first**, then status (untested → retest → failing → passing), then most-recently-tested.
+- Areas themselves re-ordered so the area containing the highest-priority item appears at the top of the page.
+- Header tally chips show P0 / P1 / P2 / P3 counts (P0 and P1 only when > 0 so the row stays uncluttered).
+- 28 recent items tagged with explicit priorities — P0 for items that need immediate post-deploy verification (Maaiz migration, force-reset hardening, friend search), P1 for newly-shipped features, P3 for planning-only items gated on other work.
+
+---
+
 ## QA pass · 2026-05-23 — Bar-weight helper + Maaiz migration endpoint + custom-exercise weight type (qa: weight-input-bar-helper, bar-weight-data-migration-maaiz, custom-exercise-weight-input-type)
 
 @maaiz: 'what if I don't know the weight? Or if there's standard weights for different length bars have helper text. All of maaiz input have been one side plates only for all barbell related exercises, and without bar weight. Can you update maaiz data for barbell or ez curl included weights? Always used the smaller ez curl bar. I guess the custom exercises a trainer makes they would need to classify weight time if applicable too.'

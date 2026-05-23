@@ -9,6 +9,11 @@ import { CONTRIBUTORS, totalContributions, kindLabel, Contributor, Contribution 
 
 type ItemStatus = "untested" | "passing" | "failing" | "regression-retest";
 
+// Per-item priority. Sort key for the dashboard so the highest-impact
+// items surface first. Optional on the QAItem so legacy items without
+// the field gracefully fall into 'medium'. (qa: qa-priority-sort)
+type ItemPriority = "critical" | "high" | "medium" | "low";
+
 interface QAItem {
   id: string;
   title: string;
@@ -17,6 +22,7 @@ interface QAItem {
   introducedBy: string;
   lastTested: string | null;
   status: ItemStatus;
+  priority?: ItemPriority;
   steps: string[];
   notes: string;
 }
@@ -68,6 +74,21 @@ const AREAS = [
   "Progress", "Body", "UI", "PWA", "Admin", "Marketing", "Other", "Archived",
 ];
 
+// Priority styling — descending impact. Red/orange for must-look,
+// blue/grey for nice-to-have. Sort order matches array index.
+// (qa: qa-priority-sort)
+const PRIORITY_META: Record<ItemPriority, { label: string; color: string; bg: string; border: string; rank: number }> = {
+  critical: { label: "P0 · CRITICAL", color: "#ff4d4d", bg: "rgba(255,77,77,0.14)",  border: "rgba(255,77,77,0.55)",  rank: 0 },
+  high:     { label: "P1 · HIGH",     color: "#ff8c42", bg: "rgba(255,140,66,0.12)", border: "rgba(255,140,66,0.45)", rank: 1 },
+  medium:   { label: "P2 · MEDIUM",   color: "#5db8e0", bg: "rgba(93,184,224,0.10)", border: "rgba(93,184,224,0.35)", rank: 2 },
+  low:      { label: "P3 · LOW",      color: "#888",    bg: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.15)", rank: 3 },
+};
+// Items without an explicit priority fall here.
+const DEFAULT_PRIORITY: ItemPriority = "medium";
+function priorityOf(item: QAItem): ItemPriority {
+  return item.priority ?? DEFAULT_PRIORITY;
+}
+
 const LS_DRAFTS = "qa-drafts-v2";
 const LS_TESTER = "qa-tester";
 
@@ -116,6 +137,27 @@ function StatusBadge({ status }: { status: ItemStatus }) {
       color: m.color, background: m.bg, border: `1px solid ${m.border}`,
       whiteSpace: "nowrap",
     }}>{m.label}</span>
+  );
+}
+
+// Priority chip — sits next to StatusBadge on every row. Critical/
+// high carry a small ● dot for at-a-glance scanning when the row is
+// dense. (qa: qa-priority-sort)
+function PriorityBadge({ priority }: { priority: ItemPriority }) {
+  const m = PRIORITY_META[priority];
+  const dot = priority === "critical" || priority === "high";
+  return (
+    <span style={{
+      fontSize: 9, fontWeight: 700, letterSpacing: 1.2,
+      fontFamily: "'Space Mono', monospace",
+      padding: "3px 8px", borderRadius: 4,
+      color: m.color, background: m.bg, border: `1px solid ${m.border}`,
+      whiteSpace: "nowrap",
+      display: "inline-flex", alignItems: "center", gap: 5,
+    }}>
+      {dot && <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, boxShadow: `0 0 6px ${m.color}` }} />}
+      {m.label}
+    </span>
   );
 }
 
@@ -850,7 +892,10 @@ function ItemCard({
             <span>LAST {fmtShortDateTime(lastActivity)}</span>
           </div>
         </div>
-        <StatusBadge status={eff} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+          <PriorityBadge priority={priorityOf(item)} />
+          <StatusBadge status={eff} />
+        </div>
         <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, marginLeft: 4 }}>{open ? "▲" : "▼"}</span>
       </button>
 
@@ -1399,14 +1444,17 @@ export default function QAPage() {
          (c.note.toLowerCase().includes(q) || c.tester.toLowerCase().includes(q))))
     : true;
 
-  // Group by area, then within each area sort items by status
-  // priority so the most actionable surfaces first:
+  // Group by area, then within each area sort by PRIORITY first
+  // (critical → high → medium → low), then by status priority so the
+  // most-actionable items surface first:
   //   untested (never touched)
   //   regression-retest (PATCHED · RETEST — fix shipped, verify)
-  //   failing (live bugs — rare after a QA pass)
-  //   passing (confirmed working, parked at the bottom)
-  // (qa: user request — "all untested issues in qa in order before
-  // retest, then fails then passes")
+  //   failing (live bugs)
+  //   passing (parked at the bottom of each priority bucket)
+  // Per @maaiz: 'Add a sort by priority in the qa testing too please
+  // by default and visually identifiable priority levels'.
+  // (qa: qa-priority-sort + user request — "all untested issues in
+  // qa in order before retest, then fails then passes")
   const STATUS_PRIORITY: Record<ItemStatus, number> = {
     untested: 0,
     "regression-retest": 1,
@@ -1420,20 +1468,33 @@ export default function QAPage() {
         .filter(i => i.area === area)
         .slice()
         .sort((a, b) => {
+          // 1) Priority (critical first)
+          const pra = PRIORITY_META[priorityOf(a)].rank;
+          const prb = PRIORITY_META[priorityOf(b)].rank;
+          if (pra !== prb) return pra - prb;
+          // 2) Status bucket
           const ea = effectiveStatus(a, comments);
           const eb = effectiveStatus(b, comments);
           const pa = STATUS_PRIORITY[ea];
           const pb = STATUS_PRIORITY[eb];
           if (pa !== pb) return pa - pb;
-          // Secondary sort: most-recently-tested first within a
-          // status bucket so the freshly-patched retest items
-          // bubble to the top of their group.
+          // 3) Most-recently-tested first within a status bucket so
+          //    freshly-patched retest items bubble to the top.
           const ta = a.lastTested ? +new Date(a.lastTested) : 0;
           const tb = b.lastTested ? +new Date(b.lastTested) : 0;
           return tb - ta;
         }),
     }))
     .filter(g => g.items.length > 0);
+
+  // Sort the AREAS themselves by the highest-priority item they
+  // contain. Areas with a P0/P1 land at the top of the page so the
+  // critical work is always above the fold. (qa: qa-priority-sort)
+  grouped.sort((a, b) => {
+    const aTop = a.items[0] ? PRIORITY_META[priorityOf(a.items[0])].rank : 99;
+    const bTop = b.items[0] ? PRIORITY_META[priorityOf(b.items[0])].rank : 99;
+    return aTop - bTop;
+  });
 
   // Header summary uses the UNFILTERED list — these counts reflect the whole
   // backlog, not what's currently visible.
@@ -1446,6 +1507,17 @@ export default function QAPage() {
   }
   const pct = allItems.length ? Math.round((totalP / allItems.length) * 100) : 0;
   const unprocessedCount = comments.filter(c => !c.processed).length;
+
+  // Priority tally — also unfiltered. Shows the at-a-glance breakdown
+  // so testers know how much critical work is open. (qa: qa-priority-sort)
+  let critCount = 0, highCount = 0, medCount = 0, lowCount = 0;
+  for (const it of allItems) {
+    const p = priorityOf(it);
+    if (p === "critical") critCount++;
+    else if (p === "high") highCount++;
+    else if (p === "medium") medCount++;
+    else if (p === "low") lowCount++;
+  }
 
   // PWA escape: tap "Open in Browser" → try the native share sheet first
   // (iOS PWAs only reliably escape via Share → "Open in Safari"), then
@@ -1599,6 +1671,20 @@ export default function QAPage() {
               background: "rgba(78,205,196,0.08)", color: "#4ECDC4",
               border: "1px solid rgba(78,205,196,0.25)",
             }}>{unprocessedCount} TO PROCESS</span>
+            {/* Priority tally — at-a-glance breakdown of how much
+                critical/high work is open. P0/P1 always shown; P2/P3
+                hidden when count is 0 to keep the row uncluttered.
+                (qa: qa-priority-sort) */}
+            {critCount > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", padding: "5px 10px", borderRadius: 999, background: PRIORITY_META.critical.bg, color: PRIORITY_META.critical.color, border: `1px solid ${PRIORITY_META.critical.border}` }}>● {critCount} P0</span>
+            )}
+            {highCount > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", padding: "5px 10px", borderRadius: 999, background: PRIORITY_META.high.bg, color: PRIORITY_META.high.color, border: `1px solid ${PRIORITY_META.high.border}` }}>● {highCount} P1</span>
+            )}
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", padding: "5px 10px", borderRadius: 999, background: PRIORITY_META.medium.bg, color: PRIORITY_META.medium.color, border: `1px solid ${PRIORITY_META.medium.border}` }}>{medCount} P2</span>
+            {lowCount > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", padding: "5px 10px", borderRadius: 999, background: PRIORITY_META.low.bg, color: PRIORITY_META.low.color, border: `1px solid ${PRIORITY_META.low.border}` }}>{lowCount} P3</span>
+            )}
           </div>
 
           {/* Signed-in chip OR name field for anonymous testers */}
