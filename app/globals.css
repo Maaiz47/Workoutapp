@@ -416,9 +416,16 @@ a[style*="background: #FF6644"], a[style*="background:#FF6644"] {
 .ob-forward { animation: viewSlideRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .ob-back    { animation: viewSlideLeft  0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-/* ── Nav button bounce ────────────────────────────────────────────────── */
+/* ── Nav button bounce + premium chrome ───────────────────────────────── */
 @keyframes navBounce { 0% { transform: scale(1); } 35% { transform: scale(0.91); } 70% { transform: scale(1.05); } 100% { transform: scale(1); } }
-.nav-btn { transition: opacity 0.15s ease; }
+.nav-btn {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  /* Layered shadow: subtle top inner highlight + soft drop. Matches
+     the chip-strip cards at the top of home so the whole page reads
+     as a unified premium set. (qa: home-hub-premium-polish) */
+  box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 6px 22px -8px rgba(0,0,0,0.7);
+  border-radius: 14px !important;
+}
 .nav-btn:active { animation: navBounce 0.28s ease both; }
 
 /* Subtle scrollbar polish for desktop dark UI */

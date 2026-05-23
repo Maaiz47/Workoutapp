@@ -180,6 +180,26 @@
       "priority": "low"
     },
     {
+      "id": "home-hub-premium-polish",
+      "title": "Home chip-strip + bottom-hub alignment + tier-modal tap target polish",
+      "area": "UI",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass home-hub-premium-polish",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "priority": "high",
+      "steps": [
+        "Open Home on an iPhone 16 Pro (393×852). Verify the top chip strip's three buttons (Profile / Progress / Tier) share the same outer chrome: 14px radius, subtle inner-highlight + soft drop shadow, 1px translucent border.",
+        "Verify all three rows visually align to a 60-pixel baseline (minHeight). On athlete-only accounts the Tier card sits at 60; on trainer accounts it auto-grows to fit both pills and Profile/Progress stretch to match.",
+        "Verify the Progress button now uses vertical icon-over-label layout (📊 over PROGRESS in Space Mono caps) — matches the bottom-hub rhythm.",
+        "Verify the Tier button carries a subtle gold accent gradient (rgba(240,192,64,0.04) → glass) so it draws the eye as the premium primary action.",
+        "Verify the BOTTOM hub row buttons (Messages/Ranks/Groups/Friends/Clients) all share the same 14px radius + layered shadow as the top strip — the page reads as a unified set.",
+        "Open the Tier modal (tap the tier chip). Verify the × close button is now 44×44 (Apple HIG minimum tap target), with a subtle outer ring + inner highlight.",
+        "Verify no regression: avatar still fills the Profile button corner-to-corner, Tier card still shows trainer+athlete pills correctly, dot-bar still renders."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'UI alignment could be much better with the tier modal button and progress button for a iPhone 16 pro size phone, check general UI upgrades premium looks'.\n\n- Chip-strip buttons: minHeight 60 + identical chrome (14px radius, inset top highlight + outer drop shadow). On a 393px-wide viewport the 1:1:2 grid yields ~88/88/177px columns; all three now align to the same baseline and the heights match.\n- Profile button: kept transparent + image-fills, just changed radius to 14 + matching shadow.\n- Progress button: redesigned with vertical icon-over-label (📊 / PROGRESS in Space Mono caps), subtle red-glass gradient, taller hit target. Replaces the cramped horizontal layout.\n- Tier card: gold-tinted gradient background (rgba(240,192,64,0.04)) + gold border (rgba(240,192,64,0.18)) makes it the visual anchor of the strip without being loud.\n- Bottom hub: applied via .nav-btn CSS class (in app/globals.css) so the 5 buttons all share the same box-shadow + 14px radius without inline repetition.\n- Tier modal close button: bumped 32 → 44px (Apple HIG minimum), added subtle ring + highlight so it reads as premium not as an afterthought."
+    },
+    {
       "id": "qa-priority-sort",
       "title": "QA dashboard sorts by priority by default + visual chips",
       "area": "Admin",

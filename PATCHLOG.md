@@ -2,6 +2,18 @@
 
 ---
 
+## QA pass · 2026-05-23 — Home chip-strip + bottom hub alignment + tier modal tap target (qa: home-hub-premium-polish)
+
+@maaiz: 'UI alignment could be much better with the tier modal button and progress button for a iPhone 16 pro size phone, check general UI upgrades premium looks'.
+
+- Top chip strip: Profile / Progress / Tier now share identical outer chrome — 14px radius, subtle inset top highlight + soft drop shadow, 1px translucent border, minHeight 60 so all three align to the same baseline.
+- Progress button redesigned: vertical icon-over-label (📊 / PROGRESS in Space Mono caps) matching the bottom-hub rhythm. Subtle red-glass gradient accent.
+- Tier card: gold-tinted gradient background + gold border so it reads as the premium primary action without shouting.
+- Bottom hub: layered shadow + 14px radius applied via `.nav-btn` CSS class. Whole home page now reads as a unified set.
+- Tier modal close button: 32 → 44px (Apple HIG minimum tap target) with inner highlight + outer ring.
+
+---
+
 ## QA pass · 2026-05-23 — QA dashboard priority sort + visual chips (qa: qa-priority-sort)
 
 @maaiz: 'Add a sort by priority in the qa testing too please by default and visually identifiable priority levels'.

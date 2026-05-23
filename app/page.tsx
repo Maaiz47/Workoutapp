@@ -3911,8 +3911,18 @@ function TierInfoModal({
             onClick={onClose}
             aria-label="Close tier info"
             style={{
-              background: "rgba(255,255,255,0.06)", border: "none", borderRadius: "50%",
-              width: 32, height: 32, color: "rgba(255,255,255,0.6)", fontSize: 18, cursor: "pointer",
+              // 44×44 hits Apple's recommended minimum tap target so
+              // the close affordance is comfortable on iPhone 16 Pro
+              // and similar. Inner highlight + outer ring for a more
+              // premium feel. (qa: home-hub-premium-polish)
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "50%",
+              width: 44, height: 44, color: "rgba(255,255,255,0.7)",
+              fontSize: 22, lineHeight: 1, cursor: "pointer",
+              boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 14px -6px rgba(0,0,0,0.6)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
             }}
           >×</button>
         </div>
@@ -9180,28 +9190,32 @@ function HomePage() {
               (per @maaiz follow-up — same-size buttons); Tier gets
               double for its progress bars. Athletes see just athlete
               tier; trainers see both stacked. (qa: home-hub-singleline) */}
+          {/* Premium chip strip — three buttons with identical outer
+              chrome (glass blur, layered shadow with inner highlight,
+              14px radius) so they read as a unified row on iPhone-16-
+              Pro-sized phones. Inner content drives the height; min-
+              height 60 keeps the Profile + Progress aligned with the
+              Tier row even when Tier has only one pill (athlete-only
+              user). On trainer accounts the Tier card auto-grows to
+              fit both pills and Profile/Progress stay tied to its
+              height via align-items: stretch on the grid.
+              (qa: home-hub-premium-polish) */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8, alignItems: "stretch" }}>
-            {/* LEFT — avatar-only profile chip, sized to match the
-                Progress button. Tap routes to Settings → Profile
-                where username + role chips + avatar picker + tier
-                badges all live. (qa: home-hub-singleline +
-                profile-avatars-home-fix) */}
-            {/* Profile button — avatar image fills the button corner-
-                to-corner, no surrounding chrome. Per @maaiz: avatar
-                should fill the button or no box at all. We keep the
-                rounded-rect tap target but lose the inner padding +
-                glass background; the avatar image IS the button.
-                (qa: home-hub-singleline) */}
+            {/* Shared button chrome — applied via spread on each chip
+                to keep parity. Layered shadow: subtle inner top
+                highlight + soft outer drop. 14px radius for the
+                slightly-rounder premium feel. */}
+            {(() => null)()}
             <button
               onClick={() => setView("profile")}
               title="Profile"
               style={{
-                minWidth: 0,
+                minWidth: 0, minHeight: 60,
                 background: "transparent",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 12, cursor: "pointer",
+                border: "1px solid rgba(255,255,255,0.10)",
+                borderRadius: 14, cursor: "pointer",
                 padding: 0,
-                boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)",
+                boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 6px 22px -8px rgba(0,0,0,0.7)",
                 overflow: "hidden",
                 display: "flex", alignItems: "stretch", justifyContent: "stretch",
               }}
@@ -9214,51 +9228,51 @@ function HomePage() {
                     src={src}
                     alt=""
                     onError={(e) => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }}
-                    style={{ width: "100%", height: "100%", minHeight: 52, objectFit: "cover", display: "block" }}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                   />
                 );
               })()}
             </button>
 
-            {/* MIDDLE — progress button. Sits between Profile and Tier so
-                tapping into progress views is one tap from home. Matches
-                the chip styling of its neighbours. (qa: home-hub-singleline) */}
+            {/* Progress button — vertical icon-over-label layout
+                matching the bottom-hub button rhythm. Subtle red-
+                glass accent (matches the app's red FF6B6B identity
+                without being loud). (qa: home-hub-premium-polish) */}
             <button
               onClick={() => { goTo("progress"); setProgressTab("dashboard"); }}
               title="Progress"
               style={{
-                minWidth: 0,
-                background: "rgba(10,10,18,0.5)",
+                minWidth: 0, minHeight: 60,
+                background: "linear-gradient(180deg, rgba(255,107,107,0.06), rgba(10,10,18,0.6))",
                 backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-                border: "1px solid rgba(255,107,107,0.2)",
-                borderRadius: 12, cursor: "pointer",
-                padding: "8px 12px",
-                boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                color: "rgba(255,255,255,0.85)",
+                border: "1px solid rgba(255,107,107,0.18)",
+                borderRadius: 14, cursor: "pointer",
+                padding: "8px 6px",
+                boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 6px 22px -8px rgba(0,0,0,0.7)",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
+                color: "rgba(255,255,255,0.9)",
                 fontFamily: "'DM Sans', sans-serif",
               }}
             >
-              <span style={{ fontSize: 18, lineHeight: 1 }}>📊</span>
-              <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: -0.2 }}>Progress</span>
+              <span style={{ fontSize: 20, lineHeight: 1 }}>📊</span>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.7)" }}>PROGRESS</span>
             </button>
 
-            {/* RIGHT — tiers box. Whole card opens TierInfoModal; inner
-                pills are presentational divs so there's no nested-button
-                accessibility issue. Given a higher flex-grow (2) so
-                the trainer/athlete pills + progress bars get room. */}
+            {/* Tier card — opens the tier modal. Premium glass + inner
+                gold accent. Inner pills are presentational divs.
+                (qa: home-hub-premium-polish) */}
             <button
               onClick={() => setTierModalOpen(true)}
               title="How tiers work — tap to see both ladders"
               style={{
-                minWidth: 0,
-                background: "rgba(10,10,18,0.5)",
+                minWidth: 0, minHeight: 60,
+                background: "linear-gradient(180deg, rgba(240,192,64,0.04), rgba(10,10,18,0.6))",
                 backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 12, cursor: "pointer", textAlign: "left",
-                padding: "6px 10px",
-                boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)",
-                display: "flex", flexDirection: "column", justifyContent: "center", gap: 4,
+                border: "1px solid rgba(240,192,64,0.18)",
+                borderRadius: 14, cursor: "pointer", textAlign: "left",
+                padding: "8px 10px",
+                boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 6px 22px -8px rgba(0,0,0,0.7)",
+                display: "flex", flexDirection: "column", justifyContent: "center", gap: 5,
                 fontFamily: "'Space Mono', monospace",
               }}
             >
