@@ -35,16 +35,31 @@ nudge, not nag.
   `cd-lat-stretch` (frame 1 has no lateral bend), `plyo-pushup`
   (apex looks like a dive not a clap-pushup), `star-jump` (crouch
   start too wide vs spec's "tight crouch / feet together").
-- [ ] **New animal tier icons — Bear / Gorilla / Big Dawg / Lion**
-  (flagged 2026-05-23 by @maaiz, "hit later today"). User wants
-  custom-generated sick icons for the vivid theme's higher tiers
-  to replace the current emoji glyphs (🐻 🦍 🐕 🦁). Probably also
-  needs Kitten + Fox refreshes for visual consistency. Generation
-  flow same as the existing avatar/stretch pipeline (image prompts
-  → save into `/public/tier-icons/<label>.png` → wire up in
-  `lib/tiers.ts` so icons can be `<img>` instead of emoji). Lift
-  the existing emoji + color into a fallback so we can ship the
-  ones that land first.
+- [ ] **Image-gen plan v2 — 27 images** (flagged 2026-05-23 by
+  @maaiz). All prompts + style guides + per-image specs + wire-up
+  steps live in `/image-prompts-v2.md`. Five batches:
+  1. New default avatar (1 image, instant standalone win)
+  2. Athlete tier icons — Vivid theme animals (6 images, aggressive
+     at top tiers per user request — Lion / Gorilla / Bear)
+  3. Athlete tier icons — Simple theme medals (6 images, also
+     aggressive at top — Platinum / Diamond / Master refresh)
+  4. Stretch frame regens (8 images = 4 pairs — replaces
+     `wu-scap-shrugs`, `cd-glute-pretzel`, `terminal-knee-extension`,
+     `high-knees` per the wrong-image reminder above; gates on these
+     getting re-added to `LOCAL_STRETCH_IDS`)
+  5. Achievement-unlock avatars (6 images — blacksmithing-themed
+     spark → hammer → anvil → phoenix → crucible → blacksmith
+     ladder; gates on `achievements-v1` shipping)
+- [ ] **Achievements system v1** (flagged 2026-05-23 by @maaiz).
+  Full design + 48-achievement catalogue lives in `/ACHIEVEMENTS.md`.
+  TL;DR: new Progress tab sub-tab, ~48 achievements across 10
+  categories (Strength, Consistency, Volume, Variety, Wellness,
+  Technique, Cardio/HIIT, Warmup/Cooldown, Milestones, Meme), unlock
+  toasts, count-milestone avatars (3/6/10/15/20/25 → 6 new avatars
+  from Batch 5 above). 4 slices to ship; design has 4 open questions
+  waiting on user calls. Cardio distance estimator (time × speed)
+  specified inline for the distance-based achievements + future
+  leaderboard column.
 
 ## Always push to `main`
 

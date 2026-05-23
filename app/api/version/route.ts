@@ -8,7 +8,10 @@ export const dynamic = "force-dynamic";
 
 // Manual major.minor — bump these in code for milestone releases.
 // The patch number is auto-derived from PATCHLOG section count.
-const MAJOR_MINOR = "1.0";
+// 1.1.0 milestone (2026-05-23): tier scoring v2, test-user generator,
+// workout polish batch, planner-equipment-strict, routine auto-naming,
+// avatar picker as routed page, contributors consolidated to /qa.
+const MAJOR_MINOR = "1.1";
 
 export async function GET() {
   const sha = process.env.VERCEL_GIT_COMMIT_SHA || "dev";

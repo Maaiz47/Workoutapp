@@ -2,6 +2,42 @@
 
 ---
 
+## Release · 2026-05-23 — IronLog 1.1.0 milestone (qa: achievements-v1, image-gen-plan-v2)
+
+Bumped to **1.1.0** to mark the end of today's content/feature push.
+`MAJOR_MINOR` in `app/api/version/route.ts` + `package.json` both
+flipped. Patch number auto-derives from PATCHLOG section count so
+each section since this release adds `1.1.<n>` to the user-facing
+version string.
+
+What's in this minor version (in order of landing):
+- **tier-scoring-v2** — Strength via e1RM trend, Progression sub-rank, Body Comp (sex-aware), Consistency rebuild, hasData weighting, tierScoreBonus removed from headline, IP RPE expansion
+- **test-user-generator** — 15-user roster, daily cron, /api/admin/test-users surface, Settings → DEV TOOLS panel
+- **client-leaderboard-relocation** — moved from home inline to Ranks page tab + My Clients hub
+- **workout polish batch** — warmup mark/skip, set-edit effort, post-done edit, silent restore, assisted BW, dual music launcher, home 1:1:2 grid, avatar picker (later refactored to swipe-back page), effort contrast, equipment-aware ± increments
+- **effort backfill prompt** + ★ LIKELY suggestion hint
+- **completed-summary** THIS/LAST strip with per-set ▲▼= e1RM-trend arrows
+- **rest counter** persisting on LOG SET when overlay skipped
+- **wellness** direct-entry inputs (hydration + sleep with decimal precision)
+- **stretch image audit** (3 more frames pulled, 18/25 verified correct)
+- **in-session add** BONUS section now slots before cooldown
+- **planner-equipment-strict** — onboarding "both" location no longer auto-fills full gym kit
+- **routine auto-naming** — Push/Pull/Legs inference + editable day titles
+- **tier modal** rows now show `· TIER N`
+- **theme bright-text** toggle
+- **profile** chip avatar-only + role-stack visibility (athlete + trainer + admin)
+- **avatar picker** routed page with swipe-back
+- **contributors** consolidated to /qa#contributors (Amanii's image + QA both visible)
+- **deploy-skip hotfix** — fatal "bad object" no longer silently cancels every push
+
+### Planning slices captured this pass (no code shipped)
+- **achievements-v1** — full system design in `/ACHIEVEMENTS.md`: Progress tab sub-tab, 48 achievements across 10 categories (Strength / Consistency / Volume / Variety / Wellness / Technique / Cardio-HIIT / Warmup-Cooldown / Milestones / Meme), count-milestone avatar rewards, criteria functions, data model (`UserAchievement` table), UI states, notification UX, slice plan. 4 open questions waiting on @maaiz before Slice 1 implementation. Cardio distance estimator (time × speed) spec'd inline for the 3 distance-based achievements + a future leaderboard column.
+- **image-gen-plan-v2** — `/image-prompts-v2.md` carries 27 new image prompts: new default avatar (1) + Vivid tier icons (6) + Simple tier icons (6) + stretch regen pairs (8) + achievement-unlock avatars (6). Each batch documented with style guide + per-image prompt + registration steps.
+
+CLAUDE.md's pending-reminders block now tracks both planning items so they're surfaced at the top of every future session until ticked.
+
+---
+
 ## QA pass · 2026-05-23 — Consolidate contributors on the QA dashboard (qa: contributions-leaderboard-consolidated)
 
 Per @maaiz: one canonical leaderboard, not two. The standalone `ContributionsView` page in `app/page.tsx` is removed (along with its route, swipe-back entry, and now-unused imports). Settings → Contributors button is now an `<a href="/qa#contributors">` that scroll-anchors directly to the existing CONTRIBUTORS leaderboard already living on `/qa`.

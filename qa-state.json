@@ -1,6 +1,44 @@
 {
   "items": [
     {
+      "id": "achievements-v1",
+      "title": "Achievements system — full design captured (planning, no code shipped)",
+      "area": "Achievements",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass achievements-planning",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "(Planning slice — NO code shipped yet.) Read /ACHIEVEMENTS.md end-to-end. Confirm the 48 achievements (or the 55 with my suggestions) feel right before any catalogue lock-in.",
+        "Decide on the open questions at the bottom of /ACHIEVEMENTS.md before Slice 1: (a) do locked tiles hint at their title, (b) trainer-specific achievements in v1 or defer, (c) cardio-input polish slice as a dependency or fold in, (d) wellness-trigger endpoint for non-workout achievements.",
+        "Verify the count-milestone avatar plan (3/6/10/15/20/25) in /image-prompts-v2.md Batch 5 matches the catalogue size — if we add the 7 'suggested' achievements bumping to 55 total, add a 7th milestone (35 unlocks → 7th avatar).",
+        "Confirm Progress tab is the right home (vs Profile / dedicated page). The doc argues yes; flag if disagree.",
+        "Slice 1 implementation: lib/achievements.ts catalogue + UserAchievement Prisma model + workout-save POST hook to mint newly-met rows. Backfill on first GET.",
+        "Slice 2 implementation: Progress → Achievements sub-tab UI (grid + tile modal + locked/in-progress/unlocked states).",
+        "Slice 3 implementation: unlock toast + localStorage suppression for initial backfill day.",
+        "Slice 4 implementation: 6 count-milestone avatars wired into /api/avatars minting via source: 'achievement'.",
+        "QA each slice independently — see notes in /ACHIEVEMENTS.md per-slice."
+      ],
+      "notes": "[2026-05-23] Slice 0 (PLANNING ONLY): /ACHIEVEMENTS.md captures the full system design — placement (Progress tab sub-tab), category breakdown (10 categories, 48 achievements), criteria function shape, data model (new UserAchievement table), UI + notification UX, integration with count-milestone avatars, and 4 open questions waiting on @maaiz's call. /image-prompts-v2.md Batch 5 carries the 6 avatar prompts (spark / hammer / anvil / phoenix / crucible / blacksmith). Cardio distance estimator (time × speed) is specified inline alongside 3 distance-based achievements. NO code shipped — this slice is design capture only. Subsequent slices ship in the order described above."
+    },
+    {
+      "id": "image-gen-plan-v2",
+      "title": "Image-gen plan v2 — 27 new images (default avatar refresh + tier icons + stretch regens + achievement avatars)",
+      "area": "Assets",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass image-gen-planning",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open /image-prompts-v2.md. Confirm the 27-image plan covers what you want: 1 default avatar refresh + 6 vivid tier icons + 6 simple tier icons + 8 stretch regen frames + 6 achievement-unlock avatars.",
+        "Generate Batch 1 (default avatar) first — fastest single-image win that ships standalone. Save to /public/ai/avatar-default.png.",
+        "Generate Batches 2 + 3 (12 tier icons). Save to /public/tier-icons/<theme>/<label>.png. Requires a small code change in lib/tiers.ts (icon field becomes a path, fallback to existing emoji on image load failure).",
+        "Generate Batch 4 (8 stretch regens). Save to /public/stretches/<id>/{0,1}.png overwriting current wrong frames. Re-add each id to LOCAL_STRETCH_IDS in lib/exerciseImages.ts. Tick the CLAUDE.md reminder line for each.",
+        "Generate Batch 5 (6 achievement-unlock avatars). Save to /public/avatars/ach-*.png. Wiring requires the achievements-v1 system to be live so these depend on that slice landing first."
+      ],
+      "notes": "[2026-05-23] Slice 0 (PLANNING ONLY): /image-prompts-v2.md captures all 27 prompts with style guides per batch + per-image specifics + registration steps. Existing image-prompts.md (the original 82-image launch plan) is left in place as a historical reference. Achievement-unlock avatars (Batch 5) gate on achievements-v1 shipping first. Tier icons (Batches 2+3) are independent and can ship anytime."
+    },
+    {
       "id": "contributions-leaderboard-consolidated",
       "title": "Contributors button in Settings points to QA dashboard's contributors section (no standalone view)",
       "area": "Contributors",
