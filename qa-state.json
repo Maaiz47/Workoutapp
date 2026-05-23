@@ -16,7 +16,7 @@
         "Trigger a tier promotion (or set a fake high score in dev tools). Verify the tier-up toast shows the PNG icon for your new tier.",
         "Fallback test: rename one of the PNGs in /public/tier-icons/vivid/ temporarily. Reload — verify the missing tier falls back to the emoji (no broken image)."
       ],
-      "notes": "[2026-05-23] Slice 1/N: 6 transparent crest PNGs at /public/tier-icons/vivid/<id>.png (kitten through bear), front-facing animal heads with aggression ramp from T4 lion. Wire-up via new <TierGlyph src={t.iconPath} emoji={t.icon} size={N} /> helper in app/page.tsx. iconPath added to AnimalTier type in lib/tiers.ts. Three render sites switched: modal headline (58px), ladder grid (16-22px), promo toast (36px). Next slice: leaderboard chips, member list, breakdown headline destructure."
+      "notes": "[2026-05-23] Slice 2/N: full emoji-removal sweep — every remaining tier-icon render in app/page.tsx switched to <TierGlyph>. iconPath now propagates through TierLite + CanonicalTier + the groups-API trainer-tier shape. After this slice there are zero raw emoji tier renders in the UI; emoji remains only as the onError fallback inside TierGlyph. [2026-05-23] Slice 1/N: 6 transparent crest PNGs at /public/tier-icons/vivid/<id>.png (kitten through bear), front-facing animal heads with aggression ramp from T4 lion. Wire-up via new <TierGlyph src={t.iconPath} emoji={t.icon} size={N} /> helper in app/page.tsx. iconPath added to AnimalTier type in lib/tiers.ts. Three render sites switched: modal headline (58px), ladder grid (16-22px), promo toast (36px)."
     },
     {
       "id": "tier-icons-simple",
@@ -34,7 +34,7 @@
         "Trigger a tier-up toast — verify it uses the medallion PNG.",
         "Verify the platinum (T4) and master (T6) icons feel visibly more aggressive than gold (T3) — broken-shard / molten-crown energy."
       ],
-      "notes": "[2026-05-23] Slice 1/N: 6 transparent medallion PNGs at /public/tier-icons/simple/<id>.png. Aggression ramp kicks in at platinum (shattered medal + lifting figure) and master (molten crown + obsidian base). Same TierGlyph wire-up + three render sites as tier-icons-vivid. Next slice: rest of the tier-icon render surfaces."
+      "notes": "[2026-05-23] Slice 2/N: full emoji-removal sweep landed alongside tier-icons-vivid. All Simple-theme tier renders now use the medallion PNGs across every surface. [2026-05-23] Slice 1/N: 6 transparent medallion PNGs at /public/tier-icons/simple/<id>.png. Aggression ramp kicks in at platinum (shattered medal + lifting figure) and master (molten crown + obsidian base)."
     },
     {
       "id": "tier-icons-trainer",
@@ -53,7 +53,7 @@
         "Verify T4 displays as Mentor (NOT Master — to avoid collision with the athlete Simple T6 Master). Old Master users should automatically rename; no migration required.",
         "Verify the badge progression feels coherently 'coach' (hand → knight → whistle → eagle → gem → apex star) and distinct from animal/medallion ladders."
       ],
-      "notes": "[2026-05-23] Slice 1/N: 6 transparent coach-symbol PNGs at /public/tier-icons/trainer/<id>.png. Trainer T4 renamed from Master → Mentor to avoid collision with athlete Simple T6 Master (the molten crown). Same TierGlyph wire-up + three render sites. Next slice: rest of the trainer-tier-icon render surfaces."
+      "notes": "[2026-05-23] Slice 2/N: full emoji-removal sweep — trainer tier now renders via TierGlyph on every surface. Legacy local TRAINER_TIERS fallback array also got iconPath + Mentor rename for loading-state consistency. [2026-05-23] Slice 1/N: 6 transparent coach-symbol PNGs at /public/tier-icons/trainer/<id>.png. Trainer T4 renamed from Master → Mentor to avoid collision with athlete Simple T6 Master."
     },
     {
       "id": "daily-quest-pb-bugfix",

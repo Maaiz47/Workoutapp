@@ -523,12 +523,12 @@ function parseSetKey(key: string): { eid: string; setNum: string; dropNum: numbe
 // flash a different label. Mins are roster counts, not scores.
 
 const TRAINER_TIERS = [
-  { label: "Spotter",      emoji: "🤝", min: 0,  color: "#94a3b8", bg: "rgba(148,163,184,0.10)", border: "rgba(148,163,184,0.3)" },
-  { label: "Strategist",   emoji: "🧠", min: 2,  color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)"  },
-  { label: "Pro",          emoji: "⚡", min: 5,  color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
-  { label: "Master",       emoji: "👑", min: 10, color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.35)" },
-  { label: "Legend",       emoji: "🏆", min: 18, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
-  { label: "Hall of Fame", emoji: "⭐", min: 30, color: "#f0c040", bg: "rgba(240,192,64,0.12)",  border: "rgba(240,192,64,0.45)" },
+  { label: "Spotter",      emoji: "🤝", iconPath: "/tier-icons/trainer/spotter.png",      min: 0,  color: "#94a3b8", bg: "rgba(148,163,184,0.10)", border: "rgba(148,163,184,0.3)" },
+  { label: "Strategist",   emoji: "🧠", iconPath: "/tier-icons/trainer/strategist.png",   min: 2,  color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)"  },
+  { label: "Pro",          emoji: "⚡", iconPath: "/tier-icons/trainer/pro.png",          min: 5,  color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
+  { label: "Mentor",       emoji: "👑", iconPath: "/tier-icons/trainer/mentor.png",       min: 10, color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.35)" },
+  { label: "Legend",       emoji: "🏆", iconPath: "/tier-icons/trainer/legend.png",       min: 18, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
+  { label: "Hall of Fame", emoji: "⭐", iconPath: "/tier-icons/trainer/hall-of-fame.png", min: 30, color: "#f0c040", bg: "rgba(240,192,64,0.12)",  border: "rgba(240,192,64,0.45)" },
 ];
 
 function getTrainerTier(clientCount: number) {
@@ -3812,14 +3812,14 @@ function HomeGlobals({
   // Map the new AnimalTier shape → local TierLite shape so the
   // existing modal renders consistently.
   const athleteTier: TierLite | null = athleteBreakdown
-    ? { label: athleteBreakdown.headline.label, emoji: athleteBreakdown.headline.icon, min: athleteBreakdown.headline.min, color: athleteBreakdown.headline.color, bg: athleteBreakdown.headline.bg, border: athleteBreakdown.headline.border }
+    ? { label: athleteBreakdown.headline.label, emoji: athleteBreakdown.headline.icon, iconPath: athleteBreakdown.headline.iconPath, min: athleteBreakdown.headline.min, color: athleteBreakdown.headline.color, bg: athleteBreakdown.headline.bg, border: athleteBreakdown.headline.border }
     : null;
   // Trainer tier — prefer the server-computed multi-dim breakdown.
   // Falls back to client-count-only getTrainerTier when the breakdown
   // hasn't loaded yet so we never render an empty tier badge.
   const trainerTier: TierLite | null = !isTrainer ? null
     : trainerBreakdown
-    ? { label: trainerBreakdown.headline.label, emoji: trainerBreakdown.headline.icon, min: trainerBreakdown.headline.min, color: trainerBreakdown.headline.color, bg: trainerBreakdown.headline.bg, border: trainerBreakdown.headline.border }
+    ? { label: trainerBreakdown.headline.label, emoji: trainerBreakdown.headline.icon, iconPath: trainerBreakdown.headline.iconPath, min: trainerBreakdown.headline.min, color: trainerBreakdown.headline.color, bg: trainerBreakdown.headline.bg, border: trainerBreakdown.headline.border }
     : getTrainerTier(clients.length);
   return (
     <>
@@ -3914,7 +3914,7 @@ function HomeGlobals({
 // in. The opening copy makes the role-vs-tier distinction explicit:
 // "Coach is a TIER of TRAINERS, not a separate role."
 
-type TierLite = { label: string; emoji: string; min: number; color: string; bg: string; border: string };
+type TierLite = { label: string; emoji: string; iconPath?: string; min: number; color: string; bg: string; border: string };
 
 // Bridge the new lib/tiers.ts AnimalTier shape (uses `icon`) to the
 // local TierLite shape (uses `emoji`) so TierInfoModal can render
@@ -3924,7 +3924,7 @@ type TierLite = { label: string; emoji: string; min: number; color: string; bg: 
 // (qa: tier-themes)
 function athleteTiersLite(theme: string | null | undefined): TierLite[] {
   return getAthleteTiers(theme).map(t => ({
-    label: t.label, emoji: t.icon, min: t.min,
+    label: t.label, emoji: t.icon, iconPath: t.iconPath, min: t.min,
     color: t.color, bg: t.bg, border: t.border,
   }));
 }
@@ -3932,7 +3932,7 @@ function athleteTiersLite(theme: string | null | undefined): TierLite[] {
 // Same bridge for the trainer ladder so future migrations to the
 // multi-dim trainer computation can use it without ceremony.
 const TRAINER_TIERS_NEW_LITE: TierLite[] = TRAINER_TIERS_NEW.map(t => ({
-  label: t.label, emoji: t.icon, min: t.min,
+  label: t.label, emoji: t.icon, iconPath: t.iconPath, min: t.min,
   color: t.color, bg: t.bg, border: t.border,
 }));
 
@@ -4088,7 +4088,7 @@ function TierInfoModal({
                   (qa: tier-explainability) */}
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, marginBottom: 10 }}>
                 {nextRung
-                  ? <>To reach <strong style={{ color: nextRung.color }}>{nextRung.icon} {nextRung.label}</strong> you need <strong style={{ color: "#fff" }}>+{pointsToNext} pts</strong> on the headline (currently {hScore}, next at {nextRung.min}). Headline = average of the {countedCount} counted sub-rank{countedCount === 1 ? "" : "s"} below.</>
+                  ? <>To reach <strong style={{ color: nextRung.color }}><TierGlyph src={nextRung.iconPath} emoji={nextRung.icon} size={14} /> {nextRung.label}</strong> you need <strong style={{ color: "#fff" }}>+{pointsToNext} pts</strong> on the headline (currently {hScore}, next at {nextRung.min}). Headline = average of the {countedCount} counted sub-rank{countedCount === 1 ? "" : "s"} below.</>
                   : <>You're at the top of the ladder ({athleteBreakdown.headline.label}). Keep grinding — every sub-rank still tracks individually.</>}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -4423,7 +4423,7 @@ function TierLadder({
               borderRadius: 8,
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ fontSize: 22, lineHeight: 1, filter: me ? `drop-shadow(0 0 6px ${t.color})` : "none" }}>{t.emoji}</div>
+                <div style={{ lineHeight: 1, filter: me ? `drop-shadow(0 0 6px ${t.color})` : "none" }}><TierGlyph src={t.iconPath} emoji={t.emoji} size={22} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     fontSize: 13, fontWeight: 700,
@@ -4467,7 +4467,7 @@ function TierLadder({
                     <span style={{
                       fontSize: 13, fontWeight: 800, color: nextTier.color,
                       fontFamily: "'Space Mono', monospace", letterSpacing: 0.5,
-                    }}>+{remaining} PTS → {nextTier.label.toUpperCase()} {nextTier.emoji}</span>
+                    }}>+{remaining} PTS → {nextTier.label.toUpperCase()} <TierGlyph src={nextTier.iconPath} emoji={nextTier.emoji} size={11} /></span>
                   </div>
                   <div style={{
                     height: 8, borderRadius: 4,
@@ -4577,7 +4577,7 @@ function ClientLeaderboardBlock({ tierTheme }: { tierTheme: "vivid" | "simple" }
               <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{c.username}</div>
-                <div style={{ fontSize: 10, color: tier.color, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tier.icon} T{displayTierNum(tier.tierNum)} · {tier.label}</div>
+                <div style={{ fontSize: 10, color: tier.color, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={11} /> T{displayTierNum(tier.tierNum)} · {tier.label}</div>
               </div>
               <div style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: sort === "volume" ? "#a29bfe" : "rgba(255,255,255,0.7)", fontFamily: "'Space Mono', monospace" }}>{volK}k</div>
               <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: sort === "sessions" ? "#a29bfe" : "#fff" }}>{c.totalSessions}</div>
@@ -4668,7 +4668,7 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
       {meta && (
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 12px", marginBottom: 12, fontSize: 11, color: "rgba(255,255,255,0.55)", fontFamily: "'Space Mono', monospace" }}>
           <div>{meta.totalParticipants} ranked · {kind === "athlete" ? "min 5 sessions to qualify" : "all active trainers"}</div>
-          {meta.viewerRank != null && <div style={{ marginTop: 4 }}>Your rank: <strong style={{ color: "#4ECDC4" }}>#{meta.viewerRank}</strong>{meta.viewerTierNum != null ? ` · ${tierByNum(meta.viewerTierNum).icon} ${tierByNum(meta.viewerTierNum).label}` : ""}</div>}
+          {meta.viewerRank != null && <div style={{ marginTop: 4 }}>Your rank: <strong style={{ color: "#4ECDC4" }}>#{meta.viewerRank}</strong>{meta.viewerTierNum != null ? <> · <TierGlyph src={tierByNum(meta.viewerTierNum).iconPath} emoji={tierByNum(meta.viewerTierNum).icon} size={12} /> {tierByNum(meta.viewerTierNum).label}</> : ""}</div>}
         </div>
       )}
 
@@ -4689,7 +4689,7 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
                 <div style={{ fontSize: 13, color: medal ? undefined : "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{medal ?? `#${r.rank}`}</div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : displayName}</div>
-                  <div style={{ fontSize: 10, color: tier.color, marginTop: 1 }}>{tier.icon} T{displayTierNum(tier.tierNum)} · {tier.label}</div>
+                  <div style={{ fontSize: 10, color: tier.color, marginTop: 1 }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={11} /> T{displayTierNum(tier.tierNum)} · {tier.label}</div>
                 </div>
                 <div style={{ textAlign: "right", fontSize: 13, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>{r.score}</div>
                 <div style={{ textAlign: "right", fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{kind === "athlete" ? `${r.totalSessions} S` : `${r.rosterCount} C`}</div>
@@ -9344,7 +9344,7 @@ function HomePage() {
                 return (
                   <div style={{ padding: "3px 6px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{t.emoji} {t.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{tierNum}</span></span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}><TierGlyph src={t.iconPath} emoji={t.emoji} size={11} /> {t.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{tierNum}</span></span>
                       <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
                         {next ? `+${remaining} → ${next.label.toUpperCase()} T${displayTierNum(tIdx + 2)}` : "★ TOP"}
                       </span>
@@ -11070,7 +11070,7 @@ function HomePage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                   <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", width: 18 }}>{i + 1}.</span>
                   <span style={{ fontSize: 13, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{m.user?.username ?? "—"}</span>
-                  {m.stats?.tier && <span style={{ fontSize: 11, color: m.stats.tier.color }}>{m.stats.tier.icon}</span>}
+                  {m.stats?.tier && <TierGlyph src={m.stats.tier.iconPath} emoji={m.stats.tier.icon} size={13} />}
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(240,192,64,0.8)", fontFamily: "'Space Mono', monospace" }}>{m.stats?.tier?.score ?? 0}</span>
               </div>
@@ -11730,7 +11730,7 @@ function HomePage() {
                                         <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
                                         <div style={{ minWidth: 0 }}>
                                           <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : `@${m.username}`}</div>
-                                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.icon} {tier.label}{m.role === "trainer" ? " · TRAINER" : ""}</div>
+                                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={10} /> {tier.label}{m.role === "trainer" ? " · TRAINER" : ""}</div>
                                         </div>
                                       </>
                                     );
@@ -12594,7 +12594,7 @@ function HomePage() {
                     onClick={() => setTierModalOpen(true)}
                     style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
                   >
-                    <span style={{ fontSize: 12 }}>{t.emoji}</span>
+                    <TierGlyph src={t.iconPath} emoji={t.emoji} size={13} />
                     <span>{t.label.toUpperCase()} · TRAINER TIER {displayTierNum(idx + 1)}/{TRAINER_TIERS.length}</span>
                   </button>
                 );
@@ -13829,7 +13829,7 @@ function HomePage() {
                                   <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{idx + 1}</span>}</div>
                                   <div>
                                     <div style={{ fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? "#FFE66D" : "#fff" }}>@{entry.username}{isMe ? " (you)" : ""}</div>
-                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier?.icon ?? "🐱"} {entry.tier?.label ?? "Kitten"}</div>
+                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}><TierGlyph src={entry.tier?.iconPath} emoji={entry.tier?.icon ?? "🐱"} size={11} /> {entry.tier?.label ?? "Kitten"}</div>
                                   </div>
                                 </>
                               );

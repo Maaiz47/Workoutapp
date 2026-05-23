@@ -16,6 +16,7 @@ import { computeAthleteTier, ATHLETE_TIERS, AnimalTier, RecentSet } from "./tier
 export interface CanonicalTier {
   label: string;
   icon: string;
+  iconPath?: string;
   color: string;
   bg: string;
   border: string;
@@ -126,6 +127,7 @@ function buildCanonicalTier(s: {
   return {
     label: t.label,
     icon: t.icon,
+    iconPath: t.iconPath,
     color: t.color,
     bg: t.bg,
     border: t.border,

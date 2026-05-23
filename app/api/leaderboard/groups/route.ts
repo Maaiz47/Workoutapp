@@ -6,10 +6,10 @@ import { TRAINER_TIERS } from "../../../../lib/tiers";
 // Trainer tier label from raw client count. Matches getTrainerTier on
 // the client. Used to badge groups with the trainer's rung-name —
 // e.g. PRO-LED, MASTER-LED, HALL OF FAMER-LED. (qa: trainer-group-visual-identity)
-function trainerTierFromClientCount(count: number): { label: string; icon: string; tierNum: number } {
+function trainerTierFromClientCount(count: number): { label: string; icon: string; iconPath?: string; tierNum: number } {
   let tier = TRAINER_TIERS[0];
   for (const t of TRAINER_TIERS) if (count >= t.min) tier = t;
-  return { label: tier.label, icon: tier.icon, tierNum: tier.tierNum };
+  return { label: tier.label, icon: tier.icon, iconPath: tier.iconPath, tierNum: tier.tierNum };
 }
 
 const COOKIE = "ironlog-uid";

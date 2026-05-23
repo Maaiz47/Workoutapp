@@ -2,6 +2,30 @@
 
 ---
 
+## Tier badges full sweep · 2026-05-23 — All tier-icon render surfaces switched to PNG (qa: tier-icons-vivid, tier-icons-simple, tier-icons-trainer)
+
+Follow-up to the tier-badges-ship push. Per @maaiz: "No emojis, I want only these icons to be used and see how it is" — so this sweep replaces every remaining emoji-string tier render in `app/page.tsx` with `<TierGlyph>`. After this push there should be no more raw emoji rendering of tier badges anywhere in the UI.
+
+Sites swapped this pass:
+- Tier breakdown modal — sub-rank "to reach <next>" line, headline t.emoji chip
+- Tier upgrade chip — "+N PTS → SILVER 🥈" inline annotation
+- Group leaderboard chips (own + member) — 11px inline glyphs
+- "Your rank: #X · Tier" footer
+- Home headline t.emoji chip
+- Group member list tier glyph
+- Member list expanded row tier line
+- Trainer-tier chip on Settings IDENTITY
+- Global leaderboard fallback ("entry.tier?.icon")
+
+Types updated:
+- `TierLite` in app/page.tsx gains optional `iconPath`
+- `CanonicalTier` in lib/leaderboardStats.ts gains optional `iconPath` (so leaderboard API responses pass it through)
+- `trainerTierFromClientCount` in app/api/leaderboard/groups/route.ts passes through `iconPath`
+
+Also: the legacy fallback `TRAINER_TIERS` array in app/page.tsx (client-count-based loading state) renamed Master → Mentor and got iconPath wired so loading-state badges match canonical tiers.
+
+---
+
 ## Tier badges ship · 2026-05-23 — Vivid + Simple + Trainer ladders + Mentor rename (qa: tier-icons-vivid, tier-icons-simple, tier-icons-trainer, tier-themes)
 
 Shipped the full image-gen v2 Batch 2 + 3 + new trainer-tier batch — 18 transparent crest-style PNGs across three ladders:
