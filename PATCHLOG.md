@@ -2,6 +2,12 @@
 
 ---
 
+## Webhook diagnostic · 2026-05-23 — does Vercel still receive pushes? (qa: planner-equipment-strict)
+
+Tiny diagnostic commit. Production is stuck on `6c7b47e` from ~2h ago with ~10 newer commits that NEVER appeared in Vercel's Deployments tab. Pushing this no-op edit to PATCHLOG.md (which is outside the `ignoreCommand` safe-set, so it WILL trigger a build) to test whether the GitHub → Vercel webhook is alive. If this commit appears as a deploy attempt within ~30s of push, the webhook is healthy and earlier commits were just dropped one-time. If it doesn't appear, the integration needs reconnecting in Vercel → Settings → Git.
+
+---
+
 ## QA pass · 2026-05-23 — Planner equipment-strict + routine auto-naming (qa: planner-equipment-strict, routine-auto-naming)
 
 Two related fixes that landed together.
