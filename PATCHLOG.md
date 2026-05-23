@@ -2,6 +2,20 @@
 
 ---
 
+## Fix · 2026-05-23 — Balance window 180d → 14d (qa: tier-balance-subrank)
+
+Per @maaiz: "180d is a long time to be looking at neglected areas, it should be considered on a shorter time span like fortnightly at most". First cut tracked muscle-group coverage over 180 days — too lenient. A user who hadn't done legs for 3 weeks wasn't being warned.
+
+Tightened:
+- **Window**: 180d → 14d. Recent neglect now lands fast.
+- **Threshold**: ≥8 sets per bucket in 180d → **≥3 sets per bucket in 14d** (one focused movement is enough).
+- **hasData gate**: ≥8 lifetime sessions → **≥4 sessions in the last 4 weeks**. Lapsed users get hasData=false (Balance excluded from headline) rather than getting penalised for not training.
+- **Detail copy**: "muscle groups covered (180d)" → "muscle groups touched (14d) · neglected: quads, posterior, core" — sharper actionable language.
+
+For a leg-skipper whose last leg day was 9 days ago: quads + posterior + (likely) core all below 3-set threshold → drops to 4/7 = ~57 score with the detail line naming exactly what to attack.
+
+---
+
 ## Feat · 2026-05-23 — Balance sub-rank (9th dim, muscle-group coverage) (qa: tier-balance-subrank)
 
 Per @maaiz: "Maaiz has clearly been skipping leg day · How is he being penalised for neglecting areas? Should he be?". Audit: nothing in the 8-dim scoring system penalised muscle-group neglect — a user could bench + curl every day and still rocket up the ladder.

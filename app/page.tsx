@@ -7347,10 +7347,12 @@ function HomePage() {
     let totalVolume = 0;
     // v3.2: lifetime intensityPoints sum (Technique sub-rank).
     let totalIntensityPointsLifetime = 0;
-    // v3.3: sets per Balance bucket in the last 180d. Bucket mapping
-    // mirrors lib/leaderboardStats.ts muscleGroupToBalanceBucket — keep
-    // both in sync. (qa: tier-balance-subrank)
+    // v3.3: sets per Balance bucket in the LAST 14 DAYS — short window
+    // so recent leg-day skips show up fast. Bucket mapping mirrors
+    // lib/leaderboardStats.ts muscleGroupToBalanceBucket — keep both
+    // in sync. (qa: tier-balance-subrank)
     const setsByMuscleGroup: Record<string, number> = {};
+    const fourteenDaysAgo = todayMs - 14 * 86400000;
     const exById: Record<string, any> = {};
     for (const ex of EXERCISES as any[]) exById[ex.id] = ex;
     const toBucket = (mg: string): string | null => {
@@ -7377,9 +7379,13 @@ function HomePage() {
             recentDistinctEx.add(exKey);
             if (!recentSetsByExercise[exKey]) recentSetsByExercise[exKey] = [];
             recentSetsByExercise[exKey].push({ dateMs: sessionTs, weight: w, reps: r, rpe });
-            // Bucket by primary muscle group. A set counts at most
-            // ONCE per bucket (multi-muscle exercises like deadlift
-            // contribute to multiple buckets, but only +1 per bucket).
+          }
+          // Bucket by primary muscle group within the LAST 14 DAYS
+          // (Balance has its own narrower window than the 180d used
+          // for the other sub-ranks). A set counts at most ONCE per
+          // bucket — multi-muscle exercises like deadlift contribute
+          // to multiple buckets, but only +1 per bucket.
+          if (sessionTs >= fourteenDaysAgo) {
             const ex = exById[exKey];
             if (ex && Array.isArray(ex.primaryMuscles)) {
               const seenBuckets = new Set<string>();
@@ -14032,9 +14038,9 @@ function HomePage() {
                         { icon: "⚡", text: "Tap your energy level — adds Habits points and feeds wellness trends." },
                       ],
                       balance: [
-                        { icon: "🦵", text: "Hit your legs this week — quads + posterior chain (hams/glutes/calves) are usually the gaps." },
-                        { icon: "🧠", text: "Don't skip core — even 8 sets of crunches/planks over 180d unlocks the core bucket." },
-                        { icon: "🤸", text: "Aim to touch all 7 buckets across the month: chest, back, shoulders, arms, quads, posterior, core." },
+                        { icon: "🦵", text: "Hit your legs this week — quads + posterior chain (hams/glutes/calves) are usually the recent gaps." },
+                        { icon: "🧠", text: "Don't skip core — even 3 sets of crunches/planks in the last 14 days unlocks the core bucket." },
+                        { icon: "🤸", text: "Aim to touch all 7 buckets every fortnight: chest, back, shoulders, arms, quads, posterior, core." },
                       ],
                     };
                     const tips = TIPS_BY_DIM[weakestId] ?? TIPS_BY_DIM.consistency;

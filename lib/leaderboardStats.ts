@@ -236,8 +236,11 @@ export function computeStatsFromLogs(
   const recentDistinctEx = new Set<string>();
   const recentSetsByExercise: Record<string, RecentSet[]> = {};
   const volumeByWeek = new Map<number, number>();
-  // Sets per Balance bucket in the last 180d (qa: tier-balance-subrank)
+  // Sets per Balance bucket in the last 14 DAYS — short window so
+  // a leg-day skip of even 2-3 weeks shows up in the user's tier
+  // score. (qa: tier-balance-subrank)
   const setsByMuscleGroup: Record<string, number> = {};
+  const fourteenDaysAgo = Date.now() - 14 * 86400000;
   let totalVolume = 0;
   let rpeBonusIP = 0;
   for (const log of logs) {
@@ -265,11 +268,15 @@ export function computeStatsFromLogs(
           recentDistinctEx.add(eid);
           if (!recentSetsByExercise[eid]) recentSetsByExercise[eid] = [];
           recentSetsByExercise[eid].push({ dateMs: ms, weight: w, reps: r, rpe });
-          // Bucket this set by its exercise's PRIMARY muscle groups,
-          // mapping each into the canonical Balance bucket. One set
-          // can contribute to multiple buckets if the exercise has
-          // multiple primary muscles (deadlift hits back AND posterior).
-          // (qa: tier-balance-subrank)
+        }
+        // Bucket this set by its exercise's PRIMARY muscle groups,
+        // mapping each into the canonical Balance bucket. One set can
+        // contribute to multiple buckets if the exercise has multiple
+        // primary muscles (deadlift hits back AND posterior).
+        // Tracked over the LAST 14 DAYS (not 180d like the other
+        // sub-ranks) so recent neglect lands fast.
+        // (qa: tier-balance-subrank)
+        if (ms >= fourteenDaysAgo) {
           const muscles = MUSCLES_BY_EX_ID[eid] ?? [];
           const seenBuckets = new Set<string>();
           for (const mg of muscles) {

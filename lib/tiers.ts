@@ -211,14 +211,16 @@ export type AthleteStatsForTier = {
   totalIntensityPointsLifetime?: number;
 
   // ── v3.3 input (qa: tier-balance-subrank) ──
-  // Sets-per-muscle-group bucket in the last 180 days. Keys are the
+  // Sets-per-muscle-group bucket in the last 14 DAYS. Keys are the
   // canonical buckets used by the Balance sub-rank:
   //   "chest" | "back" | "shoulders" | "arms" | "quads" | "posterior" | "core"
   // Bucket mapping (handled by the caller — both server-side
   // computeStatsForUsers and the client-side app/page.tsx compute it):
   //   - arms      = biceps + triceps + forearms
   //   - posterior = hamstrings + glutes + calves
-  // Optional — absent / undefined means hasData=false for Balance.
+  // 14-day window (was 180d in the first cut — too lenient; users who
+  // skipped legs for 3 weeks weren't being warned). Optional — absent
+  // / undefined means hasData=false for Balance.
   setsByMuscleGroup?: Record<string, number>;
 };
 
@@ -523,10 +525,12 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   const techniqueHasData = techniquePts > 0;
 
   // Balance v3.3 — rewards covering all 7 major muscle-group buckets
-  // in the last 180 days. Each bucket needs ≥8 sets in the window to
-  // count as "covered" (roughly one session's worth). Score = (covered
-  // buckets / 7) × 100. Skipped (hasData=false) until the user has at
-  // least 8 lifetime sessions so brand-new accounts aren't penalised.
+  // in the last 14 DAYS (was 180d in the first cut — too lenient;
+  // users skipping legs for 3 weeks weren't being warned). Each bucket
+  // needs ≥3 sets in the 14d window to count as "covered" (roughly
+  // one focused movement targeting that area). Score = (covered
+  // buckets / 7) × 100. Skipped (hasData=false) until ≥4 sessions in
+  // the last 14d so lapsed / brand-new users aren't penalised.
   //
   // Bucket map (the upstream caller supplies setsByMuscleGroup with
   // these canonical keys — see lib/exercises.ts MuscleGroup type for
@@ -534,19 +538,26 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   //   chest · back · shoulders · arms · quads · posterior · core
   // (qa: tier-balance-subrank)
   const BUCKETS = ["chest", "back", "shoulders", "arms", "quads", "posterior", "core"] as const;
-  const MIN_SETS_PER_BUCKET = 8;
+  const MIN_SETS_PER_BUCKET = 3;
   const setsByGroup = s.setsByMuscleGroup ?? {};
   const coveredBuckets = BUCKETS.filter(b => (setsByGroup[b] ?? 0) >= MIN_SETS_PER_BUCKET);
   const balance = Math.round((coveredBuckets.length / BUCKETS.length) * 100);
-  const balanceHasData = s.totalSessions >= 8 && Object.keys(setsByGroup).length > 0;
+  // Recency gate: need at least 4 sessions in the last 4 weeks to
+  // assess balance fairly (a complete cycle of upper + lower would
+  // span ~2 weeks; 4 sessions guarantees enough volume to grade).
+  // Also requires at least one bucket has SOME data so a brand-new
+  // user with zero sets logged is skipped.
+  const recentEnoughForBalance = (s.sessionsLast4Weeks ?? 0) >= 4;
+  const balanceHasData = recentEnoughForBalance && Object.keys(setsByGroup).length > 0;
   // Detail string surfaces which buckets are missing so the user
-  // knows exactly which area to attack.
+  // knows exactly which area to attack RIGHT NOW (14d window means
+  // the gap is recent and actionable).
   const missingBuckets = BUCKETS.filter(b => (setsByGroup[b] ?? 0) < MIN_SETS_PER_BUCKET);
   const balanceDetail = balanceHasData
     ? (missingBuckets.length === 0
-        ? `all ${BUCKETS.length} muscle groups covered (180d)`
-        : `${coveredBuckets.length}/${BUCKETS.length} groups · missing: ${missingBuckets.join(", ")}`)
-    : "log ≥8 sessions across the major muscle groups to unlock";
+        ? `all ${BUCKETS.length} muscle groups touched (14d)`
+        : `${coveredBuckets.length}/${BUCKETS.length} groups (14d) · neglected: ${missingBuckets.join(", ")}`)
+    : "log ≥4 sessions in 4 weeks to unlock the balance check";
 
   // Detail strings.
   const sessions4w = s.sessionsLast4Weeks ?? 0;
