@@ -21,13 +21,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     if (!routine) return json({ error: "Routine not found" }, 404);
     if (routine.userId !== uid) return json({ error: "Not your routine" }, 403);
-    // Power User gate. Trainers + admins are implicitly Power Users.
-    // Anyone else needs to upgrade in Settings → POWER USER first.
+    // Power User gate. 'Power User' is the trainer role, rebranded —
+    // anyone (including non-coaches) can request the upgrade through
+    // Settings. Admins are also implicit Power Users.
     // (qa: power-user-role)
     const senderRoles = sender ? [sender.role, ...((sender as any).extraRoles ?? [])] : [];
-    const isSenderPowerUser = senderRoles.some(r => r === "powerUser" || r === "trainer" || r === "admin");
+    const isSenderPowerUser = senderRoles.some(r => r === "trainer" || r === "admin");
     if (!isSenderPowerUser) {
-      return json({ error: "Plan sharing is a Power User feature. Enable it free in Settings → POWER USER.", code: "POWER_USER_REQUIRED" }, 403);
+      return json({ error: "Plan sharing is a Power User feature. Request the upgrade in Settings → ⚡ BECOME A POWER USER.", code: "POWER_USER_REQUIRED" }, 403);
     }
 
     // Case-insensitive username lookup so legacy accounts (registered

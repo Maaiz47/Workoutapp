@@ -154,6 +154,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       },
     });
 
+    // System message in the group chat — announces the new mission
+    // so members can chat about it. fromId stays null because this
+    // is system-authored (the trainer's name lives in the body so the
+    // attribution is obvious without a user avatar).
+    // (qa: group-chat-system-messages)
+    try {
+      const creator = await prisma.user.findUnique({ where: { id: uid }, select: { username: true } });
+      const who = creator?.username ?? "A trainer";
+      await prisma.groupMessage.create({
+        data: {
+          groupId,
+          fromId: null,
+          type: "system_mission",
+          body: `🎯 @${who} started a new mission: "${title.trim()}" — target ${Math.floor(target)} ${metric.replace(/_/g, " ")}${days ? `, ${days} days` : ""}.`,
+        },
+      });
+    } catch {}
+
     return json({ challenge: { ...created, progress: 0, perMember: {}, myContribution: 0 } }, 201);
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);

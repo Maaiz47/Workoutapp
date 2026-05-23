@@ -421,12 +421,17 @@ function userHasRole(user: { role?: string; extraRoles?: string[] } | null | und
   return Array.isArray(user.extraRoles) && user.extraRoles.includes(name);
 }
 
-// Power User = a self-service upgrade anyone can take. Unlocks plan
-// sharing (DM a saved routine to another user) — currently the only
-// power-user-gated feature. Trainers + admins are implicitly Power
-// Users so we don't make trainers re-upgrade. (qa: power-user-role)
+// Power User = the trainer role, rebranded. Per @maaiz: 'Power User
+// doesn't need to be a new role, it is the trainer role renamed.
+// We just want to make it clear that power user is what trainers
+// want but still benefits for anyone upgrading.' Same role under
+// the hood — anyone who upgrades to trainer (whether they coach
+// or not) gets the Power User features (plan sharing, etc.) plus
+// the optional trainer-specific surfaces (adopting clients).
+// Admins are also implicit Power Users.
+// (qa: power-user-role)
 function isPowerUser(user: { role?: string; extraRoles?: string[] } | null | undefined): boolean {
-  return userHasRole(user, "powerUser") || userHasRole(user, "trainer") || userHasRole(user, "admin");
+  return userHasRole(user, "trainer") || userHasRole(user, "admin");
 }
 
 // Drop set mode: the user runs each set as a chain of drops (initial weight
@@ -5103,6 +5108,33 @@ function HomePage() {
   const [lbGroupPrivacy, setLbGroupPrivacy] = useState<"private"|"public">("private");
   const [creatingLbGroup, setCreatingLbGroup] = useState(false);
   const [activeLbGroup, setActiveLbGroup] = useState<any | null>(null);
+  // Group chat — id + cached name of the group we're chatting in.
+  // Messages are fetched fresh on each open. (qa: group-chat-system-messages)
+  const [activeGroupChatId, setActiveGroupChatId] = useState<string | null>(null);
+  const [activeGroupChatName, setActiveGroupChatName] = useState<string>("");
+  const [groupChatMessages, setGroupChatMessages] = useState<Array<{ id: string; fromId: string | null; fromUsername: string | null; body: string; type: string; createdAt: string }>>([]);
+  const [groupChatInput, setGroupChatInput] = useState("");
+  const [groupChatSending, setGroupChatSending] = useState(false);
+  const [groupChatLoading, setGroupChatLoading] = useState(false);
+  const [groupChatLeaderboardOpen, setGroupChatLeaderboardOpen] = useState(false);
+  // Fetch chat messages whenever we open a new group chat. Resets
+  // messages first so we don't show stale ones from a prior group.
+  // (qa: group-chat-system-messages)
+  useEffect(() => {
+    if (!activeGroupChatId) return;
+    setGroupChatMessages([]);
+    setGroupChatLoading(true);
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/leaderboard/groups/${activeGroupChatId}/messages`);
+        const data = await r.json();
+        if (!cancelled && r.ok && Array.isArray(data.messages)) setGroupChatMessages(data.messages);
+      } catch {}
+      if (!cancelled) setGroupChatLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [activeGroupChatId]);
   const [lbGroupClientSearch, setLbGroupClientSearch] = useState("");
   const [trainerSearchForLb, setTrainerSearchForLb] = useState("");
   const [trainerSearchResultsLb, setTrainerSearchResultsLb] = useState<any[]>([]);
@@ -5318,7 +5350,7 @@ function HomePage() {
   const changeTheme = (t: "iron"|"mono"|"vivid") => { setAppTheme(t); localStorage.setItem("ironlog-theme", t); };
   const changeAccent = (c: string) => { setAccentColor(c); localStorage.setItem("ironlog-accent", c); };
 
-  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "globalLeaderboard", "groupsHub", "clientsHub", "friendsHub", "avatarPicker"]);
+  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "globalLeaderboard", "groupsHub", "groupChat", "clientsHub", "friendsHub", "avatarPicker"]);
   useSwipeBack(() => {
     if (view === "conversation") { setView("messages"); setActiveConversation(null); }
     else if (view === "messages") setView("home");
@@ -5329,6 +5361,7 @@ function HomePage() {
     else if (view === "groupsHub") setView("home");
     else if (view === "clientsHub") setView("home");
     else if (view === "friendsHub") setView("home");
+    else if (view === "groupChat") setView("groupsHub");
     else if (view === "workout" && started) setView("home"); // leave but keep session alive
     else if (view === "avatarPicker") setView("profile"); // avatar picker → back to Settings → Profile
   }, swipeBackViews.has(view));
@@ -9684,12 +9717,12 @@ function HomePage() {
                     <button
                       onClick={() => {
                         if (!isPowerUser(user)) {
-                          alert("Plan sharing is a Power User feature. Enable it free in Settings → ⚡ POWER USER (instant, no admin approval needed).");
+                          alert("Plan sharing is a Power User feature. Request the upgrade in Settings → ⚡ BECOME A POWER USER. (Power User = the trainer role rebranded — anyone can request it, you don't need to coach others.)");
                           return;
                         }
                         setSharingRoutineId(sharingRoutineId === r.id ? null : r.id); setShareUsername(""); setShareResult(null);
                       }}
-                      title={isPowerUser(user) ? "Share with another user" : "Power User feature — enable free in Settings"}
+                      title={isPowerUser(user) ? "Share with another user" : "Power User feature — request the upgrade in Settings"}
                       style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: isPowerUser(user) ? "rgba(255,255,255,0.4)" : "rgba(162,155,254,0.6)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}
                     >{isPowerUser(user) ? "↗" : "↗⚡"}</button>
                     <button onClick={() => doRestoreRoutine(r.id, r.name)} style={{ background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 8, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}>RESTORE</button>
@@ -10809,6 +10842,121 @@ function HomePage() {
     );
   }
 
+  // ─── GROUP CHAT ─────────────────────────────────────────────────────
+  // Per-group chat thread. Members exchange text messages; system
+  // events (mission-started, member PB, achievement unlocked) appear
+  // inline with a distinct purple-system styling. 🏆 button in the
+  // header opens an inline leaderboard panel sourced from the group's
+  // existing members list. (qa: group-chat-system-messages)
+  if (view === "groupChat" && activeGroupChatId) {
+    const grpId = activeGroupChatId;
+    const grpName = activeGroupChatName;
+    const sendGroupChat = async () => {
+      const body = groupChatInput.trim();
+      if (!body || groupChatSending) return;
+      setGroupChatSending(true);
+      try {
+        const r = await fetch(`/api/leaderboard/groups/${grpId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body }),
+        });
+        const data = await r.json();
+        if (r.ok && data.message) {
+          setGroupChatMessages(prev => [...prev, data.message]);
+          setGroupChatInput("");
+        } else if (data.error) {
+          alert(data.error);
+        }
+      } catch {}
+      setGroupChatSending(false);
+    };
+    const group = lbGroups.find((g: any) => g.id === grpId);
+    const sortedMembers = group ? [...(group.members ?? [])]
+      .filter((m: any) => m.includeInRank !== false)
+      .sort((a: any, b: any) => (b.stats?.tier?.score ?? 0) - (a.stats?.tier?.score ?? 0)) : [];
+    return (
+      <div key="groupChat" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: 80, minHeight: "100dvh", boxSizing: "border-box", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "20px 20px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={() => setView("groupsHub")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>GROUP CHAT</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{grpName}</div>
+          </div>
+          <button
+            onClick={() => setGroupChatLeaderboardOpen(s => !s)}
+            title="Show this group's leaderboard"
+            style={{ padding: "8px 12px", background: groupChatLeaderboardOpen ? "rgba(240,192,64,0.18)" : "rgba(240,192,64,0.08)", border: `1px solid ${groupChatLeaderboardOpen ? "rgba(240,192,64,0.5)" : "rgba(240,192,64,0.3)"}`, borderRadius: 10, color: "#f0c040", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+          >🏆 {groupChatLeaderboardOpen ? "HIDE" : "LEADERBOARD"}</button>
+        </div>
+        {groupChatLeaderboardOpen && (
+          <div className="fade-in" style={{ margin: "0 20px 12px", padding: 12, background: "rgba(240,192,64,0.04)", border: "1px solid rgba(240,192,64,0.18)", borderRadius: 12 }}>
+            <div style={{ fontSize: 9, color: "#f0c040", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 8 }}>🏆 STANDINGS</div>
+            {sortedMembers.length === 0 ? (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: 6 }}>No ranked members yet.</div>
+            ) : sortedMembers.map((m: any, i: number) => (
+              <div key={m.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", marginBottom: 4, background: m.userId === user.id ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 8, border: `1px solid ${m.userId === user.id ? "rgba(255,107,107,0.25)" : "transparent"}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", width: 18 }}>{i + 1}.</span>
+                  <span style={{ fontSize: 13, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{m.user?.username ?? "—"}</span>
+                  {m.stats?.tier && <span style={{ fontSize: 11, color: m.stats.tier.color }}>{m.stats.tier.icon}</span>}
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(240,192,64,0.8)", fontFamily: "'Space Mono', monospace" }}>{m.stats?.tier?.score ?? 0}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }} style={{ flex: 1, overflowY: "auto", padding: "8px 20px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {groupChatLoading && groupChatMessages.length === 0 && (
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: 20 }}>Loading…</div>
+          )}
+          {!groupChatLoading && groupChatMessages.length === 0 && (
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: 30 }}>
+              No messages yet. Be the first to break the ice — system events (group missions started, member PBs, achievement unlocks) will also land here automatically.
+            </div>
+          )}
+          {groupChatMessages.map(msg => {
+            const isSystem = msg.type.startsWith("system_");
+            const isMine = !isSystem && msg.fromId === user.id;
+            if (isSystem) {
+              return (
+                <div key={msg.id} style={{ alignSelf: "center", maxWidth: "95%", padding: "8px 12px", background: "rgba(162,155,254,0.08)", border: "1px solid rgba(162,155,254,0.25)", borderRadius: 12, fontSize: 11, color: "rgba(255,255,255,0.7)", textAlign: "center" }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "#A29BFE", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginRight: 6 }}>SYSTEM</span>
+                  {msg.body}
+                </div>
+              );
+            }
+            return (
+              <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", maxWidth: "82%" }}>
+                {!isMine && (
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 2, paddingLeft: 12 }}>@{msg.fromUsername ?? "—"}</div>
+                )}
+                <div style={{ padding: "10px 14px", background: isMine ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.05)", border: isMine ? "none" : "1px solid rgba(255,255,255,0.08)", borderRadius: 14, color: "#fff", fontSize: 13.5, lineHeight: 1.45, wordBreak: "break-word" }}>
+                  {msg.body}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ padding: "12px 20px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8, alignItems: "flex-end" }}>
+          <textarea
+            value={groupChatInput}
+            onChange={e => setGroupChatInput(e.target.value.slice(0, 1000))}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendGroupChat(); } }}
+            placeholder="Message the group…"
+            rows={1}
+            style={{ flex: 1, padding: "10px 12px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans', sans-serif", outline: "none", resize: "none", maxHeight: 100, boxSizing: "border-box" }}
+          />
+          <button
+            onClick={sendGroupChat}
+            disabled={!groupChatInput.trim() || groupChatSending}
+            style={{ padding: "10px 16px", background: groupChatInput.trim() ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.05)", border: "none", borderRadius: 12, color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: 1.5, cursor: groupChatInput.trim() ? "pointer" : "default", fontFamily: "'Space Mono', monospace", opacity: groupChatSending ? 0.6 : 1 }}
+          >SEND</button>
+        </div>
+      </div>
+    );
+  }
+
   if (view === "clientsHub") return (
     <div key="clientsHub" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: 80, minHeight: "100dvh", boxSizing: "border-box" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "24px 20px 8px" }}>
@@ -11116,6 +11264,14 @@ function HomePage() {
                     </div>
                     {activeLbGroup?.id === grp.id && (
                       <div className="fade-in" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: 14 }}>
+                        {/* Open Group Chat — full chat view with messages,
+                            system events (mission-started, member PB,
+                            achievement unlocked), and a leaderboard
+                            button back inside. (qa: group-chat-system-messages) */}
+                        <button
+                          onClick={() => { setActiveGroupChatId(grp.id); setActiveGroupChatName(grp.name); setView("groupChat"); }}
+                          style={{ width: "100%", padding: "10px 14px", marginBottom: 12, background: "linear-gradient(135deg, rgba(162,155,254,0.18), rgba(78,205,196,0.12))", border: "1px solid rgba(162,155,254,0.4)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                        >💬 OPEN GROUP CHAT</button>
                         {/* Trainer inclusion toggle */}
                         {(() => {
                           const myMember = grp.members?.find((m: any) => m.userId === user.id && m.role === "trainer");
@@ -12763,8 +12919,8 @@ function HomePage() {
                 <span style={{ width: 8, height: 8, borderRadius: 4, background: "#fdcb6e", animation: "pulse 2s ease infinite" }}/>
                 <div style={{ fontSize: 11, color: "#fdcb6e", letterSpacing: 3, fontWeight: 700 }}>REQUEST PENDING</div>
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 8 }}>Trainer upgrade under review</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.7, marginBottom: 16 }}>Your request has been sent to the IronLog admins for review. You'll be notified once it's approved — usually within 24–48 hours.</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 8 }}>Power User upgrade under review</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.7, marginBottom: 16 }}>Your request has been sent to the IronLog admins for review. You'll be notified once it's approved — usually within 24–48 hours. Once approved you'll get plan sharing, the Power User badge, the trainer ladder as a personal progression goal, and (optionally) the ability to adopt clients.</div>
               <button
                 onClick={cancelRequest}
                 disabled={cancellingRequest}
@@ -12773,78 +12929,40 @@ function HomePage() {
             </div>
           )}
 
-          {/* Power User toggle — self-service, free, instant. Anyone
-              can flip this on; trainers + admins already have it
-              implicitly. Currently the only Power-User-gated feature
-              is plan sharing (DM a saved routine), but more will
-              follow. (qa: power-user-role) */}
-          {(() => {
-            const alreadyPowerUser = userHasRole(user, "powerUser");
-            const implicitlyPowerUser = userHasRole(user, "trainer") || userHasRole(user, "admin");
-            return (
-              <div style={{ background: "linear-gradient(180deg, rgba(162,155,254,0.08), rgba(162,155,254,0.02))", border: `1px solid ${alreadyPowerUser || implicitlyPowerUser ? "rgba(162,155,254,0.5)" : "rgba(162,155,254,0.22)"}`, borderRadius: 16, padding: "20px", marginBottom: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, color: "rgba(162,155,254,0.85)", letterSpacing: 3, fontWeight: 700 }}>⚡ POWER USER</div>
-                  {(alreadyPowerUser || implicitlyPowerUser) && (
-                    <span style={{ fontSize: 9, color: "#A29BFE", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", padding: "2px 6px", background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.35)", borderRadius: 4 }}>{implicitlyPowerUser ? `VIA ${(userHasRole(user, "trainer") ? "TRAINER" : "ADMIN")}` : "ENABLED"}</span>
-                  )}
-                </div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, marginBottom: 14 }}>
-                  Free upgrade — unlocks plan sharing (DM your saved routines to friends by @username). More power-user features rolling out over time. Trainers get this automatically.
-                </div>
-                {!alreadyPowerUser && !implicitlyPowerUser && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        const r = await fetch("/api/auth", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "upgrade-power-user" }) });
-                        const data = await r.json();
-                        if (data.user) refreshUser();
-                        else alert(data.error || "Couldn't enable Power User.");
-                      } catch { alert("Network error."); }
-                    }}
-                    style={{ background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.4)", borderRadius: 10, padding: "12px 20px", color: "#A29BFE", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
-                  >Enable Power User →</button>
-                )}
-                {alreadyPowerUser && !implicitlyPowerUser && (
-                  <button
-                    onClick={async () => {
-                      if (!confirm("Turn off Power User? You'll lose plan sharing — saved routines stay safe, you just can't DM them out until you re-enable.")) return;
-                      try {
-                        const r = await fetch("/api/auth", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "downgrade-power-user" }) });
-                        const data = await r.json();
-                        if (data.user) refreshUser();
-                        else alert(data.error || "Couldn't disable.");
-                      } catch { alert("Network error."); }
-                    }}
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 18px", color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
-                  >Disable Power User</button>
-                )}
-              </div>
-            );
-          })()}
-
+          {/* Become a Power User — the trainer role rebranded. Per
+              @maaiz: same role under the hood, but the framing is
+              broader so anyone (not just people who coach) sees the
+              appeal. Trainers + admins already have it; everyone else
+              sees this card. Still routes through the existing admin
+              approval queue. (qa: power-user-role) */}
           {!isTrainer && !hasPendingRequest && !confirmUpgrade && (
-            <div style={{ background: "linear-gradient(180deg, rgba(78,205,196,0.06), rgba(78,205,196,0.02))", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: "rgba(78,205,196,0.7)", letterSpacing: 3, marginBottom: 10, fontWeight: 700 }}>BECOME A TRAINER</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 16 }}>Request a trainer upgrade. Once approved by an admin, you'll be able to adopt users as clients (and disown them later), monitor their progress, and propose plan updates. Trainers automatically get Power User features too.</div>
-              <button onClick={() => setConfirmUpgrade(true)} style={{ background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 10, padding: "12px 20px", color: "#4ECDC4", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Request Trainer Upgrade →</button>
+            <div style={{ background: "linear-gradient(180deg, rgba(162,155,254,0.08), rgba(162,155,254,0.02))", border: "1px solid rgba(162,155,254,0.28)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "rgba(162,155,254,0.85)", letterSpacing: 3, marginBottom: 10, fontWeight: 700 }}>⚡ BECOME A POWER USER</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, marginBottom: 10 }}>
+                One role, two use cases:
+              </div>
+              <ul style={{ margin: "0 0 14px 0", paddingLeft: 18, color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.7 }}>
+                <li><strong style={{ color: "#A29BFE" }}>For everyone</strong> — share your saved routines with friends by @username, get the Power User badge, unlock the trainer ladder (Spotter → Hall of Fame) as a personal progression goal, and pick up future power-user features as they ship.</li>
+                <li><strong style={{ color: "#4ECDC4" }}>For coaches</strong> — adopt other users as clients (and disown them when you part ways), monitor their progress, push plan proposals, run group missions.</li>
+              </ul>
+              <button onClick={() => setConfirmUpgrade(true)} style={{ background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.4)", borderRadius: 10, padding: "12px 20px", color: "#A29BFE", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Request Power User Upgrade →</button>
             </div>
           )}
 
           {!isTrainer && !hasPendingRequest && confirmUpgrade && (
-            <div style={{ background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 16, padding: "24px 20px", marginBottom: 12 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Request trainer access</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.8, marginBottom: 14 }}>
-                As a trainer you'll be able to:<br />
-                · Search for users by username<br />
-                · Send them an adoption request<br />
-                · View their full workout history and stats once accepted
+            <div style={{ background: "rgba(162,155,254,0.06)", border: "1px solid rgba(162,155,254,0.28)", borderRadius: 16, padding: "24px 20px", marginBottom: 12 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Request Power User access</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.8, marginBottom: 14 }}>
+                Once approved:<br />
+                · Share saved routines with friends by @username<br />
+                · Earn the Power User badge + climb the trainer ladder (Spotter → Hall of Fame) as a personal progression goal<br />
+                · Optionally adopt other users as clients, propose plans, run group missions
               </div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: 1.5, marginBottom: 8, fontWeight: 600 }}>BACKGROUND <span style={{ color: "rgba(255,255,255,0.25)", fontWeight: 400 }}>(optional, helps admins approve faster)</span></div>
               <textarea
                 value={upgradeNote}
                 onChange={e => setUpgradeNote(e.target.value.slice(0, 500))}
-                placeholder="Briefly tell us about your training background, certifications, or who you'd like to train…"
+                placeholder="Briefly tell us about your training background, certifications, or what you want to use Power User for. Solo lifters welcome — say so if you just want the upgrade for yourself."
                 rows={4}
                 style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 13, padding: "12px 14px", outline: "none", boxSizing: "border-box", fontFamily: "'DM Sans', sans-serif", resize: "vertical", marginBottom: 6 }}
               />
@@ -12852,16 +12970,16 @@ function HomePage() {
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginBottom: 16, lineHeight: 1.6 }}>An admin will review your request. You can cancel it any time before approval.</div>
               {upgradeError && <div style={{ fontSize: 13, color: "#FF6B6B", marginBottom: 12 }}>{upgradeError}</div>}
               <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={doUpgrade} disabled={upgrading} style={{ flex: 1, padding: "13px", background: "linear-gradient(135deg, #4ECDC4, #44a08d)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: upgrading ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", opacity: upgrading ? 0.6 : 1 }}>{upgrading ? "SUBMITTING…" : "SUBMIT REQUEST"}</button>
+                <button onClick={doUpgrade} disabled={upgrading} style={{ flex: 1, padding: "13px", background: "linear-gradient(135deg, #A29BFE, #6c5ce7)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: upgrading ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif", opacity: upgrading ? 0.6 : 1 }}>{upgrading ? "SUBMITTING…" : "SUBMIT REQUEST"}</button>
                 <button onClick={() => { setConfirmUpgrade(false); setUpgradeError(""); setUpgradeNote(""); }} style={{ padding: "13px 18px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Cancel</button>
               </div>
             </div>
           )}
 
           {isTrainer && (
-            <div style={{ background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: "rgba(78,205,196,0.6)", letterSpacing: 3, marginBottom: 8 }}>TRAINER MODE ACTIVE</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>Search for users by username on the home screen and send adoption requests. Clients can accept via their Messages inbox.</div>
+            <div style={{ background: "rgba(162,155,254,0.05)", border: "1px solid rgba(162,155,254,0.2)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "rgba(162,155,254,0.75)", letterSpacing: 3, marginBottom: 8 }}>⚡ POWER USER ACTIVE</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.7 }}>You can share saved routines, adopt clients (Home → Clients → Find), monitor their progress, propose plan updates, and run group missions. Climb the trainer ladder for the personal progression goal.</div>
             </div>
           )}
 

@@ -41,6 +41,7 @@ model User {
   clientOf          TrainerClient?   @relation("ClientOf")
   sentMessages      Message[]           @relation("SentMessages")
   receivedMessages  Message[]           @relation("ReceivedMessages")
+  sentGroupMessages GroupMessage[]      @relation("SentGroupMessages")
   pushSubscriptions PushSubscription[]
   messageReactions  MessageReaction[]
   trainerProposals  PlanProposal[]   @relation("TrainerProposals")
@@ -300,6 +301,29 @@ model MessageReaction {
   @@index([messageId])
 }
 
+// Group chat — separate from the 1:1 Message model so the DM schema
+// stays untouched. Every member of a LeaderboardGroup can send
+// messages here. `fromId` is nullable to support SYSTEM messages
+// (mission-started, member PB, achievement unlocked) where there's
+// no human author. Type field distinguishes plain text from system
+// events so the client can render them differently.
+// (qa: group-chat-system-messages)
+model GroupMessage {
+  id        String           @id @default(cuid())
+  groupId   String
+  fromId    String?          // null = system message
+  body      String
+  // 'text' = user-sent. 'system_mission' = group challenge created.
+  // 'system_pb' = member hit a notable PB. 'system_achievement' = member
+  // unlocked an achievement. Add more types as system hooks come in.
+  type      String           @default("text")
+  createdAt DateTime         @default(now())
+  group     LeaderboardGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  from      User?            @relation("SentGroupMessages", fields: [fromId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, createdAt])
+}
+
 model PlanProposal {
   id        String    @id @default(cuid())
   trainerId String
@@ -403,6 +427,7 @@ model LeaderboardGroup {
   invites        LeaderboardGroupInvite[]
   workout        GroupWorkout?
   challenges     GroupChallenge[]
+  messages       GroupMessage[]
 
   @@index([createdBy])
 }

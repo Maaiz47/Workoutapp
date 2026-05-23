@@ -2,6 +2,31 @@
 
 ---
 
+## QA pass · 2026-05-23 — Power User rebrand (no new role) + group chat slice 1 (qa: power-user-role, group-chat-system-messages)
+
+@maaiz follow-up clarification: 'Power user doesn't need to be a new role, it is the trainer role renamed. But we just want to make it clear that power user is what trainers want but still benefits for anyone upgrading.' Plus: 'Group chat for each group with the group leaderboards in there as a button to open. Automatic System messages here regarding group missions set, any group members hitting major PB and achievements so members can chat about it.'
+
+### power-user-role — rebrand (reverts the separate-role design from the previous commit)
+- Reverted: no more `powerUser` in extraRoles; no `upgrade-power-user` / `downgrade-power-user` API actions. Power User IS the trainer role under the hood.
+- `isPowerUser()` simplified to `userHasRole(user, 'trainer') || userHasRole(user, 'admin')`.
+- Combined the two Settings cards into ONE '⚡ BECOME A POWER USER' card with bulleted copy explaining **both** use cases (everyone vs coaches) so the upgrade no longer feels exclusionary.
+- '⚡ POWER USER ACTIVE' status card for upgraded users; pending-request card now reads 'Power User upgrade under review'.
+- Confirm-upgrade modal rephrased for both flavours; SUBMIT button gradient switched to purple A29BFE to pair with the new card.
+- Server gate copy + client alert copy point to 'Settings → ⚡ BECOME A POWER USER'.
+- Plan editing/building still free for everyone — only sharing is gated.
+
+### group-chat-system-messages — slice 1
+- New `GroupMessage` Prisma model: `{ id, groupId, fromId (nullable for system), body, type ('text'|'system_mission'|'system_pb'|'system_achievement'), createdAt }`. Cascade-delete via group; user-side `onDelete: SetNull` so messages survive a user delete. Indexed on `(groupId, createdAt)`.
+- `LeaderboardGroup.messages` + `User.sentGroupMessages` back-relations.
+- New API: `GET /api/leaderboard/groups/[id]/messages` (member-gated, last 100). `POST` (member-gated, 1-1000 chars, fans out push to all OTHER members).
+- New view `groupChat` with auto-fetch on mount, swipe-back to groupsHub. Render: user messages right-aligned red gradient; others left-aligned with @username header; system messages centered with purple SYSTEM badge.
+- 🏆 LEADERBOARD button toggles an inline standings panel sourced from the group's already-loaded members array (no extra fetch), sorted by tier score desc, you highlighted.
+- 💬 OPEN GROUP CHAT button at the top of the expanded group panel in groupsHub so the chat is discoverable without losing the existing leaderboard / members / workout / challenges sub-panels.
+- System message hook: group-challenge create now auto-posts a `system_mission` message: `🎯 @<trainer> started a new mission: "<title>" — target <n> <metric>, <days> days`.
+- Slices 2-4 planned in qa-state: system_pb hook (detect at workout-log time), system_achievement hook (at MilestoneUnlock time), polish (reactions, scroll-to-bottom, paginated history).
+
+---
+
 ## QA pass · 2026-05-23 — Power User role + disown clients + analytics-unbury planning (qa: power-user-role, trainer-disown-client, analytics-progress-unbury)
 
 @maaiz: 'I want everyone to have the plan editing and building features. We can gatekeep sharing plans to Power User which can be specialised for trainers but available to anyone. There needs to be a way to disown clients (and the wording used can be adopting and disowning). Unbury the analytics and present them in an intuitive way through the progress slice somewhere.'
