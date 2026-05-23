@@ -4721,9 +4721,10 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
                 <div style={{ fontSize: 13, color: medal ? undefined : "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{medal ?? `#${r.rank}`}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                   <UserAvatarChip avatarId={r.anonymous ? null : r.avatarId} username={r.anonymous ? null : r.username} size={24} role={kind === "trainer" ? "trainer" : null} />
+                  <TierGlyph src={tier.iconPath} emoji={tier.icon} size={24} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : displayName}</div>
-                    <div style={{ fontSize: 10, color: tier.color, marginTop: 1 }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={11} /> T{displayTierNum(tier.tierNum)} · {tier.label}</div>
+                    <div style={{ fontSize: 10, color: tier.color, marginTop: 1 }}>T{displayTierNum(tier.tierNum)} · {tier.label}</div>
                   </div>
                 </div>
                 <div style={{ textAlign: "right", fontSize: 13, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>{r.score}</div>
@@ -9294,7 +9295,7 @@ function HomePage() {
               fit both pills and Profile/Progress stay tied to its
               height via align-items: stretch on the grid.
               (qa: home-hub-premium-polish) */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8, alignItems: "stretch" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: 8, alignItems: "stretch" }}>
             {/* Shared button chrome — applied via spread on each chip
                 to keep parity. Layered shadow: subtle inner top
                 highlight + soft outer drop. 14px radius for the
@@ -9328,29 +9329,9 @@ function HomePage() {
               })()}
             </button>
 
-            {/* Progress button — vertical icon-over-label layout
-                matching the bottom-hub button rhythm. Subtle red-
-                glass accent (matches the app's red FF6B6B identity
-                without being loud). (qa: home-hub-premium-polish) */}
-            <button
-              onClick={() => { goTo("progress"); setProgressTab("dashboard"); }}
-              title="Progress"
-              style={{
-                minWidth: 0, minHeight: 60,
-                background: "linear-gradient(180deg, rgba(255,107,107,0.06), rgba(10,10,18,0.6))",
-                backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-                border: "1px solid rgba(255,107,107,0.18)",
-                borderRadius: 14, cursor: "pointer",
-                padding: "8px 6px",
-                boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 6px 22px -8px rgba(0,0,0,0.7)",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
-                color: "rgba(255,255,255,0.9)",
-                fontFamily: "'DM Sans', sans-serif",
-              }}
-            >
-              <span style={{ fontSize: 20, lineHeight: 1 }}>📊</span>
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.7)" }}>PROGRESS</span>
-            </button>
+            {/* Progress relocated to the bottom hub per @maaiz —
+                top chip strip now reads as a clean
+                [Profile | Tier-far-right] pair. (qa: home-hub-premium-polish) */}
 
             {/* Tier card — opens the tier modal. Premium glass + inner
                 gold accent. Inner pills are presentational divs.
@@ -9379,7 +9360,7 @@ function HomePage() {
                 return (
                   <div style={{ padding: "3px 6px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}><TierGlyph src={t.iconPath} emoji={t.emoji} size={11} /> {t.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{tierNum}</span></span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}><TierGlyph src={t.iconPath} emoji={t.emoji} size={20} /> {t.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{tierNum}</span></span>
                       <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
                         {next ? `+${remaining} → ${next.label.toUpperCase()} T${displayTierNum(tIdx + 2)}` : "★ TOP"}
                       </span>
@@ -9406,7 +9387,7 @@ function HomePage() {
                 return (
                   <div style={{ padding: "3px 6px", background: h.bg, border: `1px solid ${h.border}`, borderRadius: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h.icon} {h.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{displayTierNum(h.tierNum)}</span></span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}><TierGlyph src={h.iconPath} emoji={h.icon} size={20} /> {h.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{displayTierNum(h.tierNum)}</span></span>
                       <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
                         {next ? `+${remaining} → ${next.label.toUpperCase()} T${displayTierNum(next.tierNum)}` : "★ TOP"}
                       </span>
@@ -9556,6 +9537,13 @@ function HomePage() {
             totalSessionsLifetime: overall.totalSessions,
           };
           const done = q.isDone(state);
+          // Hide the quest chip entirely once complete — per @maaiz:
+          // "Daily quest still doesn't complete and go away when done."
+          // The achievement of the quest is recognised elsewhere (hydration
+          // ring fills, PB toast, body-metric banner, etc.) so swallowing the
+          // chip on completion clears clutter from the home view.
+          // (qa: daily-quest-hide-when-done)
+          if (done) return null;
           return (
             <button
               onClick={() => {
@@ -9569,11 +9557,11 @@ function HomePage() {
                 }
                 setQuestInfo({ icon: q.icon, title: q.title, body: q.body, done, action });
               }}
-              style={{ width: "100%", background: done ? "rgba(46,204,113,0.08)" : "rgba(253,203,110,0.05)", border: `1px solid ${done ? "rgba(46,204,113,0.3)" : "rgba(253,203,110,0.22)"}`, borderRadius: 10, padding: "6px 10px", marginBottom: 8, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}
+              style={{ width: "100%", background: "rgba(253,203,110,0.05)", border: "1px solid rgba(253,203,110,0.22)", borderRadius: 10, padding: "6px 10px", marginBottom: 8, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif" }}
               title={q.body}
             >
               <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{q.icon}</span>
-              <span style={{ fontSize: 9, color: done ? "#2ecc71" : "#fdcb6e", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>{done ? "✓ DONE" : "DAILY QUEST"}</span>
+              <span style={{ fontSize: 9, color: "#fdcb6e", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>DAILY QUEST</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{q.title}</span>
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>›</span>
             </button>
@@ -10155,12 +10143,15 @@ function HomePage() {
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Messages</span>
             {unreadCount > 0 && <span style={{ position: "absolute", top: 4, right: 4, background: "#4ECDC4", color: "#000", borderRadius: 10, padding: "1px 6px", fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
           </button>
-          {/* Progress button removed from the bottom hub — already
-              lives in the top chip strip (between Profile and Tier).
-              Per @maaiz: 'Remove progress tab button from the bottom
-              of main as it's already at the top'. Doesn't widen the
-              remaining buttons too much because Friends + Clients
-              still take their slots. (qa: home-hub-singleline) */}
+          {/* Progress button moved back to the bottom hub per @maaiz:
+              the top chip strip is now reserved for Profile + Tier
+              (far-right). Progress sits between Messages and Ranks here
+              so the navigation chain reads chat → dashboard → ranks.
+              (qa: home-hub-singleline, home-hub-premium-polish) */}
+          <button className="card-hover nav-btn" onClick={() => { goTo("progress"); setProgressTab("dashboard"); }} title="Progress" style={{ flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: "rgba(255,107,107,0.05)", border: "1px solid rgba(255,107,107,0.22)", borderRadius: 12, color: "#FF6B6B", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box" }}>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>📊</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Progress</span>
+          </button>
           {/* Leaderboards — opens GlobalLeaderboardView (athletes +
               trainers, app-wide). Visible to all roles. Used to live
               behind the TierInfoModal; now first-class.
@@ -11770,9 +11761,10 @@ function HomePage() {
                                         <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
                                         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                                           <UserAvatarChip avatarId={m.avatarId} username={m.username} size={24} role={m.role} />
+                                          <TierGlyph src={tier.iconPath} emoji={tier.icon} size={24} />
                                           <div style={{ minWidth: 0 }}>
                                             <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : `@${m.username}`}</div>
-                                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={10} /> {tier.label}{m.role === "trainer" ? " · TRAINER" : ""}</div>
+                                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.label}{m.role === "trainer" ? " · TRAINER" : ""}</div>
                                           </div>
                                         </div>
                                       </>
@@ -12654,7 +12646,7 @@ function HomePage() {
                     onClick={() => setTierModalOpen(true)}
                     style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: 1, color: h.color, background: h.bg, border: `1px solid ${h.border}`, borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
                   >
-                    <span style={{ fontSize: 12 }}>{h.icon}</span>
+                    <TierGlyph src={h.iconPath} emoji={h.icon} size={13} />
                     <span>{h.label.toUpperCase()} · ATHLETE TIER {displayTierNum(idx + 1)}/{ATHLETE_TIERS.length}</span>
                   </button>
                 );
@@ -13872,9 +13864,10 @@ function HomePage() {
                                   <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{idx + 1}</span>}</div>
                                   <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                                     <UserAvatarChip avatarId={entry.avatarId} username={entry.username} size={24} role={entry.role} />
+                                    <TierGlyph src={entry.tier?.iconPath} emoji={entry.tier?.icon ?? "🐱"} size={24} />
                                     <div style={{ minWidth: 0 }}>
                                       <div style={{ fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? "#FFE66D" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{entry.username}{isMe ? " (you)" : ""}</div>
-                                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}><TierGlyph src={entry.tier?.iconPath} emoji={entry.tier?.icon ?? "🐱"} size={11} /> {entry.tier?.label ?? "Kitten"}</div>
+                                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier?.label ?? "Kitten"}</div>
                                     </div>
                                   </div>
                                 </>

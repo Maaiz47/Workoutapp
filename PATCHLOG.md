@@ -2,6 +2,22 @@
 
 ---
 
+## Home chip strip refactor + enlarged tier badges + daily quest hides when done · 2026-05-23 (qa: home-hub-premium-polish, home-hub-singleline, tier-icons-vivid, tier-icons-simple, tier-icons-trainer, profile-avatars-everywhere, daily-quest-hide-when-done)
+
+Per @maaiz on this iteration:
+
+- Still emoji in the athlete tier chip on home — fixed L9409 (athlete-tier button inside the welcome card was the one site missed in the full sweep; now wired to `<TierGlyph>`).
+- Top chip strip refactor: Progress button removed from the top chip strip and relocated back to the bottom hub (between Messages and Ranks). Top strip is now a clean `[Profile-avatar | Tier-card-far-right]` pair on a `60px 1fr` grid — the Tier card claims the rest of the width and visibly anchors the right edge.
+- Tier badges enlarged: home tier chip strip went from 11px → 20px inline glyphs (next to label). Leaderboards (mine + groups + global + discovery groups) now render the tier badge at **24px — same size as the avatar chip** so the two icons feel balanced next to each user. The redundant tier label glyph on the second line was removed (it was repeated at chip size; the 24px badge does the visual work now).
+
+## Daily quest tweaks · 2026-05-23 (qa: daily-quest-hide-when-done)
+
+Quest chip now hides entirely once `q.isDone(state)` returns true — was previously flipping to a green "✓ DONE" state but staying visible. Per @maaiz: "Daily quest still doesn't complete and go away when done." The achievement is recognised elsewhere (hydration ring fills, PB toast etc.) so swallowing the chip on completion clears clutter on the home view. The chip's deep-link behaviour stays for the not-yet-done state.
+
+The quest pool (lib/gamification.ts) currently has 14 quests — q-hydrate, q-train, q-rpe, q-sleep, q-energy, q-pr-hunt, q-double, q-variety, q-volume, q-superset, q-dropset, q-cardio, q-warmup-perfect, q-body-metric. `pickTodayQuest(userId)` deterministically picks one per user-per-day from this pool.
+
+---
+
 ## Profile avatars on leaderboards + chats · 2026-05-23 — Avatar chip next to tier icon everywhere a user is listed (qa: profile-avatars-everywhere)
 
 Per @maaiz: "I want the profile avatars to show where appropriate like message logs and in chats, and on leaderboards along with their tier icon next to each other."

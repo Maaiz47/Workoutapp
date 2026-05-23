@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "daily-quest-hide-when-done",
+      "title": "Daily quest chip hides once the quest is complete (instead of flipping to a green DONE state)",
+      "area": "Home",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass daily-quest-hide-when-done",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open home. Note today's daily quest (e.g. 'Hydrate' / 'PB hunt' / 'Tag effort').",
+        "Complete whatever the quest asks (drink the hydration target / log a session / log RPE / etc).",
+        "Return to home or refresh the view. The daily-quest chip should DISAPPEAR — not flip to a '✓ DONE' state.",
+        "If today's quest is q-hydrate: log water gradually throughout the day. The chip should stay visible until you hit the full target, then vanish on the next render.",
+        "Sanity: until completed, the chip still says 'DAILY QUEST · <title>' in amber and tapping it still opens the quest info modal."
+      ],
+      "notes": "[2026-05-23] Fixed: app/page.tsx around L9540 — early `return null` when `q.isDone(state)` is true. Previous behaviour was a colour flip to green '✓ DONE' but the chip stayed mounted; @maaiz wanted it gone entirely once complete. Quest pool unchanged (14 quests in lib/gamification.ts: q-hydrate, q-train, q-rpe, q-sleep, q-energy, q-pr-hunt, q-double, q-variety, q-volume, q-superset, q-dropset, q-cardio, q-warmup-perfect, q-body-metric). pickTodayQuest is still deterministic per-user-per-day."
+    },
+    {
       "id": "profile-avatars-everywhere",
       "title": "Profile avatars show alongside the tier icon in chats + leaderboards",
       "area": "Leaderboards",
