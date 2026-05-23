@@ -1,6 +1,58 @@
 {
   "items": [
     {
+      "id": "session-warmup-row-polish",
+      "title": "Warm-up/stretch/cooldown rows match exercise rows (no TAP label, set boxes visible)",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass session-warmup-row-polish",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open an active workout with warm-ups and cooldowns. Verify the collapsed warm-up rows NO LONGER show the small grey `TAP` label / `N/N · TAP` chip in the top-right corner.",
+        "Verify warm-up/stretch/cooldown rows now show a horizontal strip of numbered set boxes (1, 2, 3, ...) below the meta line — exactly like trackable exercise rows do. Each box renders as a 30px squircle.",
+        "Tap any set box to mark that set DONE (green ✓). Tap again to mark SKIPPED (red −). Tap a third time to clear back to pending. (Reverts to the existing chip-panel cycle from when row was expanded.)",
+        "Verify the row's overall ✓ state still fires once all sets are done OR skipped (existing behaviour, just now visible at the chip-strip layer too)."
+      ],
+      "notes": "[2026-05-23] Planning. Two grouped fixes per @maaiz: (i) remove the `TAP` / `N/N · TAP` text affordance on non-trackable rows since trackable exercises don't show this (visual consistency), (ii) render the set-box strip on non-trackable rows so users can mark each set DONE/SKIP at the collapsed row without expanding. Implementation: in app/page.tsx around line ~13654, drop the `!trackable` branch of the TAP label render. Around line ~13760, lift the `trackable && (` gate on the set-box strip to ALSO render for non-trackable rows, mapping the warmupSetState chip to the same ✓ / − / number visual."
+    },
+    {
+      "id": "session-page-3d-aesthetic",
+      "title": "Workout session page — layered 3D feel (motion, depth, parallax)",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass session-page-3d-aesthetic",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open an active workout session. Verify the page feels LAYERED — depth between exercise cards (subtle elevation shadows), the rest timer overlay, the LOG SET button, and the header.",
+        "Scroll through the session — exercise rows have a gentle parallax: the thumbnail image inside the row card moves slightly slower than the surrounding container as you scroll past, suggesting depth.",
+        "Tap LOG SET — verify the button has a subtle 3D press animation (depth-on-press) instead of the current flat flash.",
+        "Tap an exercise row to expand — verify the expansion animates with a smooth easing curve (current is OK but reads slightly mechanical).",
+        "Rest overlay: verify the countdown number has a subtle depth treatment (drop shadow + slight 3D rotation idle animation, e.g. ±2° on Y axis at 4s period).",
+        "Body parallax: when stationary, exercise card thumbnails have a barely-perceptible mouse-following / gyroscope-following tilt (±1° max). Should NOT feel busy."
+      ],
+      "notes": "[2026-05-23] Planning per @maaiz ask: 'optimise the 3D animations, effects, aesthetics of the session page so it looks less static and looks like 3D layers'. Approach options:\n(a) Pure CSS + framer-motion — `transform: translateZ()` + parallax via scroll-linked motion values, no new deps. Lower-risk + fast to ship.\n(b) Add `@react-three/fiber` for an actual 3D rest-timer ring or floating exercise cards. Heavy bundle add (+200 KB minified), only worth it if a meaningful subset of UI goes 3D.\nRecommendation: option (a). framer-motion is already in deps; lean on scroll-linked transforms + tilt-on-pointermove + subtle depth shadows. Target ≤8 KB CSS+JS delta. Slice into 4 sub-areas: header depth, exercise card parallax, LOG SET button press feedback, rest timer idle motion."
+    },
+    {
+      "id": "tier-ladder-dot-bar",
+      "title": "Tier progress bar rendered as a ladder of dots scaled to actual breakpoints",
+      "area": "Tier",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-ladder-dot-bar",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Open the tier modal (tap your tier chip on home). Verify there's a horizontal dot-bar near the top that spans the full ladder — 7 dots positioned at 0 / 15 / 30 / 50 / 70 / 90 / 100 (athlete tiers, vivid theme).",
+        "Verify the gaps BETWEEN dots are proportional to the actual score distance: Kitten→Fox = 15 units (small), Big Dawg→Lion = 20 units (larger). So later tiers have wider visible gaps, telegraphing 'harder to climb'.",
+        "Verify the bar is FILLED up to the user's current headline score. The filled portion uses a gradient matching the current tier's accent.",
+        "Each dot carries a tiny tooltip-on-hover (or label-below on mobile) with the tier label: Kitten · Fox · Big Dawg · Lion · Gorilla · Bear · MAX.",
+        "Switch to the SIMPLE theme — verify the dot positions are identical (same thresholds), labels swap to Bronze / Silver / Gold / Platinum / Diamond / Master.",
+        "On the trainer ladder modal, verify the dot bar uses TRAINER_TIERS thresholds: 0 / 15 / 30 / 50 / 70 / 88 (different last threshold) — gaps look different from the athlete ladder."
+      ],
+      "notes": "[2026-05-23] Planning per @maaiz: 'tier progress bars can show like .____.___ . . . . filled from lowest to max tier with dots identifying each tier point, distance between dots scaled to show difficulty to next tier dynamically'. Replaces / augments the current single-segment progress bar (which only spans current tier → next tier). New version spans the WHOLE ladder so users see the entire climb context. Implementation: in TierBreakdownLadder (app/page.tsx) replace the linear bar with a flex row of `<div>` dot elements positioned via `flex` weights proportional to the gaps. Filled region = absolute-positioned overlay with width = `(currentScore / 100) * 100%`. CSS-only, no new deps. ~30 lines."
+    },
+    {
       "id": "achievements-v1",
       "title": "Achievements system — full design captured (planning, no code shipped)",
       "area": "Achievements",

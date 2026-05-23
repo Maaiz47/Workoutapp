@@ -52,11 +52,20 @@ nudge, not nag.
      ladder; gates on `achievements-v1` shipping)
   6. Trainer default avatar (1 image — coach variant of the default
      for users with `trainer` role; clipboard + stopwatch motif)
-  7. Trainer tier-unlock avatars (6 images — Spotter → Hall of Fame;
-     hand → knight → clipboard → crown → phoenix → trophy)
+  7. Trainer tier-unlock avatars (12 images, 2 per tier — Spotter →
+     Hall of Fame; each tier has two themed alternatives like
+     spotter-a/spotter-b)
+  8. Tier sub-rank icons (11 images — Strength / Consistency /
+     Progression / Volume / Mastery / Body Comp / Habits + 4
+     trainer-specific). Powers tier-modal cohesion + reused in
+     Batch 9.
+  9. Achievement category icons (11 images, OPTIONAL — generate
+     only if Batch 8 lands and visual cohesion is wanted). 5 of 11
+     reuse Batch 8 assets.
   File-size optimisation pass spec'd inline in `/image-prompts-v2.md`
-  — target <25 KB per avatar, <35 KB per tier icon, <60 KB per
-  stretch frame. Existing batch is too heavy for mobile.
+  — target <25 KB per avatar, <35 KB per tier icon, <12 KB per
+  sub-rank/category icon. Total batch ~1.4 MB compressed (vs 3 MB
+  for the existing launch batch).
 - [ ] **Achievements system v1** (flagged 2026-05-23 by @maaiz).
   Full design + 55-achievement catalogue lives in `/ACHIEVEMENTS.md`.
   TL;DR: new Progress tab sub-tab, 55 achievements across 11

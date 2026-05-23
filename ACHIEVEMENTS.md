@@ -105,7 +105,7 @@ discounts it via e1RM. See `lib/tiers.ts` `strengthSubRank()` +
 | `vol-million` | **Megalift** | 1,000,000 kg-reps lifetime | Long-tail recognition |
 | `vol-week-warrior` | **Volume Week** | 5,000+ kg-reps in a single calendar week | Short-term burst |
 
-### 🏆 Variety (5)
+### 🏆 Variety (7)
 
 | ID | Title | Criterion | Reward note |
 |---|---|---|---|
@@ -114,6 +114,8 @@ discounts it via e1RM. See `lib/tiers.ts` `strengthSubRank()` +
 | `var-equipment-adventurer` | **Equipment Adventurer** | Train with all 4 main equipment types (barbell + dumbbell + cable/machine + bodyweight) in 30 days | Rewards mixing modalities |
 | `var-anatomy-geek` | **Anatomy Geek** | Train every muscle group (chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, calves, core) in a single calendar month | Forces well-rounded programming |
 | `var-plan-architect` | **Plan Architect** | Save 3 custom routines in the routine vault | Power-user nudge for the routine system |
+| `var-routine-sharer` | **Routine Sharer** | Share a saved routine with another user via the "+ SHARE" affordance | Rewards community use of the routine system |
+| `var-note-taker` | **Note Taker** | Add notes to 25 sets (long-press on a logged set chip) | Rewards the under-discovered note feature |
 
 ### 💧 Wellness (3)
 
@@ -125,7 +127,7 @@ discounts it via e1RM. See `lib/tiers.ts` `strengthSubRank()` +
 
 (`wel-rest-respect` moved into Consistency where it conceptually fits.)
 
-### ⚡ Technique (5) NEW
+### ⚡ Technique (7) NEW
 
 | ID | Title | Criterion | Reward note |
 |---|---|---|---|
@@ -134,6 +136,8 @@ discounts it via e1RM. See `lib/tiers.ts` `strengthSubRank()` +
 | `tec-drop-50` | **Drop Chain Devotee** | Complete 50 drop sets | Existing IP system tracks these |
 | `tec-drop-250` | **Drop Set Demon** | Complete 250 drop sets | Heavy-user tier |
 | `tec-honest-logger` | **Honest Logger** | Log RPE on 100 sets | Rewards effort discipline (feeds the IP RPE bonus + Strength trend) |
+| `tec-speedrun` | **Speedrun** | Complete a workout with ≥10 sets in under 30 minutes (real time, not perceived) | Rewards efficient programming |
+| `tec-long-hauler` | **Long Hauler** | Single workout > 90 minutes with ≥20 sets | Rewards the marathon training day |
 
 ### 🏃 Cardio / HIIT (7) NEW
 
@@ -197,7 +201,7 @@ the achievement loop without needing GPS or a new input field.
 | `wc-cooldown-streak` | **Cool Customer** | Mark ALL cooldown sets ✓ DONE for 10 consecutive sessions | Same |
 | `wc-full-prehab` | **Full Prehab** | Both warmup AND cooldown perfect for 30 consecutive sessions | Apex tier of prehab discipline |
 
-### 🌟 Milestones (5)
+### 🌟 Milestones (7)
 
 | ID | Title | Criterion | Reward note |
 |---|---|---|---|
@@ -206,6 +210,8 @@ the achievement loop without needing GPS or a new input field.
 | `mil-tier-lion` | **Pride** | Reach Lion tier (T4) | Top-half recognition |
 | `mil-become-trainer` | **Coach** | Have your trainer-role request approved (User.extraRoles includes "trainer") | One-time identity transition |
 | `mil-profile-polished` | **Profile Polished** | Complete every profile field (dob, gender, height, weight, body fat %, avatar selected, fitness level, daysPerWeek) | Tracks user investment in the system |
+| `mil-globe-walker` | **Globe Walker** | Appear on the Global leaderboard at least once (the ≥5 sessions qualification) | Rewards publicly competing |
+| `mil-group-joiner` | **Squad Up** | Join your first leaderboard group | Rewards social use of the group system |
 
 (Higher tiers — Gorilla / Bear — gate their own avatar slot anyway; no
 need to duplicate via achievements. Trainer-leaderboard milestones —
@@ -232,7 +238,7 @@ catalogue AND this one.
 (Hall of Fame T6 trainer tier already gates an avatar slot via the
 trainer-tier avatar batch — no need to duplicate via an achievement.)
 
-### 😂 Meme / Funny (4) NEW
+### 😂 Meme / Funny (5) NEW
 
 Easter-egg style achievements that reward weird or amusing behaviour.
 Per @maaiz's "funny achievements" ask. Kept tonally light in the
@@ -244,6 +250,7 @@ description copy so users smile when they unlock them.
 | `meme-vampire` | **Vampire Lifter** | Log a session starting between 00:00 and 04:00 local time | Night-owl recognition |
 | `meme-crack-of-dawn` | **Crack of Dawn** | Log a session starting before 06:00 local time | Morning-shift recognition |
 | `meme-rest-rebel` | **Rest Day Rebel** | Train 14 days in a row (anti-pattern of `con-rest-respect`) | Both rest-respecter and rest-rebel can earn an achievement — they're orthogonal life-styles, not opposites |
+| `meme-sandbagger` | **Sandbagger** | Entire workout logged at RPE ≤ 3 (every set ≤ 3) | "We saw what you did there." Funny callout, no penalty. Tonally light to encourage RPE logging even when sandbagging |
 
 ---
 
@@ -254,52 +261,42 @@ description copy so users smile when they unlock them.
 | 💪 Strength | 6 |
 | 🔁 Consistency | 6 |
 | 📈 Volume | 4 |
-| 🏆 Variety | 5 |
+| 🏆 Variety | 7 |
 | 💧 Wellness | 3 |
-| ⚡ Technique | 5 |
+| ⚡ Technique | 7 |
 | 🏃 Cardio / HIIT | 7 |
 | 🤸 Warmup/Cooldown | 3 |
-| 🌟 Milestones | 5 |
+| 🌟 Milestones | 7 |
 | 🤝 Trainer (trainer-role only) | 7 |
-| 😂 Meme | 4 |
-| **Total** | **55** |
+| 😂 Meme | 5 |
+| **Total** | **62** |
 
-Athletes see 48 (everything except Trainer). Trainer-role users see all
-55. The 6 count-milestone avatars (3/6/10/15/20/25 unlocks) pace
-cleanly against this — even casual users can hit a 3-avatar threshold
-quickly, while the 25-achievement apex avatar remains a real climb for
-all-rounders. Adding the 7 suggested below would lift the total to 62
-(55 + 7 athlete-discoverable) and we'd want a 7th avatar threshold
-(35 unlocks → 7th milestone avatar). Flag if you want those in v1.
+Athletes see 55 (everything except Trainer). Trainer-role users see
+all 62. Count-milestone avatars: 7 thresholds (3/6/10/15/20/25/35).
+The 35-achievement apex is realistically only reachable by
+trainer-athletes (who can earn all 62) or extreme all-rounders.
+Pure athletes max out around 50-55 if they grind every category;
+hitting 35 is a real climb.
 
 ---
 
-## My suggestions you might want to add (open for discussion)
+## My suggestions — ACCEPTED in v1 ✅
 
-A few more ideas I think would land well — bring up if you want any:
+@maaiz (2026-05-23): "Q3 yes add those". All 7 added to their
+respective categories above:
 
-- **`var-routine-sharer` — Routine Sharer.** Share a saved routine
-  with another user via the existing "+ SHARE" affordance. Rewards
-  community use.
-- **`var-note-taker` — Note Taker.** Add notes to 25 sets (long-press
-  on a logged set chip). Rewards the under-discovered note feature.
-- **`mil-globe-walker` — Globe Walker.** Appear on the Global
-  leaderboard at least once (the ≥5 sessions qualification). Rewards
-  publicly competing.
-- **`mil-group-joiner` — Squad Up.** Join your first leaderboard
-  group. Rewards social use.
-- **`tec-speedrun` — Speedrun.** Complete a workout with ≥10 sets in
-  under 30 minutes (real time, not perceived). Rewards efficient
-  programming.
-- **`tec-long-hauler` — Long Hauler.** Single workout > 90 minutes
-  with ≥20 sets. Rewards the marathon training day.
-- **`meme-sandbagger` — Sandbagger.** Entire workout logged at RPE ≤
-  3 (you're saving yourself, we noticed). Funny callout, no penalty.
+- **`var-routine-sharer` — Routine Sharer** → added to Variety (now 7)
+- **`var-note-taker` — Note Taker** → added to Variety (now 7)
+- **`mil-globe-walker` — Globe Walker** → added to Milestones (now 7)
+- **`mil-group-joiner` — Squad Up** → added to Milestones (now 7)
+- **`tec-speedrun` — Speedrun** → added to Technique (now 7)
+- **`tec-long-hauler` — Long Hauler** → added to Technique (now 7)
+- **`meme-sandbagger` — Sandbagger** → added to Meme (now 5)
 
-Total possible: 45 + 7 = 52. If we add ALL my suggestions, the avatar
-count system might want a 7th milestone (e.g. "all 50 unlocked →
-final avatar"). Easy to add later if the user base actually grinds
-through 45+. Flag if you want these in v1 vs deferred.
+Catalogue: 55 → 62 total (athlete-visible: 55; trainer-only: 7).
+Count-milestone avatars gain a 7th tier — **35 achievements unlocked
+→ `ach-forge-eternal`** (apex avatar; see image-prompts-v2.md Batch 5
+for the added prompt).
 
 ---
 
@@ -553,28 +550,46 @@ qa-state items to `regression-retest`.
 
 ### Still open
 
-- **Re-evaluate frequency for non-workout achievements** (hydration
-  streak, body comp tracking) — workout save is the natural trigger,
-  but a wellness-only achievement could lag a day if the user hits
-  the milestone on a rest day. Two paths:
-  (a) Add a lightweight `/api/achievements/recheck` endpoint called
-      from the wellness logging surfaces (`writeHydrationToday`,
-      `writeSleepToday`, body metric POST). Small endpoint, feels
-      responsive. Costs one round-trip per wellness write.
-  (b) Just compute on next workout-save (eventual consistency, may
-      delay the toast by a day).
-  *My recommendation:* option (a). Easy + responsive. Flag if you
-  prefer (b) for simpler implementation.
+### Answered ✅ (continued)
 
-- **Cardio-input polish slice as a dependency, or fold in?** The 3
-  distance-based cardio achievements (Marathon Month / Century Club /
-  Iron Thousand) need `cardioSetDistanceKm(set)` to read the
-  `{minutes, speed}` fields the in-session cardio UI already captures.
-  Question: should the achievement-v1 slice (a) include the small
-  cardio helper inline, or (b) gate on a separate `cardio-input-polish`
-  qa item that also surfaces a "Total cardio: 18.4 km this week" card
-  in Progress dashboard + adds a leaderboard distance column?
-  *My recommendation:* option (a) — write the helper as part of
-  Slice 1 (it's 12 lines), defer the dashboard card + leaderboard
-  column to the separate slice. That way achievements ship complete
-  without the polish blocking it.
+- **Wellness re-evaluate frequency** — @maaiz (2026-05-23):
+  "whether they train or not they should get the milestone for
+  logging the data". Implementation: every wellness write path
+  (`writeHydrationToday`, `writeSleepToday`, body metric POST) fires
+  a tiny POST to a new `/api/achievements/recheck` endpoint. The
+  endpoint:
+  1. Reads the user's current stats
+  2. Computes which achievements they've earned
+  3. Inserts any new `UserAchievement` rows (idempotent via the
+     unique constraint)
+  4. Returns the list of NEWLY-EARNED achievements in the response
+  5. Client fires the unlock toast for any returned items
+
+  Result: hitting a 28-day sleep streak fires the toast THE SECOND
+  the 28th sleep entry saves, not on next workout. Same for hydration
+  streaks, body-comp tracking milestones, all wellness criteria.
+
+- **Cardio-input polish — separate slice** — @maaiz (2026-05-23):
+  OK to defer. Achievements v1 ships the inline 12-line
+  `cardioSetDistanceKm(set)` helper so the 3 distance-based cardio
+  achievements work end-to-end. The polish slice (Progress dashboard
+  "Total cardio: 18.4 km this week" card + leaderboard distance
+  column) lands later as its own qa item.
+
+  Two additions @maaiz called out for the polish slice:
+  (i) **Manual distance input** — currently cardio sets capture
+      `{minutes, incline, speed, distance}` but the `distance` field
+      isn't surfaced in the in-session input UI. Surface it as a
+      4th optional field (with a small ⓘ tooltip *"Enter directly
+      OR leave blank and we'll estimate from time × speed"*).
+  (ii) **Outdoor runs as an exercise type** — currently cardio is
+      treadmill/bike/rower (machine-bound). Add an "Outdoor Run"
+      exercise that uses the same cardio set shape but skips
+      machine-specific fields (no incline, no machine-suggested
+      speed). User logs `{minutes, distance}` directly. Same
+      distance helper still works; the formula falls back to
+      `distance` when explicit.
+
+### Still open
+
+(none — all v1 questions answered as of 2026-05-23)

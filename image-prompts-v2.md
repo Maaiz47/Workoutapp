@@ -10,10 +10,12 @@ to the wishlist since:
 | 2. Athlete tier icons — Vivid theme | 6 | `/public/tier-icons/vivid/<label>.png` |
 | 3. Athlete tier icons — Simple theme | 6 | `/public/tier-icons/simple/<label>.png` |
 | 4. Stretch frame fixes (regens) | 8 | `/public/stretches/<id>/{0,1}.png` |
-| 5. Achievement-unlock avatars | 6 | `/public/avatars/<id>.png` |
-| 6. Default avatar — TRAINER variant NEW | 1 | `/public/ai/avatar-default-trainer.png` |
-| 7. Trainer tier-unlock avatars NEW | 6 | `/public/avatars/<id>.png` |
-| **Total** | **34** | |
+| 5. Achievement-unlock avatars | 7 | `/public/avatars/<id>.png` |
+| 6. Default avatar — TRAINER variant | 1 | `/public/ai/avatar-default-trainer.png` |
+| 7. Trainer tier-unlock avatars (2 per tier) | 12 | `/public/avatars/<id>.png` |
+| 8. Tier sub-rank icons NEW | 11 | `/public/sub-rank-icons/<id>.png` |
+| 9. Achievement category icons NEW (OPTIONAL) | 11 | `/public/cat-icons/<id>.png` |
+| **Total** | **63** | (53 if Batch 9 deferred) |
 
 ## File-size optimisation (read this BEFORE generation)
 
@@ -279,6 +281,7 @@ New profile avatars that unlock by **achievement count** (see
 | `ach-phoenix`       | 15 achievements  | Rising phoenix       | Comeback fuel |
 | `ach-crucible`      | 20 achievements  | Glowing crucible     | Refined |
 | `ach-blacksmith`    | 25 achievements  | Master blacksmith    | Apex craft |
+| `ach-forge-eternal` | 35 achievements  | Mythic cosmic forge  | All-rounder ceiling |
 
 ### Style guide (paste into every Achievement avatar prompt as a prefix)
 
@@ -322,13 +325,24 @@ New profile avatars that unlock by **achievement count** (see
 > Mood: refinement, mastery. Accent colour `#FFE66D` (yellow-gold).
 > Halo: bright golden glow with white-hot core.
 
-### `ach-blacksmith.png` — 25 achievements (apex)
+### `ach-blacksmith.png` — 25 achievements (apex of forging)
 > [style guide] · Subject: a hooded blacksmith silhouette (face hidden
 > in shadow under the hood) raising a forging hammer over a glowing
 > anvil. Glowing-red metal on the anvil, sparks flying. Heroic 3/4
 > angle. Mood: apex artisan, undeniable mastery. Accent colour
 > `#FF6B6B` (coral red). Halo: deep red-amber glow with sparks
 > scattered across the frame.
+
+### `ach-forge-eternal.png` — 35 achievements (all-rounder ceiling)
+> [style guide] · Subject: a colossal celestial forge floating in deep
+> space, anvil carved from black obsidian, molten metal cooling on its
+> surface, golden-white cosmic flames roaring upward toward an unseen
+> ceiling. Constellations and nebula gas swirl in the background. No
+> human figure — the forge stands alone, eternal. Mood: mythic,
+> all-time, transcendent — what a master smith becomes after a lifetime.
+> Accent colour `#f0c040` (rich gold) with `#FF6B6B` (coral red)
+> highlights in the flames. Halo: bright gold + red glow with star
+> particles + faint nebula gas drifting outward.
 
 ---
 
@@ -371,13 +385,13 @@ role check itself. (qa: profile-avatars-trainer-default)
 
 ---
 
-## Batch 7 — Trainer tier-unlock avatars (6 images) NEW
+## Batch 7 — Trainer tier-unlock avatars (12 images, 2 per tier) NEW
 
-Per @maaiz: special avatars that unlock on TRAINER tier climbs (the
-TRAINER_TIERS ladder: Spotter → Strategist → Pro → Master → Legend
-→ Hall of Fame). Athletes-without-trainer-role don't see these in
-their grid. 1 avatar per trainer tier in v1; can expand to 3-per-tier
-later if @maaiz wants the full athlete-parity treatment.
+Per @maaiz (2026-05-23, updated): special avatars that unlock on
+TRAINER tier climbs (the TRAINER_TIERS ladder: Spotter → Strategist
+→ Pro → Master → Legend → Hall of Fame). Athletes-without-trainer-role
+don't see these in their grid. **2 avatars per trainer tier** in v1
+(was originally 1; @maaiz bumped to 2 for visual variety).
 
 ### Style guide (paste into every Trainer tier avatar prompt as a prefix)
 
@@ -389,40 +403,84 @@ later if @maaiz wants the full athlete-parity treatment.
 > black at edges. Square 512×512, ~10% safe margin so it reads at
 > 48px in a circle.
 
-### `trainer-t1-spotter.png` — Spotter (Tier 1)
+### Tier 1 · Spotter — 2 avatars
+
+#### `trainer-t1-spotter-a.png` (the helping hand)
 > [style guide] · Subject: a single open hand reaching upward in a
 > "spot" / catch position, palm visible, fingers slightly bent.
 > Accent colour `#94a3b8` (slate). Mood: supportive, present,
 > ready. Halo: soft silver glow.
 
-### `trainer-t2-strategist.png` — Strategist (Tier 2)
+#### `trainer-t1-spotter-b.png` (the safety bar)
+> [style guide] · Subject: a heavy safety bar from a power rack
+> floating horizontally, with a single bead of sweat suspended above
+> it catching the rim-light. Accent colour `#94a3b8` (slate). Mood:
+> got-your-back, dependable. Halo: soft silver glow.
+
+### Tier 2 · Strategist — 2 avatars
+
+#### `trainer-t2-strategist-a.png` (the chess knight)
 > [style guide] · Subject: a chess knight piece carved in brushed
 > teal-steel, viewed from the side, with three thin orbital lines
 > tracing around it suggesting calculated moves. Accent colour
 > `#4ECDC4` (teal). Mood: tactical, thoughtful, planning. Halo:
 > teal glow.
 
-### `trainer-t3-pro.png` — Pro (Tier 3)
+#### `trainer-t2-strategist-b.png` (the playbook)
+> [style guide] · Subject: an open hardback notebook with a thin
+> network of glowing teal lines linking handwritten X/O annotations,
+> a single fountain pen resting across the spine. Accent colour
+> `#4ECDC4` (teal). Mood: scheming, deliberate. Halo: teal glow.
+
+### Tier 3 · Pro — 2 avatars
+
+#### `trainer-t3-pro-a.png` (the certified clipboard)
 > [style guide] · Subject: a clipboard with a single golden star
 > embossed in the centre, pencil tucked into the clip at top, ribbon
 > tail fluttering out from underneath. Accent colour `#FFD166`
 > (golden yellow). Mood: certified, established, respected. Halo:
 > warm gold glow.
 
-### `trainer-t4-master.png` — Master (Tier 4)
+#### `trainer-t3-pro-b.png` (the gold whistle)
+> [style guide] · Subject: a polished gold coach's whistle on a
+> braided silk lanyard, the whistle catching the rim-light, lanyard
+> coiling beneath. Accent colour `#FFD166` (golden yellow). Mood:
+> coach-in-charge, on-the-floor pro. Halo: warm gold glow.
+
+### Tier 4 · Master — 2 avatars
+
+#### `trainer-t4-master-a.png` (the crown of kettlebells)
 > [style guide] · Subject: a regal master's crown in matte deep
 > orange, with two crossed kettlebells beneath it in mirror-polished
 > chrome. Accent colour `#fb923c` (deep orange). Mood: commanding,
 > mastery, lineage. Halo: orange glow with subtle bronze flares.
 
-### `trainer-t5-legend.png` — Legend (Tier 5)
+#### `trainer-t4-master-b.png` (the dojo seal)
+> [style guide] · Subject: a circular eastern-style seal stamped in
+> deep-orange wax onto black slate, depicting a stylised crossed
+> barbell + dumbbell glyph in the centre. Slight steam rising from
+> the wax. Accent colour `#fb923c` (deep orange). Mood: lineage,
+> tradition, mastery passed down. Halo: orange glow.
+
+### Tier 5 · Legend — 2 avatars
+
+#### `trainer-t5-legend-a.png` (the phoenix on the anvil)
 > [style guide] · Subject: a stylised phoenix in coral-red flame,
 > wings spread, perched on top of a forging anvil. Sparks scatter
 > around the bird. Accent colour `#FF6B6B` (coral red). Mood:
 > legendary, transcendent, fire-tested. Halo: red-orange glow with
 > ember particles.
 
-### `trainer-t6-hof.png` — Hall of Fame (Tier 6, apex)
+#### `trainer-t5-legend-b.png` (the lion's mantle)
+> [style guide] · Subject: a stylised lion's head silhouette wearing
+> a red ceremonial mantle/cape that drapes behind it, mane composed
+> of subtle flame textures. Accent colour `#FF6B6B` (coral red).
+> Mood: storied, mythic, untouchable. Halo: red glow with ember
+> particles at the cape's hem.
+
+### Tier 6 · Hall of Fame (apex) — 2 avatars
+
+#### `trainer-t6-hof-a.png` (the trophy)
 > [style guide] · Subject: a golden championship trophy with double
 > handles, slight battle-wear / patina visible, standing on a black
 > marble plinth. Behind it: a faint constellation of stars forming
@@ -430,7 +488,15 @@ later if @maaiz wants the full athlete-parity treatment.
 > immortal, top-of-the-hall. Halo: bright gold glow with shimmering
 > star particles.
 
-**Wire-up:** add 6 entries to `lib/avatars.ts` `AVATARS` array.
+#### `trainer-t6-hof-b.png` (the celestial torch)
+> [style guide] · Subject: a golden torch held upright by an unseen
+> hand, flame composed of swirling cosmic gas with embedded stars,
+> the torch base etched with HALL OF FAME glyphs (illegible runes,
+> not text). Accent colour `#f0c040` (rich gold) with `#a78bfa`
+> (cosmic violet) accents in the flame. Mood: passed-down legacy,
+> torch-bearer, mythic. Halo: gold + violet glow with star particles.
+
+**Wire-up:** add 12 entries to `lib/avatars.ts` `AVATARS` array.
 Schema additions:
 - `Avatar.ladder?: "athlete" | "trainer"` — defaults to "athlete"
   when omitted (backward-compatible for the 20 existing tier
@@ -443,6 +509,118 @@ Schema additions:
 - AvatarPickerView grid: group avatars by `ladder` when the user has
   multiple — Athlete Tier Unlocks / Trainer Tier Unlocks / Lucky /
   Achievement sub-sections. (qa: profile-avatars-trainer-tier)
+
+---
+
+## Batch 8 — Tier sub-rank icons (11 images) NEW
+
+Per @maaiz: anything we can elevate from emoji glyph to ChatGPT-
+generated raster without losing performance, do it. The tier modal
+shows 7 athlete sub-ranks + 4 trainer-tier sub-ranks (currently
+emojis). These are repeated everywhere — promotion toast, tier
+chip, breakdown view — so elevating to consistent dark-mode raster
+icons gives the biggest cohesion win for the smallest image budget.
+
+Render size: ~32px in chips, ~48px in the modal. Generate at 256×256
+PNG, compress to 96×96 / quality 85 (target <12 KB each). Total
+batch budget: ~130 KB.
+
+### Style guide (paste into every Sub-rank icon prompt)
+
+> Generate a 256×256 PNG icon for a fitness app tier-breakdown
+> sub-rank chip. Style: **dark-mode UI icon**, centred glyph on a
+> deep matte black circular background, soft rim-light in the
+> sub-rank's accent colour, premium app aesthetic. NO text, NO
+> numbers. The glyph is a single recognisable monoline icon — think
+> Apple Fitness Health-app glyph energy. Background: subtle
+> sub-rank-coloured radial halo fading to near-black. Square
+> 256×256, ~15% safe margin so the glyph reads at 32px.
+
+### Athlete sub-ranks (7)
+
+| ID | Concept | Accent colour | Prompt addition |
+|---|---|---|---|
+| `consistency` | Loop of circling arrows on a calendar grid | `#4ECDC4` (teal) | "two arrows chasing each other in a circular loop, overlaid on a faint 7-cell calendar strip" |
+| `strength` | Flexed bicep silhouette | `#FF6B6B` (coral red) | "stylised flexed-arm silhouette, monoline outline, single highlight on the bicep peak" |
+| `progression` | Upward-trending rocket arrow | `#FFE66D` (yellow) | "stylised rocket shape composed of upward arrow lines, exhaust trail beneath" |
+| `volume` | Stacked weight plates rising bar chart | `#a78bfa` (violet) | "three stacked weight plates of increasing size forming an ascending bar chart" |
+| `mastery` | Trophy silhouette with crossed swords | `#f0c040` (gold) | "trophy cup with two crossed barbells behind it as the 'handles'" |
+| `bodycomp` | Balanced scale with a leaf and dumbbell | `#34d399` (green) | "old-style balance scale, leaf on one pan + dumbbell on the other" |
+| `habits` | Water droplet ringed by sleep crescent | `#74b9ff` (blue) | "water droplet centred inside a crescent moon arc" |
+
+### Trainer sub-ranks (4 — fields not already covered above)
+
+| ID | Concept | Accent colour | Prompt addition |
+|---|---|---|---|
+| `roster` | Three head-silhouettes forming a triangle | `#a78bfa` (violet) | "three minimal head silhouettes arranged in a triangle, slight depth shadow" |
+| `retention` | Circular loop with anchor in centre | `#4ECDC4` (teal) | "circular loop with a small anchor symbol inside, indicating clients staying" |
+| `reach` | Sphere with orbit lines + spark points | `#f0c040` (gold) | "wireframe sphere with two orbital lines, four small spark dots on the orbits" |
+| `discipline` | Kettlebell with focus ring | `#fb923c` (orange) | "single kettlebell viewed front-on with a thin concentric focus ring around it" |
+
+**Wire-up:** in `lib/tiers.ts`, change each sub-rank's `icon` field
+from the emoji string to a path like `/sub-rank-icons/strength.png`.
+The render in the tier modal + breakdown view needs to detect path
+vs emoji (starts with `/` → render `<img>`, else render as text).
+Lift existing emojis into a fallback when image fails to load. About
+a 15-line change across lib/tiers.ts + the 2-3 render sites.
+(qa: tier-modal-icons-raster)
+
+---
+
+## Batch 9 — Achievement category icons (11 images, OPTIONAL)
+
+These would replace the category emojis (💪 🔁 📈 🏆 💧 ⚡ 🏃 🤸 🌟
+🤝 😂) in the Achievements grid sub-headers. **Marked OPTIONAL —
+generate ONLY if Batch 8 lands well and you want consistent visual
+cohesion across the tier modal + achievements UI.** Otherwise emojis
+are fine for the category headers (they're decorative, not
+functional).
+
+Render size: ~24px in the sub-header strip. Generate at 256×256 PNG,
+compress to 96×96 / quality 85. Total batch budget: ~130 KB.
+
+### Style guide (same as Batch 8 — dark-mode monoline glyph)
+
+### Categories (11)
+
+| ID | Concept | Accent colour |
+|---|---|---|
+| `cat-strength` | Reuse `sub-rank-icons/strength.png` (flexed arm) — no separate render needed | `#FF6B6B` |
+| `cat-consistency` | Reuse `sub-rank-icons/consistency.png` | `#4ECDC4` |
+| `cat-volume` | Reuse `sub-rank-icons/volume.png` | `#a78bfa` |
+| `cat-variety` | Color-wheel split into 4 quadrants | `#fb923c` (orange) |
+| `cat-wellness` | Reuse `sub-rank-icons/habits.png` | `#74b9ff` |
+| `cat-technique` | Stylised double-arrow superset glyph | `#a855f7` (purple) |
+| `cat-cardio` | Running shoe in profile, stride lines beneath | `#FFE66D` (yellow) |
+| `cat-warmup-cooldown` | Stretching figure silhouette | `#fdcb6e` (warm yellow) |
+| `cat-milestone` | Five-pointed star with subtle trail | `#f0c040` (gold) |
+| `cat-trainer` | Whistle on lanyard (mini version of trainer-t3-pro-b) | `#4ECDC4` (teal) |
+| `cat-meme` | Wink-face emoji-style icon — NOT a literal emoji, a custom raster wink with personality | `#94a3b8` (slate) |
+
+5 of 11 reuse Batch 8 assets — only 6 NEW renders needed if Batch 8
+already shipped. Wire-up: trivial — string lookup in
+`lib/achievements.ts` `categoryIcon(category)`.
+(qa: achievements-category-icons-raster)
+
+---
+
+## Future elevation candidates (NOT in this batch)
+
+Logged for completeness — these are NOT being generated now but
+COULD be elevated to raster later if the user wants:
+
+- **Per-achievement tile icons** — 62 individual achievement icons.
+  HUGE batch. Skip for v1; tile uses category icon + the
+  achievement title text. Could batch later if @maaiz wants every
+  tile uniquely illustrated.
+- **Equipment selection icons in onboarding** — currently emoji
+  (🏋️ 🏠 etc.). Low-value elevation; emojis read fine in that
+  context.
+- **Wellness card section icons** — 💧 😴 ⚡ etc. Same as above —
+  emojis fine, low elevation value.
+- **Workout day card hero images** — already raster (generated at
+  launch). Refresh batch would be 5-7 images if @maaiz wants new
+  aesthetics, but the current ones are functional.
 
 ---
 
@@ -490,14 +668,30 @@ Schema additions:
 
 ## After all batches land
 
-Total: **34 images** (was 27 before trainer additions). Compressed to
-the targets in the file-size table above, that's roughly 850 KB
-total — meaningful for mobile load.
+Total: **63 images** (53 if Batch 9 deferred). Breakdown:
+- 1 athlete default avatar refresh
+- 12 athlete tier icons (vivid + simple)
+- 8 stretch regen frames (4 pairs)
+- 7 achievement-unlock avatars (incl. 35-milestone)
+- 1 trainer default avatar
+- 12 trainer tier-unlock avatars (2 per tier × 6)
+- 11 sub-rank icons (athlete + trainer)
+- 11 achievement category icons (OPTIONAL — 6 new if Batch 8 already
+  shipped + 5 reuses)
 
-Once all batches ship: CLAUDE.md's pending image reminders
-(wrong-form-images + tier-icons + achievements + image-gen-plan-v2)
-can all be ticked off. Add a new pending reminder for trainer-tier
-3-per-tier expansion only if you decide to grow past 1-per-tier.
+Compressed to the targets in the file-size table above, that's
+roughly 1.4 MB total (excluding Batch 9). Smaller than current
+launch batch (~3 MB) despite being more images.
 
 Commit each batch as you go. Vercel auto-deploys (now that the
-deploy-skip script bug is fixed).
+deploy-skip script bug is fixed). Suggested generation order to
+maximise visible value early:
+
+1. Batch 1 (default avatar) — instant standalone win, 1 image
+2. Batches 2 + 3 (tier icons, 12) — biggest visual cohesion upgrade
+3. Batch 6 (trainer default, 1)
+4. Batch 4 (stretch fixes, 8) — unblocks ticking the wrong-image reminder
+5. Batch 8 (sub-rank icons, 11) — UI cohesion + powers Batch 9 reuses
+6. Batch 7 (trainer tier avatars, 12) — gates on trainer-role users existing
+7. Batch 5 (achievement avatars, 7) — gates on achievements-v1 shipping
+8. Batch 9 (category icons, 11 OPTIONAL) — last polish
