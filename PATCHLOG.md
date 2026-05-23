@@ -2,6 +2,12 @@
 
 ---
 
+## QA pass · 2026-05-23 — Rest counter on LOG SET button when overlay skipped (qa: workout-rest-skipped-counter)
+
+Added a `screenDismissed` state + `dismissScreen()` action to the `useCountdown` rest hook. The SKIP button on the rest overlay now calls `dismissScreen()` instead of `stop()` — the overlay hides but the timer keeps ticking. While `rest.running && rest.screenDismissed`, the LOG SET button label appends ` · REST <n>s` so the user is aware they're still inside their planned rest window even though the screen is dismissed. Works across exercises (timer is hook-level). The next set's logSet → rest.start() resets `screenDismissed` so the next rest cycle shows the overlay normally. Doesn't block the tap — purely informational.
+
+---
+
 ## QA pass · 2026-05-23 — Completed-summary directional arrows (qa: workout-completed-summary)
 
 Slice 2: each set in the THIS line now carries a tiny ▲ (green, this set's e1RM > last session's best by ≥0.5%), ▼ (red, < by ≥0.5%), or `=` (dim grey, within ±0.5%). Reference is `estimate1RM(lastWeight, lastReps)` from `lib/performance.ts`. Assisted sets render with no arrow until workout-assisted-exercise slice 2 wires bodyweight-aware effective load.

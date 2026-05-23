@@ -84,6 +84,13 @@ function useCountdown() {
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
   const [total, setTotal] = useState(0);
+  // Distinct from `running` — `screenDismissed` lets the user hide
+  // the full-screen rest overlay without actually stopping the
+  // timer. The counter then keeps ticking quietly and surfaces on
+  // the next-set / next-exercise LOG SET button so the user stays
+  // aware of how much rest they're skipping.
+  // (qa: workout-rest-skipped-counter)
+  const [screenDismissed, setScreenDismissed] = useState(false);
   const endTimeRef = useRef<number | null>(null);
   const ref = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioCtx = useRef<AudioContext | null>(null);
@@ -167,6 +174,7 @@ function useCountdown() {
     setSeconds(secs);
     setTotal(secs);
     setRunning(true);
+    setScreenDismissed(false);     // Fresh rest → re-show the overlay.
 
     ref.current = setInterval(() => {
       const remaining = Math.ceil((endTimeRef.current! - Date.now()) / 1000);
@@ -183,10 +191,18 @@ function useCountdown() {
     const elapsed = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
     setRunning(false);
     setSeconds(0);
+    setScreenDismissed(false);
     endTimeRef.current = null;
     startedAtRef.current = null;
     onFinishRef.current = null;
     return elapsed;
+  }, []);
+
+  // Hide the rest overlay without killing the timer. Counter keeps
+  // ticking so other surfaces (LOG SET button, etc.) can show "still
+  // resting · 12s" badges. (qa: workout-rest-skipped-counter)
+  const dismissScreen = useCallback(() => {
+    setScreenDismissed(true);
   }, []);
 
   // Handle coming back from background — check if timer expired while away
@@ -208,7 +224,7 @@ function useCountdown() {
     };
   }, [finish]);
 
-  return { seconds, running, total, start, stop };
+  return { seconds, running, total, start, stop, screenDismissed, dismissScreen };
 }
 
 function useTimer() {
@@ -13309,7 +13325,7 @@ function HomePage() {
           );
         })()}
 
-        {rest.running && isMounted && (() => {
+        {rest.running && !rest.screenDismissed && isMounted && (() => {
           const progress = rest.total > 0 ? rest.seconds / rest.total : 0;
           const R = 70, C = 2 * Math.PI * R;
           const dash = C * progress;
@@ -13340,8 +13356,15 @@ function HomePage() {
                 </div>
               )}
               <button onClick={() => {
-                const elapsed = rest.stop();
-                if (hasPB && elapsed != null && elapsed < 5000) {
+                // SKIP dismisses the rest overlay but keeps the timer
+                // ticking — the LOG SET button on the next set/exercise
+                // surfaces the residual count so the user knows they
+                // jumped early. (qa: workout-rest-skipped-counter)
+                rest.dismissScreen();
+                // PR celebration overlay handling preserved: if a PB
+                // landed in this same cycle, give it the usual 5s
+                // breathing room before clearing.
+                if (hasPB) {
                   setTimeout(() => setNewPBs([]), 5000);
                 } else {
                   setNewPBs([]);
@@ -13548,7 +13571,13 @@ function HomePage() {
                 };
 
                 const isLastInSuper = superCtx && superCtx.idx === superCtx.group.length - 1;
-                const logBtnLabel = superCtx && !isLastInSuper ? `LOG SET ${ns} → NEXT` : `LOG SET ${ns}`;
+                // When rest is still ticking (e.g. user dismissed the
+                // rest overlay early), surface the residual seconds on
+                // the LOG SET button so the user is aware they're inside
+                // the planned rest window. Doesn't block the tap — it's
+                // just an FYI. (qa: workout-rest-skipped-counter)
+                const restCounterSuffix = rest.running && rest.seconds > 0 && rest.screenDismissed ? ` · REST ${rest.seconds}s` : "";
+                const logBtnLabel = (superCtx && !isLastInSuper ? `LOG SET ${ns} → NEXT` : `LOG SET ${ns}`) + restCounterSuffix;
 
                 return (
                   <div key={ex.id} className="fade-in">

@@ -1,6 +1,25 @@
 {
   "items": [
     {
+      "id": "workout-rest-skipped-counter",
+      "title": "Rest counter keeps ticking on LOG SET button when user skips the rest overlay",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass workout-rest-skipped-counter",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout with a rested exercise (e.g. 70s rest). Log a set so the rest overlay appears.",
+        "Tap SKIP on the rest overlay. Verify the overlay dismisses but the timer stays alive — the LOG SET button on the next set now reads `LOG SET 2 · REST 58s` (or similar countdown).",
+        "Tap into a DIFFERENT exercise that has a LOG SET button visible. Verify it ALSO shows the residual REST counter (the timer is hook-level, not per-exercise).",
+        "Wait for the rest period to elapse naturally. Verify the counter disappears from the LOG SET label once seconds hits 0.",
+        "Log another set — verify a fresh rest overlay appears (skipping persists only for THIS rest cycle, not the next one).",
+        "When the user lets the timer run out organically without skipping, verify the overlay handles the finish as before (no regression to the existing rest-end flow).",
+        "Verify the SKIP button STILL clears the new-PB confetti correctly when applicable (PB handling preserved)."
+      ],
+      "notes": "[2026-05-23] Shipped: added `screenDismissed` state + `dismissScreen()` action to useCountdown(). SKIP now calls dismissScreen() instead of stop() — overlay hides, timer keeps ticking. LOG SET button label appends ` · REST <n>s` while `rest.running && rest.screenDismissed`. start() resets screenDismissed=false so the next rest cycle shows the overlay again. (Reported by @maaiz: 'even if rest timer is skipped, I want to see a counter keep going on the next set or exercise set button — doesn't need to stop them, just makes them aware they are within rest time even if they skipped the rest screen'.)"
+    },
+    {
       "id": "workout-completed-summary",
       "title": "Show this-session sets + last-session best on completed exercise row",
       "area": "Workout",
