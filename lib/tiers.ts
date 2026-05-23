@@ -92,7 +92,7 @@ export const TRAINER_TIERS: AnimalTier[] = [
   { tierNum: 1, label: "Spotter",      icon: "🤝", min: 0,  color: "#94a3b8", bg: "rgba(148,163,184,0.10)", border: "rgba(148,163,184,0.3)" },
   { tierNum: 2, label: "Strategist",   icon: "🧠", min: 15, color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)"  },
   { tierNum: 3, label: "Pro",          icon: "⚡", min: 30, color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
-  { tierNum: 4, label: "Master",       icon: "👑", min: 50, color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.35)" },
+  { tierNum: 4, label: "Mentor",       icon: "👑", min: 50, color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.35)" },
   { tierNum: 5, label: "Legend",       icon: "🏆", min: 70, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
   { tierNum: 6, label: "Hall of Fame", icon: "⭐", min: 88, color: "#f0c040", bg: "rgba(240,192,64,0.12)",  border: "rgba(240,192,64,0.45)" },
 ];
