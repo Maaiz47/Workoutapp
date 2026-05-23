@@ -1,0 +1,10 @@
+{
+  "id": "cmpho0olj0002ibg7hpexzw5y",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=workout] Need a way to mark assisted exercises like assisted pull ups as such instead of just bodyweight (can be an extra step to say assisted after they select bodyweight)\nShould consider into volume stat for this exercise as it’s even less weight technically than bodyweight",
+  "screenshotUrl": null,
+  "ts": "2026-05-23T01:23:56.166Z"
+}
