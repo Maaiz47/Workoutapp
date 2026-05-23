@@ -4,41 +4,76 @@ import { prisma } from "../../../../../../lib/prisma";
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
 
-// POST: Invite another trainer to the group
+// POST: Invite another user to the group. Trainers can invite other
+// trainers (existing flow — invitee joins as co-trainer). Any member
+// can invite their FRIENDS (new — invitee joins as "client" role
+// once they accept). Validates the friendship is accepted.
+// (qa: groups-friend-invite)
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
   try {
     const groupId = params.id;
 
-    // Must be a trainer member of this group
+    // Inviter must be a member of this group (any role).
     const membership = await prisma.leaderboardGroupMember.findUnique({
       where: { groupId_userId: { groupId, userId: uid } },
     });
-    if (!membership || membership.role !== "trainer") return json({ error: "Trainer membership required" }, 403);
+    if (!membership) return json({ error: "Group membership required to invite" }, 403);
 
     const { inviteeId } = await req.json();
     if (!inviteeId) return json({ error: "inviteeId required" }, 400);
+    if (inviteeId === uid) return json({ error: "Can't invite yourself" }, 400);
 
-    // Check invitee exists and is a trainer
+    // Check invitee exists.
     const invitee = await prisma.user.findUnique({ where: { id: inviteeId }, select: { id: true, role: true } });
     if (!invitee) return json({ error: "User not found" }, 404);
-    if (invitee.role !== "trainer") return json({ error: "Can only invite trainers" }, 400);
 
-    // Check not already a member
+    // Check not already a member.
     const existing = await prisma.leaderboardGroupMember.findUnique({
       where: { groupId_userId: { groupId, userId: inviteeId } },
     });
     if (existing) return json({ error: "Already a member" }, 409);
 
-    // Upsert invite (in case a prior declined invite exists, create a new pending one)
+    // Authorisation matrix:
+    //   1. Inviter is trainer + invitee is trainer → existing trainer
+    //      co-invite flow (invitee joins as "trainer" role).
+    //   2. Inviter is ANY member + invitee is their accepted friend
+    //      → friend invite (invitee joins as "client" on accept).
+    const inviterIsTrainer = membership.role === "trainer";
+    const inviteeIsTrainer = invitee.role === "trainer";
+
+    let intendedJoinRole: "trainer" | "client" = "client";
+    if (inviterIsTrainer && inviteeIsTrainer) {
+      intendedJoinRole = "trainer";
+    } else {
+      // Verify accepted friendship in either direction.
+      const friendship = await prisma.friendship.findFirst({
+        where: {
+          status: "accepted",
+          OR: [
+            { userAId: uid, userBId: inviteeId },
+            { userAId: inviteeId, userBId: uid },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!friendship) {
+        return json({ error: "Can only invite trainers (if you're a trainer) or accepted friends" }, 403);
+      }
+      intendedJoinRole = "client";
+    }
+
+    // Upsert invite (in case a prior declined invite exists, create a new pending one).
+    // We don't persist intendedJoinRole on the invite row — it's
+    // re-derived at accept time using the same rules.
     const invite = await prisma.leaderboardGroupInvite.upsert({
       where: { groupId_inviteeId: { groupId, inviteeId } },
       create: { groupId, inviterId: uid, inviteeId, status: "pending" },
       update: { inviterId: uid, status: "pending" },
     });
 
-    return json({ invite }, 201);
+    return json({ invite, intendedJoinRole }, 201);
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);
   }

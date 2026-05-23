@@ -1,6 +1,109 @@
 {
   "items": [
     {
+      "id": "messages-group-inbox",
+      "title": "Group conversations show up in the Messages inbox alongside DMs",
+      "area": "Messages",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass messages-group-inbox",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Be a member of at least one group with messages in its chat.",
+        "Open the Messages tab. Verify group conversations appear in the inbox alongside DMs.",
+        "Each group row should show a gold-accent `GROUP · N` chip (member count) followed by the group name. The latest message preview reads `@<sender>: <body>` or `· <system event>` for system_ messages.",
+        "Sort: list is in DESC order by latest activity across both DMs and groups.",
+        "Tap a group row — opens the group chat view and the NEW chip on that row clears.",
+        "Send a new message from another account into a group you're in. Refresh Messages — a gold NEW chip appears on that group's row.",
+        "Tap the row to open the chat — the NEW chip disappears.",
+        "Search box (visible when >4 conversations total) filters both DMs and groups by partner-username / group-name."
+      ],
+      "notes": "[2026-05-23] Shipped: /api/messages returns groupConversations[] alongside conversations[]. Frontend builds a unified Row[] with kind:'dm'|'group', sorts by ts DESC, renders the gold-banner group tile with `GROUP · N` chip. Unread tracking via localStorage lastSeenGroupAt[groupId]; markGroupSeen fires when the group chat is opened. (qa: messages-group-inbox)"
+    },
+    {
+      "id": "groups-friend-invite",
+      "title": "Athletes can invite their friends to a leaderboard group (mirrors trainer + ADD CLIENTS)",
+      "area": "Groups",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass groups-friend-invite",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Have at least one accepted friend.",
+        "Open any group you're a member of (athlete or trainer role).",
+        "Verify a new + ADD FRIENDS section appears below the trainer panels with your friends listed.",
+        "Tap INVITE next to a friend. Verify the chip flips to INVITED and the friend receives an invite notification in their groups view.",
+        "Friend opens the invite chip + accepts. Verify they join the group as a 'client' role member (not a trainer).",
+        "If you don't have any friends, the + ADD FRIENDS section is hidden.",
+        "Trainer-to-trainer invite flow still works unchanged — same endpoint, role logic resolved server-side."
+      ],
+      "notes": "[2026-05-23] Shipped: POST /api/leaderboard/groups/[id]/invite extended to allow any member to invite their accepted friends. Validates friendship in either direction. PATCH on accept uses 'client' role for non-trainer invitees, 'trainer' for trainer-to-trainer. Frontend: new ADD FRIENDS panel listing acceptedFriendsList (slim mirror of /api/friends.accepted). Same three-state INVITE/INVITED/MEMBER pattern as the trainer panel."
+    },
+    {
+      "id": "dashboard-kpi-top",
+      "title": "KPI cards (THIS WEEK / STREAK / AVG TIME) moved to the top of the Progress dashboard",
+      "area": "Progress",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass dashboard-kpi-top",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard.",
+        "Verify the FIRST card stack is the three KPIs: THIS WEEK / STREAK / AVG TIME (was buried below tier breakdown + wellness previously).",
+        "Wellness card appears RIGHT AFTER the KPIs (was lower down).",
+        "Below Wellness: Challenges, Achievements, Volume Heatmap, Tier Card, Personal Bests."
+      ],
+      "notes": "[2026-05-23] Moved the KPI grid to the top of progressTab === 'dashboard' and the Wellness card to sit right under it. Per @maaiz: 'Dashboard KPIs to be fixed at the top' + 'Wellness to be next after in order'."
+    },
+    {
+      "id": "wellness-open-by-default",
+      "title": "Wellness card opens by default (was collapsed)",
+      "area": "Progress",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass wellness-open-by-default",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Clear localStorage `ironlog-wellness-open` (or use a fresh browser).",
+        "Open Progress → Dashboard. The Wellness card should be EXPANDED by default with the daily trackers visible (hydration glasses + sleep/energy chips + soreness + injuries).",
+        "Tap the collapse arrow on the Wellness card. Verify it closes AND that localStorage now has `ironlog-wellness-open === '0'`.",
+        "Reload — Wellness stays closed (user choice respected).",
+        "Reopen Wellness — localStorage flips to '1' and reload keeps it open."
+      ],
+      "notes": "[2026-05-23] WellnessCard's useState default flipped from false → true. The useEffect that hydrates from localStorage now only flips to false on an explicit '0'; null / '1' / any other value leaves it open. Per @maaiz: 'by default open list not closed'."
+    },
+    {
+      "id": "profile-avatar-tier-label",
+      "title": "Avatar picker lock tooltip uses display tier number (consistent with the chip)",
+      "area": "Profile",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass profile-avatar-tier-label",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open the avatar picker (Settings → tap your avatar).",
+        "Hover/long-press a LOCKED tier-source avatar.",
+        "Verify the tooltip reads `Unlocks at Tier <displayN>` where displayN matches the TIER N chip shown on the card (e.g. starter avatars said 'Unlocks at Tier 1' but the chip said 'TIER 6' — they should now both say TIER 6).",
+        "Rare/lucky-source avatars still say 'Rare drop — keep training!'."
+      ],
+      "notes": "[2026-05-23] Fixed: AvatarPickerView title attribute used raw `av.tier` (internal 1-6) while the chip label used `displayTierNum(av.tier)`. Both now use displayTierNum for consistency. Reported by @maaiz: 'I think profile avatars might be labelled wrong tier numbers'."
+    },
+    {
+      "id": "version-patch-reset-on-minor",
+      "title": "Patch counter resets when MAJOR.MINOR bumps (no longer counts pre-v1.1 sections)",
+      "area": "App",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass version-patch-reset-on-minor",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → scroll to the version chip.",
+        "Verify the version reads `v1.1.<small number>` — NOT `1.1.112+`. The number is the count of PATCHLOG sections after the v1.1 'Tier scoring v2 ship' baseline (offset = 30).",
+        "Trigger a new push that adds a PATCHLOG section. The patch number should increment by 1 — not by some larger jump."
+      ],
+      "notes": "[2026-05-23] Fixed: /api/version subtracts PRE_V1_1_PATCH_OFFSET (30) from the PATCHLOG section count so the v1.1.X patch number reflects only v1.1-era work. Per @maaiz: 'When v1.1 started the last number should have reset but we continued counting the last number too'. Bumping major/minor in future just needs a new offset constant."
+    },
+    {
       "id": "chat-no-emoji",
       "title": "Direct-message bubbles no longer render a permanent reply-arrow emoji",
       "area": "Messages",

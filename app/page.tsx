@@ -772,8 +772,10 @@ function MiniChart({ data, color, label }: { data: number[]; color: string; labe
 
 // Wellness card — 4 lightweight daily trackers (hydration / sleep+energy
 // / soreness / injuries). All localStorage-backed, all opt-in, all
-// touchpoint-light. Shown collapsed by default so it doesn't dominate
-// the Progress dashboard.
+// touchpoint-light. Shown OPEN by default (since v3.3 — per @maaiz the
+// collapsed default hid wellness behind a tap) so users actually see
+// + log the trackers. User's explicit toggle is still persisted in
+// localStorage so they can collapse it if preferred.
 function WellnessCard() {
   const MUSCLES = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "glutes", "calves", "core"];
   const INJURY_PARTS = [...MUSCLES, "knee", "elbow", "wrist", "ankle", "lower-back", "neck"];
@@ -781,15 +783,15 @@ function WellnessCard() {
   const [sleep, setSleep] = useState<SleepEntry>({});
   const [soreness, setSoreness] = useState<SorenessMap>({});
   const [injuries, setInjuries] = useState<Injury[]>([]);
-  // Default collapsed. Persisted to localStorage so a user who
-  // explicitly opens (or re-closes) the card sees the same state
-  // next session — no surprise re-expansion. Per @maaiz: keep it
-  // collapsed by default. (qa: wellness-collapsed-default)
-  const [open, setOpen] = useState(false);
+  // Default OPEN. Persisted toggle still respected via localStorage —
+  // only flips closed if the user explicitly closes it.
+  // (qa: wellness-open-by-default)
+  const [open, setOpen] = useState(true);
   useEffect(() => {
     try {
       const stored = localStorage.getItem("ironlog-wellness-open");
-      if (stored === "1") setOpen(true);
+      // Only respect an explicit "0" (user-closed) — null / "1" leave open.
+      if (stored === "0") setOpen(false);
     } catch {}
   }, []);
   const toggleOpen = useCallback(() => {
@@ -4822,7 +4824,7 @@ function AvatarPickerView({
                       setAvatarInventory((inv: any) => inv ? { ...inv, selected: av.id } : inv);
                     }
                   } catch {}
-                }} title={isUnlocked ? av.flavour : `${av.source === "tier" ? `Unlocks at Tier ${av.tier}` : "Rare drop — keep training!"}`} style={{ background: isSelected ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.45)" : isLucky ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.6, position: "relative", color: "#fff", textAlign: "left" }}>
+                }} title={isUnlocked ? av.flavour : `${av.source === "tier" ? `Unlocks at Tier ${displayTierNum(av.tier)}` : "Rare drop — keep training!"}`} style={{ background: isSelected ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.45)" : isLucky ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.6, position: "relative", color: "#fff", textAlign: "left" }}>
                   {isUnlocked ? (
                     <img src={`/avatars/${av.id}.png`} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} onError={e => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
                   ) : (
@@ -5227,12 +5229,18 @@ function HomePage() {
   // pending-incoming badge without each FriendsCard mount refetching
   // just to count. (qa: friend-system-athletes)
   const [pendingFriendCount, setPendingFriendCount] = useState(0);
+  // Accepted friends slim mirror — used by the "+ ADD FRIENDS" section
+  // inside group panels so athletes can invite their friends to
+  // leaderboards (mirrors the trainer "+ ADD CLIENTS" flow).
+  // (qa: groups-friend-invite)
+  const [acceptedFriendsList, setAcceptedFriendsList] = useState<any[]>([]);
   const fetchPendingFriendCount = useCallback(async () => {
     try {
       const r = await fetch("/api/friends");
       if (!r.ok) return;
       const data = await r.json();
       setPendingFriendCount((data.pendingReceived ?? []).length);
+      setAcceptedFriendsList(data.accepted ?? []);
     } catch {}
   }, []);
   const [trainerRequests, setTrainerRequests] = useState<any[]>([]);
@@ -5280,6 +5288,20 @@ function HomePage() {
   const [groupChatSending, setGroupChatSending] = useState(false);
   const [groupChatLoading, setGroupChatLoading] = useState(false);
   const [groupChatLeaderboardOpen, setGroupChatLeaderboardOpen] = useState(false);
+  // Group "last seen at" tracking for the unified Messages inbox unread
+  // chip. Declared early so the activeGroupChatId effect below can call
+  // markGroupSeen without a use-before-declare error.
+  // (qa: messages-group-inbox)
+  const [lastSeenGroupAt, setLastSeenGroupAt] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem("ironlog-last-seen-group-at") ?? "{}"); } catch { return {}; }
+  });
+  const markGroupSeen = useCallback((groupId: string) => {
+    setLastSeenGroupAt(prev => {
+      const next = { ...prev, [groupId]: new Date().toISOString() };
+      try { localStorage.setItem("ironlog-last-seen-group-at", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
   // Fetch chat messages whenever we open a new group chat. Resets
   // messages first so we don't show stale ones from a prior group.
   // (qa: group-chat-system-messages)
@@ -5287,6 +5309,10 @@ function HomePage() {
     if (!activeGroupChatId) return;
     setGroupChatMessages([]);
     setGroupChatLoading(true);
+    // Mark the group as seen the moment the user opens its chat — this
+    // is what clears the NEW chip on the Messages inbox tile.
+    // (qa: messages-group-inbox)
+    markGroupSeen(activeGroupChatId);
     let cancelled = false;
     (async () => {
       try {
@@ -5297,7 +5323,7 @@ function HomePage() {
       if (!cancelled) setGroupChatLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [activeGroupChatId]);
+  }, [activeGroupChatId, markGroupSeen]);
   const [lbGroupClientSearch, setLbGroupClientSearch] = useState("");
   const [trainerSearchForLb, setTrainerSearchForLb] = useState("");
   const [trainerSearchResultsLb, setTrainerSearchResultsLb] = useState<any[]>([]);
@@ -5373,6 +5399,9 @@ function HomePage() {
   const [regenerating, setRegenerating] = useState(false);
   const [regenConfirm, setRegenConfirm] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
+  // Group conversations — surfaced in the Messages inbox alongside DMs
+  // so users see all their threads in one place. (qa: messages-group-inbox)
+  const [groupConversations, setGroupConversations] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeConversation, setActiveConversation] = useState<{ id: string; username: string } | null>(null);
   const [conversationMessages, setConversationMessages] = useState<any[]>([]);
@@ -5670,6 +5699,7 @@ function HomePage() {
         setConversations(data.conversations);
         setUnreadCount(data.conversations.reduce((a: number, c: any) => a + (c.unreadCount ?? 0), 0));
       }
+      if (data.groupConversations) setGroupConversations(data.groupConversations);
     }).catch(() => {});
   }, [user]);
 
@@ -5691,6 +5721,7 @@ function HomePage() {
           setConversations(data.conversations);
           setUnreadCount(data.conversations.reduce((a: number, c: any) => a + (c.unreadCount ?? 0), 0));
         }
+        if (data.groupConversations) setGroupConversations(data.groupConversations);
       }).catch(() => {});
     };
     const id = setInterval(poll, 5000);
@@ -11982,6 +12013,52 @@ function HomePage() {
                             );
                           })}
                         </div>
+                        {/* Add friends — mirrors the trainer + ADD CLIENTS
+                            flow. Any group member with accepted friends
+                            can invite them; backend validates the
+                            friendship before persisting the invite. The
+                            friend appears in the group's pending invite
+                            list and joins as a "client" role on accept.
+                            (qa: groups-friend-invite) */}
+                        {acceptedFriendsList.length > 0 && (
+                          <div style={{ marginTop: 14 }}>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>+ ADD FRIENDS</div>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 8, lineHeight: 1.5 }}>
+                              Invite your friends to join this group. They'll get a notification + chip on their groups list to accept.
+                            </div>
+                            {acceptedFriendsList.map((f: any) => {
+                              const friendId = f.userA?.id === user.id ? f.userB?.id : f.userA?.id;
+                              const friendUsername = f.userA?.id === user.id ? f.userB?.username : f.userA?.username;
+                              if (!friendId) return null;
+                              const alreadyMember = grp.members?.some((m: any) => m.userId === friendId);
+                              const alreadyInvited = grp.invites?.some((inv: any) => inv.inviteeId === friendId);
+                              return (
+                                <div key={friendId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 8, marginBottom: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                                  <span style={{ fontSize: 13, color: "#fff" }}>@{friendUsername}</span>
+                                  {alreadyMember ? (
+                                    <span style={{ fontSize: 10, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>MEMBER</span>
+                                  ) : alreadyInvited ? (
+                                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace" }}>INVITED</span>
+                                  ) : (
+                                    <button onClick={async () => {
+                                      try {
+                                        const res = await fetch(`/api/leaderboard/groups/${grp.id}/invite`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ inviteeId: friendId }) });
+                                        if (res.ok) {
+                                          const refreshRes = await fetch("/api/leaderboard/groups");
+                                          const refreshData = await refreshRes.json();
+                                          if (refreshData.groups) { setLbGroups(refreshData.groups); setActiveLbGroup(refreshData.groups.find((g: any) => g.id === grp.id) ?? null); }
+                                        } else {
+                                          const data = await res.json().catch(() => ({}));
+                                          if (data.error) alert(data.error);
+                                        }
+                                      } catch {}
+                                    }} style={{ padding: "4px 10px", background: "rgba(78,205,196,0.14)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 6, color: "#4ECDC4", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>INVITE</button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                         {/* Delete group */}
                         {grp.createdBy === user.id && (
                           <button onClick={async () => {
@@ -12027,37 +12104,90 @@ function HomePage() {
         </div>
       )}
       <div style={{ padding: "0 20px" }}>
-        {conversations.length === 0 && (
-          <div style={{ textAlign: "center", marginTop: 60 }}>
-            <img src="/ai/empty-messages.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.55, borderRadius: 14, marginBottom: 14 }} />
-            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No messages yet</div>
-          </div>
-        )}
-        {conversations.filter(c => !conversationsFilter || c.partner.username.toLowerCase().includes(conversationsFilter.toLowerCase())).map(c => {
-          const lm = c.latestMessage;
-          const isSentByMe = lm?.fromId === user?.id;
-          const previewTick = isSentByMe
-            ? lm.read ? { label: "✓✓", color: "#4ECDC4" }
-            : lm.delivered ? { label: "✓✓", color: "rgba(255,255,255,0.4)" }
-            : { label: "✓", color: "rgba(255,255,255,0.25)" }
-            : null;
-          return (
-          <div key={c.partner.id} className="card-hover" onClick={() => openConversation(c.partner)} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${c.unreadCount > 0 ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, padding: "16px", marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 4 }}>@{c.partner.username}</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4 }}>
-                {previewTick && <span style={{ color: previewTick.color, letterSpacing: -2, paddingRight: 2, flexShrink: 0 }}>{previewTick.label}</span>}
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {lm.type === "adoption_request" ? "Trainer request" : lm.type === "friend_request" ? "Friend request" : lm.type === "friend_accepted" ? "Friend accepted" : lm.type === "plan_proposal" ? "Plan update proposed" : lm.body}
-                </span>
+        {/* Unified inbox: DMs + group threads merged + sorted by latest
+            activity. Each row tagged so the user can distinguish at a
+            glance. Group rows show the "premium banner" gold-accent
+            treatment + a · N members chip. Tap → opens the right view.
+            (qa: messages-group-inbox) */}
+        {(() => {
+          type Row =
+            | { kind: "dm"; ts: string; key: string; conv: any }
+            | { kind: "group"; ts: string; key: string; conv: any; unread: boolean };
+          const rows: Row[] = [];
+          for (const c of conversations) {
+            if (conversationsFilter && !c.partner.username.toLowerCase().includes(conversationsFilter.toLowerCase())) continue;
+            const ts = c.latestMessage?.createdAt ?? "0";
+            rows.push({ kind: "dm", ts: typeof ts === "string" ? ts : new Date(ts).toISOString(), key: `dm-${c.partner.id}`, conv: c });
+          }
+          for (const g of groupConversations) {
+            if (conversationsFilter && !g.name.toLowerCase().includes(conversationsFilter.toLowerCase())) continue;
+            const ts = g.latestMessage?.createdAt ?? g.joinedAt;
+            const seenAt = lastSeenGroupAt[g.groupId] ?? "0";
+            const unread = !!g.latestMessage && (g.latestMessage.createdAt > seenAt) && (g.latestMessage.fromId !== user?.id);
+            rows.push({ kind: "group", ts, key: `g-${g.groupId}`, conv: g, unread });
+          }
+          rows.sort((a, b) => b.ts.localeCompare(a.ts));
+          if (rows.length === 0) {
+            return (
+              <div style={{ textAlign: "center", marginTop: 60 }}>
+                <img src="/ai/empty-messages.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.55, borderRadius: 14, marginBottom: 14 }} />
+                <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No messages yet</div>
               </div>
-            </div>
-            {c.unreadCount > 0 && (
-              <span style={{ background: "#4ECDC4", color: "#000", borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", flexShrink: 0, marginLeft: 12 }}>{c.unreadCount}</span>
-            )}
-          </div>
-          );
-        })}
+            );
+          }
+          return rows.map(row => {
+            if (row.kind === "dm") {
+              const c = row.conv;
+              const lm = c.latestMessage;
+              const isSentByMe = lm?.fromId === user?.id;
+              const previewTick = isSentByMe
+                ? lm.read ? { label: "✓✓", color: "#4ECDC4" }
+                : lm.delivered ? { label: "✓✓", color: "rgba(255,255,255,0.4)" }
+                : { label: "✓", color: "rgba(255,255,255,0.25)" }
+                : null;
+              return (
+                <div key={row.key} className="card-hover" onClick={() => openConversation(c.partner)} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${c.unreadCount > 0 ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 14, padding: "16px", marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 4 }}>@{c.partner.username}</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4 }}>
+                      {previewTick && <span style={{ color: previewTick.color, letterSpacing: -2, paddingRight: 2, flexShrink: 0 }}>{previewTick.label}</span>}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {lm.type === "adoption_request" ? "Trainer request" : lm.type === "friend_request" ? "Friend request" : lm.type === "friend_accepted" ? "Friend accepted" : lm.type === "plan_proposal" ? "Plan update proposed" : lm.body}
+                      </span>
+                    </div>
+                  </div>
+                  {c.unreadCount > 0 && (
+                    <span style={{ background: "#4ECDC4", color: "#000", borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", flexShrink: 0, marginLeft: 12 }}>{c.unreadCount}</span>
+                  )}
+                </div>
+              );
+            }
+            // Group row — gold-accent "premium banner" treatment.
+            const g = row.conv;
+            const lm = g.latestMessage;
+            const lmFromMe = lm?.fromId === user?.id;
+            return (
+              <div key={row.key} className="card-hover" onClick={() => { markGroupSeen(g.groupId); setActiveGroupChatId(g.groupId); setActiveGroupChatName(g.name); setView("groupChat"); }} style={{ background: "linear-gradient(135deg, rgba(240,192,64,0.06), rgba(255,255,255,0.03))", border: `1px solid ${row.unread ? "rgba(240,192,64,0.45)" : "rgba(240,192,64,0.20)"}`, borderRadius: 14, padding: "14px 16px", marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 0 rgba(255,255,255,0.04) inset, 0 6px 22px -10px rgba(240,192,64,0.18)" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1.5, color: "#f0c040", fontFamily: "'Space Mono', monospace", background: "rgba(240,192,64,0.10)", border: "1px solid rgba(240,192,64,0.30)", borderRadius: 4, padding: "2px 6px" }}>GROUP · {g.memberCount}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{g.name}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {lm ? (
+                      lm.type?.startsWith("system_")
+                        ? <span style={{ color: "#A29BFE" }}>· {lm.body}</span>
+                        : <>{lmFromMe ? "You" : `@${lm.fromUsername ?? "—"}`}: {lm.body}</>
+                    ) : <span style={{ fontStyle: "italic" }}>No messages yet — tap to start a thread.</span>}
+                  </div>
+                </div>
+                {row.unread && (
+                  <span style={{ background: "#f0c040", color: "#000", borderRadius: 12, padding: "2px 8px", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", flexShrink: 0, marginLeft: 12, letterSpacing: 1 }}>NEW</span>
+                )}
+              </div>
+            );
+          });
+        })()}
       </div>
     </div>
   );
@@ -13485,6 +13615,34 @@ function HomePage() {
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {progressTab === "dashboard" && (
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
+            {/* KPI cards — promoted to the TOP per @maaiz: the THIS WEEK /
+                STREAK / AVG TIME headline numbers were getting buried
+                below tier breakdown + wellness. Putting them first
+                gives users their progress-at-a-glance immediately on
+                opening the dashboard. (qa: dashboard-kpi-top) */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+              {[
+                { label: "THIS WEEK", value: `${overall.thisWeek}/5`, color: overall.thisWeek >= 5 ? "#2ecc71" : overall.thisWeek >= 3 ? "#f0c040" : "#FF6B6B" },
+                { label: "STREAK", value: `${overall.streak}w`, color: "#4ECDC4" },
+                { label: "AVG TIME", value: overall.avgMinutes > 0 ? `${overall.avgMinutes}m` : "—", color: "#A29BFE" },
+              ].map((card, i) => (
+                <div key={i} style={{
+                  position: "relative", overflow: "hidden",
+                  background: `linear-gradient(180deg, ${card.color}10, rgba(255,255,255,0.02))`,
+                  border: `1px solid ${card.color}22`,
+                  borderRadius: 14, padding: "16px 12px", textAlign: "center",
+                  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 12px -6px ${card.color}30`,
+                }}>
+                  <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${card.color}, transparent)`, opacity: 0.5 }} />
+                  <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", letterSpacing: -0.5 }}>{card.value}</div>
+                  <div style={{ fontSize: 8, color: card.color, letterSpacing: 2, marginTop: 4, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{card.label}</div>
+                </div>
+              ))}
+            </div>
+            {/* Wellness moved up to sit right under the KPIs per @maaiz.
+                Now opens by default so the daily trackers are visible
+                without an extra tap. (qa: wellness-open-by-default) */}
+            <WellnessCard />
             {!deGamified && <ChallengesCard history={history} bodyMetrics={bodyMetrics} gender={ob.gender || null} />}
             {/* Achievements wall on the Progress dashboard — per
                 @maaiz: 'cant find milestones/achievements anywhere
@@ -13526,7 +13684,11 @@ function HomePage() {
                 </>
               );
             })()}
-            <WellnessCard />
+            {/* Wellness moved up to sit right after the KPI / tier
+                surfaces per @maaiz so the daily trackers are visible
+                without scrolling past challenges + heatmap. Open-by-
+                default behaviour change is inside WellnessCard.
+                (qa: dashboard-kpi-top, wellness-open-by-default) */}
             <VolumeHeatmap history={history} customPlan={customPlan} bodyweightKg={parseFloat(ob.weightKg || "0") || 70} />
             {/* Tier Card — multi-dim ladder. Hidden when de-gamify is on.
                 Headline animal tier comes
@@ -13670,26 +13832,6 @@ function HomePage() {
                 </div>
               );
             })()}
-            {/* Overview Cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
-              {[
-                { label: "THIS WEEK", value: `${overall.thisWeek}/5`, color: overall.thisWeek >= 5 ? "#2ecc71" : overall.thisWeek >= 3 ? "#f0c040" : "#FF6B6B" },
-                { label: "STREAK", value: `${overall.streak}w`, color: "#4ECDC4" },
-                { label: "AVG TIME", value: overall.avgMinutes > 0 ? `${overall.avgMinutes}m` : "—", color: "#A29BFE" },
-              ].map((card, i) => (
-                <div key={i} style={{
-                  position: "relative", overflow: "hidden",
-                  background: `linear-gradient(180deg, ${card.color}10, rgba(255,255,255,0.02))`,
-                  border: `1px solid ${card.color}22`,
-                  borderRadius: 14, padding: "16px 12px", textAlign: "center",
-                  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 12px -6px ${card.color}30`,
-                }}>
-                  <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${card.color}, transparent)`, opacity: 0.5 }} />
-                  <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", letterSpacing: -0.5 }}>{card.value}</div>
-                  <div style={{ fontSize: 8, color: card.color, letterSpacing: 2, marginTop: 4, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{card.label}</div>
-                </div>
-              ))}
-            </div>
 
             {/* Calendar lives in the HISTORY tab now — the Dashboard
                 used to host a 28-day grid AND History had its own

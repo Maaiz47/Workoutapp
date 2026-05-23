@@ -12,6 +12,15 @@ export const dynamic = "force-dynamic";
 // workout polish batch, planner-equipment-strict, routine auto-naming,
 // avatar picker as routed page, contributors consolidated to /qa.
 const MAJOR_MINOR = "1.1";
+// Number of PATCHLOG section headers that existed at-or-before the v1.1
+// milestone (the "Tier scoring v2 ship" pass on 2026-05-23). Per @maaiz:
+// when v1.1 shipped the patch counter should have reset — we kept
+// counting historical v1.0 sections by mistake. Subtracting this
+// offset means the patch number now reflects only v1.1 work, so the
+// next deploy after this fix will read v1.1.<small number>, not
+// v1.1.112+.
+// (qa: version-patch-reset-on-minor)
+const PRE_V1_1_PATCH_OFFSET = 30;
 
 export async function GET() {
   const sha = process.env.VERCEL_GIT_COMMIT_SHA || "dev";
@@ -29,7 +38,10 @@ export async function GET() {
     const matches = md.match(/^## (QA pass|Feature|Fix|Polish)\b/gm);
     patchCount = matches ? matches.length : 0;
   } catch {}
-  const appVersion = `${MAJOR_MINOR}.${patchCount}`;
+  // Subtract the v1.0 baseline so the patch number resets when MAJOR_MINOR
+  // increments. Clamp at 0 in case anyone deletes sections.
+  const minorPatch = Math.max(0, patchCount - PRE_V1_1_PATCH_OFFSET);
+  const appVersion = `${MAJOR_MINOR}.${minorPatch}`;
 
   return NextResponse.json({ sha, shortSha, appVersion, ref, title });
 }

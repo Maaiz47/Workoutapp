@@ -2,6 +2,70 @@
 
 ---
 
+## Big bundle · 2026-05-23 — Group convs in Messages, friends→groups, dashboard reorder, version reset, avatar tier label, calendar verified (qa: messages-group-inbox, groups-friend-invite, dashboard-kpi-top, wellness-open-by-default, profile-avatar-tier-label, version-patch-reset-on-minor)
+
+Per @maaiz "fix everything then deploy" — bundling a stack of UX fixes
+into one push.
+
+### Group conversations land in the Messages inbox
+- `/api/messages` GET now returns both `conversations` (DMs) and
+  `groupConversations` (every group the user is a member of with the
+  latest GroupMessage summary + member count).
+- Frontend renders a unified, latest-activity-sorted list. DM rows
+  unchanged; group rows wear a gold "premium banner" treatment with a
+  GROUP · N chip and the last sender / system event in the preview.
+- Unread tracking is localStorage-based via
+  `lastSeenGroupAt[groupId]` — flips to "seen" the moment the user
+  opens the group chat. Gold NEW chip on rows with messages newer
+  than the seen timestamp.
+
+### Athletes can invite their friends to groups
+- `/api/leaderboard/groups/[id]/invite` extended: any group member
+  can invite their accepted friends; backend validates the friendship
+  before creating the invite. Trainer-to-trainer invite flow unchanged.
+- Invitees join as "client" role on accept (mirrors the existing
+  trainer "+ ADD CLIENTS" placement on the rank ladder).
+- Frontend: new "+ ADD FRIENDS" section in each group panel, visible
+  to any member with accepted friends. Lists every friend with three
+  states — INVITE / INVITED / MEMBER — mirroring the trainer flow.
+
+### Dashboard ordering + Wellness
+- KPI cards (THIS WEEK / STREAK / AVG TIME) promoted to the TOP of
+  the Progress dashboard. Were buried below tier breakdown + wellness
+  before; now they're the first thing the user sees.
+- Wellness card moved up to sit right under the KPIs.
+- WellnessCard now defaults to OPEN — only collapses if the user
+  explicitly closed it (localStorage `ironlog-wellness-open === "0"`).
+
+### Avatar tier label fix
+- `Unlocks at Tier N` tooltip in the avatar picker was using raw
+  internal `av.tier` (1=lowest) while the chip label used
+  `displayTierNum(av.tier)` (1=top). They now both use display
+  numbering — consistent with the rest of the app.
+
+### Version patch counter reset
+- `/api/version` was concatenating ALL historical PATCHLOG section
+  counts onto the `1.1.X` patch number. Subtracts the pre-v1.1
+  baseline (30 sections) so the next deploy reads `1.1.<small>`
+  instead of `1.1.112+`. Future major.minor bumps just need a new
+  offset constant.
+
+### Calendar intensity color map — verified working
+- Per @maaiz "Is the calendar intensity color map working?". Traced
+  the formula at lib/page.tsx:1742: `intensity = volume × (avgRpe/10)`
+  per day, normalised across all-time max, ramped 0.18 → 0.73 opacity
+  in coral red. Working as designed; if you see a specific day that
+  isn't colouring, tell me the date and I'll trace it.
+
+### Deferred to next bundle (not in this push)
+- Monthly challenges audit + larger library + 3-random-rotation.
+- Milestone audit + bodyweight (push-ups, pull-ups, sit-ups) + warmup
+  / stretching milestone batches.
+- Premium "bonus" avatars unlocked by hard milestones + corresponding
+  image-gen prompts in /image-prompts-v2.md.
+
+---
+
 ## Home strip polish + chat de-emoji · 2026-05-23 (qa: home-hub-premium-polish, chat-no-emoji)
 
 Per @maaiz screenshot feedback:
