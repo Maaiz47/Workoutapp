@@ -115,6 +115,20 @@ This rule supersedes "bundle related work into ONE push" below. The
 batching is now manual rather than time-of-iteration heuristic — the
 user controls deploy timing explicitly.
 
+**Reinforced 2026-05-23 by @maaiz**: "hold deploying until I say
+always". Treat this as durable session-wide policy:
+- Never push proactively, never push after a stop-hook nudge, never
+  push because work feels finished, never push because qa-state /
+  qa-comments / PATCHLOG accumulated. The unpushed-commit warning
+  is informational only.
+- The ONLY trigger to push is an explicit signal from the user
+  (the trigger phrases above, or unambiguous variants like
+  "ok push", "deploy this", "ship the friends fix").
+- A prior session push approval does NOT carry forward. Each push
+  needs its own explicit signal.
+- If you're unsure whether a phrase is a deploy signal, ask first
+  rather than push.
+
 ### Pre-deploy QA-comment scan (added 2026-05-23)
 
 The user may submit feedback through the in-app QA panel WHILE the agent
