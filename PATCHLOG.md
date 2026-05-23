@@ -2,6 +2,16 @@
 
 ---
 
+## Home strip polish + chat de-emoji · 2026-05-23 (qa: home-hub-premium-polish, chat-no-emoji)
+
+Per @maaiz screenshot feedback:
+
+- **Profile button no longer squished.** Grid changed from `60px 1fr · alignItems: stretch` to `auto 1fr · alignItems: start`; profile button is a fixed 72×72 square that sits at the top of the cell. No longer stretches tall when the tier card grows.
+- **Tier card rows restructured.** Icon is now 36px and fills the row height vertically; label + score-to-next + progress bar share the right side of each row in a flex column. Per row: `[36px tier icon] [label · T# / +N→NEXT / dot-bar stack]`. Reads way clearer.
+- **Reply-arrow emoji removed from message bubbles.** The `↩` glyph was permanently rendered next to every incoming chat message even though the comment said "fades in as user swipes". Swipe-to-reply still works via the touch handlers — just no visual emoji glyph cluttering the view.
+
+---
+
 ## Tier scoring v3.2 · 2026-05-23 — Absolute-strength blend + Technique sub-rank (qa: tier-strength-absolute-blend, tier-technique-subrank)
 
 Per @maaiz follow-up after v3.1: dedicated users were still capping at T4-T5 around 12mo and DROPPING back to T4 at 24mo due to rate-based strength/progression decay. v3.2 fixes both structural issues plus wires the gamification rewards into the tier headline.

@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "chat-no-emoji",
+      "title": "Direct-message bubbles no longer render a permanent reply-arrow emoji",
+      "area": "Messages",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass chat-no-emoji",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open a direct message with another user.",
+        "Verify each incoming message bubble shows NO blue/teal reply-arrow emoji to the left of the bubble.",
+        "Verify each outgoing message bubble shows NO reply-arrow emoji to the right either.",
+        "Swipe right on an incoming message — verify the swipe-to-reply behaviour still works (the reply preview banner appears above the input).",
+        "Tap-and-hold a message — verify the reactions emoji picker still appears with 👍 ❤️ 😂 😮 💪 🔥 (these are intentional user-selected reactions, not the removed arrow)."
+      ],
+      "notes": "[2026-05-23] Removed: the always-rendered ↩ div on each message bubble in the DM view (around L12232). The comment claimed it 'fades in as user swipes' but the implementation had no opacity binding, so it was always visible. Swipe-to-reply still works via onTouchMove + onTouchEnd handlers; only the visual cue was removed."
+    },
+    {
       "id": "tier-strength-absolute-blend",
       "title": "Strength sub-rank blends rate-of-change with absolute strength (best e1RM ÷ bodyweight)",
       "area": "Tiers",

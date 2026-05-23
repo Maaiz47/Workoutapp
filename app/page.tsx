@@ -9295,7 +9295,7 @@ function HomePage() {
               fit both pills and Profile/Progress stay tied to its
               height via align-items: stretch on the grid.
               (qa: home-hub-premium-polish) */}
-          <div style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: 8, alignItems: "stretch" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "start" }}>
             {/* Shared button chrome — applied via spread on each chip
                 to keep parity. Layered shadow: subtle inner top
                 highlight + soft outer drop. 14px radius for the
@@ -9305,7 +9305,7 @@ function HomePage() {
               onClick={() => setView("profile")}
               title="Profile"
               style={{
-                minWidth: 0, minHeight: 60,
+                width: 72, height: 72,
                 background: "transparent",
                 border: "1px solid rgba(255,255,255,0.10)",
                 borderRadius: 14, cursor: "pointer",
@@ -9313,6 +9313,7 @@ function HomePage() {
                 boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 6px 22px -8px rgba(0,0,0,0.7)",
                 overflow: "hidden",
                 display: "flex", alignItems: "stretch", justifyContent: "stretch",
+                flexShrink: 0,
               }}
             >
               {(() => {
@@ -9358,18 +9359,21 @@ function HomePage() {
                 const remaining = next ? Math.max(0, next.min - clients.length) : 0;
                 const tierNum = displayTierNum(tIdx + 1);
                 return (
-                  <div style={{ padding: "3px 6px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}><TierGlyph src={t.iconPath} emoji={t.emoji} size={20} /> {t.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{tierNum}</span></span>
-                      <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
-                        {next ? `+${remaining} → ${next.label.toUpperCase()} T${displayTierNum(tIdx + 2)}` : "★ TOP"}
-                      </span>
+                  <div style={{ padding: "5px 7px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                    <TierGlyph src={t.iconPath} emoji={t.emoji} size={36} style={{ flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{t.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{tierNum}</span></span>
+                        <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                          {next ? `+${remaining} → ${next.label.toUpperCase()} T${displayTierNum(tIdx + 2)}` : "★ TOP"}
+                        </span>
+                      </div>
+                      <CompactTierDotBar
+                        tiers={TRAINER_TIERS.map(x => ({ label: x.label, color: x.color, min: x.min }))}
+                        currentRaw={clients.length}
+                        currentLabel={t.label}
+                      />
                     </div>
-                    <CompactTierDotBar
-                      tiers={TRAINER_TIERS.map(x => ({ label: x.label, color: x.color, min: x.min }))}
-                      currentRaw={clients.length}
-                      currentLabel={t.label}
-                    />
                   </div>
                 );
               })()}
@@ -9385,18 +9389,21 @@ function HomePage() {
                 const next = themedTiers[hIdx + 1];
                 const remaining = next ? Math.max(0, next.min - score) : 0;
                 return (
-                  <div style={{ padding: "3px 6px", background: h.bg, border: `1px solid ${h.border}`, borderRadius: 6 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}><TierGlyph src={h.iconPath} emoji={h.icon} size={20} /> {h.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{displayTierNum(h.tierNum)}</span></span>
-                      <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
-                        {next ? `+${remaining} → ${next.label.toUpperCase()} T${displayTierNum(next.tierNum)}` : "★ TOP"}
-                      </span>
+                  <div style={{ padding: "5px 7px", background: h.bg, border: `1px solid ${h.border}`, borderRadius: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                    <TierGlyph src={h.iconPath} emoji={h.icon} size={36} style={{ flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{displayTierNum(h.tierNum)}</span></span>
+                        <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                          {next ? `+${remaining} → ${next.label.toUpperCase()} T${displayTierNum(next.tierNum)}` : "★ TOP"}
+                        </span>
+                      </div>
+                      <CompactTierDotBar
+                        tiers={themedTiers.map(x => ({ label: x.label, color: x.color, min: x.min }))}
+                        currentRaw={score}
+                        currentLabel={h.label}
+                      />
                     </div>
-                    <CompactTierDotBar
-                      tiers={themedTiers.map(x => ({ label: x.label, color: x.color, min: x.min }))}
-                      currentRaw={score}
-                      currentLabel={h.label}
-                    />
                   </div>
                 );
               })()}
@@ -12229,8 +12236,11 @@ function HomePage() {
           const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "💪", "🔥"];
           return (
             <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", position: "relative", maxWidth: "75%" }}>
-              {/* Reply arrow — fades in as user swipes */}
-              <div style={{ position: "absolute", left: isMine ? "auto" : -28, right: isMine ? -28 : "auto", top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "rgba(78,205,196,0.7)", pointerEvents: "none" }}>↩</div>
+              {/* Reply arrow removed per @maaiz — was rendered as a permanent
+                  emoji glyph on every incoming message even though the comment
+                  said "fades in as user swipes". Swipe-to-reply still works via
+                  the touch handlers below; the visual cue is no longer needed.
+                  (qa: chat-no-emoji) */}
               {/* Emoji picker — shown on long-press */}
               <AnimatePresence>
               {reactingToMsgId === msg.id && (
