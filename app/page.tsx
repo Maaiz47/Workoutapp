@@ -5308,6 +5308,11 @@ function HomePage() {
   // Messages are fetched fresh on each open. (qa: group-chat-system-messages)
   const [activeGroupChatId, setActiveGroupChatId] = useState<string | null>(null);
   const [activeGroupChatName, setActiveGroupChatName] = useState<string>("");
+  // Where to navigate when the user backs out of the group chat. When
+  // opened from the Messages inbox, go back to "messages"; from the
+  // Groups view, back to "groupsHub". Defaults to "groupsHub" for
+  // safety. (qa: group-chat-back-nav)
+  const [groupChatPrevView, setGroupChatPrevView] = useState<"messages" | "groupsHub" | "home">("groupsHub");
   const [groupChatMessages, setGroupChatMessages] = useState<Array<{ id: string; fromId: string | null; fromUsername: string | null; fromAvatarId: string | null; body: string; type: string; createdAt: string }>>([]);
   const [groupChatInput, setGroupChatInput] = useState("");
   const [groupChatSending, setGroupChatSending] = useState(false);
@@ -5338,6 +5343,17 @@ function HomePage() {
     // is what clears the NEW chip on the Messages inbox tile.
     // (qa: messages-group-inbox)
     markGroupSeen(activeGroupChatId);
+    // Ensure lbGroups (used by the in-chat 🏆 STANDINGS panel) is
+    // loaded. Users entering chat from the Messages inbox may never
+    // have visited the Groups view, so lbGroups would otherwise be
+    // empty + the leaderboard panel would render zero rows.
+    // (qa: group-chat-leaderboard-fetch)
+    if (lbGroups.length === 0) {
+      fetch("/api/leaderboard/groups")
+        .then(r => r.json())
+        .then(data => { if (data.groups) setLbGroups(data.groups); })
+        .catch(() => {});
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -5578,7 +5594,7 @@ function HomePage() {
     else if (view === "groupsHub") setView("home");
     else if (view === "clientsHub") setView("home");
     else if (view === "friendsHub") setView("home");
-    else if (view === "groupChat") setView("groupsHub");
+    else if (view === "groupChat") setView(groupChatPrevView);
     else if (view === "workout" && started) setView("home"); // leave but keep session alive
     else if (view === "avatarPicker") setView("profile"); // avatar picker → back to Settings → Profile
   }, swipeBackViews.has(view));
@@ -9370,14 +9386,10 @@ function HomePage() {
               height via align-items: stretch on the grid.
               (qa: home-hub-premium-polish) */}
           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "stretch" }}>
-            {/* Shared button chrome — applied via spread on each chip
-                to keep parity. Layered shadow: subtle inner top
-                highlight + soft outer drop. 14px radius for the
-                slightly-rounder premium feel.
-                Profile button uses aspect-ratio: 1 + height: 100% so
-                it stays a SQUARE that matches the tier card's height
-                — height now driven by tier-card content (taller when
-                trainer rows are present). (qa: home-hub-premium-polish) */}
+            {/* Profile button — square, height-matches the tier card
+                via grid stretch. Capped at 92px so the trainer+athlete
+                two-row tier card doesn't blow the profile button into
+                eating half the row width. (qa: home-hub-premium-polish) */}
             {(() => null)()}
             <button
               onClick={() => setView("profile")}
@@ -9386,6 +9398,8 @@ function HomePage() {
                 aspectRatio: "1 / 1",
                 height: "100%",
                 minHeight: 72,
+                maxHeight: 92,
+                alignSelf: "center",
                 background: "transparent",
                 border: "1px solid rgba(255,255,255,0.10)",
                 borderRadius: 14, cursor: "pointer",
@@ -11568,7 +11582,7 @@ function HomePage() {
                             achievement unlocked), and a leaderboard
                             button back inside. (qa: group-chat-system-messages) */}
                         <button
-                          onClick={() => { setActiveGroupChatId(grp.id); setActiveGroupChatName(grp.name); setView("groupChat"); }}
+                          onClick={() => { setGroupChatPrevView("groupsHub"); setActiveGroupChatId(grp.id); setActiveGroupChatName(grp.name); setView("groupChat"); }}
                           style={{ width: "100%", padding: "10px 14px", marginBottom: 12, background: "linear-gradient(135deg, rgba(162,155,254,0.18), rgba(78,205,196,0.12))", border: "1px solid rgba(162,155,254,0.4)", borderRadius: 10, color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
                         >💬 OPEN GROUP CHAT</button>
                         {/* Trainer inclusion toggle */}
@@ -12227,7 +12241,7 @@ function HomePage() {
             const lm = g.latestMessage;
             const lmFromMe = lm?.fromId === user?.id;
             return (
-              <div key={row.key} className="card-hover" onClick={() => { markGroupSeen(g.groupId); setActiveGroupChatId(g.groupId); setActiveGroupChatName(g.name); setView("groupChat"); }} style={{ background: "linear-gradient(135deg, rgba(240,192,64,0.06), rgba(255,255,255,0.03))", border: `1px solid ${row.unread ? "rgba(240,192,64,0.45)" : "rgba(240,192,64,0.20)"}`, borderRadius: 14, padding: "14px 16px", marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 0 rgba(255,255,255,0.04) inset, 0 6px 22px -10px rgba(240,192,64,0.18)" }}>
+              <div key={row.key} className="card-hover" onClick={() => { markGroupSeen(g.groupId); setGroupChatPrevView("messages"); setActiveGroupChatId(g.groupId); setActiveGroupChatName(g.name); setView("groupChat"); }} style={{ background: "linear-gradient(135deg, rgba(240,192,64,0.06), rgba(255,255,255,0.03))", border: `1px solid ${row.unread ? "rgba(240,192,64,0.45)" : "rgba(240,192,64,0.20)"}`, borderRadius: 14, padding: "14px 16px", marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 0 rgba(255,255,255,0.04) inset, 0 6px 22px -10px rgba(240,192,64,0.18)" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                     <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1.5, color: "#f0c040", fontFamily: "'Space Mono', monospace", background: "rgba(240,192,64,0.10)", border: "1px solid rgba(240,192,64,0.30)", borderRadius: 4, padding: "2px 6px" }}>GROUP · {g.memberCount}</span>
@@ -12605,8 +12619,40 @@ function HomePage() {
         <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 4, color: "rgba(255,255,255,0.4)" }}>{isProfileView ? "PROFILE" : "SETTINGS"}</div>
-          <button onClick={() => setView(isProfileView ? "settings" : "profile")} style={{ marginLeft: "auto", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.6)", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, padding: "5px 9px", cursor: "pointer" }}>{isProfileView ? "⚙ SETTINGS" : "👤 PROFILE"}</button>
         </div>
+        {/* Sticky floating SETTINGS ⇄ PROFILE toggle — anchored top-
+            right so users can swap surfaces from any scroll position.
+            Bigger + brighter than the previous inline header chip so
+            the affordance is obvious (per @maaiz). Same toggle text
+            depending on which view is active.
+            (qa: settings-toggle-sticky-floating) */}
+        <button
+          onClick={() => setView(isProfileView ? "settings" : "profile")}
+          aria-label={isProfileView ? "Open settings" : "Open profile"}
+          style={{
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + 22px)",
+            right: "calc(env(safe-area-inset-right, 0px) + 16px)",
+            zIndex: 9500,
+            background: isProfileView
+              ? "linear-gradient(135deg, rgba(240,192,64,0.95), rgba(225,170,40,0.95))"
+              : "linear-gradient(135deg, rgba(78,205,196,0.95), rgba(56,178,172,0.95))",
+            color: "#0a0a0a",
+            border: `1px solid ${isProfileView ? "rgba(240,192,64,0.6)" : "rgba(78,205,196,0.6)"}`,
+            borderRadius: 999,
+            padding: "8px 14px",
+            fontSize: 11,
+            fontWeight: 700,
+            fontFamily: "'Space Mono', monospace",
+            letterSpacing: 1.5,
+            cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 6,
+            boxShadow: "0 6px 22px -4px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.18) inset",
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>{isProfileView ? "⚙" : "👤"}</span>
+          <span>{isProfileView ? "SETTINGS" : "PROFILE"}</span>
+        </button>
 
         <div style={{ padding: "0 20px" }}>
 

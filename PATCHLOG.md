@@ -2,6 +2,17 @@
 
 ---
 
+## More polish + bugs · 2026-05-23 — Profile cap, sticky Settings toggle, group chat back-nav, in-chat leaderboard fix (qa: home-hub-premium-polish, settings-toggle-sticky-floating, group-chat-back-nav, group-chat-leaderboard-fetch)
+
+Per @maaiz:
+
+- **Profile button** previously grew to fill the trainer+athlete two-row tier card height (~140px square), squeezing the tier card to a thin sliver. Capped at `maxHeight: 92` with `alignSelf: center` so it sits nicely centred next to the tier card without bullying it for width.
+- **Settings toggle** in the profile view was a barely-visible chip in the header. Promoted to a **floating sticky pill** at top-right of the viewport — gold gradient when in Profile (says "⚙ SETTINGS"), teal gradient when in Settings (says "👤 PROFILE"). Visible from any scroll position.
+- **Group chat back-nav**: swiping out (or tapping ← Back) used to always go to `groupsHub` regardless of where the user came from. Now tracks `groupChatPrevView` at open time — coming from the Messages inbox returns to "messages"; coming from the Groups view returns to "groupsHub".
+- **In-chat leaderboard panel** was empty for users who opened a group chat directly from the Messages inbox (lbGroups never loaded). Now fetches `/api/leaderboard/groups` on chat open if lbGroups is empty.
+
+---
+
 ## More home polish · 2026-05-23 — Profile button matches tier card height + feedback FAB to side tab (qa: home-hub-premium-polish, feedback-fab-side-tab)
 
 Per @maaiz:

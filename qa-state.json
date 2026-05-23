@@ -1,6 +1,55 @@
 {
   "items": [
     {
+      "id": "settings-toggle-sticky-floating",
+      "title": "SETTINGS ⇄ PROFILE toggle is a sticky floating pill at top-right",
+      "area": "Settings",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass settings-toggle-sticky-floating",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → Profile (or any profile-side view).",
+        "Verify a gold pill labelled '⚙ SETTINGS' floats at the top-right of the viewport, with safe-area inset.",
+        "Scroll the profile view — the pill stays fixed in place at top-right.",
+        "Tap the pill — view flips to Settings, pill changes to teal '👤 PROFILE'.",
+        "Tap again — back to Profile, gold pill returns."
+      ],
+      "notes": "[2026-05-23] Inline header chip removed; new fixed-position pill at top-right with gold/teal gradient depending on which view is active. Per @maaiz: 'Settings button more obvious in profile and make it floating sticky'."
+    },
+    {
+      "id": "group-chat-back-nav",
+      "title": "Group chat back-nav returns to where the user came from (messages OR groupsHub)",
+      "area": "Messages",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass group-chat-back-nav",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open the Messages inbox. Tap a group conversation row.",
+        "Swipe back (or tap ← Back). Verify you return to MESSAGES, NOT Groups.",
+        "Open the Groups view. Tap a group's OPEN CHAT button.",
+        "Swipe back. Verify you return to GROUPS, NOT Messages."
+      ],
+      "notes": "[2026-05-23] Fixed: was hard-coded `setView('groupsHub')` on swipe-back from group chat regardless of entry path. New groupChatPrevView state ('messages' | 'groupsHub' | 'home') is set when the chat is opened; back-nav reads it. Per @maaiz: 'swiping out of group chat goes to groups page instead of home'."
+    },
+    {
+      "id": "group-chat-leaderboard-fetch",
+      "title": "In-chat 🏆 STANDINGS panel loads even when user came from Messages inbox",
+      "area": "Messages",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass group-chat-leaderboard-fetch",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Cold-start the app (kill + reopen) so lbGroups isn't loaded.",
+        "Open Messages → tap a group conversation row → opens group chat.",
+        "Tap the 🏆 LEADERBOARD button at the top of the chat.",
+        "Verify the STANDINGS panel shows the group members (NOT 'No ranked members yet')."
+      ],
+      "notes": "[2026-05-23] Fixed: the in-chat leaderboard read `lbGroups`, which is only populated by the Groups view fetch. Users entering chat from Messages inbox saw an empty leaderboard. The group-chat-open useEffect now fetches /api/leaderboard/groups if lbGroups is empty. Per @maaiz: 'Leaderboards not working inside group chat'."
+    },
+    {
       "id": "feedback-fab-side-tab",
       "title": "Feedback NOTE FAB collapsed to a side-tab arrow at 75% screen height",
       "area": "App",
