@@ -716,7 +716,19 @@ function WellnessCard() {
   }, []);
 
   const bumpHydra = (d: number) => {
+    // Bump up or down. writeHydrationToday REPLACES the stored value
+    // (no max-merge), so reductions correctly persist as the new daily
+    // value. Latest input wins. (qa: wellness-hydration-tracking)
     const next = Math.max(0, hydra + d);
+    setHydra(next);
+    writeHydrationToday(next);
+  };
+  // Direct-set the day's hydration to an exact number. Used by the
+  // numeric input so the user can type "8" once instead of tapping
+  // + eight times. Behaves identically to bumpHydra in terms of
+  // "latest wins" semantics. (qa: wellness-hydration-tracking)
+  const setHydraDirect = (n: number) => {
+    const next = Math.max(0, Math.min(50, Math.round(n)));
     setHydra(next);
     writeHydrationToday(next);
   };
@@ -724,6 +736,18 @@ function WellnessCard() {
     const next = { ...sleep, ...patch };
     setSleep(next);
     writeSleepToday(patch);
+  };
+  // Direct-set sleep hours to an exact decimal value. Used by the
+  // numeric input so the user can record 7.5h or update after a nap
+  // (e.g. 7 → 8.25). Decimals up to 0.25 precision; clamped to
+  // 0..24. (qa: wellness-sleep-tracking)
+  const setSleepHoursDirect = (n: number | null) => {
+    if (n == null || isNaN(n)) {
+      updateSleep({ sleepHours: null });
+      return;
+    }
+    const next = Math.max(0, Math.min(24, Math.round(n * 4) / 4));
+    updateSleep({ sleepHours: next });
   };
   const toggleSore = (muscle: string, rating: number) => {
     const current = soreness[muscle] ?? 0;
@@ -751,16 +775,31 @@ function WellnessCard() {
       </button>
       {open && (
         <div style={{ padding: "0 14px 14px" }}>
-          {/* Hydration */}
+          {/* Hydration — incrementable via +/- AND directly editable
+              via the numeric input. Latest input wins (no max-merge),
+              so reductions persist as the new value. Update freely
+              throughout the day OR enter a single value when you
+              remember. (qa: wellness-hydration-tracking) */}
           <div style={{ padding: "10px 12px", background: "rgba(116,185,255,0.05)", border: "1px solid rgba(116,185,255,0.18)", borderRadius: 10, marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 11, color: "#74b9ff", fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>💧 HYDRATION</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{hydra} / {HYDRATION_TARGET} glasses today</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{hydra} / {HYDRATION_TARGET} glasses · today</div>
               </div>
-              <div style={{ display: "flex", gap: 4 }}>
-                <button onClick={() => bumpHydra(-1)} style={{ width: 34, height: 34, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#74b9ff", fontSize: 16, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>−</button>
-                <button onClick={() => bumpHydra(1)} style={{ width: 34, height: 34, background: "rgba(116,185,255,0.15)", border: "1px solid rgba(116,185,255,0.3)", borderRadius: 8, color: "#74b9ff", fontSize: 16, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+</button>
+              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                <button onClick={() => bumpHydra(-1)} style={{ width: 30, height: 34, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#74b9ff", fontSize: 16, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>−</button>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={50}
+                  value={hydra || ""}
+                  onChange={e => setHydraDirect(parseInt(e.target.value || "0", 10) || 0)}
+                  placeholder="0"
+                  style={{ width: 42, height: 34, background: "rgba(116,185,255,0.1)", border: "1px solid rgba(116,185,255,0.3)", borderRadius: 8, color: "#74b9ff", fontSize: 13, textAlign: "center", fontFamily: "'Space Mono', monospace", outline: "none" }}
+                  title="Type the exact number of glasses for today"
+                />
+                <button onClick={() => bumpHydra(1)} style={{ width: 30, height: 34, background: "rgba(116,185,255,0.15)", border: "1px solid rgba(116,185,255,0.3)", borderRadius: 8, color: "#74b9ff", fontSize: 16, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+</button>
               </div>
             </div>
             <div style={{ marginTop: 8, display: "flex", gap: 3 }}>
@@ -768,17 +807,35 @@ function WellnessCard() {
                 <div key={i} style={{ flex: 1, height: 4, background: i < hydra ? "#74b9ff" : "rgba(255,255,255,0.08)", borderRadius: 2 }} />
               ))}
             </div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 6, lineHeight: 1.4 }}>Update any time — latest entry wins, even if reduced.</div>
           </div>
 
-          {/* Sleep + Energy */}
+          {/* Sleep + Energy — sleep is editable any time so naps can
+              be folded into the day's total. Quick chips for 5-9h
+              cover the common case; numeric input on the right takes
+              decimals (e.g. 7.5h, 8.25h after a nap). Latest input
+              wins. (qa: wellness-sleep-tracking) */}
           <div style={{ padding: "10px 12px", background: "rgba(162,155,254,0.05)", border: "1px solid rgba(162,155,254,0.18)", borderRadius: 10, marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: "#a29bfe", fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>😴 SLEEP &amp; ENERGY (TODAY)</div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", width: 50 }}>Slept</span>
               {[5, 6, 7, 8, 9].map(h => (
                 <button key={h} onClick={() => updateSleep({ sleepHours: sleep.sleepHours === h ? null : h })} style={{ flex: 1, padding: "5px 0", background: sleep.sleepHours === h ? "rgba(162,155,254,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${sleep.sleepHours === h ? "#a29bfe" : "rgba(255,255,255,0.08)"}`, borderRadius: 5, color: sleep.sleepHours === h ? "#a29bfe" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{h}h</button>
               ))}
+              <input
+                type="number"
+                inputMode="decimal"
+                step={0.25}
+                min={0}
+                max={24}
+                value={sleep.sleepHours != null && ![5,6,7,8,9].includes(sleep.sleepHours) ? sleep.sleepHours : ""}
+                onChange={e => setSleepHoursDirect(parseFloat(e.target.value || "0"))}
+                placeholder="7.5"
+                style={{ width: 46, padding: "5px 4px", background: "rgba(162,155,254,0.08)", border: `1px solid rgba(162,155,254,0.25)`, borderRadius: 5, color: "#a29bfe", fontSize: 11, fontWeight: 700, textAlign: "center", fontFamily: "'Space Mono', monospace", outline: "none" }}
+                title="Type a custom value (decimals OK) — useful for 7.5h or after a nap"
+              />
             </div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 6, lineHeight: 1.4 }}>Update any time — add a nap to the total or change the value entirely.</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", width: 50 }}>Energy</span>
               {[1, 2, 3, 4, 5].map(e => (

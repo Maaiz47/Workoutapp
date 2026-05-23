@@ -2,6 +2,20 @@
 
 ---
 
+## QA pass · 2026-05-23 — Wellness inputs + broader image audit (qa: wellness-hydration-tracking, wellness-sleep-tracking, exercise-local-images)
+
+Three asks bundled into one push.
+
+### Addressed
+- **wellness-hydration-tracking** — confirmed the storage layer already does what @maaiz asked: `writeHydrationToday` REPLACES the day's value (no Math.max merge), so reductions persist. Added a direct-set numeric input alongside the existing +/- buttons so users can type the full day's count in one go instead of tapping + 8 times. Helper line `Update any time — latest entry wins, even if reduced` documents the behaviour explicitly.
+- **wellness-sleep-tracking** — added a numeric input (0.25-precision decimal) next to the 5-9h chips so users can record 7.5h or update after a nap (e.g. 7 → 8.25). `setSleepHoursDirect` clamps 0..24 and writes through `updateSleep` which merges to the same daily entry. Helper line `Update any time — add a nap to the total or change the value entirely`.
+- **exercise-local-images** — subagent audited every locally-hosted stretch/warmup/cooldown image (25 pairs) against the spec in `public/stretches/README.md` + the `lib/stretching.ts` cues. Three additional ids pulled from `LOCAL_STRETCH_IDS` (now show emoji fallback): `cd-glute-pretzel` (not a figure-four pull), `terminal-knee-extension` (both frames identical), `high-knees` (frame 1 doesn't mirror). Three MOSTLY-OK left in place but noted on CLAUDE.md reminder for review: `cd-lat-stretch`, `plyo-pushup`, `star-jump`. 18/25 verified correct.
+
+### Backlog
+- **Tier icon refresh** (added to CLAUDE.md reminder) — @maaiz wants custom-generated sick icons for the vivid theme (Bear, Gorilla, Big Dawg, Lion in particular). Wire-up in `lib/tiers.ts` to support `<img>` instead of emoji glyphs. Slot the request next to the existing wrong-form-images reminder so both image-gen tasks are tracked together.
+
+---
+
 ## QA pass · 2026-05-23 — Rest counter on LOG SET button when overlay skipped (qa: workout-rest-skipped-counter)
 
 Added a `screenDismissed` state + `dismissScreen()` action to the `useCountdown` rest hook. The SKIP button on the rest overlay now calls `dismissScreen()` instead of `stop()` — the overlay hides but the timer keeps ticking. While `rest.running && rest.screenDismissed`, the LOG SET button label appends ` · REST <n>s` so the user is aware they're still inside their planned rest window even though the screen is dismissed. Works across exercises (timer is hook-level). The next set's logSet → rest.start() resets `screenDismissed` so the next rest cycle shows the overlay normally. Doesn't block the tap — purely informational.

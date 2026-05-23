@@ -22,14 +22,29 @@ nudge, not nag.
   at `/public/stretches/<id>/{0,1}.png`. Splash hero (chrome barbell)
   also landed at `/public/ai/splash-hero.png`.
 - [ ] **Wrong form/asset images — user will regenerate later**
-  (flagged 2026-05-23 by @maaiz). Known wrong:
-  `public/stretches/wu-scap-shrugs/{0,1}.png` show a man standing
-  instead of plank-position scap push-ups. The id has been removed
+  (flagged 2026-05-23 by @maaiz). All flagged ids have been pulled
   from `LOCAL_STRETCH_IDS` in `lib/exerciseImages.ts` so users
   currently see the emoji fallback instead of the wrong image.
-  Re-add the id once correct frames are in place. Other exercises
-  may have similar issues — when one is surfaced, apply the same
-  remove-from-set pattern and append it to this reminder.
+  Re-add each id below once its correct frames are in place. Spec
+  for each frame is in `public/stretches/README.md`.
+  - `wu-scap-shrugs` — current frames show a man standing; need plank-position scap push-up with retracted vs protracted scapula
+  - `cd-glute-pretzel` — frame 1 isn't a figure-four pull (looks like single-knee-to-chest); needs arms threaded through gap clasping bottom thigh, top knee opening outward
+  - `terminal-knee-extension` — both frames near-identical; need ~30° bent knee with slack band (frame 0) vs fully extended against band tension (frame 1)
+  - `high-knees` — frame 1 should mirror frame 0 (right knee up → left knee up); currently both depict same leg, animation won't read as running
+  MOSTLY-OK (visual notes but not pulled, mention to verify on review):
+  `cd-lat-stretch` (frame 1 has no lateral bend), `plyo-pushup`
+  (apex looks like a dive not a clap-pushup), `star-jump` (crouch
+  start too wide vs spec's "tight crouch / feet together").
+- [ ] **New animal tier icons — Bear / Gorilla / Big Dawg / Lion**
+  (flagged 2026-05-23 by @maaiz, "hit later today"). User wants
+  custom-generated sick icons for the vivid theme's higher tiers
+  to replace the current emoji glyphs (🐻 🦍 🐕 🦁). Probably also
+  needs Kitten + Fox refreshes for visual consistency. Generation
+  flow same as the existing avatar/stretch pipeline (image prompts
+  → save into `/public/tier-icons/<label>.png` → wire up in
+  `lib/tiers.ts` so icons can be `<img>` instead of emoji). Lift
+  the existing emoji + color into a fallback so we can ship the
+  ones that land first.
 
 ## Always push to `main`
 

@@ -1,6 +1,44 @@
 {
   "items": [
     {
+      "id": "wellness-hydration-tracking",
+      "title": "Hydration tracking — increments, direct entry, latest-wins on reduction",
+      "area": "Wellness",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass wellness-hydration-tracking",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open the Wellness card → HYDRATION block. Verify three controls: − button, numeric input, + button.",
+        "Tap + a few times to reach 8. Verify the stored value updates each tap (refresh the page — should still read 8).",
+        "Now tap − twice to reach 6. Verify it persists as 6 (NOT max-stuck at 8). Refresh — should still read 6.",
+        "Type `12` directly into the numeric input. Verify the day's value updates to 12.",
+        "Type `4` to reduce. Verify it reduces to 4 — latest entry wins, no max-merge.",
+        "Verify the `Latest entry wins, even if reduced` helper line is visible below the bar.",
+        "Verify the hydration tier sub-rank (Habits) computes goal-met days off the LATEST daily value (not the max-ever), so reductions correctly invalidate that day from the goal count if they drop below HYDRATION_TARGET (8)."
+      ],
+      "notes": "[2026-05-23] Slice 1 shipped: confirmed writeHydrationToday replaces the stored value (no Math.max merge), so reductions correctly persist. Added a direct-set numeric input alongside the existing +/- buttons (setHydraDirect) for users who want to log a single value for the day. Helper line documents the latest-wins behaviour. (Reported by @maaiz: 'I update hydration throughout the day or can do one entry for the whole day at any time too — if reduced though always need to remember the latest minimum input for the day, not the max if it was reduced after'.)"
+    },
+    {
+      "id": "wellness-sleep-tracking",
+      "title": "Sleep tracking — chips + decimal input, updatable after naps",
+      "area": "Wellness",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass wellness-sleep-tracking",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Wellness → SLEEP & ENERGY block. Verify the row shows: `Slept` label · 5h-9h chips · a numeric input (placeholder `7.5`).",
+        "Tap 7h chip. Verify it lights up and the value persists across refresh.",
+        "Tap 8h chip. Verify it replaces 7h (the previous chip dims).",
+        "Type 7.5 in the numeric input. Verify the 5-9h chips all dim (none match 7.5) and the input shows 7.5. Refresh — value persists.",
+        "Simulate a nap: bump the input to 8.25. Verify the stored value updates (latest wins).",
+        "Tap any chip → numeric input clears (chip-mode is exact integers). Tap the same chip again → it toggles off and sleep clears.",
+        "Verify the `Update any time — add a nap to the total or change the value entirely` helper line is visible."
+      ],
+      "notes": "[2026-05-23] Slice 1 shipped: added a numeric input next to the 5-9h chips. setSleepHoursDirect clamps to 0..24, rounds to 0.25-precision, and writes through updateSleep (which merges via writeSleepToday — latest input wins). Chips and input read from the same sleep.sleepHours so they stay in sync. Helper line documents the update-any-time behaviour. (Reported by @maaiz: 'sleep can also be updated after initial input as they have naps I guess'.)"
+    },
+    {
       "id": "workout-rest-skipped-counter",
       "title": "Rest counter keeps ticking on LOG SET button when user skips the rest overlay",
       "area": "Workout",
@@ -125,7 +163,7 @@
         "Specifically scap push-ups: should fall back to the emoji icon — the previous PNG frames showed a man standing instead of a plank position, and have been temporarily removed from LOCAL_STRETCH_IDS until correct frames land.",
         "Other locally-mapped stretches (cd-chest-doorway, cd-pigeon, wu-leg-swings, etc.) should still show their PNG pairs as before."
       ],
-      "notes": "[2026-05-23] Slice 1/2 (partial): wu-scap-shrugs removed from LOCAL_STRETCH_IDS in lib/exerciseImages.ts so users currently see the emoji fallback. Next slice: regenerate the two frames per the spec in public/stretches/README.md (plank position, retracted vs protracted scapula). CLAUDE.md pending-reminder added for the regeneration. (Reported by @maaiz: 'scap push ups animations is wrong')."
+      "notes": "[2026-05-23] Slice 2 (broader audit): subagent audited all 25 LOCAL_STRETCH_IDS image pairs against name/cues in lib/stretching.ts and the spec in public/stretches/README.md. Pulled from LOCAL_STRETCH_IDS (now emoji fallback) and added to CLAUDE.md reminder: `cd-glute-pretzel` (frame 1 isn't a figure-four pull), `terminal-knee-extension` (both frames identical, no motion), `high-knees` (frame 1 doesn't mirror, won't read as running). MOSTLY-OK left in place but noted for review: `cd-lat-stretch` (no lateral bend in frame 1), `plyo-pushup` (apex looks like dive), `star-jump` (crouch start too wide). 18/25 verified correct.\n[2026-05-23] Slice 1/2 (partial): wu-scap-shrugs removed from LOCAL_STRETCH_IDS in lib/exerciseImages.ts so users currently see the emoji fallback. Next slice: regenerate the two frames per the spec in public/stretches/README.md (plank position, retracted vs protracted scapula). CLAUDE.md pending-reminder added for the regeneration. (Reported by @maaiz: 'scap push ups animations is wrong')."
     },
     {
       "id": "session-autoresume-silent",
