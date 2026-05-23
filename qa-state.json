@@ -1,6 +1,43 @@
 {
   "items": [
     {
+      "id": "planner-equipment-strict",
+      "title": "Plan generator only uses equipment available at the selected location",
+      "area": "Plan",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass planner-equipment-strict",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Re-onboard a fresh test user. At the location step, pick HOME. Verify the equipment list defaults to EMPTY (no pre-checked items). Check only the kit you actually own at home.",
+        "Generate a plan. Verify NO exercise requires equipment you didn't check (e.g. no smith-machine moves if you didn't check smith_machine).",
+        "Re-onboard with location = BOTH. Verify equipment also starts EMPTY (was previously pre-checked with the full gym kit — caused gym-only exercises in home plans). Check only what's actually accessible per location via the equipmentHome / equipmentGym sub-pickers.",
+        "Re-onboard with location = GYM. Verify equipment is PRE-CHECKED with the full gym kit (this default still applies — sensible for most commercial gyms). User can untick anything missing.",
+        "Open Customise on any generated day. Verify the exercise browser's location filter defaults to ALL — user can pick any exercise (including gym-only ones for a travelling session) even if their primary location is home.",
+        "Toggle the location filter to GYM in customise — verify only gym-tagged exercises show. Toggle back to ALL — verify the full library is visible."
+      ],
+      "notes": "[2026-05-23] Fix: in the onboarding location-card click handler, the `both` branch was pre-setting `equipment` to the full gym kit (identical to gym defaults). This made the planner believe `both` users had every machine at home, so home-only plans contained gym-only exercises. Now only `gym` retains the full pre-check; `home` and `both` start empty. (Reported by @maaiz: 'building workout should only consider the equipment they have accessible either at home or gym as per their selection — but they should be able to customise with all exercises'.)"
+    },
+    {
+      "id": "routine-auto-naming",
+      "title": "System suggests routine + day-split names; user can edit any of them",
+      "area": "Routine",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass routine-auto-naming",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Customise on a workout day. Verify the day title is now an EDITABLE text input (dashed border). Type a new label like `Heavy Push` — on blur, verify it persists across refresh.",
+        "Edit a day whose contents are clearly Push (chest/shoulders/triceps). Verify a `★ SUGGESTED: Push` chip appears under the input. Tap it — the title updates to `Push`.",
+        "Edit a mixed day (push + pull, no legs). Verify the suggestion reads `Upper Body` or `Push/Pull` depending on dominance.",
+        "Build a plan and open SAVED ROUTINES → + SAVE. Verify the save-name input is PRE-FILLED with a derived name like `Push/Pull/Legs` or `Upper/Lower 4-Day` based on your current plan's days.",
+        "Override the suggested name with your own (e.g. `Bulk Cycle 1`). Tap SAVE. Verify the routine is saved under your custom name.",
+        "Open + SAVE again on a different plan — verify a new suggestion is computed from THAT plan's exercises, not stale.",
+        "Edge case: a brand-new generic day called `Day 1` should auto-suggest a label (`Push`/`Pull`/`Legs`/etc.) because the existing title looks generic."
+      ],
+      "notes": "[2026-05-23] Shipped: added `lib/splitNaming.ts` with `suggestDayTitle(exercises)` and `suggestRoutineName(days)`. Day title rendered as an inline editable input in customise; saves via /api/plan PUT (extended to accept optional `title`/`subtitle`). Save-routine dialog now pre-fills with the system-derived name; user can still override entirely. (Reported by @maaiz: 'custom routines can get a system assigned name according to the exercises selected — but let users also update the split names as they wish'.)"
+    },
+    {
       "id": "wellness-hydration-tracking",
       "title": "Hydration tracking — increments, direct entry, latest-wins on reduction",
       "area": "Wellness",

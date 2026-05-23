@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 import { EXERCISES, missingEquipmentFor, suggestSubstitutions } from "../lib/exercises";
+import { suggestDayTitle, suggestRoutineName } from "../lib/splitNaming";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
 import { MUSCLE_DETAIL, lookupMuscleDetail } from "../lib/muscleDetail";
 import { getFormCues } from "../lib/formCues";
@@ -7119,8 +7120,21 @@ function HomePage() {
               { id: "both", label: "Both", desc: "Mix of gym and home sessions",               img: "/ai/location-both.jpg" },
             ].map(l => {
               const active = ob.location === l.id;
+              // Equipment defaults per location:
+              //   - "gym": pre-check the full gym kit (most commercial
+              //     gyms have everything; user can untick what's
+              //     missing).
+              //   - "home": empty — user picks their actual home kit.
+              //   - "both": empty — was previously auto-set to the
+              //     full gym kit, which caused the planner to think
+              //     "both" users had every machine AT HOME and
+              //     recommend gym-only exercises in their home plan.
+              //     Now starts empty so the user explicitly picks
+              //     what they own per side via the equipmentHome /
+              //     equipmentGym sub-pickers further down.
+              // (qa: planner-equipment-strict)
               return (
-                <div key={l.id} style={{ ...selCard(active), padding: 0, overflow: "hidden", position: "relative" }} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: (l.id === "gym" || l.id === "both") ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell","smith_machine"] : [] }))}>
+                <div key={l.id} style={{ ...selCard(active), padding: 0, overflow: "hidden", position: "relative" }} onClick={() => setOb(o => ({ ...o, location: l.id, equipment: l.id === "gym" ? ["barbell","dumbbell","cable","machine","bench","pullup_bar","dip_bar","kettlebell","smith_machine"] : [] }))}>
                   <div style={{ position: "relative", aspectRatio: "21 / 9" }}>
                     <img src={l.img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: active ? 0.8 : 0.55 }} />
                     <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(10,10,15,0.85) 0%, rgba(10,10,15,0.3) 60%, rgba(10,10,15,0) 100%)" }} />
@@ -7309,7 +7323,45 @@ function HomePage() {
             )}
           </div>
           <div style={{ padding: "0 20px" }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{editingDay.title}</div>
+            {/* Editable day title — user can rename the split (e.g.
+                "Push" → "Heavy Push"). Suggest a system-derived label
+                if the current title looks generic. Saves on blur via
+                /api/plan PUT { dayId, title }. (qa: routine-auto-
+                naming) */}
+            {(() => {
+              const exsForSuggest = (editingDay.exercises ?? []).filter((e: any) => e.trackable !== false).map((e: any) => ({ id: e.id, exerciseId: e.id, name: e.name }));
+              let suggestion: string | null = null;
+              try { suggestion = suggestDayTitle(exsForSuggest); } catch {}
+              const looksGeneric = /^(day\s*\d|workout\s*[a-z]|untitled|new\s*day)$/i.test(editingDay.title ?? "");
+              const hint = suggestion && (looksGeneric || suggestion.toLowerCase() !== (editingDay.title ?? "").toLowerCase()) ? suggestion : null;
+              return (
+                <div style={{ marginBottom: 4 }}>
+                  <input
+                    value={editingDay.title ?? ""}
+                    onChange={e => setEditingDay((p: any) => p ? { ...p, title: e.target.value.slice(0, 60) } : p)}
+                    onBlur={async () => {
+                      const next = (editingDay.title ?? "").trim();
+                      if (!next || !editingDay.id) return;
+                      // Persist title via existing /api/plan PUT.
+                      try {
+                        const exsPayload = (editingDay.exercises ?? []).map((ex: any, i: number) => ({
+                          exerciseId: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps, rest: ex.rest ?? 60,
+                          notes: ex.note ?? null, groupId: ex.groupId ?? null, groupType: ex.groupType ?? null,
+                          dropSets: ex.dropSets ?? 0, dropSet: ex.dropSet === true,
+                          kind: ex.kind === "warmup" || ex.kind === "cooldown" ? ex.kind : "main",
+                        }));
+                        await fetch("/api/plan", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dayId: editingDay.id, exercises: exsPayload, title: next }) });
+                        setCustomPlan((prev: any) => prev ? prev.map((d: any) => d.id === editingDay.id ? { ...d, title: next } : d) : prev);
+                      } catch {}
+                    }}
+                    style={{ width: "100%", background: "transparent", border: "1px dashed rgba(255,255,255,0.12)", borderRadius: 8, color: "#fff", fontSize: 20, fontWeight: 700, padding: "6px 8px", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" }}
+                  />
+                  {hint && (
+                    <button onClick={() => setEditingDay((p: any) => p ? { ...p, title: hint } : p)} title="Use suggested name" style={{ marginTop: 4, background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 14, padding: "2px 10px", color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>★ SUGGESTED: {hint}</button>
+                  )}
+                </div>
+              );
+            })()}
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>{editingDay.focus}</div>
 
             {/* Warm-up section. Saved warm-ups (kind="warmup") override
@@ -8859,7 +8911,24 @@ function HomePage() {
             {savedRoutines.length > 0 && <div style={{ background: "rgba(78,205,196,0.15)", borderRadius: 10, padding: "1px 7px", fontSize: 10, color: "#4ECDC4", fontFamily: "'Space Mono', monospace" }}>{savedRoutines.length}</div>}
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", transform: showSavedList ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}>›</div>
           </button>
-          <button onClick={() => { setShowSaveRoutine(s => !s); setShowSavedList(false); setSaveRoutineName(""); setSharingRoutineId(null); }} style={{ background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 8, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 12px" }}>
+          <button onClick={() => {
+            const next = !showSaveRoutine;
+            setShowSaveRoutine(next);
+            setShowSavedList(false);
+            setSharingRoutineId(null);
+            // Pre-fill with a system-suggested name derived from the
+            // current plan's days + their exercises. User can edit
+            // before tapping SAVE. (qa: routine-auto-naming)
+            if (next) {
+              const days = customPlan ?? (WORKOUT_DATA as any[]).map((d: any) => ({
+                title: d.title,
+                exercises: d.sections.flatMap((s: any) => s.exercises).filter((e: any) => e.trackable !== false).map((ex: any) => ({ id: ex.id, exerciseId: ex.id, name: ex.name })),
+              }));
+              try { setSaveRoutineName(suggestRoutineName(days)); } catch { setSaveRoutineName(""); }
+            } else {
+              setSaveRoutineName("");
+            }
+          }} style={{ background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 8, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 12px" }}>
             {showSaveRoutine ? "CANCEL" : "+ SAVE"}
           </button>
         </div>

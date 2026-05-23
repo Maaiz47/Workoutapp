@@ -2,6 +2,23 @@
 
 ---
 
+## QA pass · 2026-05-23 — Planner equipment-strict + routine auto-naming (qa: planner-equipment-strict, routine-auto-naming)
+
+Two related fixes that landed together.
+
+### planner-equipment-strict
+Root-cause fix for "the planner is recommending gym-only exercises in my home plan". In `app/page.tsx` line 7138 the location-card click handler was pre-populating `equipment` with the full gym kit for **both** `gym` AND `both` selections. That meant a "both" user who never unchecked anything had a profile claiming they owned every machine at home — and the planner faithfully recommended them. Now only `gym` retains the pre-check default (sensible for commercial gyms); `home` and `both` start empty so the user explicitly picks their kit per location. Customise's exercise browser stays unrestricted (defaults to `all`) so travelling users can still pull in gym moves on demand.
+
+### routine-auto-naming
+New `lib/splitNaming.ts` with two helpers: `suggestDayTitle(exercises)` infers `Push` / `Pull` / `Legs` / `Upper Body` / `Lower Body` / `Arms` / `Core` / `Full Body` from primary-muscle dominance (≥70% of exercises in one bucket → that name; otherwise top-two combination). `suggestRoutineName(days)` combines the day titles into a routine name (`Push/Pull/Legs`, `Upper/Lower 4-Day`, `Full Body 3-Day`, …).
+
+UI wires:
+- Customise day title is now an inline editable input. Saves on blur via `/api/plan` PUT (extended to accept optional `title`/`subtitle`).
+- A `★ SUGGESTED: <name>` chip appears under the title when the system has a stronger label idea than the current text. Tap to accept.
+- Saved-routines `+ SAVE` button pre-fills the name input with the system suggestion. User can override entirely.
+
+---
+
 ## QA pass · 2026-05-23 — In-session add inserts BONUS before cooldown (qa: workout-in-session-exercise-add)
 
 `handleAdd` now detects the first cooldown section (by `type === "cooldown"` or name starting with `COOL`) and splices the BONUS section directly before it instead of pushing to the end. If the user's data already has BONUS sitting after cooldown (legacy state), the next + SESSION add quietly moves it back into the correct slot. No cooldown present → unchanged push-to-end behaviour. (Reported by @maaiz: "want to be able to place new exercise added during session at wanted order — before cooldowns especially".)

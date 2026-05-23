@@ -260,7 +260,7 @@ export async function PUT(req: NextRequest) {
   if (!uid) return json({ error: "Unauthorized" }, 401);
 
   try {
-    const { dayId, exercises } = await req.json();
+    const { dayId, exercises, title, subtitle } = await req.json();
     if (!dayId || !Array.isArray(exercises)) return json({ error: "Invalid payload" }, 400);
 
     // Verify day belongs to this user
@@ -268,6 +268,16 @@ export async function PUT(req: NextRequest) {
       where: { id: dayId, plan: { userId: uid } },
     });
     if (!day) return json({ error: "Not found" }, 404);
+
+    // Optional title/subtitle rename — user can re-label the split
+    // (e.g. "Push" → "Heavy Push"). Persisted to PlanDay row.
+    // (qa: routine-auto-naming)
+    if (typeof title === "string" && title.trim() && title.trim() !== day.title) {
+      await prisma.planDay.update({ where: { id: dayId }, data: { title: title.trim().slice(0, 60) } });
+    }
+    if (typeof subtitle === "string" && subtitle.trim() !== day.subtitle) {
+      await prisma.planDay.update({ where: { id: dayId }, data: { subtitle: subtitle.trim().slice(0, 80) } });
+    }
 
     // Delete existing exercises and recreate in new order
     await prisma.planExercise.deleteMany({ where: { dayId } });
