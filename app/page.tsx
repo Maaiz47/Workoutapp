@@ -9157,7 +9157,7 @@ function HomePage() {
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
                       <span style={{ fontSize: 10, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{t.emoji} {t.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{tierNum}</span></span>
                       <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
-                        {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
+                        {next ? `+${remaining} → ${next.label.toUpperCase()} T${displayTierNum(tIdx + 2)}` : "★ TOP"}
                       </span>
                     </div>
                     <CompactTierDotBar
@@ -9184,7 +9184,7 @@ function HomePage() {
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
                       <span style={{ fontSize: 10, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h.icon} {h.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{displayTierNum(h.tierNum)}</span></span>
                       <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
-                        {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
+                        {next ? `+${remaining} → ${next.label.toUpperCase()} T${displayTierNum(next.tierNum)}` : "★ TOP"}
                       </span>
                     </div>
                     <CompactTierDotBar
@@ -10995,12 +10995,26 @@ function HomePage() {
                   // Detect trainer-led groups by checking the role of the
                   // member whose userId matches grp.createdBy. Trainer-led
                   // groups get distinct visual treatment per @maaiz:
-                  // teal/gold gradient border, COACH-LED chip, slightly
+                  // teal/gold gradient border, tier-name-LED chip
+                  // (PRO-LED, MASTER-LED, HALL OF FAMER-LED), slightly
                   // elevated card shadow + halo. Athlete-made groups stay
-                  // on the default neutral border. (qa: trainer-group-visual-identity)
+                  // on the default neutral border. The chip uses the
+                  // creator's actual trainer rung (from the API's
+                  // `creatorTier` field) so Hall of Famers don't get
+                  // lumped in with Spotters. (qa: trainer-group-visual-identity)
                   const creator = grp.members?.find((m: any) => m.userId === grp.createdBy);
                   const isTrainerLed = creator?.role === "trainer";
                   const creatorName = creator?.user?.username ?? null;
+                  // Tier-name-LED chip text. Hall of Fame is a special
+                  // case — "HALL OF FAME-LED" reads awkwardly, the user
+                  // explicitly requested "HALL OF FAMER-LED" instead.
+                  const ct = (grp as any).creatorTier as { label: string; icon: string; tierNum: number } | null | undefined;
+                  const tierName = ct?.label ?? "Coach";
+                  const tierIcon = ct?.icon ?? "🤝";
+                  const tierLedText = tierName === "Hall of Fame"
+                    ? "HALL OF FAMER-LED"
+                    : `${tierName.toUpperCase()}-LED`;
+                  const tierNumDisplay = ct ? displayTierNum(ct.tierNum) : null;
                   return (
                   <div key={grp.id} style={{
                     // Outer wrapper carries the gradient border for
@@ -11045,7 +11059,7 @@ function HomePage() {
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{grp.name}</div>
                           {isTrainerLed && (
-                            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1.5, color: "#4ECDC4", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.35)", borderRadius: 4, padding: "2px 6px", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>🤝 COACH-LED</span>
+                            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1.5, color: "#4ECDC4", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.35)", borderRadius: 4, padding: "2px 6px", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>{tierIcon} {tierLedText}{tierNumDisplay != null ? ` · T${tierNumDisplay}` : ""}</span>
                           )}
                         </div>
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
@@ -16129,8 +16143,8 @@ function HomePage() {
           <span style={{ fontSize: 36 }}>{tierPromoToast.tier.icon}</span>
           <div>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>TIER UP!</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: tierPromoToast.tier.color }}>{tierPromoToast.tier.label}</div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 2 }}>T{tierPromoToast.tier.tierNum} · tap to dismiss</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: tierPromoToast.tier.color }}>{tierPromoToast.tier.label} <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.45)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· T{displayTierNum(tierPromoToast.tier.tierNum)}</span></div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 2 }}>tap to dismiss</div>
           </div>
         </div>
       )}

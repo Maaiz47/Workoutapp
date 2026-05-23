@@ -2,6 +2,28 @@
 
 ---
 
+## QA pass · 2026-05-23 — Tier-name-LED group chips + T-number annotations + achievement-boost planning (qa: trainer-group-visual-identity, tier-explainability, achievements-permanent-tier-boost)
+
+@maaiz: 'wherever the tier name is mentioned, have a T1 or T2 etc label so the tier number is identifiable … trainer groups can say tier name-led … Hall of fame holders groups must be hall of famer led though … achievements/milestones contribute to the tiers right? Specifically trainer milestones for the trainer tier'.
+
+### trainer-group-visual-identity
+- /api/leaderboard/groups GET now resolves each group creator's trainer tier (TrainerClient count → TRAINER_TIERS) and returns `creatorTier: { label, icon, tierNum }` per group.
+- Groups list UI replaces the generic 🤝 COACH-LED chip with the trainer's actual rung: SPOTTER-LED / STRATEGIST-LED / PRO-LED / MASTER-LED / LEGEND-LED. Hall of Fame special-cased as HALL OF FAMER-LED so the suffix reads naturally.
+- Chip suffix carries the inverted display tier number (· T1 through · T6) for instant rung clarity.
+
+### tier-explainability
+- TIER UP! toast now appends · T<displayTierNum> after the tier label and uses the inverted display number (was the raw internal tierNum).
+- Home tier chips' "+N → NEXT" callout now includes the next rung's display tier number so users see both the label and its T-number ("+8 → LION T3").
+
+### achievements-permanent-tier-boost (planning — NO code)
+- New qa-state item captures the design for an 8th athlete sub-rank (and 6th trainer sub-rank): 'Achievements'. Each unlocked milestone in /ACHIEVEMENTS.md carries a static weight; the user's sum-of-weights becomes their 0-100 Achievements sub-rank score, blended into the tier headline average.
+- Trainer-only milestones feed ONLY the trainer ladder. Athlete-only feed ONLY the athlete ladder. Cross-role (e.g. account-age) feed both at half weight.
+- Permanent: once unlocked the score can never decrease for that lever (other sub-ranks like Strength still rise + fall).
+- Visible as its own labelled sub-rank — never a hidden buff (cf. the deprecated tierScoreBonus principle).
+- Gates on achievements-v1 shipping first.
+
+---
+
 ## QA pass · 2026-05-23 — Tier explainability — confirm no role boost + next-rung target (qa: tier-explainability)
 
 @maaiz asked whether Maaiz (trainer) being Big Dawg while Alla (athlete) is Lion was due to a hidden trainer boost. Investigation: NO — `computeAthleteTier` reads only training + wellness data; role / trainer status never feeds the score. Alla genuinely outranks Maaiz on the seven sub-ranks. Made it crystal clear in the tier modal so users don't have to wonder.
