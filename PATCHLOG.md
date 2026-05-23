@@ -2,6 +2,24 @@
 
 ---
 
+## QA pass · 2026-05-23 — Pre-deploy QA fixes: sticky tier-modal close + everywhere celebrations + role chip + Apple autofill (qa: tier-modal-sticky-close, celebration-overlays-everywhere, profile-role-chip-not-toggle, weight-input-convention-clarity)
+
+@maaiz dropped three submissions through the in-app feedback panel while I was working on the premium-polish push. Per the pre-deploy QA-comment scan rule, addressed them all before pushing.
+
+### tier-modal-sticky-close + Apple autofill suppression
+- Tier modal header (title + close ×) is now position:sticky with backdrop blur. × close stays pinned while inner content scrolls — no more scrolling back up to dismiss.
+- Weight + reps inputs on the active session screen now carry `autoComplete=off`, `autoCorrect=off`, `spellCheck=false`, explicit `name=` to stop iOS Safari from suggesting passwords/autofill on numeric workout fields.
+- Swipe-back gesture for the modal deferred to a separate slice — main pain point (button accessibility) solved by sticky header.
+
+### celebration-overlays-everywhere
+- Root cause: milestone unlock, PB celebration, and tier-promo toast overlays were rendered inside the home-view JSX, so they only mounted when `view=home`. Navigate to messages/groups/anywhere = celebrations silently lost.
+- Relocated all three into HomeGlobals (rendered into the persistent overlay portal across every view). Removed duplicates from the home view + standalone toast renders to avoid double-render.
+
+### profile-role-chip-not-toggle
+- ATHLETE chip in Settings → Profile was styled grey (rgba(255,255,255,0.55) + 5% bg) — looked toggle-able/disabled next to the saturated TRAINER/ADMIN chips. Now matches: red FF6B6B color + 10% bg + 30% border. Reads as a label, not a control.
+
+---
+
 ## QA pass · 2026-05-23 — Home chip-strip + bottom hub alignment + tier modal tap target (qa: home-hub-premium-polish)
 
 @maaiz: 'UI alignment could be much better with the tier modal button and progress button for a iPhone 16 pro size phone, check general UI upgrades premium looks'.

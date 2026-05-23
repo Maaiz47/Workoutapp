@@ -3751,6 +3751,7 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
 // single bottom render to attach to.
 function HomeGlobals({
   user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, trainerBreakdown, tierTheme,
+  deGamified, milestoneQueue, onMilestoneAdvance, newPBs, onPBsDismiss, tierPromoToast, onTierPromoDismiss,
   onJumpToLeaderboard, onOpenGlobalLeaderboard,
 }: {
   user: { username: string; role: string; extraRoles?: string[] } | null;
@@ -3765,6 +3766,19 @@ function HomeGlobals({
   athleteBreakdown: TierBreakdown | null;
   trainerBreakdown: TierBreakdown | null;
   tierTheme: "vivid" | "simple";
+  // Celebration overlay state — milestoneQueue / newPBs / tierPromoToast.
+  // Mounted here in HomeGlobals (rendered into the persistent overlay
+  // portal) so the overlays appear on EVERY view, not just home. Per
+  // @maaiz: 'The celebration card overlays are only showing up in
+  // messages or some where not everywhere on screen'.
+  // (qa: celebration-overlays-everywhere)
+  deGamified: boolean;
+  milestoneQueue: MilestoneAward[];
+  onMilestoneAdvance: () => void;
+  newPBs: Array<{ name: string; weight: number; reps: number }>;
+  onPBsDismiss: () => void;
+  tierPromoToast: { tier: AnimalTier } | null;
+  onTierPromoDismiss: () => void;
   // Optional callback wired from HomePage — closes the tier modal,
   // navigates to home view, scrolls to the user's "YOU" row in the
   // first visible leaderboard group. Lets the user jump from the
@@ -3806,6 +3820,60 @@ function HomeGlobals({
         onJumpToLeaderboard={onJumpToLeaderboard}
         onOpenGlobalLeaderboard={onOpenGlobalLeaderboard}
       />
+      {/* Celebration overlays — milestone unlocks, PBs, tier-up.
+          Rendered here in HomeGlobals (mounted via the overlay portal
+          for every view) so they appear regardless of where the user
+          is when the celebration fires. Previously these lived inside
+          the home-view JSX which meant they were missed on every
+          non-home view. (qa: celebration-overlays-everywhere) */}
+      {!deGamified && milestoneQueue.length > 0 && (() => {
+        const m = milestoneQueue[0];
+        return (
+          <div
+            onClick={onMilestoneAdvance}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(10px)", cursor: "pointer" }}
+          >
+            <div style={{ maxWidth: 360, width: "100%", background: "linear-gradient(135deg, rgba(240,192,64,0.18), rgba(255,107,107,0.08))", border: "1px solid rgba(240,192,64,0.45)", borderRadius: 20, padding: 28, textAlign: "center", boxShadow: "0 24px 60px rgba(240,192,64,0.2)" }}>
+              <div style={{ fontSize: 72, lineHeight: 1, marginBottom: 14, filter: "drop-shadow(0 4px 12px rgba(240,192,64,0.4))" }}>{m.icon}</div>
+              <div style={{ fontSize: 10, color: "#f0c040", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>MILESTONE UNLOCKED</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 6, lineHeight: 1.2 }}>{m.label}</div>
+              {m.tierBadge && (
+                <div style={{ display: "inline-block", marginBottom: 10, padding: "3px 10px", fontSize: 9, fontWeight: 800, letterSpacing: 2, fontFamily: "'Space Mono', monospace", borderRadius: 4, color: m.tierBadge === "current" ? "#2ecc71" : "rgba(255,255,255,0.55)", background: m.tierBadge === "current" ? "rgba(46,204,113,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${m.tierBadge === "current" ? "rgba(46,204,113,0.4)" : "rgba(255,255,255,0.15)"}` }}>
+                  {m.tierBadge === "current" ? "✓ CURRENT TIER" : "↑ PASSED TIER"}
+                </div>
+              )}
+              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.5, marginBottom: 18 }}>{m.body}</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>TAP TO CONTINUE{milestoneQueue.length > 1 ? ` · ${milestoneQueue.length - 1} MORE` : ""}</div>
+            </div>
+          </div>
+        );
+      })()}
+      {newPBs.length > 0 && (
+        <div className="pb-overlay" onClick={onPBsDismiss} style={{ position: "fixed", inset: 0, zIndex: 9100, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
+          <div className="pb-pop" style={{ background: "rgba(12,12,15,0.92)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", overflow: "hidden", position: "relative" }}>
+            <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
+            <img src="/ai/pb-celebration.png" alt="" style={{ width: 96, height: 96, display: "block", margin: "0 auto 8px" }} />
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
+            {newPBs.map((pb, i) => (
+              <div key={i} style={{ marginBottom: 6 }}>
+                <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{pb.name}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,215,0,0.7)", fontFamily: "'Space Mono', monospace" }}>{pb.weight}kg × {pb.reps}</div>
+              </div>
+            ))}
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 14, fontFamily: "'DM Sans', sans-serif" }}>Tap to dismiss</div>
+          </div>
+        </div>
+      )}
+      {tierPromoToast && (
+        <div onClick={onTierPromoDismiss} style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", zIndex: 9200, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(12px)", border: `1px solid ${tierPromoToast.tier.color}`, borderRadius: 16, padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", boxShadow: `0 8px 32px ${tierPromoToast.tier.color}44` }}>
+          <span style={{ fontSize: 36 }}>{tierPromoToast.tier.icon}</span>
+          <div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>TIER UP!</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: tierPromoToast.tier.color }}>{tierPromoToast.tier.label} <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.45)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· T{displayTierNum(tierPromoToast.tier.tierNum)}</span></div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 2 }}>tap to dismiss</div>
+          </div>
+        </div>
+      )}
       {/* Avatar picker render moved out — now lives as a full-page
           view ("avatarPicker") via AvatarPickerView with swipe-back
           support. Used to render here as a modal overlay but felt
@@ -3902,7 +3970,18 @@ function TierInfoModal({
         overflow: "auto",
         fontFamily: "'DM Sans', sans-serif",
       }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        {/* Sticky header — stays pinned at the top of the modal while
+            the inner content scrolls, so the × close stays
+            accessible without scroll-up gymnastics. (qa:
+            tier-modal-sticky-close) */}
+        <div style={{
+          position: "sticky", top: -20, marginTop: -20, paddingTop: 20,
+          marginLeft: -18, marginRight: -18, paddingLeft: 18, paddingRight: 18,
+          background: "linear-gradient(180deg, rgba(10,10,10,0.96) 70%, rgba(10,10,10,0))",
+          backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+          zIndex: 2,
+          display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, paddingBottom: 10,
+        }}>
           <div>
             <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 3, color: "#FF6B6B", fontFamily: "'Space Mono', monospace" }}>🏆 HOW TIERS WORK</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginTop: 4 }}>Two ladders, one app</div>
@@ -4889,6 +4968,13 @@ function HomePage() {
         athleteBreakdown={myAthleteBreakdown}
         trainerBreakdown={myTrainerBreakdown}
         tierTheme={tierTheme}
+        deGamified={deGamified}
+        milestoneQueue={milestoneQueue}
+        onMilestoneAdvance={() => setMilestoneQueue(q => q.slice(1))}
+        newPBs={newPBs}
+        onPBsDismiss={() => setNewPBs([])}
+        tierPromoToast={tierPromoToast}
+        onTierPromoDismiss={() => setTierPromoToast(null)}
         onOpenGlobalLeaderboard={() => {
           setTierModalOpen(false);
           setView("globalLeaderboard");
@@ -9090,58 +9176,10 @@ function HomePage() {
             </motion.div>
           );
         })()}
-        {!deGamified && milestoneQueue.length > 0 && (() => {
-          const m = milestoneQueue[0];
-          return (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMilestoneQueue(q => q.slice(1))}
-              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(10px)", cursor: "pointer" }}
-            >
-              <motion.div
-                initial={{ scale: 0.85, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 240, damping: 22 }}
-                style={{ maxWidth: 360, width: "100%", background: "linear-gradient(135deg, rgba(240,192,64,0.18), rgba(255,107,107,0.08))", border: "1px solid rgba(240,192,64,0.45)", borderRadius: 20, padding: 28, textAlign: "center", boxShadow: "0 24px 60px rgba(240,192,64,0.2)" }}
-              >
-                <div style={{ fontSize: 72, lineHeight: 1, marginBottom: 14, filter: "drop-shadow(0 4px 12px rgba(240,192,64,0.4))" }}>{m.icon}</div>
-                <div style={{ fontSize: 10, color: "#f0c040", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>MILESTONE UNLOCKED</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 6, lineHeight: 1.2 }}>{m.label}</div>
-                {/* Tier-rank badge — shows whether this is the user's
-                    CURRENT tier or one they've already passed (helps
-                    when several tiers unlock retroactively for a user
-                    who jumped past them). */}
-                {m.tierBadge && (
-                  <div style={{ display: "inline-block", marginBottom: 10, padding: "3px 10px", fontSize: 9, fontWeight: 800, letterSpacing: 2, fontFamily: "'Space Mono', monospace", borderRadius: 4, color: m.tierBadge === "current" ? "#2ecc71" : "rgba(255,255,255,0.55)", background: m.tierBadge === "current" ? "rgba(46,204,113,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${m.tierBadge === "current" ? "rgba(46,204,113,0.4)" : "rgba(255,255,255,0.15)"}` }}>
-                    {m.tierBadge === "current" ? "✓ CURRENT TIER" : "↑ PASSED TIER"}
-                  </div>
-                )}
-                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.5, marginBottom: 18, marginTop: m.tierBadge ? 0 : 0 }}>{m.body}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>TAP TO CONTINUE{milestoneQueue.length > 1 ? ` · ${milestoneQueue.length - 1} MORE` : ""}</div>
-              </motion.div>
-            </motion.div>
-          );
-        })()}
+        {/* Milestone overlay + PB overlay relocated to HomeGlobals so
+            they render on every view, not just home. (qa:
+            celebration-overlays-everywhere) */}
       </AnimatePresence>
-      {/* PB celebration overlay */}
-      {newPBs.length > 0 && (
-        <div className="pb-overlay" onClick={() => setNewPBs([])} style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "auto", cursor: "pointer" }}>
-          <div className="pb-pop" style={{ background: "rgba(12,12,15,0.9)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 20, padding: "28px 32px", maxWidth: 300, width: "90%", textAlign: "center", backdropFilter: "blur(20px)", overflow: "hidden", position: "relative" }}>
-            <div className="pb-shine" style={{ position: "absolute", top: 0, left: "-60%", width: "40%", height: "100%", background: "linear-gradient(90deg, transparent, rgba(255,215,0,0.12), transparent)" }} />
-            <img src="/ai/pb-celebration.png" alt="" style={{ width: 96, height: 96, display: "block", margin: "0 auto 8px" }} />
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#FFD700", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 12 }}>PERSONAL BEST{newPBs.length > 1 ? "S" : ""}</div>
-            {newPBs.map((pb, i) => (
-              <div key={i} style={{ marginBottom: 6 }}>
-                <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{pb.name}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,215,0,0.7)", fontFamily: "'Space Mono', monospace" }}>{pb.weight}kg × {pb.reps}</div>
-              </div>
-            ))}
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 14, fontFamily: "'DM Sans', sans-serif" }}>Tap to dismiss</div>
-          </div>
-        </div>
-      )}
       {/* Hero auto-sizes to fill the viewport up to the last day-card
           row. The previous 150px height left a wide black gap above
           the barbell on tall phones AND wasted the chance to show
@@ -12518,7 +12556,7 @@ function HomePage() {
               {isTrainer && (
                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 6, padding: "3px 10px" }}>TRAINER</span>
               )}
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 10px" }}>ATHLETE</span>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#FF6B6B", background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.3)", borderRadius: 6, padding: "3px 10px" }}>ATHLETE</span>
             </div>
 
             {/* Tier badges — both ladders the user participates in. The
@@ -15692,7 +15730,7 @@ function HomePage() {
                               )}
                               <div style={{ display: "flex", alignItems: "center" }}>
                                 <button onClick={() => setWInput(String(Math.max(0, +((parseFloat(wInput) || 0) - weightStep).toFixed(2))))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                                <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                                <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0" autoComplete="off" autoCorrect="off" spellCheck={false} name="set-weight" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
                                 <button onClick={() => setWInput(String(+((parseFloat(wInput) || 0) + weightStep).toFixed(2)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                               </div>
                               {wDiff(parseFloat(wInput))}
@@ -15717,7 +15755,7 @@ function HomePage() {
                             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500 }}>REPS DONE</div>
                             <div style={{ display: "flex", alignItems: "center" }}>
                               <button onClick={() => setRInput(String(Math.max(0, (parseInt(rInput) || 0) - 1)))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                              <input type="number" inputMode="numeric" value={rInput} onChange={e => setRInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
+                              <input type="number" inputMode="numeric" value={rInput} onChange={e => setRInput(e.target.value)} placeholder="0" autoComplete="off" autoCorrect="off" spellCheck={false} name="set-reps" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />
                               <button onClick={() => setRInput(String((parseInt(rInput) || 0) + 1))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0 10px 10px 0", color: "#2ecc71", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                             </div>
                             {rDiff(parseInt(rInput))}
@@ -16544,18 +16582,8 @@ function HomePage() {
           </div>
         </div>
       )}
-      {/* Tier promotion toast — fires once when the user's headline
-          tier number crosses up. Tap to dismiss. (qa: tier-promotion-toast) */}
-      {tierPromoToast && (
-        <div onClick={() => setTierPromoToast(null)} style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(12px)", border: `1px solid ${tierPromoToast.tier.color}`, borderRadius: 16, padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", boxShadow: `0 8px 32px ${tierPromoToast.tier.color}44`, animation: "goalCelebPop 0.4s ease" }}>
-          <span style={{ fontSize: 36 }}>{tierPromoToast.tier.icon}</span>
-          <div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>TIER UP!</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: tierPromoToast.tier.color }}>{tierPromoToast.tier.label} <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.45)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· T{displayTierNum(tierPromoToast.tier.tierNum)}</span></div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 2 }}>tap to dismiss</div>
-          </div>
-        </div>
-      )}
+      {/* Tier promotion toast relocated to HomeGlobals so it renders
+          on every view, not just home. (qa: celebration-overlays-everywhere) */}
     </>
   );
 }

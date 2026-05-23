@@ -150,6 +150,18 @@
     "cmpfu9tb40000blb2zkfgvhs2": {
       "ts": "2026-05-21T19:00:00Z",
       "summary": "Duplicate START workout prompts fix: tapping ▶ START WORKOUT on the home day-card expand now calls openDay() AND begin() immediately, skipping the workout-prep middle screen. The single intent = one tap to active workout."
+    },
+    "cmpi8tcbs0002hh0yfwqbb4ah": {
+      "ts": "2026-05-23T11:30:00Z",
+      "summary": "@maaiz: 'Close button on tier modal needs to be floating or allow swipe to go back or both. Also need to stop apple password'. Header bar now position:sticky top:0 with backdrop blur — × close stays pinned while content scrolls. Bumped weight + reps inputs with autoComplete=off + autoCorrect=off + spellCheck=false + explicit name= to stop iOS Safari from suggesting password/autofill on numeric workout fields. Swipe-back gesture deferred to a separate slice — main pain point (button not accessible) solved by the sticky header. (qa: tier-modal-sticky-close)"
+    },
+    "cmpi8va1j000gc4qfh03wlu5h": {
+      "ts": "2026-05-23T11:30:00Z",
+      "summary": "@maaiz: 'The celebration card overlays are only showing up in messages or some where not everywhere on screen until dismissed'. Root cause: milestone + PB + tier-promo overlays were rendered inside the home-view JSX, so they only mounted when view=home. Relocated all three into HomeGlobals, which is rendered into the persistent overlay portal across every view. Removed duplicates from the home + standalone toast renders. (qa: celebration-overlays-everywhere)"
+    },
+    "cmpi8y0j90004atccnoxarz4t": {
+      "ts": "2026-05-23T11:30:00Z",
+      "summary": "@maaiz: 'Roles in profile look like they are toggle selectable because the athlete one is grey. Just make it say athlete'. The ATHLETE chip was styled with the inactive-grey treatment (rgba(255,255,255,0.55) + 5% bg) while TRAINER and ADMIN had saturated colour. Now ATHLETE matches: red FF6B6B color + 10% red bg + 30% red border — reads as a label, not a toggleable control. (qa: profile-role-chip-not-toggle)"
     }
   }
 }

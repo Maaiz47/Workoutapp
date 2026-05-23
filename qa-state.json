@@ -180,6 +180,56 @@
       "priority": "low"
     },
     {
+      "id": "tier-modal-sticky-close",
+      "title": "Tier modal × close stays pinned (sticky header) + Apple autofill suppressed on workout inputs",
+      "area": "UI",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-modal-sticky-close",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "priority": "high",
+      "steps": [
+        "Open tier modal. Scroll the inner content down. Verify the title + × close stay pinned at the top of the modal (sticky bar with backdrop blur).",
+        "Verify the close × is still 44×44 (Apple HIG tap target).",
+        "Open a workout session. Tap the weight or reps input. Verify NO Apple AutoFill / 'Save password?' / suggestion bar appears.",
+        "Verify weight and reps still accept numeric input as before."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'Close button on tier modal needs to be floating or allow swipe to go back or both. Also need to stop apple password'.\n- Sticky header with `position: sticky; top: -20px; marginTop: -20px; paddingTop: 20px` + linear-gradient bg + backdrop blur so it gracefully covers the modal's natural padding at the top. The × close button is part of this sticky bar so it never scrolls away.\n- Weight + reps inputs got `autoComplete='off' autoCorrect='off' spellCheck={false} name='set-weight' | 'set-reps'`. iOS Safari was suggesting password autofill on numeric workout fields, presumably because the inputs lacked any autoComplete attr and iOS heuristics defaulted to credential mode.\n- Swipe-back gesture deferred — adding it requires a touch-event handler tracking left-edge swipes. Main pain (button not accessible mid-scroll) is solved by the sticky header."
+    },
+    {
+      "id": "celebration-overlays-everywhere",
+      "title": "Celebration overlays render on every view (not just home)",
+      "area": "UI",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass celebration-overlays-everywhere",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "priority": "high",
+      "steps": [
+        "Trigger a milestone unlock somehow (admin force-unlock or just log a session that crosses one) while on the MESSAGES view. Verify the celebration card appears fullscreen over the messages list.",
+        "Same test on Groups, Friends, Progress, Settings views. Verify the overlay shows wherever you are.",
+        "Verify the PB celebration overlay (yellow card) behaves the same — fullscreen on any view.",
+        "Verify the tier-up toast (TIER UP! pill at top) appears on any view, not just home."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'The celebration card overlays are only showing up in messages or some where not everywhere on screen until dismissed'.\nRoot cause: milestone + PB + tier-promo overlays were rendered inside the home-view JSX. They only mounted when `view === 'home'`. Other views = celebration silently dropped.\nFix: relocated all three overlays into `HomeGlobals` — which is rendered into the persistent overlay portal via `createRoot` and stays mounted regardless of which view is showing. Wired in via new props (deGamified, milestoneQueue, onMilestoneAdvance, newPBs, onPBsDismiss, tierPromoToast, onTierPromoDismiss). Removed the duplicate renders from the home view + standalone tier-promo toast block so we don't double-mount.\nThe in-workout PB pop (different state, shown during active sets above the rest timer) is intentionally left as a separate render in the workout view — that's contextual, not a post-save celebration."
+    },
+    {
+      "id": "profile-role-chip-not-toggle",
+      "title": "Profile ATHLETE chip styled like a label, not a toggle",
+      "area": "UI",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass profile-role-chip-not-toggle",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "priority": "high",
+      "steps": [
+        "Open Settings → Profile.",
+        "Verify the ROLE row shows ADMIN / TRAINER / ATHLETE chips with consistent saturated colour (purple / teal / red respectively) — none of them look greyed-out or toggle-able.",
+        "Tap the ATHLETE chip — verify nothing happens (it's a label, not a button)."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'Roles in profile look like they are toggle selectable because the athlete one is grey. Just make it say athlete'. The ATHLETE chip was styled with rgba(255,255,255,0.55) text + 5% white bg + 10% white border — looked exactly like a disabled toggle next to the saturated TRAINER (teal) and ADMIN (purple). Switched ATHLETE to red FF6B6B (matching the app's primary identity colour) + 10% red bg + 30% red border — same visual weight as the other chips, clearly a label."
+    },
+    {
       "id": "home-hub-premium-polish",
       "title": "Home chip-strip + bottom-hub alignment + tier-modal tap target polish",
       "area": "UI",
