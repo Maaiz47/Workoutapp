@@ -2,6 +2,35 @@
 
 ---
 
+## Tier scoring calibration v3 · 2026-05-23 — Slow down upper-tier progression (qa: tier-scoring-calibration-v3)
+
+Per @maaiz: "maaiz munchy and alla have too fast a progression in tiers" — traced the curves and they were inflating across the board. A typical 6-month user was landing at T5 Gorilla / Diamond; should be T4 Lion / Platinum.
+
+Changes to lib/tiers.ts:
+
+- **scoreFromCount denominator widened** 3× → 10× — log curve now hits ~60 at midpoint instead of ~80. Combined with the midpoint bumps below, this stretches every sub-rank's meaningful range so users don't saturate every dimension by 6 months.
+- **Consistency sessions180d midpoint** 60 → 100. 100 sessions in 180d = full 4×/wk for the entire window (was 2.3×/wk → 79 score; now 4×/wk → 75-ish).
+- **Adherence cap** 100 → 90 — hitting your `daysPerWeek` target every week is high but no longer maxed. Excellence (strength gains, volume, mastery) is what drives the headline above the cap. Overtraining-penalty ramp starts from 90.
+- **Strength range** -5%..+15% → -5%..+20%. 0% gain → 40, 10% → 70, 20% → 100. Was previously +15% → 100 which let novice gains jump too easily.
+- **Volume curve** replaced log-`scoreFromCount` with a sqrt-based scaler against a 5M kg-reps ceiling. The old log curve saturated at 90+ by 6mo of moderate lifting; sqrt (1M → 45, 2M → 63, 5M → 100) keeps diminishing returns but stretches the range so years of training actually differentiate from months.
+- **Mastery midpoint** 18 → 25 — needs 25 exercises with ≥4 sets in 180d to hit midpoint instead of 18.
+
+Verified against synthesised 6-month user profiles for each test-user archetype + a few hand-crafted personas (sim script at `/tmp/simulate-tiers.ts`):
+
+| Persona | Pre-v3 | Post-v3 |
+|---|---|---|
+| 3mo casual (Maaiz-style) | ~72 → T5 Gorilla | 61 → T4 Lion |
+| 6mo dedicated (Munchy/Alla-style) | ~75 → T5 Gorilla | 64 → T4 Lion |
+| 1yr serious | ~78 → T5 Gorilla | 67 → T4 Lion |
+| Plateauer | ~67 → T4 Lion | 50 → T4 Lion (just inside) |
+| Inconsistent | ~52 → T4 Lion | 40 → T3 Big Dawg |
+| Quitter | ~46 → T3 | 38 → T3 |
+| Elite (1yr+, 20% gain, max log) | ~85 → T5 Gorilla | 72 → T5 Gorilla |
+
+Score-band reading post-v3: T3 = established, T4 = committed (most users), T5 = elite gains across all dims, T6 = aspirational ceiling.
+
+---
+
 ## Home chip strip refactor + enlarged tier badges + daily quest hides when done · 2026-05-23 (qa: home-hub-premium-polish, home-hub-singleline, tier-icons-vivid, tier-icons-simple, tier-icons-trainer, profile-avatars-everywhere, daily-quest-hide-when-done)
 
 Per @maaiz on this iteration:

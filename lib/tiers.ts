@@ -123,12 +123,15 @@ export type TierBreakdown = {
   focusNext: SubRank | null;
 };
 
-// Soft-cap log scaler — diminishing returns. Maps a raw count to 0-100
-// using a curve that hits 80 at ~`midpoint` and approaches 100 slowly.
+// Soft-cap log scaler — diminishing returns. Maps a raw count to 0-100.
+// v3 calibration: denominator widened 3× → 10× so the curve hits ~60
+// at midpoint (was ~79) and climbs slower past it. Combined with the
+// midpoint bumps in computeAthleteTier, this stretches the meaningful
+// range so a 6mo user doesn't saturate every dim.
+// (qa: tier-scoring-calibration-v3)
 function scoreFromCount(value: number, midpoint: number): number {
   if (value <= 0) return 0;
-  // log curve hits 100 only when value ≫ midpoint
-  const score = 100 * (Math.log(1 + value) / Math.log(1 + midpoint * 3));
+  const score = 100 * (Math.log(1 + value) / Math.log(1 + midpoint * 10));
   return Math.min(100, Math.max(0, Math.round(score)));
 }
 
@@ -214,12 +217,19 @@ function adherenceScore(sessionsLast4Weeks: number, daysPerWeek: number): number
   if (sessionsLast4Weeks <= 0) return 0;
   const ratio = sessionsLast4Weeks / target4w;
   if (ratio <= 1.0) {
-    // Linear ramp 0 → 100 as user approaches target
-    return Math.round(ratio * 100);
+    // Linear ramp 0 → 90 as user approaches target. Cap at 90 (not 100)
+    // so "perfect attendance" is high but not maxed — leaves headroom
+    // for excellence to drive the headline score upward via the OTHER
+    // sub-ranks (strength, volume, mastery). Without this cap a user
+    // who simply showed up gets 100 on the biggest weighted component
+    // and rides into upper tiers too fast.
+    // (qa: tier-scoring-calibration-v3 — @maaiz: "too fast progression")
+    return Math.round(ratio * 90);
   }
-  // Past target: each 25% over loses 25 points. 2× target = 0.
+  // Past target: each 25% over loses 25 points. 2× target → 0.
+  // Start from 90 (not 100) per the cap above.
   const excess = ratio - 1.0;
-  return Math.max(0, Math.round(100 - excess * 100));
+  return Math.max(0, Math.round(90 - excess * 100));
 }
 
 // Strength sub-rank — measures whether the user is GETTING STRONGER,
@@ -257,8 +267,12 @@ function strengthSubRank(recentByExercise: Record<string, RecentSet[]>, todayMs:
     return { score: 50, hasData: false, detail: "keep logging — strength trend kicks in past 90d of history", pctChange: null, qualifiedCount: qualified.length };
   }
   const avgPct = pctChanges.reduce((a, b) => a + b, 0) / pctChanges.length;
-  // Map -5% .. +15% linearly into 25 .. 100. Clamp.
-  const raw = 25 + ((avgPct + 0.05) / 0.20) * 75;
+  // Map -5% .. +20% linearly into 25 .. 100. Clamp. 0% gain → 40,
+  // 10% → 70, 20% → 100. Mid-range gains (5-15%) get a meaningful
+  // payoff so committed intermediate lifters can drive the headline
+  // above T4 without needing freakish PR rates. Plateauers floor at
+  // 25 via the clamp. (qa: tier-scoring-calibration-v3)
+  const raw = 25 + ((avgPct + 0.05) / 0.25) * 75;
   const score = Math.max(25, Math.min(100, Math.round(raw)));
   const pctRounded = Math.round(avgPct * 1000) / 10; // one decimal place
   const detail = `${pctRounded >= 0 ? "+" : ""}${pctRounded}% e1RM (180d, top ${pctChanges.length})`;
@@ -376,8 +390,11 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   const adherence = adherenceScore(s.sessionsLast4Weeks ?? 0, s.daysPerWeek ?? 4);
   const recent180dSessions = s.sessions180d ?? Math.min(s.totalSessions, 60);
   const weeklyStreak = s.weeklyStreak ?? 0;
+  // Consistency v3 — sessions180d midpoint raised 60 → 100. 100 sessions
+  // in 180 days = full 4×/wk for the whole window; 60 was too lenient
+  // (≈ 2.3/wk gave 79 score). (qa: tier-scoring-calibration-v3)
   const consistency = Math.round(
-    0.3 * scoreFromCount(recent180dSessions, 60) +
+    0.3 * scoreFromCount(recent180dSessions, 100) +
     0.6 * adherence +
     0.1 * scoreFromCount(weeklyStreak, 8)
   );
@@ -389,10 +406,13 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   // Progression v2 — new sub-rank. Weekly volume regression slope.
   const progressionRes = progressionSubRank(s.weeklyVolumes ?? []);
 
-  // Volume — lifetime kg-reps log curve, unchanged. (Captures
-  // "how much work have you done" cumulatively — distinct from
-  // Strength/Progression which measure RATE.)
-  const volume = scoreFromCount(s.totalVolumeKg, 100_000);
+  // Volume v3 — replaced log curve with sqrt-based scaling against a
+  // 5M kg-reps ceiling. The old log curve saturated at 90+ by 6mo and
+  // failed to differentiate intermediate from veteran lifters. Sqrt
+  // (1M → 45, 2M → 63, 5M → 100) keeps the diminishing-returns shape
+  // but stretches the meaningful range to multi-year lifetime work.
+  // (qa: tier-scoring-calibration-v3)
+  const volume = Math.min(100, Math.max(0, Math.round(100 * Math.sqrt(Math.max(0, s.totalVolumeKg) / 5_000_000))));
 
   // Mastery v2 — exercises with ≥4 sets in 180d (depth-weighted
   // distinct count). Raises the bar from naive "logged at least
@@ -405,7 +425,10 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   const masteryHasData = Object.keys(recentByEx).length > 0
     ? masteryQualified > 0
     : masteryLegacy > 0;
-  const mastery = scoreFromCount(masteryCount, 18);
+  // Mastery v3 — midpoint raised 18 → 25 so a 6-month user with the
+  // typical 12-15 lifts isn't already at 60+ score.
+  // (qa: tier-scoring-calibration-v3)
+  const mastery = scoreFromCount(masteryCount, 25);
 
   // Habits — unchanged from v1.
   const hg = s.hydrationGoalDays ?? 0;

@@ -1,6 +1,26 @@
 {
   "items": [
     {
+      "id": "tier-scoring-calibration-v3",
+      "title": "Tier scoring v3 — slower headline progression so 6-month users land at T4, not T5",
+      "area": "Tiers",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-scoring-calibration-v3",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open the tier breakdown modal as a long-time user (e.g. maaiz, munchy, alla). Verify the headline score has DROPPED vs the previous deploy.",
+        "Verify the new tier reads as Lion / Platinum (T4) for users who were previously at Gorilla / Diamond (T5).",
+        "Open the sub-rank breakdown. Verify Volume shows a noticeable drop (was saturated at 90+, now ~30-65 for most active users).",
+        "Verify Strength still rewards real e1RM gains — 10% gain over 90d should map to ~70, 15% to ~85, 20%+ to 100. Plateauers (0% gain) floor at 25.",
+        "Verify Consistency for a user hitting their daysPerWeek target reads ~75-82 (capped via adherence-90 ceiling), NOT 95+.",
+        "Verify Mastery for users with 12 distinct exercises (≥4 sets each in 180d) reads ~45-50 (was 60+).",
+        "Trigger a tier-up flow if possible to confirm the breakpoints (0/15/30/50/70/90) still resolve correctly.",
+        "Verify no real user dropped MORE than one tier — if anyone went from T5 → T2, that's a regression."
+      ],
+      "notes": "[2026-05-23] Shipped: lib/tiers.ts calibration v3. scoreFromCount denominator widened (3× → 10×), adherence cap 100 → 90, sessions180d midpoint 60 → 100, mastery midpoint 18 → 25, strength range +15% → +20% top, Volume replaced with sqrt-based curve against 5M kg-reps ceiling. Verified against 10 synthesised personas covering all test-user archetypes; typical 6mo user dropped from T5 Gorilla → T4 Lion. Elite (1yr+, 20% gain, full-mastery) still reaches T5. Sim script at /tmp/simulate-tiers.ts."
+    },
+    {
       "id": "daily-quest-hide-when-done",
       "title": "Daily quest chip hides once the quest is complete (instead of flipping to a green DONE state)",
       "area": "Home",
