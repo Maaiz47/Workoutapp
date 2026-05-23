@@ -1,4 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "bash scripts/vercel-should-skip.sh"
+  "ignoreCommand": "bash scripts/vercel-should-skip.sh",
+  "crons": [
+    {
+      "path": "/api/admin/test-users/cron-tick",
+      "schedule": "0 9 * * *"
+    }
+  ]
 }

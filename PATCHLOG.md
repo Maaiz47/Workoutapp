@@ -2,6 +2,32 @@
 
 ---
 
+## QA pass · 2026-05-23 — Test user generator (qa: test-user-generator)
+
+Synthetic test-user system for observing how tier evolution + trainer client data shape up over time. Lets the admin seed a fixed roster, advance their activity manually OR via daily cron, toggle whether they show on public boards, and bulk-wipe them.
+
+### Addressed
+- **Schema** (`prisma/schema.prisma`): added `User.isTestUser` boolean + `User.testArchetype` string?, and a new `AppConfig` key/value table for app-wide settings (currently just `showTestUsersInLeaderboards`).
+- **`lib/testUsers.ts`**: archetype catalogue (8 entries — completionist, completionist_f, grinder, inconsistent, beginner, veteran, plateauer, quitter), a fixed 15-user seed roster (13 athletes + 2 trainers with adopted rosters of 4 each), deterministic PRNG for idempotent day rolls, `seedTestUsers()` / `wipeTestUsers()` / `tickAllTestUsers()` / `advanceTestUsers(N)` operations, AppConfig helpers.
+- **`/api/admin/test-users`** route: GET (list test users + visibility toggle state + shared password) + POST (seed | wipe | tick | advance | set-visibility). Admin-key gated.
+- **`/api/admin/test-users/cron-tick`** route: GET endpoint for Vercel cron. Auth via `Authorization: Bearer ${CRON_SECRET}` OR admin key. Idempotent.
+- **`vercel.json`**: added `crons` entry hitting `/api/admin/test-users/cron-tick` daily at 09:00 UTC. **You need to set `CRON_SECRET` in Vercel env vars for the cron's auth header to land — without it the cron fires but my endpoint rejects unauthenticated requests.**
+- **Settings UI** in `app/page.tsx`: new `DEV TOOLS` section above `FEEDBACK & QA`. `TestUserGeneratorPanel` component: admin-secret unlock → roster list with copy buttons + shared password + visibility toggle + SEED / WIPE / ADVANCE N days / TICK buttons + archetype legend.
+- **Leaderboard filtering**: `/api/leaderboard/global` (athlete tab + trainer tab) now filters `isTestUser: false` unless `AppConfig.showTestUsersInLeaderboards` is true. Defaults OFF so synthetic data never leaks to real users.
+
+### Login as a test user
+All 15 share password `IronlogTest2026!`. Usernames follow `test_<archetype>_<name>` (e.g. `test_completionist_alex`, `test_trainer_morgan`). The admin panel surfaces the full list with copy buttons.
+
+### Not affected
+- Trainer-only leaderboard (`/api/trainer/leaderboard`) — always shows clients regardless of test flag, because the entire point is to see test athletes in a trainer's roster.
+- Group-scoped leaderboards (`/api/leaderboard/mine`, `/api/leaderboard/groups`) — membership-based; test users only appear if explicitly added to a group.
+
+### Items NOT shipped
+- **Auto-create test users in groups** — defer; if you want to see test users in group leaderboards, manually add them once.
+- **Sex-aware archetype expansion (`f` variants for every archetype)** — only added `completionist_f`. Other female-archetype variants can be added later if you need broader sex-aware coverage.
+
+---
+
 ## QA pass · 2026-05-23 — Tier scoring v2 ship + client leaderboard relocation (qa: tier-scoring-v2, client-leaderboard-relocation, tier-promotion-toast)
 
 Full rollout of the design captured in the 2026-05-22 plan, with deep-think refinements that emerged in the conversation:

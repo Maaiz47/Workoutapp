@@ -14,6 +14,16 @@ model User {
   passwordHash      String?
   mustResetPassword Boolean          @default(false)
   role              String           @default("user")
+  // Synthetic test users seeded by the admin's "Test User Generator"
+  // (Settings → DEV TOOLS). Filtered out of public leaderboards unless
+  // the AppConfig.showTestUsersInLeaderboards toggle is on. Bulk-
+  // wipeable via the admin tools. NEVER set this on a real user.
+  // (qa: test-user-generator)
+  isTestUser        Boolean          @default(false)
+  // The archetype this test user was seeded as (e.g. "completionist",
+  // "veteran", "trainer"). Null on real users. Used by the daily-tick
+  // engine to decide what activity to generate.
+  testArchetype     String?
   // Extra roles a user holds *in addition to* their primary `role`. Lets a
   // single account act as both admin AND trainer (or any combination)
   // without forcing a single-role choice. Checked via userHasRole().
@@ -480,6 +490,17 @@ model QAReport {
   ts          DateTime @default(now())
   tester      String
   payloadJson String
+}
+
+// Tiny key-value store for app-wide settings the admin can flip from
+// the UI without a redeploy. Currently used by the test-user generator
+// (showTestUsersInLeaderboards). Add new keys as needed — keep values
+// JSON-encoded strings so the column type stays simple. Single row per
+// key (key is the primary key). (qa: test-user-generator)
+model AppConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 // Per-item testing comment. Replaces the whole-form QAReport model.

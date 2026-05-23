@@ -1,6 +1,28 @@
 {
   "items": [
     {
+      "id": "test-user-generator",
+      "title": "Test user generator — seed/tick/advance/wipe synthetic users for tier evolution observation",
+      "area": "Dev tools",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass test-user-generator",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Set `CRON_SECRET` env var in Vercel (any random string). Without this the daily cron's auth header won't be recognised by /api/admin/test-users/cron-tick.",
+        "Log in as admin. Open Settings → DEV TOOLS section. Verify the test-user generator panel shows with an ADMIN_SECRET unlock input.",
+        "Enter the admin secret. Verify the panel unlocks: shared password (IronlogTest2026!), visibility toggle (defaults OFF), SEED button.",
+        "Tap 🌱 SEED. Verify 15 users are created (13 athletes + 2 trainers). Each user has profile + 18-270 days of backfilled workout history depending on archetype.",
+        "Tap any user's COPY button → username goes to clipboard. Log out, log back in as that test user using the shared password. Verify their tier breakdown shows on Progress page with realistic numbers (e.g. veteran is high tier, beginner is low tier, etc.).",
+        "Log in as test_trainer_morgan. Open Ranks → MY CLIENTS tab. Verify 4 adopted clients show with varied metrics (completionist + grinder + inconsistent + beginner).",
+        "Log in as admin. Settings → DEV TOOLS. Tap ⏩ ADVANCE 7d. Verify all test users get up to 7 additional days of activity (each day's tick is idempotent so safe to repeat).",
+        "Toggle 'Show in global leaderboards' to ON. Open Ranks → ATHLETES tab. Verify test users appear in the global board. Toggle OFF → verify they disappear.",
+        "Tap 🗑️ WIPE ALL → confirm. Verify all 15 test users disappear, their workouts/body metrics/trainer-client links cascade-delete.",
+        "Cron verification: after a day has passed with the cron enabled, verify each non-quitter test user has one more workout log (if their dice roll said train today) or no change (if it said skip)."
+      ],
+      "notes": "[2026-05-23 <sha7>] Shipped: full system. lib/testUsers.ts owns the archetype catalogue + seed roster + day-roll logic. /api/admin/test-users handles seed/wipe/advance/tick/set-visibility via action-discriminated POST. /api/admin/test-users/cron-tick is the Vercel cron entry point (daily at 09:00 UTC). Settings → DEV TOOLS panel surfaces controls + the shared password. Leaderboards (/api/leaderboard/global) filter test users unless AppConfig.showTestUsersInLeaderboards is on. Schema: User.isTestUser + User.testArchetype + new AppConfig key/value table."
+    },
+    {
       "id": "tier-themes",
       "title": "Athlete tier theme system — Vivid (animals) vs Simple (medals)",
       "area": "Tiers",

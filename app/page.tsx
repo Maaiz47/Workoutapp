@@ -2731,6 +2731,160 @@ function SendFeedbackCard({ username }: { username: string }) {
   );
 }
 
+// ─── TEST USER GENERATOR PANEL ──────────────────────────────────────────
+// Admin-only section in Settings. Lets the operator seed a fixed roster
+// of synthetic users (athletes across behaviour archetypes + trainers
+// with adopted rosters), advance their activity manually, toggle
+// whether they show up in public leaderboards, and bulk-wipe them.
+// Gated by the admin secret stored locally — the panel doesn't render
+// at all until a valid key is entered.
+// (qa: test-user-generator)
+function TestUserGeneratorPanel() {
+  const [adminKey, setAdminKey] = useState<string>(() => {
+    try { return localStorage.getItem("ironlog.adminKey") ?? ""; } catch { return ""; }
+  });
+  const [keyDraft, setKeyDraft] = useState("");
+  const [data, setData] = useState<any | null>(null);
+  const [error, setError] = useState<string>("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [advanceDays, setAdvanceDays] = useState(7);
+  const load = async (key: string) => {
+    setError("");
+    try {
+      const res = await fetch("/api/admin/test-users", { headers: { "x-admin-key": key } });
+      const j = await res.json();
+      if (!res.ok) { setError(j.error ?? "Unauthorized"); setData(null); return false; }
+      setData(j);
+      return true;
+    } catch (e: any) { setError(e?.message ?? "Failed"); return false; }
+  };
+  const saveKey = async () => {
+    const ok = await load(keyDraft);
+    if (ok) {
+      try { localStorage.setItem("ironlog.adminKey", keyDraft); } catch {}
+      setAdminKey(keyDraft);
+      setKeyDraft("");
+    }
+  };
+  const clearKey = () => {
+    try { localStorage.removeItem("ironlog.adminKey"); } catch {}
+    setAdminKey("");
+    setData(null);
+  };
+  useEffect(() => { if (adminKey) load(adminKey); }, [adminKey]);
+  const doAction = async (action: string, extra: Record<string, any> = {}) => {
+    setBusy(action);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/test-users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+        body: JSON.stringify({ action, ...extra }),
+      });
+      const j = await res.json();
+      if (!res.ok) setError(j.error ?? `${action} failed`);
+      await load(adminKey);
+    } catch (e: any) { setError(e?.message ?? "Failed"); }
+    setBusy(null);
+  };
+
+  if (!adminKey) {
+    return (
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 10 }}>Admin secret unlocks the test-user generator. The key is stored locally and only sent to <code>/api/admin/*</code>.</div>
+        <input
+          type="password"
+          value={keyDraft}
+          onChange={e => setKeyDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") saveKey(); }}
+          placeholder="ADMIN_SECRET"
+          style={{ width: "100%", padding: "10px 12px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, fontFamily: "'Space Mono', monospace", outline: "none", boxSizing: "border-box" }}
+        />
+        <button onClick={saveKey} disabled={!keyDraft} style={{ width: "100%", marginTop: 10, padding: "10px", background: keyDraft ? "rgba(78,205,196,0.16)" : "rgba(255,255,255,0.04)", border: `1px solid ${keyDraft ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 8, color: keyDraft ? "#4ECDC4" : "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: keyDraft ? "pointer" : "default", fontFamily: "'Space Mono', monospace" }}>UNLOCK</button>
+        {error && <div style={{ marginTop: 10, fontSize: 11, color: "rgba(255,107,107,0.85)" }}>{error}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>UNLOCKED · {data ? `${data.users.length}/${data.rosterSize ?? 15} seeded` : "loading"}</div>
+        <button onClick={clearKey} style={{ fontSize: 10, padding: "4px 10px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.8)", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>LOCK</button>
+      </div>
+      {error && <div style={{ marginBottom: 10, fontSize: 11, color: "rgba(255,107,107,0.85)" }}>{error}</div>}
+      {data && (
+        <>
+          {/* Shared credentials block */}
+          <div style={{ background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: 10, marginBottom: 12 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1, fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>SHARED PASSWORD</div>
+            <div style={{ fontSize: 13, color: "#FFE66D", fontFamily: "'Space Mono', monospace", letterSpacing: 1, wordBreak: "break-all" }}>{data.password}</div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Every test user logs in with the same password. Usernames listed below.</div>
+          </div>
+
+          {/* Visibility toggle */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>Show in global leaderboards</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{data.showInBoards ? "Test users are visible to everyone right now" : "Test users hidden from global boards (recommended)"}</div>
+            </div>
+            <button onClick={() => doAction("set-visibility", { value: !data.showInBoards })} disabled={busy === "set-visibility"} style={{ padding: "6px 14px", background: data.showInBoards ? "rgba(46,204,113,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${data.showInBoards ? "rgba(46,204,113,0.4)" : "rgba(255,255,255,0.1)"}`, borderRadius: 14, color: data.showInBoards ? "#2ecc71" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{data.showInBoards ? "ON" : "OFF"}</button>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+            <button onClick={() => doAction("seed")} disabled={busy != null} style={{ padding: "12px", background: "rgba(78,205,196,0.10)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 10, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{busy === "seed" ? "SEEDING…" : "🌱 SEED"}</button>
+            <button onClick={() => { if (confirm("Delete all test users? Their workouts, body metrics, group memberships all go too.")) doAction("wipe"); }} disabled={busy != null} style={{ padding: "12px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 10, color: "rgba(255,107,107,0.85)", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{busy === "wipe" ? "WIPING…" : "🗑️ WIPE ALL"}</button>
+          </div>
+
+          {/* Advance N days */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
+            <input
+              type="number"
+              value={advanceDays}
+              onChange={e => setAdvanceDays(Math.max(1, Math.min(180, parseInt(e.target.value || "1", 10))))}
+              min={1}
+              max={180}
+              style={{ width: 70, padding: "10px 12px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 13, fontFamily: "'Space Mono', monospace", outline: "none", boxSizing: "border-box" }}
+            />
+            <button onClick={() => doAction("advance", { days: advanceDays })} disabled={busy != null} style={{ flex: 1, padding: "10px 12px", background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.35)", borderRadius: 8, color: "#a29bfe", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{busy === "advance" ? "ADVANCING…" : `⏩ ADVANCE ${advanceDays}d`}</button>
+            <button onClick={() => doAction("tick")} disabled={busy != null} title="Run today's tick once" style={{ padding: "10px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{busy === "tick" ? "…" : "TICK"}</button>
+          </div>
+
+          {/* Roster list */}
+          {data.users.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 16, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>No test users yet. Tap 🌱 SEED to create {data.rosterSize ?? 15}.</div>
+          ) : (
+            <div style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, overflow: "hidden" }}>
+              {data.users.map((u: any, i: number) => (
+                <div key={u.id} style={{ display: "grid", gridTemplateColumns: "22px 1fr auto", gap: 8, alignItems: "center", padding: "10px 12px", borderBottom: i < data.users.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: u.role === "trainer" ? "rgba(255,209,102,0.04)" : "transparent" }}>
+                  <div style={{ fontSize: 14 }}>{u.archetypeEmoji ?? "·"}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: "#fff", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{u.username}{u.role === "trainer" && <span style={{ marginLeft: 6, fontSize: 9, color: "#f0c040", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>TRAINER</span>}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{u.archetypeLabel} · {u.workoutCount} logs · {u.bodyMetricCount} metrics</div>
+                  </div>
+                  <button onClick={() => { try { navigator.clipboard.writeText(u.username); } catch {} }} title="Copy username" style={{ padding: "4px 8px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.5)", fontSize: 10, fontFamily: "'Space Mono', monospace", cursor: "pointer", letterSpacing: 1 }}>COPY</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Archetype legend */}
+          <div style={{ marginTop: 12, padding: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10 }}>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>ARCHETYPES</div>
+            {data.archetypes.map((a: any) => (
+              <div key={a.id} style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", marginBottom: 3, lineHeight: 1.4 }}><span style={{ marginRight: 4 }}>{a.emoji}</span><strong style={{ color: "#fff" }}>{a.label}</strong> — {a.description}</div>
+            ))}
+          </div>
+          <div style={{ marginTop: 10, fontSize: 9, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>
+            Daily cron auto-ticks each user at 9am UTC. Use ADVANCE to fast-forward N days. Wipe deletes every test user + cascades their data (workouts, body metrics, trainer-client links).
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── SETTINGS SECTION HEADER ────────────────────────────────────────────
 // Thin, consistent label row used in the Settings view to group related
 // cards under a scannable banner. The old flat list of mixed cards made
@@ -11645,6 +11799,14 @@ function HomePage() {
               </button>
             )}
           </div>
+
+          {/* ── SECTION: DEV TOOLS — admin-only, gated by ADMIN_SECRET.
+              Currently surfaces the test-user generator. The whole
+              section stays hidden behind the secret check inside the
+              panel — non-admins see a locked input, not the controls.
+              (qa: test-user-generator) */}
+          <SettingsSectionHeader label="DEV TOOLS" icon="🧪" color="rgba(162,155,254,0.75)" />
+          <TestUserGeneratorPanel />
 
           {/* ── SECTION: FEEDBACK & QA — all the ways to tell the team
               what's working, what isn't, or what you'd like. Surfaces:

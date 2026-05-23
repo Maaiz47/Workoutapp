@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { computeStatsForUsers } from "../../../../lib/leaderboardStats";
 import { computeTrainerTier } from "../../../../lib/tiers";
+import { getAppConfigBool, CONFIG_KEY_SHOW_TEST_USERS } from "../../../../lib/testUsers";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
@@ -57,8 +58,15 @@ async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", 
   // Pull every user who has logged at least MIN_SESSIONS sessions.
   // Counting via _count keeps this cheap — no joins into the sets
   // JSON payloads.
+  // Test users (isTestUser=true) filtered out unless the admin has
+  // explicitly enabled AppConfig.showTestUsersInLeaderboards. Default
+  // is OFF so synthetic data never leaks to real users.
+  // (qa: test-user-generator)
+  const showTestUsers = await getAppConfigBool(CONFIG_KEY_SHOW_TEST_USERS, false);
+  const baseWhere: any = { workoutLogs: { some: {} } };
+  if (!showTestUsers) baseWhere.isTestUser = false;
   const candidates: any[] = await (prisma.user as any).findMany({
-    where: { workoutLogs: { some: {} } },
+    where: baseWhere,
     select: {
       id: true,
       username: true,
@@ -120,14 +128,18 @@ async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", 
 }
 
 async function trainerBoard(viewerUid: string, lens: "top" | "band" | "around", limit: number) {
-  // Every user with the trainer role (primary OR extra).
+  // Same test-user filter as the athlete board — synthetic trainers
+  // are hidden unless the admin has flipped the visibility toggle on.
+  const showTestUsers = await getAppConfigBool(CONFIG_KEY_SHOW_TEST_USERS, false);
+  const trainerWhere: any = {
+    OR: [
+      { role: "trainer" },
+      { extraRoles: { has: "trainer" } },
+    ],
+  };
+  if (!showTestUsers) trainerWhere.isTestUser = false;
   const trainerCandidates = await prisma.user.findMany({
-    where: {
-      OR: [
-        { role: "trainer" },
-        { extraRoles: { has: "trainer" } },
-      ],
-    },
+    where: trainerWhere,
     select: { id: true, username: true },
   });
 
