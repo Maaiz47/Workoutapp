@@ -1,0 +1,10 @@
+{
+  "id": "cmpi8tcbs0002hh0yfwqbb4ah",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · UI · view=home] Close button on tier modal needs to be floating or allow swipe to go back or both\nAlso need to stop apple password autofill coming up when searching usernames",
+  "screenshotUrl": null,
+  "ts": "2026-05-23T11:06:05.608Z"
+}
