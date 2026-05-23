@@ -6,12 +6,52 @@ to the wishlist since:
 
 | Batch | Count | Output path |
 |---|---|---|
-| 1. Default avatar refresh | 1 | `/public/ai/avatar-default.png` |
+| 1. Default avatar refresh (athlete) | 1 | `/public/ai/avatar-default.png` |
 | 2. Athlete tier icons — Vivid theme | 6 | `/public/tier-icons/vivid/<label>.png` |
 | 3. Athlete tier icons — Simple theme | 6 | `/public/tier-icons/simple/<label>.png` |
 | 4. Stretch frame fixes (regens) | 8 | `/public/stretches/<id>/{0,1}.png` |
 | 5. Achievement-unlock avatars | 6 | `/public/avatars/<id>.png` |
-| **Total** | **27** | |
+| 6. Default avatar — TRAINER variant NEW | 1 | `/public/ai/avatar-default-trainer.png` |
+| 7. Trainer tier-unlock avatars NEW | 6 | `/public/avatars/<id>.png` |
+| **Total** | **34** | |
+
+## File-size optimisation (read this BEFORE generation)
+
+Per @maaiz (2026-05-23): the existing avatars + tier icons feel slow
+on mobile. They're displayed tiny — typical render sizes are 32-52px
+circles for avatars, 64-96px for tier chips, 40px in the home
+profile chip. Generating at 1024×1024 and serving raw makes every
+profile/leaderboard surface drag.
+
+**Targets per image type:**
+
+| Surface | Display size | Generate at | Then encode at |
+|---|---|---|---|
+| Avatars (profile circles) | 32-52px | 512×512 | 192×192 PNG quality 85, OR 256×256 WebP quality 75 |
+| Tier icons (vivid + simple) | 18-96px | 512×512 | 192×192 PNG quality 85 |
+| Stretch frames (FORM modal) | ~300px wide | 512×512 | 384×384 PNG quality 85 |
+| Default avatar | 32-52px | 1024×1024 | 192×192 PNG quality 85 |
+
+**Pipeline:**
+1. Generate at native resolution (1024×1024 or 512×512 — your choice
+   for source quality).
+2. Run through a one-shot compression pass — `npx sharp-cli` (Sharp)
+   or an online tool like Squoosh.app — to the "Then encode at"
+   target size + quality. Aim for **<25 KB per avatar**, **<35 KB per
+   tier icon**, **<60 KB per stretch frame**.
+3. Save the compressed version into the public path. Keep the
+   high-res original in a separate `/source/` folder if you want to
+   re-export later at different sizes.
+
+**Target totals:** at 25 KB/avatar × 34 images = 850 KB for the
+entire v2 batch. Compared to the current ~3 MB existing batch this
+is a 70% reduction — meaningfully faster perceived load.
+
+Add a `scripts/compress-images.sh` helper that walks `/public/avatars`
++ `/public/tier-icons` + `/public/stretches` and reports any image
+above its target size — easy regression catch on future generations.
+(qa: `image-compression-pass` — planning item only, ships with
+the image-gen v2 work.)
 
 Drop each PNG at the path listed. No rebuild needed — Next.js serves
 from `/public`. The wire-up notes for each batch sit at the bottom
@@ -292,6 +332,120 @@ New profile avatars that unlock by **achievement count** (see
 
 ---
 
+## Batch 6 — Trainer default avatar (1 image) NEW
+
+Per @maaiz: trainers should have a different default avatar from
+athletes. App detects user role and picks the right starting image
+(wire-up below).
+
+### `avatar-default-trainer.png`
+
+> A sleek minimalist circular logo-style profile avatar for a
+> strength-training app, COACH variant. Subject: a clipboard +
+> stopwatch combo suspended in space, clipboard tilted slightly with a
+> minimalist training-plan grid visible (no readable text), stopwatch
+> overlapping the bottom corner of the clipboard with the second-hand
+> mid-tick. Both objects in polished brushed-steel finish. Deep matte
+> black background with a soft radial glow in teal (#4ECDC4 at 30%
+> opacity behind the subject). Studio rim lighting picks out the
+> metal edges. No human figure, no text, no extra elements. Square
+> 1024×1024, centred composition, ~12% safe margin for the 48px
+> cropped circle render. Style: editorial product shot meets sci-fi
+> UI iconography. Reference cues: Apple Fitness rings, Strava coach
+> badges, Whoop strap product shots.
+
+**Wire-up:** in app/page.tsx, every site that currently uses
+`/ai/avatar-default.png` needs to become role-aware:
+
+```ts
+const userIsTrainer = userHasRole(user, "trainer");
+const defaultAvatarSrc = userIsTrainer ? "/ai/avatar-default-trainer.png" : "/ai/avatar-default.png";
+// then: const src = av ? `/avatars/${av.id}.png` : defaultAvatarSrc;
+```
+
+Affected sites (4 today): home profile chip (line ~8573), AvatarPickerView
+Default tile (line ~4204), Settings profile circle (line ~11358), and the
+onError fallback (line ~4223 + ~11361). Add to AvatarPickerView via a
+new `defaultAvatarSrc` prop so the picker doesn't need to import the
+role check itself. (qa: profile-avatars-trainer-default)
+
+---
+
+## Batch 7 — Trainer tier-unlock avatars (6 images) NEW
+
+Per @maaiz: special avatars that unlock on TRAINER tier climbs (the
+TRAINER_TIERS ladder: Spotter → Strategist → Pro → Master → Legend
+→ Hall of Fame). Athletes-without-trainer-role don't see these in
+their grid. 1 avatar per trainer tier in v1; can expand to 3-per-tier
+later if @maaiz wants the full athlete-parity treatment.
+
+### Style guide (paste into every Trainer tier avatar prompt as a prefix)
+
+> Generate a 512×512 PNG profile avatar. Style: **dark-mode app icon**,
+> centred subject on a deep matte radial gradient background, soft
+> rim-light, premium aesthetic — feels distinctly COACH not LIFTER.
+> Subject is a stylised emblem of LEADERSHIP / GUIDANCE / MENTORSHIP
+> — NO human faces, NO text. Tier-coloured radial halo fading to
+> black at edges. Square 512×512, ~10% safe margin so it reads at
+> 48px in a circle.
+
+### `trainer-t1-spotter.png` — Spotter (Tier 1)
+> [style guide] · Subject: a single open hand reaching upward in a
+> "spot" / catch position, palm visible, fingers slightly bent.
+> Accent colour `#94a3b8` (slate). Mood: supportive, present,
+> ready. Halo: soft silver glow.
+
+### `trainer-t2-strategist.png` — Strategist (Tier 2)
+> [style guide] · Subject: a chess knight piece carved in brushed
+> teal-steel, viewed from the side, with three thin orbital lines
+> tracing around it suggesting calculated moves. Accent colour
+> `#4ECDC4` (teal). Mood: tactical, thoughtful, planning. Halo:
+> teal glow.
+
+### `trainer-t3-pro.png` — Pro (Tier 3)
+> [style guide] · Subject: a clipboard with a single golden star
+> embossed in the centre, pencil tucked into the clip at top, ribbon
+> tail fluttering out from underneath. Accent colour `#FFD166`
+> (golden yellow). Mood: certified, established, respected. Halo:
+> warm gold glow.
+
+### `trainer-t4-master.png` — Master (Tier 4)
+> [style guide] · Subject: a regal master's crown in matte deep
+> orange, with two crossed kettlebells beneath it in mirror-polished
+> chrome. Accent colour `#fb923c` (deep orange). Mood: commanding,
+> mastery, lineage. Halo: orange glow with subtle bronze flares.
+
+### `trainer-t5-legend.png` — Legend (Tier 5)
+> [style guide] · Subject: a stylised phoenix in coral-red flame,
+> wings spread, perched on top of a forging anvil. Sparks scatter
+> around the bird. Accent colour `#FF6B6B` (coral red). Mood:
+> legendary, transcendent, fire-tested. Halo: red-orange glow with
+> ember particles.
+
+### `trainer-t6-hof.png` — Hall of Fame (Tier 6, apex)
+> [style guide] · Subject: a golden championship trophy with double
+> handles, slight battle-wear / patina visible, standing on a black
+> marble plinth. Behind it: a faint constellation of stars forming
+> a halo. Accent colour `#f0c040` (rich gold). Mood: enshrined,
+> immortal, top-of-the-hall. Halo: bright gold glow with shimmering
+> star particles.
+
+**Wire-up:** add 6 entries to `lib/avatars.ts` `AVATARS` array.
+Schema additions:
+- `Avatar.ladder?: "athlete" | "trainer"` — defaults to "athlete"
+  when omitted (backward-compatible for the 20 existing tier
+  avatars). Trainer-tier avatars set `ladder: "trainer"`.
+- `/api/avatars` GET: when computing `tierAvatarsAtOrBelow`, also
+  compute trainer tier (if user has trainer role) and mint trainer-
+  tier avatars where `avatar.tier ≤ user.trainerTier`. Filter the
+  full inventory by role: pure athletes don't see `ladder: "trainer"`
+  rows; trainer-athletes see both.
+- AvatarPickerView grid: group avatars by `ladder` when the user has
+  multiple — Athlete Tier Unlocks / Trainer Tier Unlocks / Lucky /
+  Achievement sub-sections. (qa: profile-avatars-trainer-tier)
+
+---
+
 ## Registration steps
 
 ### Default avatar (Batch 1)
@@ -336,10 +490,14 @@ New profile avatars that unlock by **achievement count** (see
 
 ## After all batches land
 
-Total: **27 images**. Once shipped, CLAUDE.md's two pending image
-reminders (wrong-form-images + tier-icons) can both be ticked off.
-Add a new pending reminder for the achievement-unlock avatars if you
-want them tracked separately.
+Total: **34 images** (was 27 before trainer additions). Compressed to
+the targets in the file-size table above, that's roughly 850 KB
+total — meaningful for mobile load.
+
+Once all batches ship: CLAUDE.md's pending image reminders
+(wrong-form-images + tier-icons + achievements + image-gen-plan-v2)
+can all be ticked off. Add a new pending reminder for trainer-tier
+3-per-tier expansion only if you decide to grow past 1-per-tier.
 
 Commit each batch as you go. Vercel auto-deploys (now that the
 deploy-skip script bug is fixed).

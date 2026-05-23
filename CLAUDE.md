@@ -35,7 +35,7 @@ nudge, not nag.
   `cd-lat-stretch` (frame 1 has no lateral bend), `plyo-pushup`
   (apex looks like a dive not a clap-pushup), `star-jump` (crouch
   start too wide vs spec's "tight crouch / feet together").
-- [ ] **Image-gen plan v2 — 27 images** (flagged 2026-05-23 by
+- [ ] **Image-gen plan v2 — 34 images** (flagged 2026-05-23 by
   @maaiz). All prompts + style guides + per-image specs + wire-up
   steps live in `/image-prompts-v2.md`. Five batches:
   1. New default avatar (1 image, instant standalone win)
@@ -50,16 +50,25 @@ nudge, not nag.
   5. Achievement-unlock avatars (6 images — blacksmithing-themed
      spark → hammer → anvil → phoenix → crucible → blacksmith
      ladder; gates on `achievements-v1` shipping)
+  6. Trainer default avatar (1 image — coach variant of the default
+     for users with `trainer` role; clipboard + stopwatch motif)
+  7. Trainer tier-unlock avatars (6 images — Spotter → Hall of Fame;
+     hand → knight → clipboard → crown → phoenix → trophy)
+  File-size optimisation pass spec'd inline in `/image-prompts-v2.md`
+  — target <25 KB per avatar, <35 KB per tier icon, <60 KB per
+  stretch frame. Existing batch is too heavy for mobile.
 - [ ] **Achievements system v1** (flagged 2026-05-23 by @maaiz).
-  Full design + 48-achievement catalogue lives in `/ACHIEVEMENTS.md`.
-  TL;DR: new Progress tab sub-tab, ~48 achievements across 10
+  Full design + 55-achievement catalogue lives in `/ACHIEVEMENTS.md`.
+  TL;DR: new Progress tab sub-tab, 55 achievements across 11
   categories (Strength, Consistency, Volume, Variety, Wellness,
-  Technique, Cardio/HIIT, Warmup/Cooldown, Milestones, Meme), unlock
-  toasts, count-milestone avatars (3/6/10/15/20/25 → 6 new avatars
-  from Batch 5 above). 4 slices to ship; design has 4 open questions
-  waiting on user calls. Cardio distance estimator (time × speed)
-  specified inline for the distance-based achievements + future
-  leaderboard column.
+  Technique, Cardio/HIIT, Warmup/Cooldown, Milestones, Trainer,
+  Meme), unlock toasts, count-milestone avatars (3/6/10/15/20/25 →
+  6 new avatars from Batch 5 above). 4 slices to ship; 2 of 4 open
+  questions answered (locked-tile UX, trainer-achievements in v1).
+  2 still open (wellness re-evaluate frequency, cardio-input polish
+  fold-in vs separate slice). Cardio distance estimator (time ×
+  speed) specified inline for the distance-based achievements +
+  future leaderboard column.
 
 ## Always push to `main`
 

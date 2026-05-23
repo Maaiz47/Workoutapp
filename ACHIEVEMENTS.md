@@ -212,6 +212,26 @@ need to duplicate via achievements. Trainer-leaderboard milestones —
 e.g. roster size 5 — could be added in v2 alongside more trainer
 content.)
 
+### 🤝 Trainer (7) NEW
+
+Trainer-only — gated to users with the `trainer` role (primary or in
+`extraRoles`). Per @maaiz: confirmed yes for v1. Pure athletes don't
+see these in their grid; trainer-athletes see BOTH the athlete
+catalogue AND this one.
+
+| ID | Title | Criterion | Reward note |
+|---|---|---|---|
+| `tra-first-client` | **First Client** | Adopt your first client (any client accepts your request) | Day-1 trainer win |
+| `tra-five-roster` | **Five-Strong** | 5 active clients in roster | Mid-game milestone |
+| `tra-fifteen-roster` | **Full Schedule** | 15 active clients in roster | Heavy-roster recognition |
+| `tra-pr-coach` | **PR Coach** | A client hits any PR while in your roster (first time) | Rewards the COACHING outcome, not just having clients |
+| `tra-pr-coach-25` | **Twenty-Five PR Coach** | 25 cumulative client PRs while in your roster | Long-haul coaching impact |
+| `tra-pro-tier` | **Pro** | Reach Pro trainer tier (T3) | First tier climb on the trainer ladder |
+| `tra-legend-tier` | **Legend** | Reach Legend trainer tier (T5) | High-tier recognition |
+
+(Hall of Fame T6 trainer tier already gates an avatar slot via the
+trainer-tier avatar batch — no need to duplicate via an achievement.)
+
 ### 😂 Meme / Funny (4) NEW
 
 Easter-egg style achievements that reward weird or amusing behaviour.
@@ -240,15 +260,17 @@ description copy so users smile when they unlock them.
 | 🏃 Cardio / HIIT | 7 |
 | 🤸 Warmup/Cooldown | 3 |
 | 🌟 Milestones | 5 |
+| 🤝 Trainer (trainer-role only) | 7 |
 | 😂 Meme | 4 |
-| **Total** | **48** |
+| **Total** | **55** |
 
-The 6 count-milestone avatars (3/6/10/15/20/25 unlocks) feel properly
-paced against 48 achievements — even casual users can hit a 3-avatar
-threshold quickly, while the 25-achievement apex avatar remains a
-real climb. If we add the 7 "open for discussion" suggestions below
-that lifts the total to 55 and we'd likely want a 7th avatar
-threshold (35 unlocks → 7th milestone avatar). Easy to add later.
+Athletes see 48 (everything except Trainer). Trainer-role users see all
+55. The 6 count-milestone avatars (3/6/10/15/20/25 unlocks) pace
+cleanly against this — even casual users can hit a 3-avatar threshold
+quickly, while the 25-achievement apex avatar remains a real climb for
+all-rounders. Adding the 7 suggested below would lift the total to 62
+(55 + 7 athlete-discoverable) and we'd want a 7th avatar threshold
+(35 unlocks → 7th milestone avatar). Flag if you want those in v1.
 
 ---
 
@@ -511,31 +533,48 @@ qa-state items to `regression-retest`.
 
 ## Open questions (decide before Slice 1)
 
-- **Should rare or in-progress achievements show a hint?** Currently
-  spec says "lock = ? overlay". Should it show the title + a teaser
-  ("Reach this milestone…") so users have something to chase?
-  *Recommendation:* show the title always, hide only the description
-  until in-progress. Pure-mystery achievements feel unfair on mobile.
+### Answered ✅
 
-- **Trainer-specific achievements?** Spec covers athlete behaviour
-  only. Could add "First Client", "Five-Client Roster", "Client PR
-  Coach" etc. in a follow-up batch under a new `trainer` category.
-  *Recommendation:* defer to v2 — keep v1 catalogue tight at 25.
+- **Locked tile UX** — @maaiz (2026-05-23): show **title only** on
+  locked tiles, **full mystery (criterion + description + progress
+  detail)** revealed on click overlay. Implemented spec: locked tiles
+  render as a coloured silhouette with the title visible underneath;
+  tapping opens the detail modal which shows the full criterion + a
+  current-vs-target progress bar.
 
-- **Achievement points → tier score bonus?** Tempting but conflicts
-  with the recent `tier-scoring-v2` cleanup that removed the silent
-  `tierScoreBonus` injection. Achievements should stay pure
-  collectable, no score side-effect.
-  *Recommendation:* keep separate.
+- **Trainer-specific achievements** — @maaiz (2026-05-23): YES, in
+  v1. New `🤝 Trainer` category added with 7 achievements (see above).
+  Gated to users with `trainer` role in primary or extraRoles.
+  Athletes don't see these tiles in their grid (filtered out in
+  `lib/achievements.ts` evaluation).
+
+- **Achievement points → tier score bonus?** No — stay pure
+  collectables. (Default recommendation, not formally challenged.)
+
+### Still open
 
 - **Re-evaluate frequency for non-workout achievements** (hydration
-  streak, body comp tracking) — workout save is the trigger, but the
-  user might hit a wellness milestone WITHOUT logging a workout that
-  day. Either:
-  (a) Add a lightweight "/api/achievements/recheck" endpoint called
-      from the wellness logging surfaces, or
+  streak, body comp tracking) — workout save is the natural trigger,
+  but a wellness-only achievement could lag a day if the user hits
+  the milestone on a rest day. Two paths:
+  (a) Add a lightweight `/api/achievements/recheck` endpoint called
+      from the wellness logging surfaces (`writeHydrationToday`,
+      `writeSleepToday`, body metric POST). Small endpoint, feels
+      responsive. Costs one round-trip per wellness write.
   (b) Just compute on next workout-save (eventual consistency, may
       delay the toast by a day).
-  *Recommendation:* option (a) — small extra endpoint, fires from
-  `writeHydrationToday` / `writeSleepToday` write paths. Cheap +
-  feels responsive.
+  *My recommendation:* option (a). Easy + responsive. Flag if you
+  prefer (b) for simpler implementation.
+
+- **Cardio-input polish slice as a dependency, or fold in?** The 3
+  distance-based cardio achievements (Marathon Month / Century Club /
+  Iron Thousand) need `cardioSetDistanceKm(set)` to read the
+  `{minutes, speed}` fields the in-session cardio UI already captures.
+  Question: should the achievement-v1 slice (a) include the small
+  cardio helper inline, or (b) gate on a separate `cardio-input-polish`
+  qa item that also surfaces a "Total cardio: 18.4 km this week" card
+  in Progress dashboard + adds a leaderboard distance column?
+  *My recommendation:* option (a) — write the helper as part of
+  Slice 1 (it's 12 lines), defer the dashboard card + leaderboard
+  column to the separate slice. That way achievements ship complete
+  without the polish blocking it.
