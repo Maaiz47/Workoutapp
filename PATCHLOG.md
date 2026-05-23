@@ -2,6 +2,15 @@
 
 ---
 
+## More home polish · 2026-05-23 — Profile button matches tier card height + feedback FAB to side tab (qa: home-hub-premium-polish, feedback-fab-side-tab)
+
+Per @maaiz:
+
+- **Profile button** now uses `aspect-ratio: 1 / 1` + `height: 100%` so it auto-resizes to a SQUARE matching the tier card's height (which grows when the trainer row is present). Grid `alignItems: stretch` so both columns share row height; tier card's `1fr` width fills the rest. Min-height 72px so single-row athletes still get a comfortable target.
+- **Feedback NOTE FAB** moved from the bottom-right pill to a slim side tab on the right edge, anchored at 75% of the viewport height. Default state shows only a ‹ chevron in a 32×40 teal half-pill; tapping opens the existing full feedback form unchanged. Out of the way of the floating bottom hub + main content.
+
+---
+
 ## Home polish · 2026-05-23 — Floating bottom hub + My Exercises closed by default (qa: home-hub-floating, my-exercises-collapsed-default)
 
 Per @maaiz:

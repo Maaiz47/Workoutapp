@@ -1,6 +1,25 @@
 {
   "items": [
     {
+      "id": "feedback-fab-side-tab",
+      "title": "Feedback NOTE FAB collapsed to a side-tab arrow at 75% screen height",
+      "area": "App",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass feedback-fab-side-tab",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open any view in the app.",
+        "Verify the feedback button is NO LONGER a bottom-right '💬 NOTE' pill.",
+        "Verify a small teal half-pill (32×40) with a single ‹ chevron sits on the RIGHT edge of the viewport, anchored ~75% of the way down.",
+        "Tap the side tab — the full feedback form opens (unchanged from before).",
+        "Send a feedback note from the form — verify it submits successfully.",
+        "Close the form — the side tab returns.",
+        "Verify the side tab doesn't overlap with the floating bottom hub (it sits well above it)."
+      ],
+      "notes": "[2026-05-23] QuickFeedbackFab collapsed-state restyled: position right:0 top:75%, width 32 × height 40, half-pill with rounded left edge, single ‹ chevron, teal background. Open state unchanged (same form). Per @maaiz: 'Make the feedback note button a collapsed arrow on the side of screen about 3/4 way down the screen, open on click for access so it's more out of the way'."
+    },
+    {
       "id": "home-hub-floating",
       "title": "Bottom hub buttons float fixed to the viewport on home (always reachable)",
       "area": "Home",

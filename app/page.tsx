@@ -3574,25 +3574,30 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
           title="Drop a quick note about this screen — bug, idea, or 'works for me'"
           aria-label="Send quick feedback"
           style={{
+            // Side tab at right edge, anchored ~3/4 of the way down
+            // per @maaiz. Out of the way of the floating bottom hub
+            // and the main content above. Tap to expand into the
+            // full feedback form.
+            // (qa: feedback-fab-side-tab)
             position: "fixed",
-            right: "calc(env(safe-area-inset-right, 0px) + 14px)",
-            bottom: "calc(env(safe-area-inset-bottom, 0px) + 14px)",
+            right: "calc(env(safe-area-inset-right, 0px))",
+            top: "calc(75% - 18px)",
             zIndex: 9500,
-            padding: "9px 14px",
+            padding: "10px 4px 10px 10px",
             background: "rgba(78,205,196,0.92)",
             color: "#0a0a0a",
             border: "1px solid rgba(78,205,196,0.7)",
-            borderRadius: 999,
-            fontSize: 11, fontWeight: 700, letterSpacing: 1.5,
+            borderRight: "none",
+            borderRadius: "999px 0 0 999px",
+            fontSize: 14, fontWeight: 700, letterSpacing: 0,
             fontFamily: "'Space Mono', monospace",
             cursor: "pointer",
-            boxShadow: "0 6px 18px -4px rgba(0,0,0,0.55)",
-            display: "flex", alignItems: "center", gap: 6,
-            minHeight: 36,
+            boxShadow: "-4px 6px 18px -4px rgba(0,0,0,0.55)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            width: 32, height: 40,
           }}
         >
-          <span style={{ fontSize: 14 }}>💬</span>
-          <span>NOTE</span>
+          <span aria-hidden style={{ lineHeight: 1, fontSize: 16 }}>‹</span>
         </button>
       )}
 
@@ -9364,17 +9369,23 @@ function HomePage() {
               fit both pills and Profile/Progress stay tied to its
               height via align-items: stretch on the grid.
               (qa: home-hub-premium-polish) */}
-          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "stretch" }}>
             {/* Shared button chrome — applied via spread on each chip
                 to keep parity. Layered shadow: subtle inner top
                 highlight + soft outer drop. 14px radius for the
-                slightly-rounder premium feel. */}
+                slightly-rounder premium feel.
+                Profile button uses aspect-ratio: 1 + height: 100% so
+                it stays a SQUARE that matches the tier card's height
+                — height now driven by tier-card content (taller when
+                trainer rows are present). (qa: home-hub-premium-polish) */}
             {(() => null)()}
             <button
               onClick={() => setView("profile")}
               title="Profile"
               style={{
-                width: 72, height: 72,
+                aspectRatio: "1 / 1",
+                height: "100%",
+                minHeight: 72,
                 background: "transparent",
                 border: "1px solid rgba(255,255,255,0.10)",
                 borderRadius: 14, cursor: "pointer",
