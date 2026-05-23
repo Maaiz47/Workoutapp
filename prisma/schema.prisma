@@ -53,6 +53,32 @@ model User {
   groupMemberships  LeaderboardGroupMember[] @relation("GroupMemberships")
   sentGroupInvites  LeaderboardGroupInvite[] @relation("SentGroupInvites")
   receivedGroupInvites LeaderboardGroupInvite[] @relation("ReceivedGroupInvites")
+  friendshipsA      Friendship[]             @relation("FriendshipUserA")
+  friendshipsB      Friendship[]             @relation("FriendshipUserB")
+}
+
+// Athlete-to-athlete (or any-user-to-any-user) social connection.
+// userA is always the row's "requester" — the user who initiated the
+// request. userB is the recipient. Once status flips to "accepted" the
+// relationship is bidirectional at the read layer (both users are
+// equally "friends"), but the requester direction is preserved for
+// audit. Block is one-directional: whichever side called PATCH with
+// action=block becomes userA on the resulting row.
+// (qa: friend-system-athletes)
+model Friendship {
+  id          String    @id @default(cuid())
+  userAId     String
+  userBId     String
+  status      String    @default("pending") // "pending" | "accepted" | "blocked"
+  requestedAt DateTime  @default(now())
+  acceptedAt  DateTime?
+  userA       User      @relation("FriendshipUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB       User      @relation("FriendshipUserB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+  @@index([status])
 }
 
 model TrainerRequest {

@@ -121,7 +121,14 @@ export type Mission = {
   // the user works toward the milestone at their own pace.
   durationDays?: number;
   metric: MissionMetric;
-  target: number;           // e.g. 15 for "BF ≤ 15%"
+  target: number;           // default target (used when gender unknown / "other")
+  // Per-gender target override. Used for body-composition missions
+  // where the visible-abs threshold differs significantly between
+  // men and women (essential fat is higher for women, so the
+  // "abs reveal" BF% is higher). When set, the page reads the
+  // gender-matched value via `resolveMissionTarget()`. Falls back
+  // to `target` for "other" / unknown. (qa: mission-unlock-abs)
+  targetByGender?: { male: number; female: number };
   // When set, joining this mission writes this value into
   // profile.targetBodyFatPct (or targetWeightKg, depending on metric)
   // so the user's goal everywhere else in the app aligns with the
@@ -129,14 +136,39 @@ export type Mission = {
   setsProfileGoal?: boolean;
 };
 
+// Resolve the per-user target for a mission given gender. Falls back
+// to mission.target when no per-gender override is set, or when gender
+// is missing/other.
+export function resolveMissionTarget(m: Mission, gender?: string | null): number {
+  if (!m.targetByGender) return m.target;
+  if (gender === "male") return m.targetByGender.male;
+  if (gender === "female") return m.targetByGender.female;
+  return m.target;
+}
+
+// Resolved title/body for display — substitutes the per-gender target
+// into the headline copy so the user reads the threshold that
+// actually applies to them.
+export function resolveMissionBody(m: Mission, gender?: string | null): string {
+  const t = resolveMissionTarget(m, gender);
+  if (m.id === "mission-unlock-abs-v1") {
+    return `Drop your body fat to ${t}% or lower — that's where the six-pack reveals itself${gender === "female" ? " (women's essential fat is higher than men's, so this is calibrated for you)" : gender === "male" ? "" : " (we use a default threshold; set your gender in the profile for a tailored target)"}. No deadline. Joining sets your goal body fat to ${t}% across the app.`;
+  }
+  return m.body;
+}
+
 export const MISSIONS: Mission[] = [
   {
     id: "mission-unlock-abs-v1",
     title: "Unlock Your Abs",
-    body: "Get your body fat to 15% or lower — that's the bar where the six-pack reveals itself. No deadline. Joining sets your goal body fat to 15% across the app.",
+    body: "Drop your body fat to the visible-abs threshold for your gender. No deadline. Joining sets your goal body fat across the app.",
     icon: "🔓",
     metric: "body_fat_at_or_below",
+    // Default (used when gender is "other" / unknown). Men's threshold
+    // is used as the conservative default since the mission was first
+    // shipped calibrated for male users.
     target: 15,
+    targetByGender: { male: 15, female: 22 },
     setsProfileGoal: true,
   },
 ];

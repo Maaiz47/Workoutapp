@@ -2,6 +2,64 @@
 
 ---
 
+## QA pass · 2026-05-23 — Friend system slice 1 + home tier dot bar + abs mission v2 + rest-timer phrases + pro-tip 1h hide + gender lock (qa: friend-system-athletes, tier-ladder-dot-bar, mission-unlock-abs, workout-rest-motivational-phrases, pro-tip-hide-visibility, gender-achievements-differentiation, app-browser-icons-image-gen, qa-comments-deploy-precheck)
+
+Big pass — Slice 1 of the friend system landed alongside ~6 small UX
+fixes raised by @maaiz mid-session.
+
+### friend-system-athletes — Slice 1 (schema + endpoints, NO UI)
+- **Prisma**: new `Friendship` model { id, userAId, userBId, status: pending|accepted|blocked, requestedAt, acceptedAt? }. Cascade-delete on both User sides. `@@unique([userAId, userBId])`, indexes on each side + on status. User got two new relations (friendshipsA / friendshipsB).
+- **Messages**: `Message.type` now accepts `friend_request` (no schema change — `type` was already a free-form String). The POST endpoint auto-creates one of these so the recipient gets a notification in the existing messages stream.
+- **/api/friends route.ts** — all four verbs gated by the `ironlog-uid` cookie:
+  - `GET` → `{ accepted, pendingSent, pendingReceived }` buckets, shaped from the viewer's POV (each row carries `friend: { id, username }` regardless of which side userA is).
+  - `POST { toUsername }` → username lookup → validates self / dupe / blocked → creates a pending Friendship + a `friend_request` Message. **Handshake symmetry**: if the target already has a PENDING request to me, this POST auto-accepts both sides (natural UX for both-send-at-same-time race).
+  - `PATCH { friendshipId, action: 'accept'|'decline'|'block' }` → only the recipient can accept/decline (decline deletes the row so a fresh request can be sent later). `block` works from either side and swaps userAId so the blocker always becomes userA.
+  - `DELETE { friendshipId }` → unfriend (any side). Cannot delete a `blocked` row — must PATCH to unblock first.
+- **No UI in this slice** — slice 2 builds Settings → SOCIAL friend search + list. Manual end-to-end test for now uses the two-seeded-test-users panel under Settings → DEV TOOLS.
+
+### tier-ladder-dot-bar — home chip dot consistency
+- Home hub tier chip (top-right card on the hero) used to render the
+  progress bar as a single gradient line "current → next tier".
+  Replaced with the same dot ladder used in the tier modal — every
+  tier breakpoint is a small dot at its normalised position, current
+  tier dot enlarged + glowing in tier colour, reached dots solid,
+  unreached dim grey.
+- New compact helper `CompactTierDotBar` (sized for the home chip
+  slot, no labels — there's no room). Normalises positions by
+  `lastTier.min` so the same component handles both athlete tiers
+  (mins 0-90) and trainer tiers at home (raw client counts 0-30).
+- Both trainer + athlete chips updated. Tap target unchanged — whole
+  chip still opens TierInfoModal.
+
+### mission-unlock-abs — Slice 2 (gender-aware threshold + clearer 'lose X%' wording + gender lock)
+- `Mission.targetByGender` field added: `mission-unlock-abs-v1` now resolves to `{ male: 15, female: 22 }` (women's essential fat is higher than men's, so visible-abs threshold differs). Default target stays 15 for "other" / unknown.
+- New helpers `resolveMissionTarget(m, gender)` + `resolveMissionBody(m, gender)` — body copy substitutes the per-gender target AND appends a one-liner explaining the calibration ("women's essential fat is higher than men's, so this is calibrated for you") so users understand why the number is what it is.
+- ChallengesCard now takes a `gender` prop (threaded from `ob.gender`). ALL UI sites use the resolved target — preview text, progress bar denominator, profile goal PATCH, joined-view headline + foot row.
+- **Wording fix**: preview now reads `lose X.X% body fat to unlock (target Y%)` (was the ambiguous `X.X% to unlock` — @maaiz: "make it clearer thats the amount to lose to complete the mission"). Joined view foot reads `cur% → target% (lose X.X%)`.
+- **Gender lock**: Settings → Profile → GENDER buttons disabled + greyed out when `ob.gender` is already set; ARIA disabled + cursor-not-allowed + 🔒 LOCKED chip + footer note explains why. Server-side: `POST /api/profile` rejects gender mismatches on existing rows with `400 "Gender is locked once set — contact support to change."` (defence-in-depth even though `update` block already didn't write gender).
+
+### workout-rest-motivational-phrases — rest-timer overlay phrase + 60-entry phrase pool
+- Rest timer overlay now shows a motivational phrase below the countdown ring, soft white italic ~14px. Phrase rotates per-rest-cycle: new `cycleId` counter on `useCountdown` increments each time `start()` fires, so the phrase stays stable while seconds tick and changes on a fresh interval.
+- PHRASES inventory expanded 20 → 60. New entries skewed toward rest-timer use cases: breath-paced ("Breathe. Reset. Go again.", "Slow down — the next set wins it."), form-cue ("Form before weight.", "Tempo first. Ego second."), micro-recovery ("Recovery is part of the lift.", "Aches mean you showed up."), discipline ("Stop checking your phone — set up.", "Stop negotiating with yourself.").
+- Single source of truth — same `PHRASES` array now powers both the home hero tagline AND the rest overlay.
+
+### pro-tip-hide-visibility — Slice 2 (1h hide option + localStorage persistence)
+- Pro Tip dismissal was session-only state (refresh = tip back, didn't honour "today"). Now stored as a unix-ms expiry in `ironlog-tip-dismiss-until` so dismissals survive refresh.
+- TWO preset durations exposed at both the chip and modal: `1h` (60-minute cool-down, "tip back after the session") and `×` / `HIDE FOR TODAY` (computes ms until local midnight).
+- Chip got a new layout: `[tip body chevron][1h][×]` — both dismiss buttons separated by thin teal dividers, `1h` in lighter teal so it reads as the softer option. Modal got a matching `HIDE 1H` / `✕ HIDE FOR TODAY` button row.
+
+### gender-achievements-differentiation — planning (NO code)
+- Captured @maaiz's ask: "men and women milestones/achievements might need to be slightly different too! can add some stuff for big booty".
+- 4-slice plan in `qa-state.json`. Gates on achievements-v1 system shipping first. TL;DR: add `genderFilter?: 'male'|'female'|null` to Achievement shape, author 8-12 gender-flavoured achievements (4-6 each), 'other' / unset gender sees the union.
+
+### app-browser-icons-image-gen — planning (NO code; answers a user question)
+- Question from @maaiz: "app and browser icon included in image generation list?". Answer: NOT YET. `image-prompts-v2.md` uses "dark-mode app icon" as a style descriptor for avatars / tier icons / sub-rank icons but does NOT include actual app-launcher icons or favicons as standalone deliverables. Current assets in `/public/` audited; Batch 10 spec captured in the qa-state notes (5 deliverables: 512 / 192 / 180 / favicon / optional splash).
+
+### qa-comments-deploy-precheck — process change
+- New rule baked into `CLAUDE.md`: before any `git push`, agent must `git pull origin main --rebase` and check `qa-comments/` for any unprocessed feedback the user submitted via the in-app QA panel while the agent was working. New comments → STOP, summarise, wait for go-ahead before pushing.
+
+---
+
 ## QA pass · 2026-05-23 — UX backlog clear: warmup boxes + dot ladder + coach-led groups + 3D session feel + quest pool expansion (qa: session-warmup-row-polish, tier-ladder-dot-bar, trainer-group-visual-identity, session-page-3d-aesthetic, daily-quest-rework)
 
 Five UX items from the held queue, all shipped in one push.

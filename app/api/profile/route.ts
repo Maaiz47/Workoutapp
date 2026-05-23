@@ -62,6 +62,15 @@ export async function POST(req: NextRequest) {
     // Check existing values to detect body stat changes
     const existing = await prisma.userProfile.findUnique({ where: { userId: uid } });
 
+    // Gender is locked once set — drives body-composition mission
+    // thresholds + (future) gender-specific achievements, so silent
+    // flipping mid-arc would corrupt those records. Server rejects
+    // mismatches even though the UI also gates the buttons.
+    // (qa: mission-unlock-abs)
+    if (existing && existing.gender && existing.gender !== gender) {
+      return json({ error: "Gender is locked once set — contact support to change." }, 400);
+    }
+
     const profile = await prisma.userProfile.upsert({
       where: { userId: uid },
       create: {

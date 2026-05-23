@@ -101,6 +101,30 @@ This rule supersedes "bundle related work into ONE push" below. The
 batching is now manual rather than time-of-iteration heuristic — the
 user controls deploy timing explicitly.
 
+### Pre-deploy QA-comment scan (added 2026-05-23)
+
+The user may submit feedback through the in-app QA panel WHILE the agent
+is working on another task. Those submissions auto-mirror to
+`qa-comments/<timestamp>--<itemId>--<shortId>.json` via the deployed
+app's GH_QA_TOKEN write.
+
+**Before any `git push`, you MUST:**
+1. `git pull origin main --rebase` to fetch any newly-pushed
+   qa-comments/ files.
+2. List unprocessed comment files (anything not in
+   `qa-processed.json`). If there are none, proceed.
+3. If there ARE new unprocessed comments, STOP — do not push yet.
+   Summarise the comments using the two-step processing flow below
+   (`## Two-step processing flow`) and ask the user whether to
+   address them as part of this deploy or punt to a follow-up. Wait
+   for explicit go-ahead before pushing.
+
+This rule applies to every deploy. Captured per @maaiz on 2026-05-23:
+"do a qa check to see if new comments before every deploy (i might
+add comments through the app feedback options while you're working,
+i still want you to pick them up and check with me to add them for
+next deploy)". (qa: qa-comments-deploy-precheck)
+
 ## Deploy frugality — bundle work before pushing
 
 Vercel free tier caps daily deploys and the user has hit the limit before. Be

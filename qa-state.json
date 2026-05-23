@@ -19,7 +19,7 @@
     },
     {
       "id": "pro-tip-hide-visibility",
-      "title": "Pro Tip hide-for-today button visible on the chip itself (was buried in modal)",
+      "title": "Pro Tip hide controls — 1h + rest-of-today, persistent across refresh",
       "area": "Home",
       "introduced": "2026-05-23",
       "introducedBy": "QA pass pro-tip-hide-visibility",
@@ -27,13 +27,14 @@
       "status": "regression-retest",
       "steps": [
         "Open home. Scroll to the Pro Tip chip below the daily quest.",
-        "Verify the chip now has a trailing `×` button on the right edge (separated from the rest by a thin teal divider line).",
-        "Tap the `×`. Verify the tip disappears for today (re-renders no Pro Tip chip until tomorrow's reset).",
-        "Re-open the app. Verify the tip stays hidden for the rest of the day.",
-        "Tap the chip body (icon + label + text, NOT the ×). Verify the modal opens with full body + source as before.",
-        "In the modal, verify the `✕ HIDE FOR TODAY` button at the bottom is now teal-on-teal (higher contrast vs the previous 4%/10% white-on-dark)."
+        "Verify the chip now has TWO trailing actions on the right edge: `1h` (teal) and `×` (white) separated by thin teal dividers.",
+        "Tap `1h`. Verify the tip disappears. Refresh the page — verify it stays hidden. Wait 60 minutes (or change device clock forward 1h) — verify it returns.",
+        "Tap `×`. Verify the tip disappears for the rest of today (re-renders no Pro Tip chip until tomorrow's local midnight).",
+        "Re-open the app. Verify the tip stays hidden (persistence across refresh).",
+        "Tap the chip body (icon + label + text, NOT the buttons). Verify the modal opens with full body + source as before.",
+        "In the modal, verify the bottom row now has TWO buttons: `HIDE 1H` (lighter teal) and `✕ HIDE FOR TODAY` (solid teal). Both close the modal + persist the dismissal."
       ],
-      "notes": "[2026-05-23] Fix: the `HIDE FOR TODAY` action was only reachable AFTER opening the tip modal AND used a very faint rgba(255,255,255,0.04) background that read as decorative. Now a `×` lives on the chip itself for one-tap dismiss (e.stopPropagation so the modal doesn't open). The in-modal button got bumped to teal contrast for visibility too. (Reported by @maaiz: 'pro tips hide for today button - make sure its visible on mobile and make it more visible generally obvious at a quick glance'.)"
+      "notes": "[2026-05-23] Added 1-hour hide option + persistence to localStorage. Per @maaiz: 'pro tip can hide for 1 hr'. Previously dismissal was session-state only (refresh = tip back), now stored as a unix-ms expiry in `ironlog-tip-dismiss-until` localStorage key so dismissals survive refresh. Two preset durations:\n- 1h (`setTipDismissedFor(60 * 60 * 1000)`) — short cool-down, tip back after the session.\n- Rest of today — computes ms until local midnight.\nBoth surfaces (chip and modal) expose both options. Replaced the old single `×` with a `1h` + `×` pair on the chip; replaced the single in-modal `HIDE FOR TODAY` with a two-button row.\n[2026-05-23] Fix: the `HIDE FOR TODAY` action was only reachable AFTER opening the tip modal AND used a very faint rgba(255,255,255,0.04) background that read as decorative. Now a `×` lives on the chip itself for one-tap dismiss (e.stopPropagation so the modal doesn't open). The in-modal button got bumped to teal contrast for visibility too. (Reported by @maaiz: 'pro tips hide for today button - make sure its visible on mobile and make it more visible generally obvious at a quick glance'.)"
     },
     {
       "id": "pr-to-pb-rename",
@@ -79,17 +80,21 @@
       "area": "Social",
       "introduced": "2026-05-23",
       "introducedBy": "QA pass friend-system-athletes",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
       "steps": [
-        "(Planning slice — NO code shipped yet.) Design captured below.",
-        "Verify athletes can search for + send a friend request to another athlete by username.",
-        "Verify accepted friends show in a 'My Friends' list (Settings → social or new dedicated view).",
-        "Verify athletes can CREATE leaderboard groups (currently trainer-only) and invite friends.",
-        "Verify athletes can share saved routines with friends (currently shared via username search; refactor to friend-list picker).",
-        "Verify trainer-made groups have a distinct visual treatment vs athlete-made groups."
+        "Slice 1 (schema + endpoints — NO UI yet): hit /api/friends from a logged-in athlete via curl or fetch in DevTools.",
+        "POST /api/friends with body { toUsername: '<other-athlete>' } → expect 200 + a Friendship row in pending status. Also creates a Message of type 'friend_request' visible in the recipient's messages.",
+        "GET /api/friends from the recipient → expect the request in `pendingReceived`. GET from the sender → expect it in `pendingSent`.",
+        "PATCH /api/friends with { friendshipId, action: 'accept' } from the recipient → expect status → 'accepted', acceptedAt populated. Both users now see the row under `accepted` on GET.",
+        "DELETE /api/friends with { friendshipId } from either side → row removed; future POST request succeeds again.",
+        "(Future slices.) Verify athletes can search for + send a friend request to another athlete by username via UI (slice 2).",
+        "(Future slices.) Verify accepted friends show in a 'My Friends' list (slice 2 UI).",
+        "(Future slices.) Verify athletes can CREATE leaderboard groups (currently trainer-only) and invite friends (slice 3).",
+        "(Future slices.) Verify athletes can share saved routines with friends via friend-picker (slice 4).",
+        "(Future slices.) Verify trainer-made groups have a distinct visual treatment vs athlete-made groups."
       ],
-      "notes": "[2026-05-23] Planning per @maaiz: 'there's no friend system for athletes to connect with athletes, create groups, share workouts'.\n\nCurrent state:\n- Athletes can receive trainer adoption requests (TrainerRequest model).\n- Athletes can join leaderboard groups (LeaderboardGroup model, created by anyone with createdBy field, currently only trainers create via UI).\n- Routines can be shared via username search (no friendship gate).\n\nProposed model:\n- New `Friendship` Prisma model: { id, userAId, userBId, status: pending|accepted|blocked, requestedAt, acceptedAt }. Bidirectional once accepted.\n- New `/api/friends` GET (list) / POST (send request) / PATCH (accept|decline|block) / DELETE (unfriend) endpoints.\n- New friend-search UI in Settings → SOCIAL (or new dedicated 'Friends' section).\n- LeaderboardGroup.createdBy already supports any user — flip the UI to let athletes hit the same '+ NEW GROUP' affordance trainers currently use (gated by role check at the moment).\n- Routine share UI: keep username search as the discovery path; add a 'From friends' tab at the top showing accepted friends for one-tap share.\n\nNotification UX: friend request fires a Message (existing Message model has type field — add `friend_request`). User can accept/decline from the conversations list.\n\nSlices:\n1. Schema + endpoints (Friendship model + 4 endpoints + Message type).\n2. Friend search + list UI in Settings → SOCIAL.\n3. Athlete-created groups (flip gate, share creation UI).\n4. Routine share → friend-picker tab."
+      "notes": "[2026-05-23] Slice 1 shipped (schema + endpoints, NO UI):\n- New Friendship Prisma model added: { id, userAId, userBId, status: 'pending'|'accepted'|'blocked', requestedAt, acceptedAt }. Cascade-delete on both User sides. @@unique([userAId, userBId]). User got two new relations (friendshipsA / friendshipsB).\n- Message.type now accepts 'friend_request' (no schema change — Message.type was already a free-form String). POST /api/friends auto-creates a Message of this type so the recipient sees a notification in the existing messages stream.\n- New /api/friends route with all four verbs:\n  - GET: returns { accepted, pendingSent, pendingReceived } buckets shaped from the viewer's POV (each row carries `friend: { id, username }` regardless of which side userA is).\n  - POST { toUsername }: looks up the target user by username (case-sensitive — uses Prisma's unique lookup, matching how the rest of the app treats usernames), validates self-friend / dupe / blocked, creates a pending Friendship row + a 'friend_request' Message. Special case: if the target already has a PENDING request to me, POST auto-accepts (handshake symmetry).\n  - PATCH { friendshipId, action: 'accept'|'decline'|'block' }: only the recipient can accept/decline; decline deletes the row; block can be called from either side and swaps userAId so the blocker always becomes userA.\n  - DELETE { friendshipId }: unfriend (any side). Cannot delete a 'blocked' row — must PATCH to unblock first.\n- All endpoints gated by the ironlog-uid cookie (same pattern as /api/trainer/request).\nSlice 1 verification: schema validates, TS compiles. Manual end-to-end test needs two seeded users from /api/admin/test-users (see Settings → DEV TOOLS).\nSlices NOT in this push:\n2. Friend search + list UI in Settings → SOCIAL.\n3. Athlete-created groups (flip gate, share creation UI).\n4. Routine share → friend-picker tab.\n[2026-05-23] Planning per @maaiz: 'there's no friend system for athletes to connect with athletes, create groups, share workouts'.\n\nCurrent state:\n- Athletes can receive trainer adoption requests (TrainerRequest model).\n- Athletes can join leaderboard groups (LeaderboardGroup model, created by anyone with createdBy field, currently only trainers create via UI).\n- Routines can be shared via username search (no friendship gate).\n\nProposed model:\n- New `Friendship` Prisma model: { id, userAId, userBId, status: pending|accepted|blocked, requestedAt, acceptedAt }. Bidirectional once accepted.\n- New `/api/friends` GET (list) / POST (send request) / PATCH (accept|decline|block) / DELETE (unfriend) endpoints.\n- New friend-search UI in Settings → SOCIAL (or new dedicated 'Friends' section).\n- LeaderboardGroup.createdBy already supports any user — flip the UI to let athletes hit the same '+ NEW GROUP' affordance trainers currently use (gated by role check at the moment).\n- Routine share UI: keep username search as the discovery path; add a 'From friends' tab at the top showing accepted friends for one-tap share.\n\nNotification UX: friend request fires a Message (existing Message model has type field — add `friend_request`). User can accept/decline from the conversations list.\n\nSlices:\n1. Schema + endpoints (Friendship model + 4 endpoints + Message type).\n2. Friend search + list UI in Settings → SOCIAL.\n3. Athlete-created groups (flip gate, share creation UI).\n4. Routine share → friend-picker tab."
     },
     {
       "id": "trainer-group-visual-identity",
@@ -147,17 +152,20 @@
       "area": "Tier",
       "introduced": "2026-05-23",
       "introducedBy": "QA pass tier-ladder-dot-bar",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
       "steps": [
-        "Open the tier modal (tap your tier chip on home). Verify there's a horizontal dot-bar near the top that spans the full ladder — 7 dots positioned at 0 / 15 / 30 / 50 / 70 / 90 / 100 (athlete tiers, vivid theme).",
+        "HOME chip — open home, look at the top-right tier card. The bar inside the chip is now a dot ladder (was a single-segment gradient line). Six small dots positioned along the bar, current tier dot enlarged and glowing in tier colour, reached dots solid in their tier colour, unreached dots dim grey.",
+        "Trainer users see TWO chips stacked (athlete + trainer). Both render the dot ladder. Trainer chip dots are normalised to trainer's max tier min (raw client count 0-30), athlete chip dots normalised to athlete's max tier min (score 0-90).",
+        "Tap the chip — the modal opens with the same dot bar (labelled, larger format) at the top. Visual consistency between the two surfaces.",
+        "Open the tier modal directly. Verify there's a horizontal dot-bar near the top that spans the full ladder — 7 dots positioned at 0 / 15 / 30 / 50 / 70 / 90 / 100 (athlete tiers, vivid theme).",
         "Verify the gaps BETWEEN dots are proportional to the actual score distance: Kitten→Fox = 15 units (small), Big Dawg→Lion = 20 units (larger). So later tiers have wider visible gaps, telegraphing 'harder to climb'.",
         "Verify the bar is FILLED up to the user's current headline score. The filled portion uses a gradient matching the current tier's accent.",
         "Each dot carries a tiny tooltip-on-hover (or label-below on mobile) with the tier label: Kitten · Fox · Big Dawg · Lion · Gorilla · Bear · MAX.",
         "Switch to the SIMPLE theme — verify the dot positions are identical (same thresholds), labels swap to Bronze / Silver / Gold / Platinum / Diamond / Master.",
         "On the trainer ladder modal, verify the dot bar uses TRAINER_TIERS thresholds: 0 / 15 / 30 / 50 / 70 / 88 (different last threshold) — gaps look different from the athlete ladder."
       ],
-      "notes": "[2026-05-23] Shipped: added a dot-ladder bar at the top of the tier breakdown showing the whole ladder. Each tier breakpoint renders as a dot positioned at its `min` value on the 0-100 axis (so gaps between dots are proportional to actual score-distance between tiers — Lion→Gorilla is visibly wider than Kitten→Fox). Filled track covers 0 → currentRaw using a left-to-right gradient. Current tier's dot is bigger + glows. Abbreviated 3-6 char labels under each dot for orientation. Position-absolute layout inside a 42px-tall container; no new deps, ~50 LOC. (Reported by @maaiz: 'tier progress bars can show like .____.___ . . . . filled from lowest to max tier with dots identifying each tier point, distance between dots scaled to show difficulty to next tier dynamically'.)"
+      "notes": "[2026-05-23] Home chip update: per @maaiz 'i want the home page tier progress bar to be like the dot included bar when you open the tier modal — i want the full progress bar visible at home too with the dots'. Replaced the home chip's single-gradient bar with the same dot ladder shown in the modal. New top-level CompactTierDotBar helper component sized for the chip slot (no labels — there's no room). Positions normalised by lastTier.min so both athlete (mins 0-90) and trainer-at-home (raw clients 0-30) render correctly. Current tier dot enlarged 8px + glows; other dots 5px. Filled gradient track underneath. Both trainer + athlete chips updated. Tap behaviour unchanged — whole chip still opens TierInfoModal.\n[2026-05-23] Shipped: added a dot-ladder bar at the top of the tier breakdown showing the whole ladder. Each tier breakpoint renders as a dot positioned at its `min` value on the 0-100 axis (so gaps between dots are proportional to actual score-distance between tiers — Lion→Gorilla is visibly wider than Kitten→Fox). Filled track covers 0 → currentRaw using a left-to-right gradient. Current tier's dot is bigger + glows. Abbreviated 3-6 char labels under each dot for orientation. Position-absolute layout inside a 42px-tall container; no new deps, ~50 LOC. (Reported by @maaiz: 'tier progress bars can show like .____.___ . . . . filled from lowest to max tier with dots identifying each tier point, distance between dots scaled to show difficulty to next tier dynamically'.)"
     },
     {
       "id": "achievements-v1",
@@ -1694,22 +1702,23 @@
     },
     {
       "id": "mission-unlock-abs",
-      "title": "Unlock Your Abs — open-ended <15% BF mission + milestone",
+      "title": "Unlock Your Abs — gender-aware BF threshold + clearer 'to lose' wording + gender lock",
       "area": "Challenges",
       "introduced": "2026-05-22",
       "introducedBy": "QA pass mission-unlock-abs",
-      "lastTested": "2026-05-22",
+      "lastTested": "2026-05-23",
       "status": "regression-retest",
       "steps": [
-        "Open home. Verify a new 🎯 MISSIONS section appears above MONTHLY CHALLENGES with one item: 🔓 'Unlock Your Abs · Get your body fat to 15% or lower — that's the bar where the six-pack reveals itself. No deadline. Joining sets your goal body fat to 15% across the app.'",
-        "If no body fat readings exist for this user yet, JOIN is blocked: tapping the JOIN button surfaces an inline red error '⚠ Log a body fat reading first (Progress → Body) so we know where you're starting.' (Don't actually join.)",
-        "Open Progress → Body and log a body fat reading (e.g. 22%). Go back home — the mission card now shows 'You're at 22.0% · 7.0% to unlock' below the JOIN button.",
-        "Tap JOIN. Verify the button flips to ✓ JOINED (purple). The progress bar fills proportionally and the card shows '22.0% → 15%' with the percent fill on the right.",
-        "Open Settings → goals → verify goal body fat % is now 15 (auto-set by joining).",
-        "Log a new body fat reading at 14% (below target). Verify the mission card shows ✓ UNLOCKED with a green bar, AND the milestone overlay 'Abs Unlocked — Body fat at 15% or under, the six-pack reveal threshold' appears. The milestone is added to the achievements wall.",
-        "Reload home — the unlock state persists (LocalStorage and milestone storage both hold it)."
+        "MALE user — open home. The mission card now reads: 🔓 'Unlock Your Abs · Drop your body fat to 15% or lower — that's where the six-pack reveals itself.' No deadline. Joining sets goal BF to 15%.",
+        "FEMALE user — open home. Card now reads: 🔓 'Unlock Your Abs · Drop your body fat to 22% or lower — that's where the six-pack reveals itself (women's essential fat is higher than men's, so this is calibrated for you).' No deadline. Joining sets goal BF to 22%.",
+        "OTHER / gender-not-set user — card uses the default 15% threshold + a note: '(we use a default threshold; set your gender in the profile for a tailored target)'.",
+        "Pre-join preview now reads: 'You're at 22.0% · lose 7.0% body fat to unlock (target 15%)' (was the ambiguous '7.0% to unlock' — @maaiz: 'make it clearer thats the amount to lose to complete the mission').",
+        "Joined view's foot row also surfaces the loss target: '22.0% → 15% (lose 7.0%)' on the left, % fill on the right.",
+        "Settings → Profile → GENDER. Once a gender is set, the buttons are locked with a 🔒 LOCKED chip + a footer note 'Gender is locked once set so body-composition missions + future gender-specific achievements stay consistent.' Server-side: POST /api/profile rejects gender mismatches on existing profiles with 'Gender is locked once set'.",
+        "If no body fat readings exist yet, JOIN is blocked + inline red error '⚠ Log a body fat reading first (Progress → Body)…'",
+        "Reload home — dismissal + join state persist (LocalStorage + milestone storage both hold them)."
       ],
-      "notes": "[2026-05-22] Shipped: new MISSIONS array in lib/challenges.ts (open-ended, no time cap). mission-unlock-abs-v1: body_fat_at_or_below 15%, setsProfileGoal=true. On JOIN: PATCH /api/profile sets targetBodyFatPct=15. JOIN blocked + inline error if user has no BF reading. New milestone 'abs-unlocked' triggers on logBodyMetric when bodyFatPct <= 15 — pipeline reads MILESTONE_STORAGE_KEY, pushes onto setMilestoneQueue so the celebration overlay fires. MissionState 'achieved' is sticky (won't unflip on a regression reading) AND fires immediately if user is already at or below target at any reading. bodyMetrics now eagerly-fetched on user mount so home Mission card has live data even before user visits Body tab. (Reported by @maaiz: 'Make a 6 month challenge for body fat under 15% and call it something about unlocking abs' → revised to 'Actually no need for a 6 month time limit / Can just be a challenge anyone joins and it should automatically update their goal body fat but show an error if they haven't recorded any / It can also be a milestone unlock if someone has or achieves under the abs %'.)"
+      "notes": "[2026-05-23] Slice 2 shipped: gender-aware threshold + 'to lose' wording + gender lock. Per @maaiz: (i) 'Unlock your abs said 10.7% to unlock - make it clearer thats the amount to lose to complete the mission'; (ii) 'the amount for unlock your abs probably different for men and women'; (iii) 'check and make sure they cant change their gender after initial selection'.\n\nChanges:\n- lib/challenges.ts: Mission.targetByGender?: { male: number; female: number } added. New helpers resolveMissionTarget(m, gender) and resolveMissionBody(m, gender) — the latter substitutes the per-gender target into the body copy and appends a note explaining the calibration.\n- mission-unlock-abs-v1: targetByGender = { male: 15, female: 22 }. Default target=15 (used for 'other' / unknown gender).\n- app/page.tsx ChallengesCard now takes a `gender` prop (threaded from `ob.gender`). All UI sites use the resolved target — preview text, progress bar denominator, profile goal PATCH, joined-view headline + foot row.\n- Wording: preview now reads 'lose X.X% body fat to unlock (target Y%)' (was 'X.X% to unlock'). Joined view foot reads 'cur% → target% (lose X.X%)'.\n- Gender lock: Settings → Profile → GENDER buttons now disabled + greyed out when ob.gender is already set; ARIA disabled + cursor-not-allowed; footer note explains why. Server-side: POST /api/profile rejects with 400 'Gender is locked once set — contact support to change.' when existing profile.gender exists and request gender differs.\n[2026-05-22] Shipped: new MISSIONS array in lib/challenges.ts (open-ended, no time cap). mission-unlock-abs-v1: body_fat_at_or_below 15%, setsProfileGoal=true. On JOIN: PATCH /api/profile sets targetBodyFatPct=15. JOIN blocked + inline error if user has no BF reading. New milestone 'abs-unlocked' triggers on logBodyMetric when bodyFatPct <= 15 — pipeline reads MILESTONE_STORAGE_KEY, pushes onto setMilestoneQueue so the celebration overlay fires. MissionState 'achieved' is sticky (won't unflip on a regression reading) AND fires immediately if user is already at or below target at any reading. bodyMetrics now eagerly-fetched on user mount so home Mission card has live data even before user visits Body tab. (Reported by @maaiz: 'Make a 6 month challenge for body fat under 15% and call it something about unlocking abs' → revised to 'Actually no need for a 6 month time limit / Can just be a challenge anyone joins and it should automatically update their goal body fat but show an error if they haven't recorded any / It can also be a milestone unlock if someone has or achieves under the abs %'.)"
     },
     {
       "id": "tier-scoring-fairness",
@@ -3112,6 +3121,70 @@
         "Once real photos are generated (per /image-prompts.md), drop a 0.png/1.png pair into /public/stretches/<id>/ — verify the placeholder is replaced and the FORM modal animates the new photos without any code change."
       ],
       "notes": "[2026-05-22 <sha7>] Audited all 109 DB id references against the free-exercise-db manifest (873 canonical exercises). Zero broken links. Found 7 semantically-wrong mappings and 12 missing mappings. Shipped: text-card placeholders for all 26 missing/wrong movements via scripts/generate-stretch-placeholders.ts; registered every id in LOCAL_STRETCH_IDS; removed the 7 wrong DB mappings; consolidated all 56 image-gen prompts into /image-prompts.md. The loader now uses .png for LOCAL_STRETCH_IDS entries. Next slice: real photo replacements (user generating via ChatGPT from /image-prompts.md)."
+    },
+    {
+      "id": "workout-rest-motivational-phrases",
+      "title": "Motivational phrase on the rest-timer overlay + expanded phrase pool",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass workout-rest-motivational-phrases",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Start any workout. Log a set so the rest-timer overlay fires.",
+        "Verify there's now a motivational phrase displayed BELOW the countdown ring, soft white italic ~14px (e.g. 'Breathe. Reset. Go again.', 'Form before weight.', 'Recovery is part of the lift.').",
+        "Stay on the same rest cycle — verify the phrase stays the SAME for the duration of that rest (doesn't flicker every second).",
+        "Skip rest, log the next set — verify a NEW rest cycle picks a DIFFERENT phrase from the pool.",
+        "Cycle through ~10 sets — verify the phrases cover both training-encouragement ('Win the next set, not the workout.') and rest-specific cues ('Tense shoulders cost reps. Drop them.').",
+        "Open home screen — verify the existing tagline phrase rotation still works (uses the same shared PHRASES array, now expanded from 20 → 60 entries)."
+      ],
+      "notes": "[2026-05-23] Shipped: rest-timer overlay now shows a motivational phrase below the countdown ring. Phrase stays stable WITHIN a rest cycle and rotates between cycles via a new `cycleId` counter on the useCountdown hook (increments each time start() fires, so it survives the per-second `seconds` state churn). Per @maaiz: 'motivational phrases with rest timers might be good, maybe expand the inventory if possible'.\n\nInventory expansion:\n- Original PHRASES pool: 20 entries (general motivation — 'Trust the process.', 'Stay disciplined.', etc.)\n- Added 40 new entries skewed toward rest-timer use cases: breath-paced ('Breathe. Reset. Go again.', 'Slow down — the next set wins it.'), form-cue ('Form before weight.', 'Tempo first. Ego second.'), micro-recovery ('Recovery is part of the lift.', 'Aches mean you showed up.'), discipline ('Stop checking your phone — set up.', 'Stop negotiating with yourself.').\n- Total pool: 60 entries. Single source of truth for both home hero tagline AND rest overlay.\n\nNo new files / no new deps — added phrases to the PHRASES array, added `cycleId` to useCountdown, rendered the phrase in the existing rest overlay portal."
+    },
+    {
+      "id": "gender-achievements-differentiation",
+      "title": "Gender-specific milestones / achievements (planning)",
+      "area": "Challenges",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass mission-unlock-abs",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "(Planning slice — NO code shipped yet.) Design captured below.",
+        "Verify women-specific achievements appear in the catalogue (e.g. 'Glute Goddess', 'Big Booty Builder' tied to glute-volume milestones; 'Bridal Arms' tied to triceps/biceps milestones).",
+        "Verify men-specific achievements still surface (existing strength/abs/PB-volume milestones).",
+        "Verify 'other' / unset gender gets the union of both pools so the user isn't locked out of anything."
+      ],
+      "notes": "[2026-05-23] Planning per @maaiz: 'men and women milestones/achievements might need to be slightly different too! can add some stuff for big booty'.\n\nCurrent state:\n- Milestones in lib/milestones.ts are gender-agnostic — total sessions, total volume, abs unlock, streaks, PB count, etc.\n- The new achievements-v1 plan (55 achievements) is also gender-agnostic.\n- Gender is now LOCKED once set (qa: mission-unlock-abs slice 2) — so any gender-specific records can't be silently flipped mid-arc.\n\nProposal:\n- Extend Achievement/Milestone shape with `genderFilter?: 'male' | 'female' | null` (null = visible to all, including 'other').\n- Add a small batch of women-flavoured achievements riding off existing data:\n  * 'Glute Goddess' — 100 / 250 / 500 / 1000 logged glute-bridge or hip-thrust reps.\n  * 'Big Booty Builder' — 5000kg / 10000kg / 25000kg lifetime hip-thrust volume.\n  * 'Bridal Arms' — 50 / 200 sets of triceps-isolation work in a 90-day window.\n  * 'Snatched Waistline' — body fat dropped 4% / 8% from starting reading (uses the new women-22 abs threshold).\n- Add a small batch of men-flavoured achievements:\n  * 'Yoke Builder' — 250 / 500 logged shrug or deadlift reps.\n  * 'V-Taper' — back-volume to chest-volume ratio crosses 1.5 / 2.0 over a 90-day window.\n- 'Other' / unset gender shows ALL achievements (union of both pools) so nobody is locked out.\n\nSlices:\n1. Schema: add genderFilter to Achievement type; helper resolves visibility per user gender.\n2. Author 8-12 gender-flavoured achievements (4-6 women + 4-6 men); register in catalogue.\n3. UI: 'Locked for your profile' tooltip on tiles the user can't earn (avoids confusion about missing tiles); render under existing category sections.\n4. Backfill check on existing data so users who already meet criteria get auto-awarded.\n\nGates on: achievements-v1 system shipping first (currently planning).\n[2026-05-23] Verified: gender LOCK already shipped (qa: mission-unlock-abs slice 2). Both UI (Settings → Profile buttons disabled with 🔒 LOCKED chip + footer note) and server (POST /api/profile rejects gender mismatches on existing rows) enforce it."
+    },
+    {
+      "id": "app-browser-icons-image-gen",
+      "title": "App + browser icons in the image generation plan",
+      "area": "Visuals",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass app-browser-icons-image-gen",
+      "lastTested": "2026-05-23",
+      "status": "untested",
+      "steps": [
+        "(Planning — answers a user question.) Verify the image-prompts-v2.md plan covers the app icon and browser/favicon by reading the new Batch 10 once it's appended.",
+        "Test that the rendered PWA installs with the new icon on iOS Add-to-Home-Screen.",
+        "Test that the favicon shows in the browser tab on Chrome desktop + Safari iOS."
+      ],
+      "notes": "[2026-05-23] Question from @maaiz: 'app and browser icon included in image generation list?'\n\nAnswer: NOT YET. /image-prompts-v2.md mentions 'dark-mode app icon' as a STYLE descriptor for the avatars / tier icons / sub-rank icons it generates, but does NOT include actual app-launcher icons or favicons as standalone deliverables.\n\nCurrent assets shipped (audit, 2026-05-23):\n- public/icon-512.png — 512×512 PNG (PWA installable, manifest.json)\n- public/icon-192.png — 192×192 PNG (PWA, smaller surface)\n- public/icon-192.svg — vector source\n- public/favicon.ico — multi-size 16/32 (browser tab)\n- public/favicon.svg — vector source\n- public/apple-touch-icon.png — 180×180 (iOS Add-to-Home-Screen)\n- public/admin-icon-512.png, public/admin-icon-192.png, public/admin-favicon.svg, public/apple-touch-icon-admin.png — admin-app variants.\n\nProposal: add 'Batch 10 — App / browser icons' to /image-prompts-v2.md covering:\n1. ironlog-icon-512.png — flagship PWA icon (replaces icon-512.png). 512×512. Subject: stylised barbell + tier chevron, vivid red→orange gradient, dark matte background. Centred and weighted so iOS rounded corners crop cleanly.\n2. ironlog-icon-192.png — exact down-rasterisation of (1). 192×192.\n3. ironlog-apple-touch-icon.png — same subject, slightly thicker safe margin since iOS doesn't round the corners on older versions. 180×180.\n4. ironlog-favicon.svg + .ico — minimal mark (single chevron or barbell, no gradient detail) that reads at 16/32px.\n5. ironlog-splash-512.png — optional, for iOS Safari Add-to-Home-Screen splash.\nDon't ship this batch as part of mission-unlock-abs slice. Just captured for backlog reference."
+    },
+    {
+      "id": "qa-comments-deploy-precheck",
+      "title": "QA-check git pull for new comments before every deploy",
+      "area": "Process",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass qa-comments-deploy-precheck",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "(Process — no code shipped.) Before any `git push` to deploy, the agent should `git pull origin main` to fetch any qa-comments/ files added via the in-app feedback while the agent was working.",
+        "If new comments exist, summarise them with the user and wait for go-ahead before bundling into the imminent deploy.",
+        "If no new comments, proceed with the push as planned."
+      ],
+      "notes": "[2026-05-23] Process change per @maaiz: 'do a qa check to see if new comments before every deploy (i might add comments through the app feedback options while you're working, i still want you to pick them up and check with me to add them for next deploy)'. Captured in qa-state for traceability; persisted into CLAUDE.md so the next session also picks it up automatically. Pre-deploy QA-comment scan now part of the agent's deploy workflow."
     }
   ]
 }

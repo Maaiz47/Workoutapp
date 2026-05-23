@@ -20,7 +20,7 @@ import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
-import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState } from "../lib/challenges";
+import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState, resolveMissionTarget, resolveMissionBody } from "../lib/challenges";
 import { computeExerciseRecencies, recencyForExercise, recencyDotColor, ExerciseRecency } from "../lib/adaptiveRewards";
 import { findAvatar, AVATARS, Avatar } from "../lib/avatars";
 // rankedContributors / totalContributions / kindLabel / Contributor no
@@ -89,6 +89,11 @@ function useCountdown() {
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
   const [total, setTotal] = useState(0);
+  // Monotonic counter that increments each time `start()` fires. Lets
+  // consumers tag content that should be stable WITHIN a rest cycle
+  // but rotate between cycles (e.g. the motivational phrase on the
+  // rest overlay). (qa: workout-rest-motivational-phrases)
+  const [cycleId, setCycleId] = useState(0);
   // Distinct from `running` — `screenDismissed` lets the user hide
   // the full-screen rest overlay without actually stopping the
   // timer. The counter then keeps ticking quietly and surfaces on
@@ -179,6 +184,7 @@ function useCountdown() {
     setSeconds(secs);
     setTotal(secs);
     setRunning(true);
+    setCycleId(c => c + 1);        // Rotate per-cycle content.
     setScreenDismissed(false);     // Fresh rest → re-show the overlay.
 
     ref.current = setInterval(() => {
@@ -229,7 +235,7 @@ function useCountdown() {
     };
   }, [finish]);
 
-  return { seconds, running, total, start, stop, screenDismissed, dismissScreen };
+  return { seconds, running, total, start, stop, screenDismissed, dismissScreen, cycleId };
 }
 
 function useTimer() {
@@ -1039,7 +1045,7 @@ function ProgressPhotosCard({ currentWeight }: { currentWeight: number | null })
 // opt-in toggle + live progress bar against personal history. Global
 // leaderboard rank lands in a follow-up slice (needs server-side opt-in
 // table and aggregation).
-function ChallengesCard({ history, bodyMetrics }: { history: Record<string, any[]>; bodyMetrics?: any[] }) {
+function ChallengesCard({ history, bodyMetrics, gender }: { history: Record<string, any[]>; bodyMetrics?: any[]; gender?: string | null }) {
   const currentMonth = currentMonthIso();
   const active = CHALLENGES.filter(c => c.monthIso === currentMonth);
   const [, force] = useState(0);
@@ -1058,7 +1064,13 @@ function ChallengesCard({ history, bodyMetrics }: { history: Record<string, any[
             <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>NO TIME LIMIT</span>
           </div>
           {MISSIONS.map(m => {
-            const state = computeMissionState(m, metricsForMissions);
+            // Resolve per-user target (gender-aware for body-comp
+            // missions). We treat the resolved mission as the source
+            // of truth from here on — the user reads "their" threshold,
+            // not the catalogue default. (qa: mission-unlock-abs)
+            const target = resolveMissionTarget(m, gender ?? null);
+            const resolved = { ...m, target, body: resolveMissionBody(m, gender ?? null) };
+            const state = computeMissionState(resolved, metricsForMissions);
             const noReadings = state.currentValue == null;
             // Open-ended progress bar — fills from "current observed
             // highest BF reading" down to the target. If user is
@@ -1069,10 +1081,11 @@ function ChallengesCard({ history, bodyMetrics }: { history: Record<string, any[
               : (() => {
                   const observed = metricsForMissions.map((x: any) => x.bodyFatPct).filter((v: any) => typeof v === "number");
                   const maxObserved = Math.max(state.currentValue ?? 30, ...observed);
-                  const denom = maxObserved - m.target;
+                  const denom = maxObserved - target;
                   if (denom <= 0) return 100; // already at or below target
-                  return Math.min(100, Math.max(0, Math.round((1 - (state.currentValue! - m.target) / denom) * 100)));
+                  return Math.min(100, Math.max(0, Math.round((1 - (state.currentValue! - target) / denom) * 100)));
                 })();
+            const toLose = state.currentValue != null ? Math.max(0, state.currentValue - target) : 0;
             return (
               <div key={m.id} style={{ padding: "12px 12px", background: "rgba(255,255,255,0.02)", border: `1px solid ${state.achieved ? "rgba(46,204,113,0.4)" : state.optedIn ? "rgba(162,155,254,0.35)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, marginBottom: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -1080,7 +1093,7 @@ function ChallengesCard({ history, bodyMetrics }: { history: Record<string, any[
                     <span style={{ fontSize: 26 }}>{m.icon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: state.achieved ? "#2ecc71" : state.optedIn ? "#A29BFE" : "#fff" }}>{m.title} {state.achieved && "✓"}</div>
-                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2, lineHeight: 1.5 }}>{m.body}</div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2, lineHeight: 1.5 }}>{resolved.body}</div>
                     </div>
                   </div>
                   <button
@@ -1094,14 +1107,11 @@ function ChallengesCard({ history, bodyMetrics }: { history: Record<string, any[
                       const isOptingIn = !state.optedIn;
                       toggleMissionOptIn(m.id);
                       // setsProfileGoal: when they JOIN, push the
-                      // target value into their profile so weight/BF
-                      // goals across the app align. (qa: mission-unlock-abs)
+                      // (gender-resolved) target into their profile so
+                      // weight/BF goals across the app align.
+                      // (qa: mission-unlock-abs)
                       if (isOptingIn && m.setsProfileGoal && m.metric === "body_fat_at_or_below") {
-                        // The PATCH persists the goal; the next /api/profile
-                        // refetch (on the Body tab open or page refresh)
-                        // hydrates goalBf state from the server. No need
-                        // to call setGoalBf from this scope.
-                        fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetBodyFatPct: m.target }) }).catch(() => {});
+                        fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetBodyFatPct: target }) }).catch(() => {});
                       }
                       force(n => n + 1);
                     }}
@@ -1119,7 +1129,7 @@ function ChallengesCard({ history, bodyMetrics }: { history: Record<string, any[
                   <div style={{ fontSize: 10, color: state.achieved ? "#2ecc71" : "rgba(162,155,254,0.75)", fontFamily: "'Space Mono', monospace" }}>
                     {state.achieved
                       ? `You're already at ${state.currentValue!.toFixed(1)}% — abs unlocked! Join to claim the badge.`
-                      : `You're at ${state.currentValue!.toFixed(1)}% · ${(state.currentValue! - m.target).toFixed(1)}% to unlock`}
+                      : `You're at ${state.currentValue!.toFixed(1)}% · lose ${toLose.toFixed(1)}% body fat to unlock (target ${target}%)`}
                   </div>
                 )}
                 {/* Joined view — open-ended, no countdown */}
@@ -1127,7 +1137,7 @@ function ChallengesCard({ history, bodyMetrics }: { history: Record<string, any[
                   <>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
                       <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontFamily: "'Space Mono', monospace" }}>
-                        {state.currentValue != null ? `${state.currentValue.toFixed(1)}% → ${m.target}%` : "Log a body fat reading to start tracking"}
+                        {state.currentValue != null ? `${state.currentValue.toFixed(1)}% → ${target}% (lose ${toLose.toFixed(1)}%)` : "Log a body fat reading to start tracking"}
                       </span>
                       <span style={{ fontSize: 10, color: state.achieved ? "#2ecc71" : "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>
                         {state.achieved ? "✓ UNLOCKED" : `${pct}%`}
@@ -1137,7 +1147,7 @@ function ChallengesCard({ history, bodyMetrics }: { history: Record<string, any[
                       <div style={{ height: "100%", width: `${pct}%`, background: state.achieved ? "#2ecc71" : "#A29BFE", borderRadius: 2, transition: "width 0.5s" }} />
                     </div>
                     <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>
-                      Goal body fat set to {m.target}%. {state.achieved ? "Milestone earned." : "No deadline — keep logging your BF readings, the bar fills as you progress."}
+                      Goal body fat set to {target}%. {state.achieved ? "Milestone earned." : "No deadline — keep logging your BF readings, the bar fills as you progress."}
                     </div>
                   </>
                 )}
@@ -2262,6 +2272,10 @@ function WatermarkBackdrop({ phrase, opacity = 0.022 }: { phrase: string; opacit
 }
 
 // ─── MOTIVATIONAL PHRASES ───────────────────────────────────────────────
+// Generic-purpose pool — used by the home hero tagline AND the rest-
+// timer overlay (single source of truth). Per @maaiz request: expand
+// inventory so rest timers (which fire many times per session) don't
+// feel repetitive.
 const PHRASES = [
   "Trust the process.",
   "Stay disciplined.",
@@ -2283,6 +2297,47 @@ const PHRASES = [
   "Your only competition is you.",
   "Results take time.",
   "Embrace the struggle.",
+  // ── Expansion batch (rest-timer friendly — short, breath-paced) ──
+  "Breathe. Reset. Go again.",
+  "Slow down — the next set wins it.",
+  "Form before weight.",
+  "Reps build the body. Rest builds the rep.",
+  "Tense shoulders cost reps. Drop them.",
+  "Recovery is part of the lift.",
+  "Win the next set, not the workout.",
+  "Heavy hands. Quiet mind.",
+  "Stay in your lane today.",
+  "Pain is just feedback.",
+  "Small reps, daily — that's the cheat code.",
+  "If it were easy, it'd be useless.",
+  "The bar doesn't lift itself.",
+  "Suffer in training. Smile in the mirror.",
+  "Don't count days. Make days count.",
+  "Aches mean you showed up.",
+  "Better than yesterday. That's the bar.",
+  "Patience is a muscle too.",
+  "Sweat now. Brag never.",
+  "The only bad workout is the missed one.",
+  "Hard work pays compound interest.",
+  "Volume × consistency = results.",
+  "Quiet bodies break records.",
+  "Drink water. Then lift it.",
+  "Tempo first. Ego second.",
+  "Train the body. The mind follows.",
+  "Stop checking your phone — set up.",
+  "Two more deep breaths. Then go.",
+  "The set after the hard one is the real set.",
+  "You don't need motivation. You need a routine.",
+  "Strength is built one boring rep at a time.",
+  "Adapt. Then add weight.",
+  "Mind the form, not the mirror.",
+  "Discipline travels well.",
+  "Stop negotiating with yourself.",
+  "Easy days build the long career.",
+  "Recover hard. Train harder.",
+  "Stay grounded. Stack tension.",
+  "Effort is a renewable resource.",
+  "Stronger is a verb.",
 ];
 
 // ─── PASSWORD INPUT ─────────────────────────────────────────────────────
@@ -3800,6 +3855,57 @@ function TierInfoModal({
   );
 }
 
+// Compact dot-ladder progress bar used in the home tier chip.
+// Mirrors the dot bar from TierLadder (tier modal) but small enough to
+// fit inside a 6-9px tall chip slot. Positions are normalised by the
+// max tier's `min` so the bar always spans 0% → 100% regardless of
+// underlying scale (athlete: 0-90, trainer at home: 0-30 raw clients).
+// Current tier dot is enlarged + glows; reached dots solid in tier
+// colour; unreached dots dim grey. No labels — there's no room.
+// (qa: tier-ladder-dot-bar)
+function CompactTierDotBar({
+  tiers, currentRaw, currentLabel,
+}: {
+  tiers: { label: string; color: string; min: number }[];
+  currentRaw: number;
+  currentLabel: string;
+}) {
+  if (tiers.length === 0) return null;
+  const lastMin = Math.max(1, tiers[tiers.length - 1].min);
+  const filledPct = Math.min(100, Math.max(0, (currentRaw / lastMin) * 100));
+  const curIdx = Math.max(0, tiers.findIndex(t => t.label === currentLabel));
+  const curColor = tiers[curIdx]?.color ?? tiers[0].color;
+  const fillGradient = `linear-gradient(90deg, ${tiers[0].color}, ${curColor})`;
+  return (
+    <div style={{ position: "relative", marginTop: 5, height: 8 }}>
+      {/* Background track */}
+      <div style={{ position: "absolute", top: 3, left: 0, right: 0, height: 2, background: "rgba(255,255,255,0.08)", borderRadius: 1 }} />
+      {/* Filled portion up to currentRaw */}
+      <div style={{ position: "absolute", top: 3, left: 0, width: `${filledPct}%`, height: 2, background: fillGradient, borderRadius: 1, transition: "width 0.5s ease", boxShadow: `0 0 4px ${curColor}66` }} />
+      {/* Dots at each tier's normalised position */}
+      {tiers.map((t) => {
+        const pct = (t.min / lastMin) * 100;
+        const reached = currentRaw >= t.min;
+        const isCurrent = t.label === currentLabel;
+        const size = isCurrent ? 8 : 5;
+        const top = isCurrent ? 0 : 1.5;
+        return (
+          <div key={t.label} style={{
+            position: "absolute", left: `${pct}%`, top,
+            transform: "translateX(-50%)",
+            width: size, height: size, borderRadius: "50%",
+            background: reached ? t.color : "rgba(255,255,255,0.15)",
+            border: `${isCurrent ? 1.5 : 0.5}px solid ${reached ? t.color : "rgba(255,255,255,0.22)"}`,
+            boxShadow: isCurrent ? `0 0 6px ${t.color}` : "none",
+            transition: "all 0.3s",
+            pointerEvents: "none",
+          }} />
+        );
+      })}
+    </div>
+  );
+}
+
 function TierLadder({
   title, subtitle, tiers, accent, highlight, isParticipant, unitWord, currentRaw,
 }: {
@@ -4395,7 +4501,25 @@ function HomePage() {
   const [questInfo, setQuestInfo] = useState<{ icon: string; title: string; body: string; done: boolean; action: { label: string; tab?: "dashboard" | "exercises" | "history" | "body" } | null } | null>(null);
   // Daily pro tip — picked deterministically by date so it stays stable
   // across home reloads, refreshes once per day.
-  const [dismissedTodayTip, setDismissedTodayTip] = useState(false);
+  // `tipDismissUntilTs` is a unix-ms expiry persisted to localStorage so
+  // dismissals survive refresh. Two preset durations: 1 hour ("just
+  // not right now") and end-of-day ("not interested today"). Computed
+  // boolean `dismissedTodayTip` is `Date.now() < tipDismissUntilTs`.
+  // (qa: pro-tip-hide-visibility)
+  const [tipDismissUntilTs, setTipDismissUntilTs] = useState(0);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("ironlog-tip-dismiss-until");
+      if (raw) setTipDismissUntilTs(parseInt(raw, 10) || 0);
+    } catch {}
+  }, []);
+  // Persist + re-render when the dismissal changes.
+  const setTipDismissedFor = useCallback((ms: number) => {
+    const until = Date.now() + ms;
+    setTipDismissUntilTs(until);
+    try { localStorage.setItem("ironlog-tip-dismiss-until", String(until)); } catch {}
+  }, []);
+  const dismissedTodayTip = tipDismissUntilTs > 0 && Date.now() < tipDismissUntilTs;
   // Pro Tip — when chip is tapped, expand full body in a bottom-sheet
   // instead of using the home card slot. Saves ~140px of vertical space.
   const [tipModalOpen, setTipModalOpen] = useState(false);
@@ -8678,10 +8802,6 @@ function HomePage() {
                 const t = getTrainerTier(clients.length);
                 const tIdx = TRAINER_TIERS.findIndex(x => x.label === t.label);
                 const next = TRAINER_TIERS[tIdx + 1];
-                const curMin = TRAINER_TIERS[tIdx].min;
-                const progress = next
-                  ? Math.max(0, Math.min(1, (clients.length - curMin) / Math.max(1, next.min - curMin)))
-                  : 1;
                 const remaining = next ? Math.max(0, next.min - clients.length) : 0;
                 return (
                   <div style={{ padding: "3px 6px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6 }}>
@@ -8691,11 +8811,11 @@ function HomePage() {
                         {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
                       </span>
                     </div>
-                    {next && (
-                      <div style={{ marginTop: 3, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${progress * 100}%`, background: `linear-gradient(90deg, ${t.color}, ${next.color})`, borderRadius: 2, transition: "width 0.4s" }} />
-                      </div>
-                    )}
+                    <CompactTierDotBar
+                      tiers={TRAINER_TIERS.map(x => ({ label: x.label, color: x.color, min: x.min }))}
+                      currentRaw={clients.length}
+                      currentLabel={t.label}
+                    />
                   </div>
                 );
               })()}
@@ -8709,10 +8829,6 @@ function HomePage() {
                 const themedTiers = getAthleteTiers(tierTheme);
                 const hIdx = themedTiers.findIndex(x => x.tierNum === h.tierNum);
                 const next = themedTiers[hIdx + 1];
-                const curMin = themedTiers[hIdx].min;
-                const progress = next
-                  ? Math.max(0, Math.min(1, (score - curMin) / Math.max(1, next.min - curMin)))
-                  : 1;
                 const remaining = next ? Math.max(0, next.min - score) : 0;
                 return (
                   <div style={{ padding: "3px 6px", background: h.bg, border: `1px solid ${h.border}`, borderRadius: 6 }}>
@@ -8722,11 +8838,11 @@ function HomePage() {
                         {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
                       </span>
                     </div>
-                    {next && (
-                      <div style={{ marginTop: 3, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${progress * 100}%`, background: `linear-gradient(90deg, ${h.color}, ${next.color})`, borderRadius: 2, transition: "width 0.4s" }} />
-                      </div>
-                    )}
+                    <CompactTierDotBar
+                      tiers={themedTiers.map(x => ({ label: x.label, color: x.color, min: x.min }))}
+                      currentRaw={score}
+                      currentLabel={h.label}
+                    />
                   </div>
                 );
               })()}
@@ -8954,9 +9070,26 @@ function HomePage() {
                   <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tip.text}</span>
                   <span style={{ fontSize: 13, color: "rgba(78,205,196,0.5)", flexShrink: 0 }}>›</span>
                 </button>
+                {/* Dual hide actions: 1h (shorter cooldown — user
+                    wants the tip back after their session) and ×
+                    (rest of today). Both persist via localStorage so
+                    refresh respects the dismissal.
+                    (qa: pro-tip-hide-visibility) */}
                 <button
-                  onClick={(e) => { e.stopPropagation(); setDismissedTodayTip(true); }}
-                  title="Hide for today"
+                  onClick={(e) => { e.stopPropagation(); setTipDismissedFor(60 * 60 * 1000); }}
+                  title="Hide for 1 hour"
+                  style={{ flexShrink: 0, padding: "0 10px", height: 36, background: "transparent", border: "none", borderLeft: "1px solid rgba(78,205,196,0.18)", color: "rgba(78,205,196,0.75)", fontSize: 10, fontWeight: 700, letterSpacing: 1, lineHeight: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                >1h</button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Hide for the rest of today — compute ms until
+                    // local midnight.
+                    const now = new Date();
+                    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0).getTime();
+                    setTipDismissedFor(midnight - Date.now());
+                  }}
+                  title="Hide for the rest of today"
                   style={{ flexShrink: 0, padding: "0 12px", height: 36, background: "transparent", border: "none", borderLeft: "1px solid rgba(78,205,196,0.18)", color: "rgba(255,255,255,0.55)", fontSize: 16, lineHeight: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
                 >×</button>
               </div>
@@ -8972,7 +9105,18 @@ function HomePage() {
                     {/* HIDE button bumped to higher contrast so it
                         actually reads as an action (was 4%/10% white
                         on dark — easy to miss). (qa: pro-tip-hide-visibility) */}
-                    <button onClick={() => { setDismissedTodayTip(true); setTipModalOpen(false); }} style={{ marginTop: 16, padding: "10px 18px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.4)", borderRadius: 10, color: "#4ECDC4", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, cursor: "pointer" }}>✕ HIDE FOR TODAY</button>
+                    {/* Two-button hide picker — 1h or rest-of-today.
+                        Mirrors the chip-level buttons so users can hide
+                        from either entry point. (qa: pro-tip-hide-visibility) */}
+                    <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+                      <button onClick={() => { setTipDismissedFor(60 * 60 * 1000); setTipModalOpen(false); }} style={{ flex: 1, padding: "10px 14px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.28)", borderRadius: 10, color: "#4ECDC4", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, cursor: "pointer" }}>HIDE 1H</button>
+                      <button onClick={() => {
+                        const now = new Date();
+                        const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0).getTime();
+                        setTipDismissedFor(midnight - Date.now());
+                        setTipModalOpen(false);
+                      }} style={{ flex: 1, padding: "10px 14px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.4)", borderRadius: 10, color: "#4ECDC4", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, cursor: "pointer" }}>✕ HIDE FOR TODAY</button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -11725,12 +11869,47 @@ function HomePage() {
                   >LOG NEW WEIGHT / BODY FAT →</button>
                 </div>
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 8 }}>GENDER</div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {["male", "female", "other"].map(g => (
-                      <button key={g} onClick={() => setOb(o => ({ ...o, gender: g }))} style={{ flex: 1, padding: "10px 6px", background: ob.gender === g ? "rgba(255,107,107,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${ob.gender === g ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: ob.gender === g ? "#FF6B6B" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textTransform: "capitalize" }}>{g}</button>
-                    ))}
+                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1 }}>GENDER</div>
+                    {ob.gender && (
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>🔒 LOCKED</div>
+                    )}
                   </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {["male", "female", "other"].map(g => {
+                      // Once gender has been set (any non-empty value),
+                      // we lock the field. Gender drives body-comp
+                      // mission thresholds + future gender-specific
+                      // achievements, so silent flipping mid-arc would
+                      // corrupt those records. Users can still hit
+                      // support to change it. (qa: mission-unlock-abs)
+                      const locked = !!ob.gender && ob.gender !== g;
+                      const isSelected = ob.gender === g;
+                      return (
+                        <button
+                          key={g}
+                          onClick={() => { if (locked) return; setOb(o => ({ ...o, gender: g })); }}
+                          disabled={locked}
+                          style={{
+                            flex: 1, padding: "10px 6px",
+                            background: isSelected ? "rgba(255,107,107,0.15)" : "rgba(255,255,255,0.04)",
+                            border: `1px solid ${isSelected ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.08)"}`,
+                            borderRadius: 10,
+                            color: isSelected ? "#FF6B6B" : locked ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.5)",
+                            fontSize: 12,
+                            cursor: locked ? "not-allowed" : "pointer",
+                            textTransform: "capitalize",
+                            opacity: locked ? 0.55 : 1,
+                          }}
+                        >{g}</button>
+                      );
+                    })}
+                  </div>
+                  {ob.gender && (
+                    <div style={{ marginTop: 6, fontSize: 9, color: "rgba(255,255,255,0.35)", lineHeight: 1.5, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>
+                      Gender is locked once set so body-composition missions + future gender-specific achievements stay consistent. Email support if you need to change this.
+                    </div>
+                  )}
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 4 }}>GOALS <span style={{ color: "rgba(255,255,255,0.2)", fontWeight: 400 }}>(select all that apply)</span></div>
@@ -12405,7 +12584,7 @@ function HomePage() {
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {progressTab === "dashboard" && (
           <div className="fade-in" style={{ padding: "20px 20px 0" }}>
-            {!deGamified && <ChallengesCard history={history} bodyMetrics={bodyMetrics} />}
+            {!deGamified && <ChallengesCard history={history} bodyMetrics={bodyMetrics} gender={ob.gender || null} />}
             <WellnessCard />
             <VolumeHeatmap history={history} customPlan={customPlan} bodyweightKg={parseFloat(ob.weightKg || "0") || 70} />
             {/* Tier Card — multi-dim ladder. Hidden when de-gamify is on.
@@ -13719,6 +13898,11 @@ function HomePage() {
           const R = 70, C = 2 * Math.PI * R;
           const dash = C * progress;
           const hasPB = newPBs.length > 0;
+          // Stable per-rest-cycle phrase. `cycleId` increments each
+          // time start() fires, so the phrase rotates on a new rest
+          // interval but stays put while the current one ticks down.
+          // (qa: workout-rest-motivational-phrases)
+          const restPhrase = PHRASES[rest.cycleId % PHRASES.length];
           return createPortal(
             <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: hasPB ? "flex-start" : "center", paddingTop: hasPB ? 60 : "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)", zIndex: 9999, backdropFilter: "blur(20px)", touchAction: "none", overscrollBehavior: "none" }}>
               <div style={{ fontSize: 12, letterSpacing: 6, color: "rgba(255,255,255,0.3)", marginBottom: 28, fontFamily: "'Space Mono', monospace" }}>REST</div>
@@ -13730,6 +13914,13 @@ function HomePage() {
                     style={{ transition: "stroke-dasharray 0.25s linear" }} />
                 </svg>
                 <div className="rest-timer-idle" style={{ fontSize: 72, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", lineHeight: 1, textShadow: "0 4px 24px rgba(0,0,0,0.5), 0 0 16px rgba(255,255,255,0.08)" }}>{rest.seconds}</div>
+              </div>
+              {/* Motivational phrase — sits below the countdown ring,
+                  one per rest cycle so it doesn't churn every second.
+                  Soft white at ~50% opacity so it reads but doesn't
+                  fight the timer for attention. */}
+              <div style={{ marginTop: 24, fontSize: 14, color: "rgba(255,255,255,0.55)", fontStyle: "italic", fontFamily: "'DM Sans', sans-serif", textAlign: "center", padding: "0 32px", maxWidth: 360, lineHeight: 1.4, letterSpacing: 0.2 }}>
+                {restPhrase}
               </div>
               {hasPB && (
                 <div className="pb-pop" style={{ marginTop: 36, background: "rgba(12,12,15,0.85)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 16, padding: "20px 28px", maxWidth: 320, width: "85%", textAlign: "center", position: "relative", overflow: "hidden" }}>
