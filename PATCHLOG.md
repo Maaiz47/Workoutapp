@@ -2,6 +2,31 @@
 
 ---
 
+## QA pass · 2026-05-23 — Power User role + disown clients + analytics-unbury planning (qa: power-user-role, trainer-disown-client, analytics-progress-unbury)
+
+@maaiz: 'I want everyone to have the plan editing and building features. We can gatekeep sharing plans to Power User which can be specialised for trainers but available to anyone. There needs to be a way to disown clients (and the wording used can be adopting and disowning). Unbury the analytics and present them in an intuitive way through the progress slice somewhere.'
+
+### power-user-role
+- New self-service role 'powerUser' stored in `extraRoles` (no schema migration — array already exists).
+- `isPowerUser()` helper alongside `userHasRole()`: returns true for `extraRoles.includes('powerUser')` OR trainer OR admin (trainers/admins are implicit Power Users).
+- `/api/auth` PATCH gets two new actions: `upgrade-power-user` and `downgrade-power-user`. Idempotent. No admin approval queue — instant.
+- Settings → ⚡ POWER USER card explains what's unlocked (currently plan sharing) and provides the Enable/Disable buttons. Trainers/admins see a `VIA TRAINER` / `VIA ADMIN` badge and no buttons.
+- Server-side gate: `/api/routines/[id]/share` POST rejects non-Power Users with 403 + `code: POWER_USER_REQUIRED` and copy pointing them to Settings.
+- Client-side gate: the ↗ share arrow on each saved routine row shows `↗⚡` for non-Power Users and an alert explaining the upgrade path on tap; share sheet doesn't open.
+- Plan EDITING and BUILDING stay free for everyone. Only SHARING is gated.
+- Trainer-upgrade card copy updated: 'Trainers automatically get Power User features too.'
+
+### trainer-disown-client
+- New `DELETE /api/trainer/clients/[clientId]` handler. Auth: only the trainer side of the relation can call. Deletes the TrainerClient row; cascades nothing (client's workout logs, plans, profile untouched).
+- Red `DISOWN` button on the client detail header (next to MESSAGE). Confirm dialog spells out exactly what disowning means — client keeps all data, just the coaching link ends, either side can re-adopt later via the normal trainer-request flow.
+- Vocabulary: 'adopting' (existing trainer requests) and 'disowning' as a clean symmetric pair per @maaiz.
+
+### analytics-progress-unbury (planning — NO code)
+- New qa-state item captures the design for a Progress → ANALYTICS sub-tab. Surfaces existing analytics (VolumeHeatmap, body metrics, per-exercise progression) in a dedicated discoverable home + adds new charts (per-exercise e1RM multi-line, session-frequency calendar, PR rate-of-change). Each chart gets a 1-sentence plain-English interpretation footer pulled from existing tier sub-rank detail strings.
+- 4 slices spec'd. De-gamify aware (charts visible, tier overlays hidden).
+
+---
+
 ## QA pass · 2026-05-23 — Tier-name-LED group chips + T-number annotations + achievement-boost planning (qa: trainer-group-visual-identity, tier-explainability, achievements-permanent-tier-boost)
 
 @maaiz: 'wherever the tier name is mentioned, have a T1 or T2 etc label so the tier number is identifiable … trainer groups can say tier name-led … Hall of fame holders groups must be hall of famer led though … achievements/milestones contribute to the tiers right? Specifically trainer milestones for the trainer tier'.

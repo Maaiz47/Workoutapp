@@ -15,12 +15,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!handle) return json({ error: "Username required" }, 400);
 
     const [sender, routine] = await Promise.all([
-      prisma.user.findUnique({ where: { id: uid }, select: { username: true } }),
+      prisma.user.findUnique({ where: { id: uid }, select: { username: true, role: true, extraRoles: true } }),
       prisma.savedRoutine.findUnique({ where: { id: params.id } }),
     ]);
 
     if (!routine) return json({ error: "Routine not found" }, 404);
     if (routine.userId !== uid) return json({ error: "Not your routine" }, 403);
+    // Power User gate. Trainers + admins are implicitly Power Users.
+    // Anyone else needs to upgrade in Settings → POWER USER first.
+    // (qa: power-user-role)
+    const senderRoles = sender ? [sender.role, ...((sender as any).extraRoles ?? [])] : [];
+    const isSenderPowerUser = senderRoles.some(r => r === "powerUser" || r === "trainer" || r === "admin");
+    if (!isSenderPowerUser) {
+      return json({ error: "Plan sharing is a Power User feature. Enable it free in Settings → POWER USER.", code: "POWER_USER_REQUIRED" }, 403);
+    }
 
     // Case-insensitive username lookup so legacy accounts (registered
     // before the auth route forced lowercase) still resolve. (qa:

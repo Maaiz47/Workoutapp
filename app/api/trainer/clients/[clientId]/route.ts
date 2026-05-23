@@ -78,3 +78,25 @@ export async function GET(req: NextRequest, { params }: { params: { clientId: st
     return json({ error: e?.message ?? "Failed" }, 500);
   }
 }
+
+// Disown a client — removes the TrainerClient relation. The user
+// keeps their workout history + everything else; just the coaching
+// link is severed. Either side can re-adopt later via the normal
+// trainer-request flow. Naming per @maaiz: 'adopting and disowning'.
+// (qa: trainer-disown-client)
+export async function DELETE(req: NextRequest, { params }: { params: { clientId: string } }) {
+  const uid = req.cookies.get(COOKIE)?.value;
+  if (!uid) return json({ error: "Unauthorized" }, 401);
+
+  try {
+    const rel = await prisma.trainerClient.findFirst({
+      where: { trainerId: uid, clientId: params.clientId },
+    });
+    if (!rel) return json({ error: "Not your client" }, 403);
+
+    await prisma.trainerClient.delete({ where: { id: rel.id } });
+    return json({ ok: true });
+  } catch (e: any) {
+    return json({ error: e?.message ?? "Failed" }, 500);
+  }
+}

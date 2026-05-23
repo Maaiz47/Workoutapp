@@ -421,6 +421,14 @@ function userHasRole(user: { role?: string; extraRoles?: string[] } | null | und
   return Array.isArray(user.extraRoles) && user.extraRoles.includes(name);
 }
 
+// Power User = a self-service upgrade anyone can take. Unlocks plan
+// sharing (DM a saved routine to another user) — currently the only
+// power-user-gated feature. Trainers + admins are implicitly Power
+// Users so we don't make trainers re-upgrade. (qa: power-user-role)
+function isPowerUser(user: { role?: string; extraRoles?: string[] } | null | undefined): boolean {
+  return userHasRole(user, "powerUser") || userHasRole(user, "trainer") || userHasRole(user, "admin");
+}
+
 // Drop set mode: the user runs each set as a chain of drops (initial weight
 // to failure → drop weight → to failure → …) without rest between drops.
 // New code uses the dropSet boolean. Legacy data with dropSets > 0 is
@@ -9673,7 +9681,17 @@ function HomePage() {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                    <button onClick={() => { setSharingRoutineId(sharingRoutineId === r.id ? null : r.id); setShareUsername(""); setShareResult(null); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}>↗</button>
+                    <button
+                      onClick={() => {
+                        if (!isPowerUser(user)) {
+                          alert("Plan sharing is a Power User feature. Enable it free in Settings → ⚡ POWER USER (instant, no admin approval needed).");
+                          return;
+                        }
+                        setSharingRoutineId(sharingRoutineId === r.id ? null : r.id); setShareUsername(""); setShareResult(null);
+                      }}
+                      title={isPowerUser(user) ? "Share with another user" : "Power User feature — enable free in Settings"}
+                      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: isPowerUser(user) ? "rgba(255,255,255,0.4)" : "rgba(162,155,254,0.6)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}
+                    >{isPowerUser(user) ? "↗" : "↗⚡"}</button>
                     <button onClick={() => doRestoreRoutine(r.id, r.name)} style={{ background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 8, color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}>RESTORE</button>
                     <button onClick={() => doDeleteRoutine(r.id)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, color: "rgba(255,255,255,0.25)", fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace", padding: "6px 10px" }}>✕</button>
                   </div>
@@ -10013,6 +10031,33 @@ function HomePage() {
               style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, padding: "5px 10px", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
             >
               MESSAGE
+            </button>
+            {/* Disown — severs the trainer-client link. Client keeps
+                all data; only the coaching relationship ends. Either
+                side can re-adopt later via the normal trainer-request
+                flow. Naming per @maaiz: 'adopting and disowning'.
+                (qa: trainer-disown-client) */}
+            <button
+              onClick={async () => {
+                if (!confirm(`Disown @${activeClient.username}? They'll keep all their data — you'll just no longer see them in your client list or get their proposal/messaging hooks. You can re-adopt later by sending another trainer request.`)) return;
+                try {
+                  const res = await fetch(`/api/trainer/clients/${activeClient.id}`, { method: "DELETE" });
+                  const data = await res.json();
+                  if (data.ok) {
+                    setClients(p => p.filter(c => c.id !== activeClient.id));
+                    setView("clientsHub");
+                    setActiveClient(null);
+                  } else {
+                    alert(data.error || "Failed to disown — try again.");
+                  }
+                } catch {
+                  alert("Network error — try again.");
+                }
+              }}
+              style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, padding: "5px 10px", color: "rgba(255,107,107,0.85)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+              title="End the coaching relationship. They keep all their data."
+            >
+              DISOWN
             </button>
           </div>
           {clientData?.profile && (
@@ -12728,10 +12773,60 @@ function HomePage() {
             </div>
           )}
 
+          {/* Power User toggle — self-service, free, instant. Anyone
+              can flip this on; trainers + admins already have it
+              implicitly. Currently the only Power-User-gated feature
+              is plan sharing (DM a saved routine), but more will
+              follow. (qa: power-user-role) */}
+          {(() => {
+            const alreadyPowerUser = userHasRole(user, "powerUser");
+            const implicitlyPowerUser = userHasRole(user, "trainer") || userHasRole(user, "admin");
+            return (
+              <div style={{ background: "linear-gradient(180deg, rgba(162,155,254,0.08), rgba(162,155,254,0.02))", border: `1px solid ${alreadyPowerUser || implicitlyPowerUser ? "rgba(162,155,254,0.5)" : "rgba(162,155,254,0.22)"}`, borderRadius: 16, padding: "20px", marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, color: "rgba(162,155,254,0.85)", letterSpacing: 3, fontWeight: 700 }}>⚡ POWER USER</div>
+                  {(alreadyPowerUser || implicitlyPowerUser) && (
+                    <span style={{ fontSize: 9, color: "#A29BFE", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", padding: "2px 6px", background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.35)", borderRadius: 4 }}>{implicitlyPowerUser ? `VIA ${(userHasRole(user, "trainer") ? "TRAINER" : "ADMIN")}` : "ENABLED"}</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, marginBottom: 14 }}>
+                  Free upgrade — unlocks plan sharing (DM your saved routines to friends by @username). More power-user features rolling out over time. Trainers get this automatically.
+                </div>
+                {!alreadyPowerUser && !implicitlyPowerUser && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const r = await fetch("/api/auth", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "upgrade-power-user" }) });
+                        const data = await r.json();
+                        if (data.user) refreshUser();
+                        else alert(data.error || "Couldn't enable Power User.");
+                      } catch { alert("Network error."); }
+                    }}
+                    style={{ background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.4)", borderRadius: 10, padding: "12px 20px", color: "#A29BFE", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+                  >Enable Power User →</button>
+                )}
+                {alreadyPowerUser && !implicitlyPowerUser && (
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Turn off Power User? You'll lose plan sharing — saved routines stay safe, you just can't DM them out until you re-enable.")) return;
+                      try {
+                        const r = await fetch("/api/auth", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "downgrade-power-user" }) });
+                        const data = await r.json();
+                        if (data.user) refreshUser();
+                        else alert(data.error || "Couldn't disable.");
+                      } catch { alert("Network error."); }
+                    }}
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 18px", color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+                  >Disable Power User</button>
+                )}
+              </div>
+            );
+          })()}
+
           {!isTrainer && !hasPendingRequest && !confirmUpgrade && (
             <div style={{ background: "linear-gradient(180deg, rgba(78,205,196,0.06), rgba(78,205,196,0.02))", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
               <div style={{ fontSize: 11, color: "rgba(78,205,196,0.7)", letterSpacing: 3, marginBottom: 10, fontWeight: 700 }}>BECOME A TRAINER</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 16 }}>Request a trainer upgrade. Once approved by an admin, you'll be able to search for users, send adoption requests, and monitor your clients' progress and stats.</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 16 }}>Request a trainer upgrade. Once approved by an admin, you'll be able to adopt users as clients (and disown them later), monitor their progress, and propose plan updates. Trainers automatically get Power User features too.</div>
               <button onClick={() => setConfirmUpgrade(true)} style={{ background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 10, padding: "12px 20px", color: "#4ECDC4", fontSize: 13, fontWeight: 600, letterSpacing: 1, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Request Trainer Upgrade →</button>
             </div>
           )}

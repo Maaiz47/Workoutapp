@@ -193,6 +193,26 @@ export async function PATCH(req: NextRequest) {
     });
   }
 
+  // Self-service Power User toggle. Anyone can flip this on free —
+  // no admin approval queue. Adds 'powerUser' to extraRoles; toggling
+  // OFF removes it. Trainers + admins are implicit Power Users so
+  // they don't need to (and can't usefully) toggle it.
+  // (qa: power-user-role)
+  if (action === "upgrade-power-user" || action === "downgrade-power-user") {
+    const existing = await (prisma.user.findUnique as any)({ where: { id: uid }, select: { id: true, username: true, role: true, extraRoles: true } });
+    if (!existing) return jsonRes({ error: "User not found" }, 404);
+    const current: string[] = Array.isArray(existing.extraRoles) ? existing.extraRoles : [];
+    const next: string[] = action === "upgrade-power-user"
+      ? (current.includes("powerUser") ? current : [...current, "powerUser"])
+      : current.filter(r => r !== "powerUser");
+    const updated = await (prisma.user.update as any)({
+      where: { id: uid },
+      data: { extraRoles: next },
+      select: { id: true, username: true, role: true, extraRoles: true },
+    });
+    return jsonRes({ user: updated });
+  }
+
   return jsonRes({ error: "Invalid action" }, 400);
 }
 
