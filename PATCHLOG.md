@@ -2,6 +2,14 @@
 
 ---
 
+## Fix · 2026-05-23 — Hide BW toggle on principally-weighted exercises (qa: weight-input-convention-clarity)
+
+Per @maaiz: "Shouldn't be able to select bodyweight at all on non body weight exercises like bench press or anything involving dumbbells as a principal". The `BW` chip used to appear for ALL non-bodyweight exercises so you could mark e.g. a bench press as "bodyweight today" — which was nonsense for principally-weighted movements.
+
+Toggle is now hidden when `loadingKindFor(equipment)` returns `"barbell"`, `"dumbbell"`, or `"machine"`. Users wanting to log a true bodyweight variant should pick the BW exercise from the catalogue (e.g. Air Squat instead of Barbell Back Squat). Still available for `"other"` / mixed-equipment exercises.
+
+---
+
 ## Fix · 2026-05-23 — Barbell weight-input convention always visible (qa: weight-input-convention-clarity)
 
 Per @maaiz: "Nothing helping users know in the session on the exercise that the weight input for barbell exercise needs to be in the format of both side plates plus the bar weight". The plate-breakdown hint only fired once the user entered ≥20 kg, so before that they had no idea the input expected total (including bar).

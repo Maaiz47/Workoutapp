@@ -16071,16 +16071,38 @@ function HomePage() {
                               </button>
                             </>
                           )}
-                          {!isBW && (
-                            <button onClick={() => { setManualBW(!manualBW); if (!manualBW) setWInput(""); setBwAddWeight(false); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${manualBW ? "rgba(46,204,113,0.5)" : "rgba(255,255,255,0.12)"}`, background: manualBW ? "rgba(46,204,113,0.12)" : "rgba(255,255,255,0.04)", color: manualBW ? "#2ecc71" : "rgba(255,255,255,0.35)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                              {manualBW ? "✓ BODYWEIGHT" : "BW"}
-                            </button>
-                          )}
-                          {manualBW && !isBW && (
-                            <button onClick={() => { setBwAddWeight(!bwAddWeight); if (!bwAddWeight) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${bwAddWeight ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.12)"}`, background: bwAddWeight ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)", color: bwAddWeight ? "#FF6B6B" : "rgba(255,255,255,0.35)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                              {bwAddWeight ? "− REMOVE WEIGHT" : "+ ADD WEIGHT"}
-                            </button>
-                          )}
+                          {/* BW toggle was previously visible for ALL
+                              non-BW exercises (so you could mark a
+                              bench press / dumbbell curl as "bodyweight
+                              today"). Per @maaiz: principally-weighted
+                              exercises like bench press or anything
+                              involving dumbbells should NEVER allow a
+                              bodyweight toggle. Hidden for any exercise
+                              whose loadingKind is barbell / dumbbell /
+                              machine. Users wanting to log a true
+                              bodyweight variant of a movement (e.g.
+                              air squat) should pick that variant from
+                              the catalogue. The toggle is still
+                              available for "other" / mixed-equipment
+                              cases that aren't strictly one kind.
+                              (qa: weight-input-convention-clarity) */}
+                          {!isBW && (() => {
+                            const lib = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
+                            const kind = loadingKindFor(lib?.equipment ?? []);
+                            if (kind === "barbell" || kind === "dumbbell" || kind === "machine") return null;
+                            return (
+                              <>
+                                <button onClick={() => { setManualBW(!manualBW); if (!manualBW) setWInput(""); setBwAddWeight(false); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${manualBW ? "rgba(46,204,113,0.5)" : "rgba(255,255,255,0.12)"}`, background: manualBW ? "rgba(46,204,113,0.12)" : "rgba(255,255,255,0.04)", color: manualBW ? "#2ecc71" : "rgba(255,255,255,0.35)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                                  {manualBW ? "✓ BODYWEIGHT" : "BW"}
+                                </button>
+                                {manualBW && (
+                                  <button onClick={() => { setBwAddWeight(!bwAddWeight); if (!bwAddWeight) setWInput(""); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, border: `1px solid ${bwAddWeight ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.12)"}`, background: bwAddWeight ? "rgba(255,107,107,0.1)" : "rgba(255,255,255,0.04)", color: bwAddWeight ? "#FF6B6B" : "rgba(255,255,255,0.35)", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                                    {bwAddWeight ? "− REMOVE WEIGHT" : "+ ADD WEIGHT"}
+                                  </button>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                           {(!activeBW || bwAddWeight || assistedBW) && (
