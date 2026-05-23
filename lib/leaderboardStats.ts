@@ -51,6 +51,11 @@ export interface CanonicalTier {
   // `idx` was carried, which made API consumers fall back to
   // tierNum=1 (Kitten) for everyone. (qa: tier-num-on-canonical)
   tierNum: number;
+  // Per-sub-rank breakdown — surfaced on the leaderboard / clients
+  // API so the trainer's client list and group leaderboards can show
+  // each row's full breakdown without re-fetching. Mirrors what
+  // computeAthleteTier returns. (qa: trainer-client-subranks)
+  subRanks?: Array<{ id: string; label: string; icon: string; score: number; detail: string; hasData: boolean }>;
 }
 
 export interface LeaderboardMemberStats {
@@ -167,6 +172,7 @@ function buildCanonicalTier(s: {
     score,
     idx: resolvedIdx,
     tierNum: t.tierNum,
+    subRanks: breakdown.subRanks,
   };
 }
 

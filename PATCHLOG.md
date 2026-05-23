@@ -2,6 +2,20 @@
 
 ---
 
+## Feat · 2026-05-23 — Trainer client sub-ranks visible on the Clients hub + Group standings (qa: trainer-client-subranks)
+
+Per @maaiz: "Maybe subranks of each client is a very useful thing for trainers to be able to see, perhaps this can be part of the client and group leaderboards".
+
+- **`CanonicalTier` extended** with `subRanks?: Array<{id, label, icon, score, detail, hasData}>` — sub-rank breakdown now flows through every API that returns a tier.
+- **`/api/trainer/clients` enriched** — each client row ships `tier` (full CanonicalTier including subRanks) and `avatarId`. Server runs `computeStatsForUsers` once for all of the trainer's clients.
+- **Clients Hub** (trainer-side):
+  - Each row shows avatar + tier badge + score + last-session date inline.
+  - Tap the ▼ chevron on the right to expand into the **full sub-rank breakdown** — Consistency / Strength / Progression / Volume / Mastery / Technique / Balance / BodyComp / Habits with per-dim bars + detail strings.
+  - Tapping the row body (not the chevron) still opens the existing detail view.
+- **Group chat in-line STANDINGS panel** — each row now has its own ▼ chevron; expanding shows a 2-column compact sub-rank grid (icon · label · score per dim). Trainer can scan a whole group's strengths/weaknesses at a glance without clicking into each user.
+
+---
+
 ## Feat · 2026-05-23 — Balance reward counterpart: balanced-fortnight celebration + lifetime counter (qa: tier-balance-subrank)
 
 Per @maaiz: "We penalise for the neglect but maybe would be good to have a reward for attending and working on it". Paired the Balance sub-rank's penalty with a positive-reinforcement loop:

@@ -5409,6 +5409,11 @@ function HomePage() {
   const [clientData, setClientData] = useState<{ profile: any; history: Record<string, any[]>; plan: any } | null>(null);
   const [clientDataLoading, setClientDataLoading] = useState(false);
   const [clientDetailTab, setClientDetailTab] = useState<"stats" | "split" | "history" | "profile">("stats");
+  // Expanded-row state for the trainer Clients list — tapping the ⌄
+  // chevron on a row reveals their tier sub-rank breakdown without
+  // navigating into the full client detail view.
+  // (qa: trainer-client-subranks)
+  const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [openClientSession, setOpenClientSession] = useState<string | null>(null);
   const [editingPlan, setEditingPlan] = useState(false);
   const [editedPlanDays, setEditedPlanDays] = useState<any[] | null>(null);
@@ -11266,17 +11271,38 @@ function HomePage() {
             <div style={{ fontSize: 9, color: "#f0c040", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 8 }}>🏆 STANDINGS</div>
             {sortedMembers.length === 0 ? (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: 6 }}>No ranked members yet.</div>
-            ) : sortedMembers.map((m: any, i: number) => (
-              <div key={m.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px", marginBottom: 4, background: m.userId === user.id ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 8, border: `1px solid ${m.userId === user.id ? "rgba(255,107,107,0.25)" : "transparent"}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", width: 18 }}>{i + 1}.</span>
-                  <UserAvatarChip avatarId={m.avatarId ?? m.user?.profile?.avatarId ?? null} username={m.user?.username} size={20} role={m.role} />
-                  {m.stats?.tier && <TierGlyph src={m.stats.tier.iconPath} emoji={m.stats.tier.icon} size={13} />}
-                  <span style={{ fontSize: 13, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>@{m.user?.username ?? "—"}</span>
+            ) : sortedMembers.map((m: any, i: number) => {
+              const tier = m.stats?.tier;
+              const isExpanded = expandedClientId === `group-${m.userId}`;
+              return (
+              <div key={m.id} style={{ marginBottom: 4, background: m.userId === user.id ? "rgba(255,107,107,0.08)" : "rgba(255,255,255,0.02)", borderRadius: 8, border: `1px solid ${m.userId === user.id ? "rgba(255,107,107,0.25)" : "transparent"}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", width: 18 }}>{i + 1}.</span>
+                    <UserAvatarChip avatarId={m.avatarId ?? m.user?.profile?.avatarId ?? null} username={m.user?.username} size={20} role={m.role} />
+                    {tier && <TierGlyph src={tier.iconPath} emoji={tier.icon} size={13} />}
+                    <span style={{ fontSize: 13, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>@{m.user?.username ?? "—"}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(240,192,64,0.8)", fontFamily: "'Space Mono', monospace" }}>{tier?.score ?? 0}</span>
+                    {tier?.subRanks && (
+                      <button onClick={() => setExpandedClientId(isExpanded ? null : `group-${m.userId}`)} aria-label="Toggle breakdown" style={{ background: isExpanded ? "rgba(240,192,64,0.16)" : "transparent", border: `1px solid ${isExpanded ? "rgba(240,192,64,0.4)" : "rgba(255,255,255,0.1)"}`, borderRadius: 4, color: isExpanded ? "#f0c040" : "rgba(255,255,255,0.4)", fontSize: 9, padding: "1px 4px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{isExpanded ? "▲" : "▼"}</button>
+                    )}
+                  </div>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(240,192,64,0.8)", fontFamily: "'Space Mono', monospace" }}>{m.stats?.tier?.score ?? 0}</span>
+                {isExpanded && tier?.subRanks && (
+                  <div className="fade-in" style={{ padding: "0 8px 8px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+                    {tier.subRanks.map((sr: any) => (
+                      <div key={sr.id} style={{ opacity: sr.hasData ? 1 : 0.45, fontSize: 9, fontFamily: "'Space Mono', monospace", color: "rgba(255,255,255,0.7)", display: "flex", justifyContent: "space-between", padding: "2px 4px", background: "rgba(255,255,255,0.02)", borderRadius: 3 }}>
+                        <span>{sr.icon} {sr.label.toUpperCase().slice(0, 8)}</span>
+                        <span style={{ color: sr.hasData ? "rgba(240,192,64,0.85)" : "rgba(255,255,255,0.3)", fontWeight: 700 }}>{sr.hasData ? sr.score : "—"}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
         <div ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }} style={{ flex: 1, overflowY: "auto", padding: "8px 20px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -11366,18 +11392,47 @@ function HomePage() {
                     style={{ width: "100%", padding: "8px 12px", marginBottom: 8, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, color: "#fff", fontSize: 12, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }}
                   />
                 )}
-                {clients.filter(c => !clientsFilter || c.username.toLowerCase().includes(clientsFilter.toLowerCase())).map(c => (
-                <div key={c.id} className="card-hover" onClick={() => openClientDetail(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
-                      {c.logCount} workout{c.logCount !== 1 ? "s" : ""}
-                      {c.lastWorkout ? ` · last ${new Date(c.lastWorkout.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : " · no sessions yet"}
+                {clients.filter(c => !clientsFilter || c.username.toLowerCase().includes(clientsFilter.toLowerCase())).map((c: any) => {
+                  const isExpanded = expandedClientId === c.id;
+                  const tier = c.tier;
+                  return (
+                  <div key={c.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, marginBottom: 8, overflow: "hidden" }}>
+                    <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <div onClick={() => openClientDetail(c)} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, cursor: "pointer" }}>
+                        <UserAvatarChip avatarId={c.avatarId} username={c.username} size={32} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{c.username}</span>
+                            {tier && <TierGlyph src={tier.iconPath} emoji={tier.icon} size={16} />}
+                          </div>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace" }}>
+                            {tier ? `${tier.label.toUpperCase()} · ${tier.score}/100 · ` : ""}{c.logCount} session{c.logCount !== 1 ? "s" : ""}
+                            {c.lastWorkout ? ` · last ${new Date(c.lastWorkout.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : ""}
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={() => setExpandedClientId(isExpanded ? null : c.id)} aria-label="Toggle sub-rank breakdown" style={{ background: isExpanded ? "rgba(240,192,64,0.16)" : "rgba(255,255,255,0.05)", border: `1px solid ${isExpanded ? "rgba(240,192,64,0.4)" : "rgba(255,255,255,0.1)"}`, borderRadius: 8, color: isExpanded ? "#f0c040" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, padding: "4px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{isExpanded ? "▲" : "▼"}</button>
                     </div>
+                    {isExpanded && tier?.subRanks && (
+                      <div className="fade-in" style={{ padding: "0 16px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+                        <div style={{ fontSize: 9, color: "rgba(240,192,64,0.6)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginTop: 4 }}>SUB-RANK BREAKDOWN</div>
+                        {tier.subRanks.map((sr: any) => (
+                          <div key={sr.id} style={{ opacity: sr.hasData ? 1 : 0.45 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 10, marginBottom: 2 }}>
+                              <span style={{ color: "#fff", fontWeight: 600 }}>{sr.icon} {sr.label}{!sr.hasData && <span style={{ marginLeft: 4, fontSize: 8, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· N/A</span>}</span>
+                              <span style={{ fontFamily: "'Space Mono', monospace", color: sr.hasData ? "rgba(240,192,64,0.85)" : "rgba(255,255,255,0.3)", fontWeight: 700 }}>{sr.hasData ? `${sr.score}/100` : "—"}</span>
+                            </div>
+                            <div style={{ height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 2, overflow: "hidden" }}>
+                              <div style={{ width: `${Math.max(2, sr.score)}%`, height: "100%", background: sr.hasData ? "#4ECDC4" : "rgba(255,255,255,0.15)" }} />
+                            </div>
+                            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, marginTop: 2 }}>{sr.detail}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 18 }}>›</span>
-                </div>
-              ))}
+                );
+                })}
               </>)}
               {/* ── Find new clients (inline) ── */}
               <button onClick={() => setShowFindClients(s => !s)} style={{ width: "100%", marginTop: clients.length > 0 ? 6 : 0, padding: "10px 14px", background: showFindClients ? "rgba(255,107,107,0.08)" : "rgba(78,205,196,0.08)", border: `1px solid ${showFindClients ? "rgba(255,107,107,0.25)" : "rgba(78,205,196,0.22)"}`, borderRadius: 12, color: showFindClients ? "#FF6B6B" : "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { computeStatsForUsers } from "../../../../lib/leaderboardStats";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
@@ -26,20 +27,32 @@ export async function GET(req: NextRequest) {
               select: { date: true, duration: true },
             },
             _count: { select: { workoutLogs: true } },
+            profile: { select: { avatarId: true } },
           },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    const clients = records.map(r => ({
-      id: r.client.id,
-      username: r.client.username,
-      joinedAt: r.client.createdAt,
-      logCount: r.client._count.workoutLogs,
-      lastWorkout: r.client.workoutLogs[0] ?? null,
-      clientSince: r.createdAt,
-    }));
+    // Compute each client's full tier + sub-rank breakdown so the
+    // trainer can see the breakdown inline without opening each
+    // client's detail view. (qa: trainer-client-subranks)
+    const clientIds = records.map(r => r.client.id);
+    const statsByUser = clientIds.length > 0 ? await computeStatsForUsers(clientIds) : new Map();
+
+    const clients = records.map(r => {
+      const stats = statsByUser.get(r.client.id) ?? null;
+      return {
+        id: r.client.id,
+        username: r.client.username,
+        avatarId: (r.client as any)?.profile?.avatarId ?? null,
+        joinedAt: r.client.createdAt,
+        logCount: r.client._count.workoutLogs,
+        lastWorkout: r.client.workoutLogs[0] ?? null,
+        clientSince: r.createdAt,
+        tier: stats?.tier ?? null,
+      };
+    });
 
     return json({ clients });
   } catch (e: any) {

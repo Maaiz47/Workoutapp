@@ -1,6 +1,26 @@
 {
   "items": [
     {
+      "id": "trainer-client-subranks",
+      "title": "Trainers can see each client's full sub-rank breakdown from the Clients hub + Group standings",
+      "area": "Trainer",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass trainer-client-subranks",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Sign in as a trainer with ≥1 accepted client.",
+        "Open Clients hub (bottom hub → 👥 Clients).",
+        "Verify each client row shows: avatar chip · tier badge · '{TIER LABEL} · {score}/100 · N sessions · last <date>'.",
+        "Tap the ▼ chevron on the right of a client row. Verify the row expands inline to show the FULL sub-rank breakdown (Consistency / Strength / Progression / Volume / Mastery / Technique / Balance / Body Comp / Habits) — each with score, progress bar, and detail string.",
+        "Tap the chevron again — collapses.",
+        "Tap the LEFT side of the row (avatar/name area) — opens the existing CLIENT DETAIL view, NOT the inline expand.",
+        "Open a group chat → tap 🏆 LEADERBOARD → tap the ▼ chevron next to a member. Verify a compact 2-column sub-rank grid appears showing each dim's icon + label + score.",
+        "Verify sub-ranks with hasData=false render at reduced opacity with '—' instead of a number."
+      ],
+      "notes": "[2026-05-23] Shipped: CanonicalTier interface extended with subRanks (per-dim score/detail/hasData). buildCanonicalTier passes breakdown.subRanks through. /api/trainer/clients now calls computeStatsForUsers for all clients in one batch + ships full tier per client. UI: clients hub row split into a left-tappable area (opens detail) and a right ▼ chevron (toggles inline breakdown). Group chat in-chat STANDINGS panel gets the same chevron with a 2-col compact sub-rank grid. expandedClientId state uses `group-{userId}` prefix in the group context to avoid colliding with clients-hub ids."
+    },
+    {
       "id": "tier-balance-subrank",
       "title": "Balance sub-rank rewards muscle-group coverage (chest/back/shoulders/arms/quads/posterior/core)",
       "area": "Tiers",
