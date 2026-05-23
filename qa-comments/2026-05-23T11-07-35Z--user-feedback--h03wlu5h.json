@@ -1,0 +1,10 @@
+{
+  "id": "cmpi8va1j000gc4qfh03wlu5h",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · UI · view=home] The celebration card overlays are only showing up in messages or some where not everywhere on screen until dismissed, or do a 10 sec on screen",
+  "screenshotUrl": null,
+  "ts": "2026-05-23T11:07:35.959Z"
+}
