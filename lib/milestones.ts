@@ -64,7 +64,7 @@ export const MILESTONES: Milestone[] = [
   { id: "first-pr",      label: "First personal best",      body: "Heavier than you've ever lifted. Mark the day.",        icon: "🥇", category: "strength", requirement: "Set a personal best on any exercise (most weight × reps).",         check: s => s.prCount >= 1   },
   { id: "ten-prs",       label: "10 personal bests",        body: "Ten lifts at their peak. Real strength gains.",         icon: "🥈", category: "strength", requirement: "Set personal bests across 10 different exercises.",                  check: s => s.prCount >= 10  },
   { id: "fifty-prs",     label: "50 personal bests",        body: "You're getting strong across the board.",               icon: "🥉", category: "strength", requirement: "Set personal bests across 50 different exercises.",                  check: s => s.prCount >= 50  },
-  { id: "hundred-prs",   label: "100 personal bests",       body: "Triple-digit PR count. You're not the same person.",    icon: "👑", category: "strength", requirement: "Set personal bests across 100 different exercises.",                 check: s => s.prCount >= 100 },
+  { id: "hundred-prs",   label: "100 personal bests",       body: "Triple-digit PB count. You're not the same person.",    icon: "👑", category: "strength", requirement: "Set personal bests across 100 different exercises.",                 check: s => s.prCount >= 100 },
 
   // ── Behaviour milestones — used a feature for the first time ─────────
   { id: "first-superset",label: "First superset",           body: "Two exercises, no rest. The dojo respects pace.",       icon: "⟳", category: "behaviour", requirement: "Pair two exercises into a superset in an active workout (+ SUPERSET).", check: s => s.hasUsedSuperset },

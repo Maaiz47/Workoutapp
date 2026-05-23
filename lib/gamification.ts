@@ -54,7 +54,7 @@ export const QUEST_POOL: DailyQuest[] = [
   { id: "q-rpe",      title: "Tag effort",     body: "Log RPE on any set today.",                        icon: "🎯", isDone: s => s.todayHasRpeLogged },
   { id: "q-sleep",    title: "Sleep check-in", body: "Log how you slept this morning.",                  icon: "😴", isDone: s => s.sleepLoggedToday },
   { id: "q-energy",   title: "Energy check",   body: "Tap your energy level for today.",                 icon: "⚡", isDone: s => s.energyLoggedToday },
-  { id: "q-pr-hunt",  title: "PR hunt",        body: "Beat a personal best in any lift today.",          icon: "🥇", isDone: s => s.todayHasPR },
+  { id: "q-pr-hunt",  title: "PB hunt",        body: "Beat a personal best in any lift today.",          icon: "🥇", isDone: s => s.todayHasPR },
   { id: "q-double",   title: "Double up",      body: "Log a session AND hit your hydration target.",     icon: "🔥", isDone: s => s.todaySessionsCount >= 1 && s.hydrationToday >= s.hydrationTarget },
 ];
 

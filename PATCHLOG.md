@@ -2,6 +2,25 @@
 
 ---
 
+## QA pass · 2026-05-23 — Daily PB quest fix + PR→PB rename + Pro Tip hide visibility + UX queue planning (qa: daily-quest-pb-bugfix, pr-to-pb-rename, pro-tip-hide-visibility, daily-quest-rework, friend-system-athletes, trainer-group-visual-identity)
+
+Mixed code + planning pass. @maaiz hit rapid-fire UX asks; shippable fixes done now, big new features captured as planning artefacts.
+
+### Code fixes shipped
+- **daily-quest-pb-bugfix** — the PB-hunt quest was hard-coded `hasPRToday = false` with an unfinished TODO. Now properly compares each set logged today against a `preTodayBest` map built from sets logged strictly before today; tags `hasPRToday = true` on any weight beat, weight tie with more reps, or first-time-logged exercise.
+- **pr-to-pb-rename** — 5 user-facing string surfaces flipped: leaderboard column headers in trainer + group views, trainer Tier modal Progression + Reach detail lines, milestone body text, daily quest title. Internal code identifiers (prCount, exercisePRs, totalClientPRs) preserved to keep the data API contract stable.
+- **Quest chip label** — `QUEST` → `DAILY QUEST` (with `✓ DONE` when complete) per @maaiz.
+- **pro-tip-hide-visibility** — added a `×` button on the Pro Tip chip itself (one-tap dismiss, separated from modal-open via stopPropagation). Also bumped the in-modal `✕ HIDE FOR TODAY` button from 4%/10% white-on-dark to high-contrast teal-on-teal.
+
+### Planning captured (no code)
+- **daily-quest-rework** — pool expansion (7 → ~20), per-user random rotation, celebration animation + auto-dismiss when done, tier-score bonus (+0.5 per quest, +20 lifetime cap with audit trail), leaderboard-weighted via canonical headline. 4-slice plan.
+- **friend-system-athletes** — Friendship Prisma model, friend search + accept/decline via Messages, athletes can create groups (currently trainer-only gate), routine share gets a friends-tab. 4-slice plan.
+- **trainer-group-visual-identity** — distinct visual treatment for trainer-made groups: teal/gold gradient border, COACH-LED chip, trainer avatar + tier badge in header.
+
+CLAUDE.md not updated this pass — planning items live in qa-state. Holding all commits for @maaiz deploy signal.
+
+---
+
 ## Release · 2026-05-23 — IronLog 1.1.0 milestone (qa: achievements-v1, image-gen-plan-v2)
 
 Bumped to **1.1.0** to mark the end of today's content/feature push.

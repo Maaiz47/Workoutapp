@@ -1,6 +1,113 @@
 {
   "items": [
     {
+      "id": "daily-quest-pb-bugfix",
+      "title": "Daily PB-hunt quest actually ticks when a PB is hit (was stuck pending)",
+      "area": "Home",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass daily-quest-pb-bugfix",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "On a day when the daily quest is 'PB hunt': open the workout, log a set that BEATS your lifetime best for that exercise (heavier weight, or same weight with more reps).",
+        "Save the workout. Return to home.",
+        "Verify the daily quest chip flips from `DAILY QUEST · PB hunt` (yellow) to `✓ DONE · PB hunt` (green).",
+        "Refresh / re-open the app — quest stays green for the rest of the day.",
+        "Negative case: log a set at LIGHTER weight than your previous best. Quest stays pending."
+      ],
+      "notes": "[2026-05-23] Fix: in app/page.tsx around line ~8717, `hasPRToday` was hard-coded to `false` with an unfinished TODO comment. Now correctly walks history twice: first pass builds a `preTodayBest` map (max weight×reps per exercise key from sets logged STRICTLY before today), second pass walks today's sets and marks `hasPRToday = true` if any beats the prior best. Also flips the chip label `QUEST` → `DAILY QUEST` (yellow) and `✓` → `✓ DONE` (green) per @maaiz. (Reported by @maaiz: 'pretty sure i hit the daily quest for PR today but the quest looks pending'.)"
+    },
+    {
+      "id": "pro-tip-hide-visibility",
+      "title": "Pro Tip hide-for-today button visible on the chip itself (was buried in modal)",
+      "area": "Home",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass pro-tip-hide-visibility",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open home. Scroll to the Pro Tip chip below the daily quest.",
+        "Verify the chip now has a trailing `×` button on the right edge (separated from the rest by a thin teal divider line).",
+        "Tap the `×`. Verify the tip disappears for today (re-renders no Pro Tip chip until tomorrow's reset).",
+        "Re-open the app. Verify the tip stays hidden for the rest of the day.",
+        "Tap the chip body (icon + label + text, NOT the ×). Verify the modal opens with full body + source as before.",
+        "In the modal, verify the `✕ HIDE FOR TODAY` button at the bottom is now teal-on-teal (higher contrast vs the previous 4%/10% white-on-dark)."
+      ],
+      "notes": "[2026-05-23] Fix: the `HIDE FOR TODAY` action was only reachable AFTER opening the tip modal AND used a very faint rgba(255,255,255,0.04) background that read as decorative. Now a `×` lives on the chip itself for one-tap dismiss (e.stopPropagation so the modal doesn't open). The in-modal button got bumped to teal contrast for visibility too. (Reported by @maaiz: 'pro tips hide for today button - make sure its visible on mobile and make it more visible generally obvious at a quick glance'.)"
+    },
+    {
+      "id": "pr-to-pb-rename",
+      "title": "Global rename PR → PB (personal best) on user-facing surfaces",
+      "area": "Copy",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass pr-to-pb-rename",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open trainer leaderboard My Clients tab. Verify the column header reads `PB` (was `PR`).",
+        "Open group leaderboard inside a group. Verify the column header reads `PBs` (was `PRs`).",
+        "Open trainer Tier modal. Verify Progression sub-rank detail reads `… clients hit a PB last 30d` (was `PR`).",
+        "Verify Reach sub-rank detail reads `… PBs · …k kg-reps total` (was `PRs`).",
+        "Daily quest pool: verify `q-pr-hunt` displays as `PB hunt` (id unchanged for compat, label flipped).",
+        "Milestones: verify `100 personal bests` body text reads `Triple-digit PB count …` (was `PR`).",
+        "Verify NO new occurrences of standalone `PR` in user-facing strings — `personal best` (full form) stays as-is; the abbreviation just becomes PB."
+      ],
+      "notes": "[2026-05-23] Renamed user-facing strings only — internal code identifiers (prCount, exercisePRs, totalClientPRs) kept to avoid touching the leaderboard data API contract. 5 string surface changes: 2 column headers (app/page.tsx) + 2 trainer-tier detail lines (lib/tiers.ts) + 1 milestone body text (lib/milestones.ts) + 1 quest title (lib/gamification.ts). (Reported by @maaiz: 'word all PR as PB for personal best'.)"
+    },
+    {
+      "id": "daily-quest-rework",
+      "title": "Daily quest — extended pool + rotation + celebration animation + tier-point reward + leaderboard weighting",
+      "area": "Home",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass daily-quest-rework",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "(Planning slice — NO code shipped yet.) Read this notes block for the design.",
+        "Verify the quest chip auto-DISAPPEARS once completed + the celebration animation fires (NOT just turn green and stay).",
+        "Verify the celebration fires AFTER any PB celebration / lucky-drop overlays that also triggered from the same workout save — queueing order: PB overlay → lucky drop → quest celebration → tier promo toast.",
+        "Verify the quest pool has grown from 7 → ~20 quests covering more dimensions (variety, mastery, body comp, technique, social).",
+        "Verify the quest picked each day is RANDOM (per-user per-date), not the global deterministic pick from QUEST_POOL.",
+        "Verify completing a quest awards +N tier score (small bonus, capped — e.g. +0.5 to headline score, max +20 lifetime across all quests).",
+        "Verify the tier score bonus is visible on leaderboards (the canonical headline score reflects quest completions)."
+      ],
+      "notes": "[2026-05-23] Planning. Per @maaiz: (i) quest disappears + celebration on complete, (ii) extend pool, (iii) rotate randomly, (iv) award tier points, (v) somehow weigh on leaderboard progress.\n\nDesign sketch:\n- Pool expansion (7 → 20-ish): add `q-distinct-3` (3+ exercises today), `q-superset` (a superset today), `q-dropset` (a drop set today), `q-cardio` (a cardio set today), `q-warmup-perfect` (mark all warmups ✓ today), `q-cooldown-perfect`, `q-body-metric` (log weight or BF today), `q-15-sets` (15+ working sets), `q-90min` (a session ≥ 90 min today), `q-share` (share a routine), `q-new-exercise` (try a new exercise today), `q-rpe-10` (one set at RPE 10 today).\n- Rotation: deterministic per-user-per-day using `hash(userId + iso)` so different users see different quests, but the same user sees a stable quest each day. Stops day-rolling-over from flipping the quest mid-session.\n- Celebration: small confetti burst + the chip fades out after 2.5s. Reuses the existing PB celebration overlay primitives (lib/celebrate ?) or framer-motion stagger. Queued AFTER PB + lucky drop overlays via a tiny toast queue.\n- Tier points: introduce QuestCompletion table tracking (userId, questId, completedAt). Each completion adds +0.5 to the user's tier score, capped at +20 lifetime. This is a controlled re-introduction of `tierScoreBonus` — the audit-trail (per-quest rows) means it's NOT a silent injection like the old lucky-drop bonus was. Need to surface it in the tier breakdown modal as 'Quest bonus: +12 score' so users see why their score shifted.\n- Leaderboard weighting: since quest bonus feeds the canonical tier score, leaderboards automatically reflect it (no separate column needed). Cap of +20 means it can lift someone by 2 tier breakpoints max — meaningful but not game-breaking.\n\nSlice plan:\n1. Pool expansion (just append to QUEST_POOL + new isDone closures).\n2. Per-user rotation (replace `pickTodayQuest()` signature to take userId + iso, hash both).\n3. Completion persistence (Prisma table) + tier score injection capped at +20 with visibility in tier breakdown.\n4. Celebration animation + queue ordering (use existing celebrate primitives).\n\nGates: needs design call on the tier-bonus cap (+20 lifetime) — same value as the removed lucky-drop bonus. Confirm with @maaiz before Slice 3."
+    },
+    {
+      "id": "friend-system-athletes",
+      "title": "Friend system — athletes connect with athletes, create groups, share workouts",
+      "area": "Social",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass friend-system-athletes",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "(Planning slice — NO code shipped yet.) Design captured below.",
+        "Verify athletes can search for + send a friend request to another athlete by username.",
+        "Verify accepted friends show in a 'My Friends' list (Settings → social or new dedicated view).",
+        "Verify athletes can CREATE leaderboard groups (currently trainer-only) and invite friends.",
+        "Verify athletes can share saved routines with friends (currently shared via username search; refactor to friend-list picker).",
+        "Verify trainer-made groups have a distinct visual treatment vs athlete-made groups."
+      ],
+      "notes": "[2026-05-23] Planning per @maaiz: 'there's no friend system for athletes to connect with athletes, create groups, share workouts'.\n\nCurrent state:\n- Athletes can receive trainer adoption requests (TrainerRequest model).\n- Athletes can join leaderboard groups (LeaderboardGroup model, created by anyone with createdBy field, currently only trainers create via UI).\n- Routines can be shared via username search (no friendship gate).\n\nProposed model:\n- New `Friendship` Prisma model: { id, userAId, userBId, status: pending|accepted|blocked, requestedAt, acceptedAt }. Bidirectional once accepted.\n- New `/api/friends` GET (list) / POST (send request) / PATCH (accept|decline|block) / DELETE (unfriend) endpoints.\n- New friend-search UI in Settings → SOCIAL (or new dedicated 'Friends' section).\n- LeaderboardGroup.createdBy already supports any user — flip the UI to let athletes hit the same '+ NEW GROUP' affordance trainers currently use (gated by role check at the moment).\n- Routine share UI: keep username search as the discovery path; add a 'From friends' tab at the top showing accepted friends for one-tap share.\n\nNotification UX: friend request fires a Message (existing Message model has type field — add `friend_request`). User can accept/decline from the conversations list.\n\nSlices:\n1. Schema + endpoints (Friendship model + 4 endpoints + Message type).\n2. Friend search + list UI in Settings → SOCIAL.\n3. Athlete-created groups (flip gate, share creation UI).\n4. Routine share → friend-picker tab."
+    },
+    {
+      "id": "trainer-group-visual-identity",
+      "title": "Trainer-made groups identified visually + premium treatment",
+      "area": "Social",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass trainer-group-visual-identity",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "(Planning slice — NO code shipped yet.) Design below.",
+        "Open the groups list. Verify groups CREATED BY A TRAINER carry a distinct visual identifier — e.g. teal gradient border + 🤝 COACH-LED chip + slightly elevated card shadow.",
+        "Open a trainer-made group. Verify the group header carries the trainer's name + avatar + tier badge (TRAINER tier, not athlete tier).",
+        "Verify athlete-made groups (post the friend-system slice) have a more neutral / casual treatment — slate border, no premium chip."
+      ],
+      "notes": "[2026-05-23] Planning per @maaiz: 'trainer made groups need to be identified and visually more premium though'.\n\nDetection: LeaderboardGroup.createdBy + JOIN to User → check role/extraRoles.\n\nVisual treatment for trainer-made groups:\n- Card border: linear-gradient(135deg, #4ECDC4, #f0c040) at 1px width\n- Card background: subtle teal radial halo behind the title\n- Chip: 🤝 COACH-LED in teal\n- Group header: prepend `<TrainerAvatar /> coached by @<trainerUsername> · <trainerTier>` line\n- Optional: a 'PRO' watermark in the corner\n\nVisual treatment for athlete-made groups (default):\n- Card border: solid rgba(255,255,255,0.08) — current\n- No chip (or a smaller 👥 SOCIAL chip in slate)\n\nLands as a single UI slice in app/page.tsx (groupsHub view + the groups list rendering)."
+    },
+    {
       "id": "session-warmup-row-polish",
       "title": "Warm-up/stretch/cooldown rows match exercise rows (no TAP label, set boxes visible)",
       "area": "Workout",

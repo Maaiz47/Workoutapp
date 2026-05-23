@@ -478,9 +478,9 @@ export function computeTrainerTier(s: TrainerStatsForTier): TierBreakdown {
 
   const subRanks: SubRank[] = [
     { id: "roster",      label: "Roster",      icon: "👥", score: roster,      detail: `${s.rosterCount} active clients`,                                    hasData: s.rosterCount > 0 },
-    { id: "progression", label: "Progression", icon: "🚀", score: progression, detail: `${s.clientsWithRecentPR}/${s.rosterCount} clients hit a PR last 30d`, hasData: s.rosterCount > 0 },
+    { id: "progression", label: "Progression", icon: "🚀", score: progression, detail: `${s.clientsWithRecentPR}/${s.rosterCount} clients hit a PB last 30d`, hasData: s.rosterCount > 0 },
     { id: "retention",   label: "Retention",   icon: "🔁", score: retention,   detail: `${s.clientsWithActiveStreak}/${s.rosterCount} clients on a streak`,   hasData: s.rosterCount > 0 },
-    { id: "reach",       label: "Reach",       icon: "⭐", score: reach,       detail: `${s.totalClientPRs} PRs · ${Math.round(s.totalClientVolumeKg / 1000)}k kg-reps total`, hasData: s.rosterCount > 0 },
+    { id: "reach",       label: "Reach",       icon: "⭐", score: reach,       detail: `${s.totalClientPRs} PBs · ${Math.round(s.totalClientVolumeKg / 1000)}k kg-reps total`, hasData: s.rosterCount > 0 },
     { id: "discipline",  label: "Discipline",  icon: "🏋", score: discipline,  detail: `Your own athlete score · ${discipline}/100`,                          hasData: true },
   ];
 

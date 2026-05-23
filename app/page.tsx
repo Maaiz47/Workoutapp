@@ -3990,7 +3990,7 @@ function ClientLeaderboardBlock({ tierTheme }: { tierTheme: "vivid" | "simple" }
       </div>
       <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 46px 36px 36px 30px 34px", gap: 4, padding: "10px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          {["#", "CLIENT", "VOL", "SESS", "STRK", "PR", "IP"].map((h, hi) => {
+          {["#", "CLIENT", "VOL", "SESS", "STRK", "PB", "IP"].map((h, hi) => {
             const sortKey: Record<string, string | null> = { VOL: "volume", SESS: "sessions", STRK: "streak", IP: "intensity" };
             const isSortCol = sortKey[h] != null && sortKey[h] === sort;
             return (
@@ -8716,17 +8716,53 @@ function HomePage() {
           const today = new Date().toISOString().slice(0, 10);
           let sessionsToday = 0, hasPRToday = false, hasRpeToday = false;
           const todaysSession = (history[activeDay?.id ?? ""] ?? []).find((s: any) => (s.date ?? "").slice(0, 10) === today);
+          // Build BEFORE-TODAY lifetime PR map (max weight + reps per
+          // exercise key, considering only sets logged on days STRICTLY
+          // before today). Then walk today's sets — any one that beats
+          // its exercise's pre-today best satisfies the PB-hunt quest.
+          // Was previously a TODO comment + hasPRToday hard-coded to
+          // false, so the PB quest never ticked even on real PBs.
+          // (qa: daily-quest-pb-bugfix)
+          const preTodayBest: Record<string, { weight: number; reps: number }> = {};
+          for (const dayId in history) for (const s of history[dayId]) {
+            const sd = (s.date ?? "").slice(0, 10);
+            if (sd >= today) continue;          // skip today + future
+            const sets = (s.sets ?? {}) as Record<string, any>;
+            for (const k in sets) {
+              const v = sets[k];
+              if (!v || v.skipped) continue;
+              const w = v.weight ?? 0;
+              const r = v.reps ?? 0;
+              const eid = k.replace(/-\d+(-d\d+)?$/, "");
+              const best = preTodayBest[eid];
+              if (!best || w > best.weight || (w === best.weight && r > best.reps)) {
+                preTodayBest[eid] = { weight: w, reps: r };
+              }
+            }
+          }
           for (const dayId in history) for (const s of history[dayId]) {
             if ((s.date ?? "").slice(0, 10) !== today) continue;
             sessionsToday += 1;
             const sets = (s.sets ?? {}) as Record<string, any>;
             for (const k in sets) {
-              if (typeof sets[k]?.rpe === "number") hasRpeToday = true;
+              const v = sets[k];
+              if (!v || v.skipped) continue;
+              if (typeof v.rpe === "number") hasRpeToday = true;
+              const w = v.weight ?? 0;
+              const r = v.reps ?? 0;
+              const eid = k.replace(/-\d+(-d\d+)?$/, "");
+              const prior = preTodayBest[eid];
+              // PB if (a) first time logging this exercise (no prior) and
+              // the set has weight + reps, OR (b) beats the prior best
+              // weight, OR (c) ties the prior weight but with more reps.
+              if (w > 0 && r > 0) {
+                if (!prior) hasPRToday = true;
+                else if (w > prior.weight) hasPRToday = true;
+                else if (w === prior.weight && r > prior.reps) hasPRToday = true;
+              }
             }
           }
-          // Approximate "PR today" — any set logged today whose weight beats the
-          // exercise's lifetime best. Cheap heuristic; the milestone system
-          // tracks the precise count separately.
+          // PR today computed inline above (was an unfinished TODO).
           const sleepToday = readSleepToday();
           const state: QuestState = {
             todaySessionsCount: sessionsToday,
@@ -8756,7 +8792,7 @@ function HomePage() {
               title={q.body}
             >
               <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{q.icon}</span>
-              <span style={{ fontSize: 9, color: done ? "#2ecc71" : "#fdcb6e", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0 }}>{done ? "✓" : "QUEST"}</span>
+              <span style={{ fontSize: 9, color: done ? "#2ecc71" : "#fdcb6e", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>{done ? "✓ DONE" : "DAILY QUEST"}</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{q.title}</span>
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>›</span>
             </button>
@@ -8811,12 +8847,27 @@ function HomePage() {
           // body in a modal. Saves ~120px of home real estate.
           return (
             <>
-              <button onClick={() => setTipModalOpen(true)} style={{ width: "100%", boxSizing: "border-box", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 10, padding: "8px 12px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left" }}>
-                <span style={{ fontSize: 15, lineHeight: 1 }}>💡</span>
-                <span style={{ fontSize: 9, color: "#4ECDC4", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0 }}>PRO TIP</span>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tip.text}</span>
-                <span style={{ fontSize: 13, color: "rgba(78,205,196,0.5)", flexShrink: 0 }}>›</span>
-              </button>
+              {/* Top-level chip with TWO tap targets:
+                  - The bulk (icon + label + text) opens the modal for
+                    full body + source.
+                  - The trailing × button dismisses for today directly,
+                    no modal-traversal needed. @maaiz: hide button was
+                    buried behind the modal + low-contrast; surfaced
+                    to the chip so it's one tap on mobile.
+                  (qa: pro-tip-hide-visibility) */}
+              <div style={{ width: "100%", boxSizing: "border-box", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.22)", borderRadius: 10, marginBottom: 12, display: "flex", alignItems: "center", overflow: "hidden" }}>
+                <button onClick={() => setTipModalOpen(true)} style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", padding: "8px 4px 8px 12px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left" }}>
+                  <span style={{ fontSize: 15, lineHeight: 1 }}>💡</span>
+                  <span style={{ fontSize: 9, color: "#4ECDC4", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0 }}>PRO TIP</span>
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tip.text}</span>
+                  <span style={{ fontSize: 13, color: "rgba(78,205,196,0.5)", flexShrink: 0 }}>›</span>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDismissedTodayTip(true); }}
+                  title="Hide for today"
+                  style={{ flexShrink: 0, padding: "0 12px", height: 36, background: "transparent", border: "none", borderLeft: "1px solid rgba(78,205,196,0.18)", color: "rgba(255,255,255,0.55)", fontSize: 16, lineHeight: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                >×</button>
+              </div>
               {tipModalOpen && (
                 <div onClick={() => setTipModalOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(8px)" }}>
                   <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, background: "#0a0a0f", borderTop: "1px solid rgba(78,205,196,0.3)", borderRadius: "18px 18px 0 0", padding: "20px 22px 28px", boxSizing: "border-box" }}>
@@ -8826,7 +8877,10 @@ function HomePage() {
                     </div>
                     <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.55 }}>{tip.text}</div>
                     <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 14, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>src: {tip.source}</div>
-                    <button onClick={() => { setDismissedTodayTip(true); setTipModalOpen(false); }} style={{ marginTop: 16, padding: "8px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.55)", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1, cursor: "pointer" }}>HIDE FOR TODAY</button>
+                    {/* HIDE button bumped to higher contrast so it
+                        actually reads as an action (was 4%/10% white
+                        on dark — easy to miss). (qa: pro-tip-hide-visibility) */}
+                    <button onClick={() => { setDismissedTodayTip(true); setTipModalOpen(false); }} style={{ marginTop: 16, padding: "10px 18px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.4)", borderRadius: 10, color: "#4ECDC4", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, cursor: "pointer" }}>✕ HIDE FOR TODAY</button>
                   </div>
                 </div>
               )}
@@ -10541,7 +10595,7 @@ function HomePage() {
                                   {/* Header row — columns depend on mode */}
                                   {lbMode === "sessions" && (
                                     <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 38px 38px 38px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                                      {["#","NAME","SESS","STRK","PRs"].map((h, hi) => (
+                                      {["#","NAME","SESS","STRK","PBs"].map((h, hi) => (
                                         <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "center" : "left" }}>{h}</div>
                                       ))}
                                     </div>
