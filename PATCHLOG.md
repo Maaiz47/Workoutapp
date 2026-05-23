@@ -2,6 +2,14 @@
 
 ---
 
+## QA pass · 2026-05-23 — Consolidate contributors on the QA dashboard (qa: contributions-leaderboard-consolidated)
+
+Per @maaiz: one canonical leaderboard, not two. The standalone `ContributionsView` page in `app/page.tsx` is removed (along with its route, swipe-back entry, and now-unused imports). Settings → Contributors button is now an `<a href="/qa#contributors">` that scroll-anchors directly to the existing CONTRIBUTORS leaderboard already living on `/qa`.
+
+Also dropped the `kind !== "qa-feedback"` filter in that dashboard section so Amanii's BOTH categories — 80 image assets AND 4 early QA notes — show on the same row. Before this change her QA contributions were invisible: the FEEDBACK LEADERBOARD only counts QAComment rows submitted via the live app (different data source), and the CONTRIBUTORS section explicitly filtered her qa-feedback entries out.
+
+---
+
 ## QA pass · 2026-05-23 — Avatar picker is now a swipe-back page (qa: profile-avatars-page)
 
 Per @maaiz: the avatar picker shouldn't be a modal overlay — it should be a routed page like Progress, with swipe-back support. Refactored from a `fixed inset: 0` overlay into a full `AvatarPickerView` component routed under `view === "avatarPicker"`. Same inventory + selection behaviour; new wrapper.

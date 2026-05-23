@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "contributions-leaderboard-consolidated",
+      "title": "Contributors button in Settings points to QA dashboard's contributors section (no standalone view)",
+      "area": "Contributors",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass contributions-leaderboard-consolidated",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → FEEDBACK & QA. Verify the `🏅 CONTRIBUTORS →` card sits below the `🥋 OPEN QA DASHBOARD →` card.",
+        "Tap it. Verify the browser navigates to `/qa#contributors` and scrolls directly to the CONTRIBUTORS section on the QA dashboard (purple card titled `🏅 CONTRIBUTORS`).",
+        "Inside that section verify Amanii's row shows BOTH her image-asset contribution (🎨 ART ×80) AND her early QA pass (🐞 QA ×4) — not just one or the other.",
+        "Confirm the standalone ContributionsView page no longer exists (no view === 'contributions' route). Hitting `/qa#contributors` directly in the URL bar should work cold-load with the anchor scroll.",
+        "Swipe-back from the QA dashboard — verify it goes back to Settings as expected (no orphan contributions view in the history)."
+      ],
+      "notes": "[2026-05-23] Consolidated: the standalone `ContributionsView` in app/page.tsx is gone, the `view === 'contributions'` route + swipe-back entry + imports are stripped. Settings → Contributors button is now an `<a href='/qa#contributors'>` that scroll-anchors to the CONTRIBUTORS leaderboard already living on /qa. Dropped the `kind !== 'qa-feedback'` filter in app/qa/page.tsx ContributorsLeaderboard so Amanii's BOTH categories show on the same row (was previously hiding her QA contributions from the contributors leaderboard since they belonged to the FEEDBACK side — but the feedback leaderboard only counts QAComment rows from the live app, so her credit was invisible everywhere). (Reported by @maaiz: 'the contributors button in the settings can point to the same QA leaderboard, and amanii's photo contributions need to be included there as testing and image contributions, no need for a separate contributors table or view'.)"
+    },
+    {
       "id": "profile-avatars-page",
       "title": "Avatar picker is a full-page view with swipe-back (not a modal overlay)",
       "area": "Profile",

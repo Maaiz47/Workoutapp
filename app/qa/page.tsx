@@ -622,23 +622,26 @@ function Leaderboard({ comments }: { comments: Comment[] }) {
 }
 
 // ─── Contributors leaderboard ─────────────────────────────────────────────
-// Surfaces lib/contributions.ts entries that fall OUTSIDE the QA-feedback
-// stream — image asset generation, code, design, etc. Sits right below the
-// FEEDBACK LEADERBOARD so heavy-lifters like Amanii (80 image assets) get
-// visible credit on the dashboard, not just in Settings → Contributors.
-// (qa: contributions-on-qa-board)
+// Surfaces every lib/contributions.ts entry — image assets, QA passes,
+// code, design — in one place. Sits right below the FEEDBACK LEADERBOARD.
+// Per @maaiz: contributors who've done multiple things (e.g. Amanii: 80
+// image assets + 4 early QA notes) should see all of it credited here in
+// one row rather than split across two surfaces. The Settings → Contributors
+// button also points to this section via /qa#contributors so there's a
+// single canonical destination. (qa: contributions-leaderboard,
+// contributions-on-qa-board)
 function ContributorsLeaderboard() {
   const [open, setOpen] = useState(true);
-  // Filter to contributors who have at least one non-QA contribution.
-  // (Pure-QA testers already get visibility on the FEEDBACK LEADERBOARD
-  // above; no need to double-count them here.)
+  // Every contributor with at least one contribution — no kind filter, so
+  // image + QA + design all stack on the same row. The FEEDBACK
+  // LEADERBOARD above only counts QAComment rows submitted via the live
+  // app (different source); there's no double-count between the two.
   const rows = CONTRIBUTORS
     .map(c => {
-      const otherContribs = c.contributions.filter(co => co.kind !== "qa-feedback");
-      const otherTotal = otherContribs.reduce((s, x) => s + (x.count ?? 1), 0);
-      return { contributor: c, otherContribs, otherTotal, totalAll: totalContributions(c) };
+      const total = totalContributions(c);
+      return { contributor: c, allContribs: c.contributions, otherTotal: total, totalAll: total };
     })
-    .filter(r => r.otherContribs.length > 0)
+    .filter(r => r.allContribs.length > 0)
     .sort((a, b) => b.otherTotal - a.otherTotal);
 
   if (rows.length === 0) return null;
@@ -646,12 +649,13 @@ function ContributorsLeaderboard() {
   const grandTotal = rows.reduce((s, r) => s + r.otherTotal, 0);
 
   return (
-    <div style={{
+    <div id="contributors" style={{
       marginBottom: 18,
       background: "linear-gradient(180deg, rgba(168,85,247,0.06) 0%, rgba(255,255,255,0.02) 100%)",
       border: "1px solid rgba(168,85,247,0.2)",
       borderRadius: 12,
       overflow: "hidden",
+      scrollMarginTop: 80,
     }}>
       <button
         onClick={() => setOpen(o => !o)}
@@ -698,7 +702,7 @@ function ContributorsLeaderboard() {
                     <span style={{ fontSize: 10, color: "#a855f7", fontFamily: "'Space Mono', monospace", fontWeight: 700, letterSpacing: 1 }}>{r.otherTotal} CONTRIBS</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {r.otherContribs.map((co: Contribution, i: number) => {
+                    {r.allContribs.map((co: Contribution, i: number) => {
                       const k = kindLabel(co.kind);
                       return (
                         <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>

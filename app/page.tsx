@@ -23,7 +23,11 @@ import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepTod
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState } from "../lib/challenges";
 import { computeExerciseRecencies, recencyForExercise, recencyDotColor, ExerciseRecency } from "../lib/adaptiveRewards";
 import { findAvatar, AVATARS, Avatar } from "../lib/avatars";
-import { rankedContributors, totalContributions, kindLabel, Contributor } from "../lib/contributions";
+// rankedContributors / totalContributions / kindLabel / Contributor no
+// longer needed in this file — the standalone ContributionsView was
+// removed and the contributors leaderboard is sourced from
+// lib/contributions.ts directly inside app/qa/page.tsx instead.
+// (qa: contributions-leaderboard)
 import { isDeGamified, setDeGamified, pickTodayQuest, QuestState, isFullStackDay, recordFullStackDay, fullStackDayCount, checkBalancedWeek, recordBalancedWeek, detectNewHidden, HiddenState, HiddenAchievement } from "../lib/gamification";
 import { postWithQueue, drainQueue, queueCount } from "../lib/offlineSync";
 import { TIPS, pickDailyTip, TipContext, ProTip } from "../lib/proTips";
@@ -4235,64 +4239,9 @@ function AvatarPickerView({
   );
 }
 
-function ContributionsView({ onBack }: { onBack: () => void }) {
-  const ranked = rankedContributors();
-  return (
-    <div key="contributions" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: 80, minHeight: "100dvh", padding: "24px 20px 80px", boxSizing: "border-box" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>CONTRIBUTORS</div>
-      </div>
-
-      <div style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 12, padding: "14px 16px", marginBottom: 16, fontSize: 13, color: "rgba(255,255,255,0.78)", lineHeight: 1.55 }}>
-        <div style={{ fontSize: 22, marginBottom: 6 }}>🏅</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>Built with help</div>
-        IronLog moves forward because people pitch in — art, QA, code, design. This is the leaderboard of who's done what.
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {ranked.map((c: Contributor, rank: number) => {
-          const total = totalContributions(c);
-          const medal = rank === 0 ? "🥇" : rank === 1 ? "🥈" : rank === 2 ? "🥉" : null;
-          return (
-            <div key={c.username} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "14px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: medal ? "#f0c040" : "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", minWidth: 32 }}>{medal ?? `#${rank + 1}`}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>@{c.displayName}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 2 }}>{total} contribution{total === 1 ? "" : "s"}</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {c.contributions.map((co, i) => {
-                  const k = kindLabel(co.kind);
-                  return (
-                    <div key={i} style={{ paddingLeft: 42 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: k.color, background: `${k.color}1a`, border: `1px solid ${k.color}44`, borderRadius: 4, padding: "2px 7px", fontFamily: "'Space Mono', monospace" }}>{k.icon} {k.label}</span>
-                        {co.count != null && co.count > 1 && (
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>×{co.count}</span>
-                        )}
-                        {co.at && (
-                          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{co.at}</span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>{co.description}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ marginTop: 16, fontSize: 10, color: "rgba(255,255,255,0.3)", lineHeight: 1.5 }}>
-        Catalogue lives at <code style={{ background: "rgba(255,255,255,0.04)", padding: "1px 5px", borderRadius: 4, fontSize: 10 }}>lib/contributions.ts</code>. Add a contributor by appending to the CONTRIBUTORS array — no schema changes needed.
-      </div>
-    </div>
-  );
-}
+// ContributionsView removed — the standalone page duplicated the
+// contributors section already on /qa. Settings → Contributors now
+// links directly to /qa#contributors. (qa: contributions-leaderboard)
 
 // ─── MAIN ───────────────────────────────────────────────────────────────
 function HomePage() {
@@ -4872,14 +4821,13 @@ function HomePage() {
   const changeTheme = (t: "iron"|"mono"|"vivid") => { setAppTheme(t); localStorage.setItem("ironlog-theme", t); };
   const changeAccent = (c: string) => { setAccentColor(c); localStorage.setItem("ironlog-accent", c); };
 
-  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "contributions", "globalLeaderboard", "groupsHub", "clientsHub", "avatarPicker"]);
+  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "globalLeaderboard", "groupsHub", "clientsHub", "avatarPicker"]);
   useSwipeBack(() => {
     if (view === "conversation") { setView("messages"); setActiveConversation(null); }
     else if (view === "messages") setView("home");
     else if (view === "clientDetail") { setView("clientsHub"); setEditingPlan(false); setEditedPlanDays(null); }
     else if (view === "progress") { setView("home"); }
     else if (view === "settings" || view === "profile") setView("home");
-    else if (view === "contributions") setView("settings");
     else if (view === "globalLeaderboard") setView("home");
     else if (view === "groupsHub") setView("home");
     else if (view === "clientsHub") setView("home");
@@ -10131,7 +10079,6 @@ function HomePage() {
 
   // ─── GLOBAL TIER LEADERBOARD ────────────────────────────────────────
   if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} isTrainer={userHasRole(user, "trainer")} />;
-  if (view === "contributions") return <ContributionsView onBack={() => setView("settings")} />;
   if (view === "avatarPicker") return <AvatarPickerView onBack={() => setView("profile")} currentAvatarId={currentAvatarId} setCurrentAvatarId={setCurrentAvatarId} avatarInventory={avatarInventory} setAvatarInventory={setAvatarInventory} />;
   // ─── CLIENTS HUB ──────────────────────────────────────────────────
   // Trainer's roster + actions, lifted out of the home dashboard.
@@ -12073,29 +12020,30 @@ function HomePage() {
             </div>
           </a>
 
-          {/* Contributors leaderboard — credits surface acknowledging
-              everyone who's helped move IronLog forward (image art,
-              QA, code, design). Currently lists Amanii for the 80
-              image assets she generated + her early QA pass.
+          {/* Contributors — points at the QA dashboard's contributors
+              section directly. Previously this opened a standalone
+              ContributionsView page that duplicated the same data
+              already surfaced on /qa. Per @maaiz: one canonical
+              leaderboard, both image + QA contributions visible.
               (qa: contributions-leaderboard) */}
-          <button
-            onClick={() => setView("contributions")}
+          <a
+            href="/qa#contributors"
             style={{
               width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
               marginBottom: 12, padding: "14px 16px",
               background: "rgba(168,85,247,0.06)",
               border: "1px solid rgba(168,85,247,0.22)",
-              borderRadius: 12, textAlign: "left",
+              borderRadius: 12, textDecoration: "none",
               cursor: "pointer", fontFamily: "'DM Sans', sans-serif", color: "#fff",
             }}
           >
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: "#a855f7", fontFamily: "'Space Mono', monospace" }}>🏅 CONTRIBUTORS →</div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 4, lineHeight: 1.5 }}>
-                People who've helped move IronLog forward — image art, QA, code, design.
+                Image art, QA, code, design — lives on the QA dashboard alongside the feedback leaderboard.
               </div>
             </div>
-          </button>
+          </a>
 
           {/* ── SECTION: LIBRARY & SYSTEM — learning content, app version,
               data export, gamification toggle, log out. ── */}
