@@ -2239,23 +2239,59 @@
       "notes": "[2026-05-22 <sha7>] Slice 1/N: athlete-side READ access to groups. Removed the trainer-only gate on the home QUICK ACTIONS Groups button; gated '+ NEW GROUP' inside the view with userHasRole(user, 'trainer'). Empty state copy differs by role. Held back: athlete-created groups (needs API change + invite-by-username UI), friend system (not needed per current consent model — accept/decline flow IS the consent gate), self-leave button for non-creator members."
     },
     {
-      "id": "tier-scoring-veteran-fairness",
-      "title": "Tier scoring rework — fix PR plateau + add body composition + leaderboard column refresh",
+      "id": "tier-scoring-v2",
+      "title": "Tier scoring v2 — e1RM trend, Progression, Body Comp (sex-aware), hasData weighting",
       "area": "Tier",
-      "introduced": "2026-05-22",
-      "introducedBy": "QA pass tier-scoring-veteran-fairness",
-      "lastTested": null,
-      "status": "untested",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-scoring-v2",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
       "steps": [
-        "(Deferred design slice — NO code shipped yet.) This is the spec for the next session to implement. User explicitly asked to skip ship tonight and capture design.",
-        "(1) Strength sub-rank rework. REPLACE the existing `scoreFromCount(prCount, 30)` with e1RM TREND over the last 180d. Per exercise, compute the user's best e1RM at the start of the 180d window vs the end of the window. Take the top 6 most-trained exercises in the window. Average their per-exercise % gain. Map (-5%..+15%) to 0..100 with a soft floor at 25 so a flat plateau still scores something (the user explicitly doesn't want maintainers to crash). Rationale: addresses user feedback 'don't want them to plateau because they stopped hitting first-time PRs but stayed consistent and tried to progress'. Veterans adding 1-2kg/quarter score real points; beginners' PR-burst doesn't pin them at 80 forever.",
-        "(2) Body Composition — new 6th sub-rank. Inputs: latest BodyMetric.weightKg, BodyMetric.bodyFatPct, UserProfile.heightCm. Compute BMI = weightKg/(heightCm/100)^2. Score = avg(bmiScore, bfScore). bmiScore: piecewise — peak 100 at BMI 22.5, half-life ~3.5 BMI points either side, floor 0 outside 16-32 range. bfScore: piecewise — peak 100 at BF% ~12% (sex-agnostic v1), drops below 8% (too-lean penalty) and above 22% (low-fit penalty), floor 30 at 30%+ BF. Score current values, NOT trend — trend is too slow to surface a signal monthly. If no BodyMetric on file: contribute 0 to the headline but DON'T penalise — make this sub-rank's weight conditional so a user who hasn't logged body comp doesn't get a deflated headline tier. User feedback: 'how in shape they are is a valuable thing especially to be maintaining'.",
-        "(3) Leaderboard columns. Trainer's INLINE client leaderboard on home (currently SESS/STREAK/PRs/⚡IP) → new spec: `# / CLIENT / Volume (k kg-reps) / Sessions / Tier`. Drop streak/PRs/IP — Volume is the new bottom-line metric per user feedback 'I like the total volume pushed and stuff'. The GlobalLeaderboardView (behind Ranks button) keeps its current shape (score-based ranking is the right summary for global). Default sort on the inline board: Volume desc.",
-        "(4) Ranks ↔ Tier modal: Ranks button stays on home. Tier modal KEEPS the existing '↓ JUMP TO MY LEADERBOARD ROW' + '🌍 GLOBAL TIER LEADERBOARD' links (user confirmed: 'we could have global rankings linked in the tier modal too yes'). Tier modal's primary job is still ladder explanation; the leaderboard links are secondary CTAs.",
-        "(5) Migration story. Feature-flag the new scoring (`SCORING_V2` env var or a UserProfile field). On first login after the new headline lands, show a one-time non-dismissible card: 'Your tier is now X (was Y) — here's why' with a 1-line per sub-rank breakdown. Then auto-dismiss. Keeps user trust through the transition.",
-        "(6) Test plan once shipped: load 3 representative profiles — a 1-month newbie, a 6-month grinder, a 2-year veteran — and verify the new scoring produces sane tier placements (newbie: low Tier 1-2; grinder: mid; vet: high) without anyone collapsing or skyrocketing more than 1 tier from their pre-rework score."
+        "Open Progress (athlete dashboard) → tap your tier chip. Modal lists 7 sub-ranks: Consistency, Strength, Progression, Volume, Mastery, Body Comp, Habits.",
+        "Verify Strength's detail line reads `<+/-X.X>% e1RM (180d, top N)` instead of `<n> personal bests`. New users with <4 sets logged on any exercise see `log ≥4 sets of an exercise to start tracking` and the sub-rank is excluded from the headline (hasData=false).",
+        "Verify Progression's detail line reads `<+/-X.X>%/wk volume trend · Nwk`. Users with <9 weeks of training history see `log N more weeks to unlock progression` and the sub-rank is excluded.",
+        "Verify Body Comp's detail line shows BF% and/or weight plus `· ♂ curve` or `· ♀ curve` based on UserProfile.gender. Users with neither weight nor BF logged see `log weight or body-fat to track condition` (excluded from headline). Female users with the same fitness as a male should NOT score systematically lower.",
+        "Verify Consistency's detail reads `<n>/<target> last 4wk · streak <m>wk` — the streak is now WEEKLY (consecutive weeks hitting daysPerWeek target), not daily. Training 4/wk perfectly when daysPerWeek=4 should grow the weekly streak each week even with rest days in between.",
+        "Verify Mastery's detail reads `<n> exercises ≥4 sets (last 6mo) · <m> lifetime`. Exercises logged once or twice in 6 months should NOT count toward the count.",
+        "Verify headline tier feels right for a 1-month newbie (Tier 1-2), a 6-month grinder (Tier 3-4), and a 2-year veteran (Tier 4-5). No-one should be pinned at the bottom because they don't log body comp / wellness — those sub-ranks drop out via hasData.",
+        "Verify `tierScoreBonus` (the lucky-drop bonus shown on the avatar page) NO LONGER adds to the canonical tier score — the headline is now pure f(stats).",
+        "Verify per-set RPE contributes to IP: log a set with RPE 10 → +3 IP, RPE 9 → +2 IP, RPE 8 → +1 IP, RPE ≤7 → 0 IP. Summed across all sets, the IP shown on the client leaderboard reflects (stored superset/dropset awards) + (per-set RPE bonus).",
+        "Verify `Path to next` callout now points at the sub-rank with the LARGEST score-upside-to-100, not just the lowest absolute score (so a 49 Volume beats a 30 Habits as the suggested focus area)."
       ],
-      "notes": "[2026-05-22 <sha7>] Slice 0/N (PLAN ONLY): full spec captured. The 4-part design above represents Claude's best-guess shape — push back on any part you disagree with. Concrete defaults so you don't have to make every call: e1RM trend (option a) for Strength, sex-agnostic BMI+BF% for body comp (defer sex-aware to v2), Volume/Sessions/Tier for client leaderboard columns, keep tier-modal leaderboard CTAs. Feature-flagged rollout. Hold for tomorrow when fresh deploy budget is available."
+      "notes": "[2026-05-23 <sha7>] Slice 1/1 (FULL ROLLOUT): shipped all 9 items from the design plan. Reworked lib/tiers.ts with new sub-ranks (Strength=e1RM trend, Progression=weekly volume regression, Body Comp=sex-aware current+90d-maintenance). Consistency rebuilt: 30% 180d-sessions + 60% adherence + 10% weekly streak (dropped lifetime totalSessions, dropped daily streak). Mastery filter raised to ≥4 sets in 180d. tierScoreBonus removed from headline math (still awarded to profile field for the lucky-drop UX, just not blended). hasData flag per sub-rank → headline averages only over dims with signal. focusNext picks highest 100-score upside. lib/leaderboardStats.ts now reads UserProfile.gender, computes per-exercise sets / weekly volumes / 90d body deltas / RPE bonus IP. computeStatsFromLogs backward-compat preserved.\n[2026-05-22] Slice 0/N (PLAN ONLY): full spec captured."
+    },
+    {
+      "id": "client-leaderboard-relocation",
+      "title": "Client leaderboard moved off home into Ranks page tab + My Clients hub",
+      "area": "Leaderboards",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-scoring-v2",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Log in as a TRAINER. Open home. Scroll the trainer-only sections. Verify there is NO inline LEADERBOARD block on home (it used to sit between routines and 'MY EXERCISES').",
+        "Tap the 🏆 Leaderboards button. The Ranks page (GlobalLeaderboardView) now shows THREE tabs: 🏆 ATHLETES, 🤝 TRAINERS, 👤 MY CLIENTS. (Athletes who are not trainers see only the first two.)",
+        "Tap 👤 MY CLIENTS. Confirm the block loads with the new columns: # / CLIENT (with tier subtitle) / VOL / SESS / STRK / PR / IP. Sort chips rotate between SESSIONS / VOL / STREAK / ⚡ IP.",
+        "From Home, tap Clients. Inside the My Clients hub, scroll past 'View My Clients' and 'Find New Clients' — the same client leaderboard block sits at the bottom of the page.",
+        "Verify the data matches between Ranks → MY CLIENTS and Clients hub → leaderboard (same source endpoint /api/trainer/leaderboard)."
+      ],
+      "notes": "[2026-05-23 <sha7>] Shipped: removed the inline 95-line leaderboard from app/page.tsx home, extracted ClientLeaderboardBlock as a reusable component, mounted in (a) Ranks page as a 3rd 'MY CLIENTS' tab (trainer-only), (b) clientsHub view as a bottom-of-page section. Design rule captured: 'if a feature has its own tab/button, no inline duplicate on home'."
+    },
+    {
+      "id": "tier-promotion-toast",
+      "title": "Tier promotion celebration toast",
+      "area": "Tier",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-scoring-v2",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open the app for the first time after the v2 scoring rollout. Verify the localStorage key `ironlog.lastObservedTier.<userId>` gets set quietly to your current tierNum without triggering a toast (first observation is a silent baseline).",
+        "Manually edit the localStorage key to a lower number (e.g. tierNum 2 if you're at Lion T4). Refresh the page. Verify the tier-up toast fires at the top of the screen with your CURRENT tier icon/label/color and the text 'TIER UP! · <label> · T<num>'. Tap to dismiss; auto-dismisses after 4s.",
+        "Edit the key to a higher number than current. Refresh. Verify the toast does NOT fire (demotion is silent) and the key gets quietly resynced to the current value.",
+        "Log out and log in as a different user. Verify the prior user's tier promotion does NOT re-fire — the localStorage key is namespaced per userId."
+      ],
+      "notes": "[2026-05-23 <sha7>] Shipped: added tierPromoToast state + useEffect that watches myAthleteBreakdown.headline.tierNum vs the localStorage `ironlog.lastObservedTier.<userId>` value. Fires only on UP transitions; first observation is silent; demotions are silent + resync. Tap-to-dismiss + 4s auto-dismiss. Rendered at HomePage's top-level return so it's visible across all views."
     },
     {
       "id": "home-hub-consolidation",

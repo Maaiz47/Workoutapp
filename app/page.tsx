@@ -14,7 +14,7 @@ import { pickWarmupForDay } from "../lib/warmups";
 import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutorial";
 import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTargetReps, detectPlateau, shouldSuggestDeload } from "../lib/performance";
-import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown, getAthleteTiers } from "../lib/tiers";
+import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown, AnimalTier, getAthleteTiers } from "../lib/tiers";
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
@@ -3395,13 +3395,13 @@ function TierInfoModal({
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {athleteBreakdown.subRanks.map(r => (
-                <div key={r.id}>
+                <div key={r.id} style={{ opacity: r.hasData ? 1 : 0.55 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                    <div style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{r.icon} {r.label}</div>
-                    <div style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: "rgba(240,192,64,0.85)", fontWeight: 700 }}>{r.score}/100</div>
+                    <div style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{r.icon} {r.label}{!r.hasData && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginLeft: 6, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· NOT COUNTED</span>}</div>
+                    <div style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: r.hasData ? "rgba(240,192,64,0.85)" : "rgba(255,255,255,0.3)", fontWeight: 700 }}>{r.hasData ? `${r.score}/100` : "—"}</div>
                   </div>
                   <div style={{ height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden", marginBottom: 3 }}>
-                    <div style={{ width: `${Math.max(2, r.score)}%`, height: "100%", background: "linear-gradient(90deg, #f0c040, #f97316)" }} />
+                    <div style={{ width: `${Math.max(2, r.score)}%`, height: "100%", background: r.hasData ? "linear-gradient(90deg, #f0c040, #f97316)" : "rgba(255,255,255,0.15)" }} />
                   </div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{r.detail}</div>
                 </div>
@@ -3409,7 +3409,7 @@ function TierInfoModal({
             </div>
             {athleteBreakdown.focusNext && (
               <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(78,205,196,0.07)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
-                <strong style={{ color: "#4ECDC4" }}>↑ Path to next:</strong> {athleteBreakdown.focusNext.label.toLowerCase()} is your lowest sub-rank ({athleteBreakdown.focusNext.score}/100) — pushing it up is the cheapest way to bump your headline toward the next tier.
+                <strong style={{ color: "#4ECDC4" }}>↑ Path to next:</strong> {athleteBreakdown.focusNext.label.toLowerCase()} has the biggest upside ({athleteBreakdown.focusNext.score}/100) — closing the gap to 100 moves your headline more than any other dim.
               </div>
             )}
           </div>
@@ -3459,7 +3459,7 @@ function TierInfoModal({
             </div>
             {trainerBreakdown.focusNext && (
               <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(240,192,64,0.07)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 8, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
-                <strong style={{ color: "#f0c040" }}>↑ Path to next:</strong> {trainerBreakdown.focusNext.label.toLowerCase()} is your lowest sub-rank ({trainerBreakdown.focusNext.score}/100) — pushing it up is the cheapest way to bump your headline.
+                <strong style={{ color: "#f0c040" }}>↑ Path to next:</strong> {trainerBreakdown.focusNext.label.toLowerCase()} has the biggest upside ({trainerBreakdown.focusNext.score}/100) — closing its gap to 100 moves your headline more than any other dim.
               </div>
             )}
           </div>
@@ -3707,8 +3707,89 @@ function TierLadder({
 // athletes (opt-out) render as "Athlete #<rank>"; trainers are
 // always public per user direction. Data fetched from
 // /api/leaderboard/global. (qa: tier-global-leaderboard)
-function GlobalLeaderboardView({ onBack, viewerId, tierTheme }: { onBack: () => void; viewerId: string; tierTheme: "vivid" | "simple" }) {
-  const [kind, setKind] = useState<"athlete" | "trainer">("athlete");
+// Reusable trainer-owned client leaderboard. Used in two surfaces
+// after the home-inline copy was removed (qa: client-leaderboard-
+// relocation): the Ranks page (as the "MY CLIENTS" tab, trainer-only)
+// and the My Clients hub (as an in-page section). Columns:
+// # / CLIENT(+tier subtitle) / VOL / SESS / STREAK / PRs / ⚡IP.
+// Sort can rotate between sessions / streak / intensity / volume.
+function ClientLeaderboardBlock({ tierTheme }: { tierTheme: "vivid" | "simple" }) {
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState<"sessions" | "streak" | "intensity" | "volume">("sessions");
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch("/api/trainer/leaderboard")
+      .then(r => r.json())
+      .then(d => { if (!cancelled && d.leaderboard) setRows(d.leaderboard); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+  if (loading) return <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "20px 0" }}>Loading…</div>;
+  if (rows.length === 0) return <div style={{ textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 13, padding: "20px 0" }}>No client data yet. Adopt clients first.</div>;
+  const themedTiers = getAthleteTiers(tierTheme);
+  const sorted = [...rows].sort((a, b) =>
+    sort === "streak" ? b.streak - a.streak :
+    sort === "intensity" ? (b.totalIntensityPoints ?? 0) - (a.totalIntensityPoints ?? 0) :
+    sort === "volume" ? (b.totalVolume ?? 0) - (a.totalVolume ?? 0) :
+    b.totalSessions - a.totalSessions
+  );
+  return (
+    <div className="fade-in">
+      <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+        {(["sessions", "volume", "streak", "intensity"] as const).map(s => (
+          <button key={s} onClick={() => setSort(s)} style={{ padding: "4px 12px", borderRadius: 20, fontSize: 10, fontFamily: "'Space Mono', monospace", letterSpacing: 1, cursor: "pointer", fontWeight: 600, background: sort === s ? "rgba(162,155,254,0.18)" : "rgba(255,255,255,0.04)", border: `1px solid ${sort === s ? "rgba(162,155,254,0.4)" : "rgba(255,255,255,0.08)"}`, color: sort === s ? "#a29bfe" : "rgba(255,255,255,0.35)" }}>
+            {s === "intensity" ? "⚡ IP" : s === "volume" ? "VOL" : s.toUpperCase()}
+          </button>
+        ))}
+      </div>
+      <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 46px 36px 36px 30px 34px", gap: 4, padding: "10px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          {["#", "CLIENT", "VOL", "SESS", "STRK", "PR", "IP"].map((h, hi) => {
+            const sortKey: Record<string, string | null> = { VOL: "volume", SESS: "sessions", STRK: "streak", IP: "intensity" };
+            const isSortCol = sortKey[h] != null && sortKey[h] === sort;
+            return (
+              <div key={h} style={{ fontSize: 9, color: isSortCol ? "#a29bfe" : "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "center" : "left" }}>{h}</div>
+            );
+          })}
+        </div>
+        {sorted.map((c, i) => {
+          const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+          const rawTier = c.tier;
+          const num = rawTier?.tierNum ?? themedTiers.findIndex(t => t.label === rawTier?.label) + 1;
+          const tier = themedTiers.find(t => t.tierNum === num) ?? rawTier ?? themedTiers[0];
+          const volK = Math.round((c.totalVolume ?? 0) / 1000);
+          return (
+            <div key={c.id} style={{ display: "grid", gridTemplateColumns: "26px 1fr 46px 36px 36px 30px 34px", gap: 4, padding: "10px 10px", borderBottom: i < sorted.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.03)" : "transparent", alignItems: "center" }}>
+              <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{c.username}</div>
+                <div style={{ fontSize: 10, color: tier.color, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tier.icon} T{tier.tierNum} · {tier.label}</div>
+              </div>
+              <div style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: sort === "volume" ? "#a29bfe" : "rgba(255,255,255,0.7)", fontFamily: "'Space Mono', monospace" }}>{volK}k</div>
+              <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: sort === "sessions" ? "#a29bfe" : "#fff" }}>{c.totalSessions}</div>
+              <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: sort === "streak" ? "#a29bfe" : c.streak >= 3 ? "#FF6B6B" : "#fff" }}>{c.streak}</div>
+              <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: c.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{c.prCount}</div>
+              <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: sort === "intensity" ? "#a29bfe" : (c.totalIntensityPoints ?? 0) > 0 ? "#FFE66D" : "rgba(255,255,255,0.3)" }}>{c.totalIntensityPoints ?? 0}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, lineHeight: 1.5 }}>
+        VOL = lifetime kg-reps · IP = intensity (supersets, drop sets, RPE 8+)
+      </div>
+    </div>
+  );
+}
+
+function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onBack: () => void; viewerId: string; tierTheme: "vivid" | "simple"; isTrainer: boolean }) {
+  // "myClients" tab is trainer-only and uses the existing /api/trainer/
+  // leaderboard endpoint instead of /api/leaderboard/global. The Ranks
+  // page is now the canonical home for ALL leaderboards (athlete /
+  // trainer / your own clients). (qa: client-leaderboard-relocation)
+  const [kind, setKind] = useState<"athlete" | "trainer" | "myClients">("athlete");
   const [lens, setLens] = useState<"top" | "band" | "around">("top");
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<{ totalParticipants: number; viewerRank: number | null; viewerTierNum: number | null } | null>(null);
@@ -3716,6 +3797,9 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme }: { onBack: () => 
 
   useEffect(() => {
     let cancelled = false;
+    // "myClients" tab is rendered by ClientLeaderboardBlock which has
+    // its own fetch — skip the global endpoint call here.
+    if (kind === "myClients") { setLoading(false); return; }
     setLoading(true);
     fetch(`/api/leaderboard/global?kind=${kind}&lens=${lens}`)
       .then(r => r.json())
@@ -3739,16 +3823,26 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme }: { onBack: () => 
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>GLOBAL · TIER LEADERBOARD</div>
       </div>
 
-      {/* Kind tabs */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 12 }}>
-        {([{ id: "athlete", label: "🏆 ATHLETES" }, { id: "trainer", label: "🤝 TRAINERS" }] as const).map(t => {
+      {/* Kind tabs — athlete + trainer always; MY CLIENTS appears
+          only for trainers (it sources from /api/trainer/leaderboard
+          and is scoped to the viewer's roster). */}
+      <div style={{ display: "grid", gridTemplateColumns: isTrainer ? "1fr 1fr 1fr" : "1fr 1fr", gap: 6, marginBottom: 12 }}>
+        {([
+          { id: "athlete",   label: "🏆 ATHLETES" },
+          { id: "trainer",   label: "🤝 TRAINERS" },
+          ...(isTrainer ? [{ id: "myClients" as const, label: "👤 MY CLIENTS" }] : []),
+        ] as const).map(t => {
           const active = kind === t.id;
           return (
-            <button key={t.id} onClick={() => setKind(t.id as any)} style={{ padding: "10px", borderRadius: 10, background: active ? "rgba(240,192,64,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${active ? "rgba(240,192,64,0.4)" : "rgba(255,255,255,0.08)"}`, color: active ? "#f0c040" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1, cursor: "pointer" }}>{t.label}</button>
+            <button key={t.id} onClick={() => setKind(t.id as any)} style={{ padding: "10px 6px", borderRadius: 10, background: active ? "rgba(240,192,64,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${active ? "rgba(240,192,64,0.4)" : "rgba(255,255,255,0.08)"}`, color: active ? "#f0c040" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, cursor: "pointer" }}>{t.label}</button>
           );
         })}
       </div>
 
+      {kind === "myClients" ? (
+        <ClientLeaderboardBlock tierTheme={tierTheme} />
+      ) : (
+      <>
       {/* Lens picker */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
         {([{ id: "top", label: "TOP 100" }, { id: "band", label: "YOUR TIER" }, { id: "around", label: "AROUND YOU" }] as const).map(l => {
@@ -3799,6 +3893,8 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme }: { onBack: () => 
           ? "Anonymous? Toggle visibility in Settings → APP PREFERENCES → \"Hide me from global board\". The trainer board is always public."
           : "Trainer ranks are always public — clients use this board to discover coaches."}
       </div>
+      </>
+      )}
     </div>
   );
 }
@@ -4201,10 +4297,9 @@ function HomePage() {
   // getTrainerTier(clients.length) for the modal and Settings IDENTITY.
   // (qa: tier-trainer-keeps-athlete)
   const [myTrainerBreakdown, setMyTrainerBreakdown] = useState<TierBreakdown | null>(null);
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
-  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [leaderboardSort, setLeaderboardSort] = useState<"sessions" | "streak" | "intensity">("sessions");
+  // Inline client leaderboard state removed alongside the home block —
+  // ClientLeaderboardBlock owns its own state now. (qa: client-
+  // leaderboard-relocation)
   const [showMyClients, setShowMyClients] = useState(true);
   const [showFindClients, setShowFindClients] = useState(false);
   const [lbGroups, setLbGroups] = useState<any[]>([]);
@@ -6054,7 +6149,10 @@ function HomePage() {
     if (!user) return null;
     const distinctEx = new Set<string>();
     const recentDistinctEx = new Set<string>();
-    const oneEightyDaysAgo = Date.now() - 180 * 86400000;
+    const recentSetsByExercise: Record<string, { dateMs: number; weight: number; reps: number; rpe?: number | null }[]> = {};
+    const volumeByWeek = new Map<number, number>();
+    const todayMs = Date.now();
+    const oneEightyDaysAgo = todayMs - 180 * 86400000;
     let totalVolume = 0;
     for (const dayId in history) for (const s of history[dayId]) {
       const sessionTs = s.date ? +new Date(s.date) : 0;
@@ -6062,14 +6160,31 @@ function HomePage() {
       const sets = (s.sets ?? {}) as Record<string, any>;
       for (const k in sets) {
         const exKey = k.replace(/-\d+(-d\d+)?$/, "");
+        const v = sets[k];
+        if (!v || v.skipped) continue;
+        const w = v.weight ?? 0;
+        const r = v.reps ?? 0;
+        const rpe = typeof v.rpe === "number" ? v.rpe : null;
         if (exKey) {
           distinctEx.add(exKey);
-          if (isRecent) recentDistinctEx.add(exKey);
+          if (isRecent) {
+            recentDistinctEx.add(exKey);
+            if (!recentSetsByExercise[exKey]) recentSetsByExercise[exKey] = [];
+            recentSetsByExercise[exKey].push({ dateMs: sessionTs, weight: w, reps: r, rpe });
+          }
         }
-        const v = sets[k];
-        if (v && !v.skipped) totalVolume += (v.weight ?? 0) * (v.reps ?? 0);
+        totalVolume += w * r;
+        if (isRecent) {
+          const d = new Date(sessionTs);
+          const back = (d.getDay() + 6) % 7;
+          const weekStartMs = sessionTs - back * 86400000 - (d.getHours() * 3600000) - (d.getMinutes() * 60000) - (d.getSeconds() * 1000) - d.getMilliseconds();
+          volumeByWeek.set(weekStartMs, (volumeByWeek.get(weekStartMs) ?? 0) + w * r);
+        }
       }
     }
+    const weeklyVolumes = Array.from(volumeByWeek.entries())
+      .map(([weekStartMs, volumeKg]) => ({ weekStartMs, volumeKg }))
+      .sort((a, b) => a.weekStartMs - b.weekStartMs);
     const monthsOnApp = user.createdAt ? (Date.now() - +new Date(user.createdAt)) / (30 * 86400000) : 0;
     let wl = { hydrationGoalDays: 0, sleepLoggedDays: 0, energyLoggedDays: 0 };
     try { wl = wellnessLast14Days(); } catch {}
@@ -6079,9 +6194,71 @@ function HomePage() {
     // (qa: tier-scoring-fairness)
     const fourWeeksAgo = Date.now() - 28 * 86400000;
     const last4wDays = new Set<string>();
+    const last180dDays = new Set<string>();
+    const sessionsByWeek = new Map<number, Set<string>>();
+    const daysPerWeek = ob.daysPerWeek || 4;
     for (const dayId in history) for (const s of history[dayId]) {
       const ts = s.date ? +new Date(s.date) : 0;
-      if (ts >= fourWeeksAgo) last4wDays.add(new Date(ts).toISOString().slice(0, 10));
+      const dayStr = new Date(ts).toISOString().slice(0, 10);
+      if (ts >= fourWeeksAgo) last4wDays.add(dayStr);
+      if (ts >= oneEightyDaysAgo) {
+        last180dDays.add(dayStr);
+        const d = new Date(ts);
+        const back = (d.getDay() + 6) % 7;
+        const weekStartMs = ts - back * 86400000 - (d.getHours() * 3600000) - (d.getMinutes() * 60000) - (d.getSeconds() * 1000) - d.getMilliseconds();
+        if (!sessionsByWeek.has(weekStartMs)) sessionsByWeek.set(weekStartMs, new Set());
+        sessionsByWeek.get(weekStartMs)!.add(dayStr);
+      }
+    }
+    // Weekly streak — consecutive weeks (anchored on the current
+    // week) where session count met daysPerWeek target. Rest-day
+    // friendly. (qa: tier-scoring-v2)
+    let weeklyStreak = 0;
+    {
+      const now = new Date();
+      const back = (now.getDay() + 6) % 7;
+      const todayStartMs = now.getTime() - back * 86400000 - (now.getHours() * 3600000) - (now.getMinutes() * 60000) - (now.getSeconds() * 1000) - now.getMilliseconds();
+      let cursor = todayStartMs;
+      let isCurrent = true;
+      while (true) {
+        const hit = sessionsByWeek.get(cursor)?.size ?? 0;
+        if (isCurrent) {
+          if (hit > 0) weeklyStreak += 1;
+          isCurrent = false;
+          cursor -= 7 * 86400000;
+          continue;
+        }
+        if (hit >= daysPerWeek) {
+          weeklyStreak += 1;
+          cursor -= 7 * 86400000;
+        } else break;
+      }
+    }
+    // Body comp — latest weight + BF + 90d deltas from bodyMetrics
+    // (API-loaded into local state). Onboarding values are the
+    // fallback "starting point". (qa: tier-scoring-v2)
+    let weightCurrent: number | null = null, bfCurrent: number | null = null;
+    let weight90: number | null = null, bf90: number | null = null;
+    {
+      const ninetyDaysAgo = todayMs - 90 * 86400000;
+      const window = 21 * 86400000;
+      let bestWΔ = Infinity, bestBΔ = Infinity;
+      const sorted = [...bodyMetrics].sort((a, b) => +new Date(a.date) - +new Date(b.date));
+      for (const m of sorted) {
+        const ts = +new Date(m.date);
+        if (m.weightKg != null) {
+          weightCurrent = m.weightKg;
+          const dΔ = Math.abs(ts - ninetyDaysAgo);
+          if (dΔ <= window && dΔ < bestWΔ) { weight90 = m.weightKg; bestWΔ = dΔ; }
+        }
+        if (m.bodyFatPct != null) {
+          bfCurrent = m.bodyFatPct;
+          const dΔ = Math.abs(ts - ninetyDaysAgo);
+          if (dΔ <= window && dΔ < bestBΔ) { bf90 = m.bodyFatPct; bestBΔ = dΔ; }
+        }
+      }
+      if (weightCurrent == null && ob.weightKg) weightCurrent = parseFloat(ob.weightKg);
+      if (bfCurrent == null && ob.bodyFatPct) bfCurrent = parseFloat(ob.bodyFatPct);
     }
     const stats: AthleteStatsForTier = {
       totalSessions: overall.totalSessions,
@@ -6095,10 +6272,50 @@ function HomePage() {
       sleepLoggedDays: wl.sleepLoggedDays,
       energyLoggedDays: wl.energyLoggedDays,
       sessionsLast4Weeks: last4wDays.size,
-      daysPerWeek: ob.daysPerWeek || 4,
+      daysPerWeek,
+      // v2 inputs
+      sessions180d: last180dDays.size,
+      weeklyStreak,
+      recentSetsByExercise,
+      weeklyVolumes,
+      weightCurrentKg: weightCurrent,
+      bfCurrentPct: bfCurrent,
+      weightChange90dKg: weight90 != null && weightCurrent != null ? Math.round((weightCurrent - weight90) * 10) / 10 : null,
+      bfChange90dPct: bf90 != null && bfCurrent != null ? Math.round((bfCurrent - bf90) * 10) / 10 : null,
+      gender: ob.gender || null,
     };
     return computeAthleteTier(stats, tierTheme);
-  }, [user, history, overall, tierTheme, ob.daysPerWeek]);
+  }, [user, history, overall, tierTheme, ob.daysPerWeek, ob.weightKg, ob.bodyFatPct, ob.gender, bodyMetrics]);
+
+  // Tier-promotion toast. Compares the user's CURRENT headline tierNum
+  // to the last-observed value stored in localStorage; if higher, fires
+  // a one-off celebratory toast. Wins are persisted per-user (key
+  // includes userId) so logging in as a different account doesn't
+  // re-trigger the prior account's promotion. (qa: tier-promotion-toast)
+  const [tierPromoToast, setTierPromoToast] = useState<{ tier: AnimalTier } | null>(null);
+  useEffect(() => {
+    if (!user || !myAthleteBreakdown) return;
+    const key = `ironlog.lastObservedTier.${user.id}`;
+    const currentTier = myAthleteBreakdown.headline.tierNum;
+    let lastObserved = 0;
+    try { lastObserved = parseInt(localStorage.getItem(key) ?? "0", 10) || 0; } catch {}
+    if (lastObserved === 0) {
+      // First observation — write quietly without firing the toast.
+      try { localStorage.setItem(key, String(currentTier)); } catch {}
+      return;
+    }
+    if (currentTier > lastObserved) {
+      setTierPromoToast({ tier: myAthleteBreakdown.headline });
+      try { localStorage.setItem(key, String(currentTier)); } catch {}
+      // Auto-dismiss after 4s; users can also tap to close.
+      const t = setTimeout(() => setTierPromoToast(null), 4000);
+      return () => clearTimeout(t);
+    } else if (currentTier < lastObserved) {
+      // Quiet demotion — keep the marker in sync but don't toast.
+      try { localStorage.setItem(key, String(currentTier)); } catch {}
+    }
+  }, [user, myAthleteBreakdown]);
+
   const bc: Record<string, string> = { compound: "#2ecc71", isolation: "#74b9ff", cardio: "#FF6B6B" };
 
   const sessionExSuggestions = useMemo(() => {
@@ -8587,101 +8804,10 @@ function HomePage() {
         )}
       </div>
 
-      {userHasRole(user, "trainer") && (
-        <div style={{ padding: "20px 20px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <span style={{ fontSize: 18, lineHeight: 1 }}>🏆</span>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>LEADERBOARD</div>
-            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
-            <button
-              onClick={async () => {
-                if (showLeaderboard) { setShowLeaderboard(false); return; }
-                setLeaderboardLoading(true);
-                setShowLeaderboard(true);
-                try {
-                  const res = await fetch("/api/trainer/leaderboard");
-                  const data = await res.json();
-                  if (data.leaderboard) setLeaderboard(data.leaderboard);
-                } catch {}
-                setLeaderboardLoading(false);
-              }}
-              style={{ padding: "5px 12px", background: showLeaderboard ? "rgba(162,155,254,0.16)" : "rgba(255,255,255,0.04)", border: `1px solid ${showLeaderboard ? "rgba(162,155,254,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, color: showLeaderboard ? "#a29bfe" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
-            >{showLeaderboard ? "HIDE" : "VIEW"}</button>
-          </div>
-          {showLeaderboard && (
-            <div className="fade-in" style={{ marginTop: 8 }}>
-              {/* Sort chips */}
-              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                {(["sessions","streak","intensity"] as const).map(s => (
-                  <button key={s} onClick={() => setLeaderboardSort(s)} style={{ padding: "4px 12px", borderRadius: 20, fontSize: 10, fontFamily: "'Space Mono', monospace", letterSpacing: 1, cursor: "pointer", fontWeight: 600, background: leaderboardSort === s ? "rgba(162,155,254,0.18)" : "rgba(255,255,255,0.04)", border: `1px solid ${leaderboardSort === s ? "rgba(162,155,254,0.4)" : "rgba(255,255,255,0.08)"}`, color: leaderboardSort === s ? "#a29bfe" : "rgba(255,255,255,0.35)" }}>
-                    {s === "intensity" ? "⚡ INTENSITY" : s.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-              {leaderboardLoading ? (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "20px 0" }}>Loading…</div>
-              ) : leaderboard.length === 0 ? (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 13, padding: "20px 0" }}>No client data yet</div>
-              ) : (
-                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 48px 48px 48px 48px", gap: 6, padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                    {["#","CLIENT","SESS","STREAK","PRs","⚡ IP"].map((h, hi) => (
-                      <div key={h} style={{ fontSize: 9, color: hi > 1 && ["SESS","STREAK","PRs","⚡ IP"][hi-2] === (leaderboardSort === "sessions" ? "SESS" : leaderboardSort === "streak" ? "STREAK" : "⚡ IP") ? "#a29bfe" : "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "center" : "left" }}>{h}</div>
-                    ))}
-                  </div>
-                  {[...leaderboard].sort((a, b) => leaderboardSort === "streak" ? b.streak - a.streak : leaderboardSort === "intensity" ? (b.totalIntensityPoints ?? 0) - (a.totalIntensityPoints ?? 0) : b.totalSessions - a.totalSessions).map((c, i) => {
-                    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
-                    // Canonical athlete tier, computed server-side in
-                    // computeStatsForUsers — distinctExercises and
-                    // monthsOnApp are baked in. Wellness still defaults
-                    // to 0 server-side (localStorage-only) so the tier
-                    // may sit one rung below what the client sees on
-                    // their own dashboard, but every leaderboard
-                    // surface reads from the same source.
-                    // Server ships tier object in the legacy vivid
-                    // theme. Re-map by tierNum to the viewer's chosen
-                    // theme so e.g. simple-theme viewers see Bronze
-                    // instead of Kitten on every row. (qa: tier-themes)
-                    const themedTiers = getAthleteTiers(tierTheme);
-                    const tier = (() => {
-                      const raw = c.tier;
-                      if (!raw) return themedTiers[0];
-                      const num = raw.tierNum ?? themedTiers.findIndex(t => t.label === raw.label) + 1;
-                      const themed = themedTiers.find(t => t.tierNum === num);
-                      return themed ?? raw;
-                    })();
-                    return (
-                      <div key={c.id} style={{ display: "grid", gridTemplateColumns: "28px 1fr 48px 48px 48px 48px", gap: 6, padding: "11px 12px", borderBottom: i < leaderboard.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: i === 0 ? "rgba(240,192,64,0.03)" : "transparent" }}>
-                        <div style={{ fontSize: 14, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.icon} {tier.label} · {c.totalVolume.toLocaleString()}kg vol</div>
-                        </div>
-                        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: leaderboardSort === "sessions" ? "#a29bfe" : "#fff" }}>{c.totalSessions}</div>
-                          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>sess</div>
-                        </div>
-                        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: leaderboardSort === "streak" ? "#a29bfe" : c.streak >= 3 ? "#FF6B6B" : "#fff" }}>{c.streak}</div>
-                          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>days</div>
-                        </div>
-                        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: c.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{c.prCount}</div>
-                          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>PRs</div>
-                        </div>
-                        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: leaderboardSort === "intensity" ? "#a29bfe" : (c.totalIntensityPoints ?? 0) > 0 ? "#FFE66D" : "rgba(255,255,255,0.3)" }}>{c.totalIntensityPoints ?? 0}</div>
-                          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>IP</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Inline client leaderboard removed — moved to the Ranks page
+          ("MY CLIENTS" tab) and the My Clients hub. Design rule: a
+          feature lives in its own tab OR inline on home, never both.
+          (qa: client-leaderboard-relocation) */}
 
       {/* ── Trainer: Custom Exercises ── */}
       {userHasRole(user, "trainer") && (
@@ -9634,7 +9760,7 @@ function HomePage() {
   }
 
   // ─── GLOBAL TIER LEADERBOARD ────────────────────────────────────────
-  if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} />;
+  if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} isTrainer={userHasRole(user, "trainer")} />;
   if (view === "contributions") return <ContributionsView onBack={() => setView("settings")} />;
   // ─── CLIENTS HUB ──────────────────────────────────────────────────
   // Trainer's roster + actions, lifted out of the home dashboard.
@@ -9724,6 +9850,19 @@ function HomePage() {
           )}
         </div>
       )}
+
+      {/* Client leaderboard — moved here from the trainer home in the
+          client-leaderboard-relocation rework. Same data as the
+          Ranks page "MY CLIENTS" tab; sits in the My Clients hub
+          for contextually-adjacent ranking. */}
+      <div style={{ padding: "8px 20px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <span style={{ fontSize: 18, lineHeight: 1 }}>🏆</span>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>LEADERBOARD</div>
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+        </div>
+        <ClientLeaderboardBlock tierTheme={tierTheme} />
+      </div>
     </div>
   );
 
@@ -14465,18 +14604,32 @@ function HomePage() {
   // early-returns its own JSX before this fall-through render
   // is reached).
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={_viewKey}
-        initial={{ opacity: 0, x: _isForward ? 22 : -22 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: _isForward ? -22 : 22 }}
-        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        style={{ minHeight: "100dvh" }}
-      >
-        {_content}
-      </motion.div>
-    </AnimatePresence>
+    <>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={_viewKey}
+          initial={{ opacity: 0, x: _isForward ? 22 : -22 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: _isForward ? -22 : 22 }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          style={{ minHeight: "100dvh" }}
+        >
+          {_content}
+        </motion.div>
+      </AnimatePresence>
+      {/* Tier promotion toast — fires once when the user's headline
+          tier number crosses up. Tap to dismiss. (qa: tier-promotion-toast) */}
+      {tierPromoToast && (
+        <div onClick={() => setTierPromoToast(null)} style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(12px)", border: `1px solid ${tierPromoToast.tier.color}`, borderRadius: 16, padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", boxShadow: `0 8px 32px ${tierPromoToast.tier.color}44`, animation: "goalCelebPop 0.4s ease" }}>
+          <span style={{ fontSize: 36 }}>{tierPromoToast.tier.icon}</span>
+          <div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>TIER UP!</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: tierPromoToast.tier.color }}>{tierPromoToast.tier.label}</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 2 }}>T{tierPromoToast.tier.tierNum} · tap to dismiss</div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

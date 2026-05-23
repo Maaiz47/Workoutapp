@@ -2,6 +2,40 @@
 
 ---
 
+## QA pass · 2026-05-23 — Tier scoring v2 ship + client leaderboard relocation (qa: tier-scoring-v2, client-leaderboard-relocation, tier-promotion-toast)
+
+Full rollout of the design captured in the 2026-05-22 plan, with deep-think refinements that emerged in the conversation:
+
+### Addressed
+- **tier-scoring-v2** — `lib/tiers.ts` substantially reworked:
+  - **Strength** now measures **e1RM trend** over the last 180 days across the user's top 6 most-trained exercises (each filtered to ≥4 sets logged in the window). Avg % change maps `-5% → +15%` linearly into `25 → 100`. Floor at 25 keeps maintainers from crashing.
+  - **Progression** is a new 6th sub-rank. Linear regression of weekly volume over the available window (cap 180d). Slope-as-%-of-mean → `≤0%/wk = 30`, `0-1%/wk = 30-70`, `1-3%/wk = 70-100`. <9 weeks of data → `hasData: false` so new users aren't penalised.
+  - **Body Comp** new sub-rank. Sex-calibrated curves (reads `UserProfile.gender`): healthy BF midpoint ~14% for male, ~22% for female (other/unset uses unisex midpoint). Score = 60% current-condition triangular curve + 40% 90d-maintenance (small drift = high score). `hasData` false when neither weight nor BF logged.
+  - **Consistency rebuilt** — was 50% lifetime sessions + 40% adherence + 10% daily streak. Now 30% 180d sessions + 60% adherence + 10% **weekly** streak. Drops the lifetime-sessions decay problem (quitters used to score 80 forever) and the daily-streak conflict with rest-day adherence.
+  - **Mastery** raises the bar — counts exercises with ≥4 sets in 180d instead of "logged at least once". Midpoint dropped from 25 to 18 to match the higher quality threshold.
+  - **`hasData` weighting** — every sub-rank now returns `{ score, hasData, detail }`. Headline averages ONLY over sub-ranks where `hasData=true` so users without wellness/body-comp/exercise history aren't silently penalised.
+  - **`focusNext` highest-leverage** — picks the dim with the largest `100 - score` upside (i.e. the dim that moves the headline most when lifted to its ceiling), tie-breaking on lowest score. Replaces the old "lowest score wins" which gave bad advice when a single dim was almost at its next breakpoint.
+  - **`tierScoreBonus` removed from the canonical headline math**. Lucky-drop bonus still gets awarded to the profile field and the avatar page still shows it; it just no longer secretly injects into the tier score. Restores single-source-of-truth for tier scoring.
+  - **IP RPE expansion** — `lib/leaderboardStats.ts` now adds `max(0, rpe - 7)` per set to the total IP. Pre-existing supersets/dropsets (+5/+3) awards still apply. RPE 10 = +3, RPE 9 = +2, RPE 8 = +1.
+
+- **client-leaderboard-relocation** — Removed the 95-line inline trainer client leaderboard from the home view. Extracted as a reusable `ClientLeaderboardBlock` component. Mounted in two places:
+  1. **Ranks page** — added a new 👤 MY CLIENTS tab (trainer-only) alongside ATHLETES and TRAINERS. Trainers can now jump from home → Ranks → MY CLIENTS instead of scrolling home.
+  2. **My Clients hub** — added at the bottom of the page as a contextually-adjacent ranking surface.
+
+  New columns: `# / CLIENT (with tier subtitle) / VOL / SESS / STRK / PR / IP`. Sort chips: SESSIONS / VOL / STREAK / ⚡ IP.
+
+  Design rule captured: **"if a feature has its own tab/button, no inline duplicate on home"**.
+
+- **tier-promotion-toast** — top-level toast that fires when the user's headline tierNum increases vs the last-observed value stored in `localStorage.ironlog.lastObservedTier.<userId>`. First observation is silent (baseline). Demotions are silent + resync. Tap-to-dismiss + 4s auto-dismiss.
+
+### Items NOT shipped (explicitly deferred per user)
+- **Tier calibration grace for new users** (item 10 in the punch list) — deferred.
+- **Vacation grace window** (item 11) — deferred.
+- **Migration notification card** — the tier-promotion toast covers the "your tier changed" affordance for upward moves; users whose tier *drops* under v2 won't get a notification. Decided not worth a one-time migration banner — the existing tier modal already explains every sub-rank.
+- **Backlog items 12-16** (tier history snapshots, per-group weights, scoreFromCount compression, headline caching, sanity bounds on weights) — backlog as planned.
+
+---
+
 ## Plan · 2026-05-22 — Tier scoring veteran-fairness + body comp + leaderboard refresh (qa: tier-scoring-veteran-fairness)
 
 User feedback bundle captured as a design-only slice (NO code shipped):

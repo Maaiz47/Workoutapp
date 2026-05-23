@@ -17,7 +17,7 @@ export type TutorialStep = {
   where?: string;
 };
 
-export const TUTORIAL_VERSION = "v4";
+export const TUTORIAL_VERSION = "v5";
 export const TUTORIAL_STORAGE_KEY = `ironlog-tutorial-seen-${TUTORIAL_VERSION}`;
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -73,8 +73,15 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "global-rankings",
     icon: "🌍",
     title: "See how you stack up",
-    body: "The GLOBAL RANKINGS card on home opens an app-wide leaderboard — athletes + trainers ranked across the whole app. Toggle between Top 100, your tier band, or around-you. Athletes can opt out of being named in Settings; trainers are always public.",
-    where: "Home → 🌍 GLOBAL RANKINGS",
+    body: "The 🏆 Leaderboards button on home opens the Ranks page — tabs for ATHLETES, TRAINERS, and (if you're a trainer) MY CLIENTS. Toggle between Top 100, your tier band, or around-you. Athletes can opt out of being named in Settings; trainers are always public.",
+    where: "Home → 🏆 Leaderboards",
+  },
+  {
+    id: "tier-sub-ranks",
+    icon: "🏅",
+    title: "How your tier is scored",
+    body: "Tap your tier chip to see the breakdown. Strength tracks your e1RM trend (are you getting stronger?), Progression tracks rising weekly volume, Body Comp scores condition + maintenance (sex-calibrated), and Consistency rewards hitting your weekly target — rest days included. Sub-ranks you don't have data for are quietly skipped so empty dims don't drag your headline.",
+    where: "Progress → tap your tier chip",
   },
   {
     id: "updates",
