@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { sendPushToUser } from "../../../../lib/push";
 
 const COOKIE = "ironlog-uid";
 
@@ -71,6 +72,13 @@ export async function POST(req: NextRequest) {
       },
     }).catch(() => {}); // non-fatal if Message table not yet created
 
+    // Push notification — fire-and-forget. (qa: push-notifications-requests)
+    sendPushToUser(targetUserId, {
+      title: "Trainer request",
+      body: `${trainer.username} wants to add you as their client`,
+      url: "/?trainer-requests=1",
+    }).catch(() => {});
+
     return json({ request });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);
@@ -101,6 +109,15 @@ export async function PATCH(req: NextRequest) {
         prisma.trainerClient.create({ data: { trainerId: request.trainerId, clientId: uid } }),
         prisma.trainerRequest.update({ where: { id: requestId }, data: { status: "accepted" } }),
       ]);
+      // Notify the trainer their request was accepted.
+      const me = await prisma.user.findUnique({ where: { id: uid }, select: { username: true } });
+      if (me) {
+        sendPushToUser(request.trainerId, {
+          title: "Client accepted",
+          body: `${me.username} accepted your coaching request`,
+          url: "/?trainer-clients=1",
+        }).catch(() => {});
+      }
     } else if (action === "decline") {
       await prisma.trainerRequest.update({ where: { id: requestId }, data: { status: "declined" } });
     } else {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { sendPushToUser } from "../../../lib/push";
 
 const COOKIE = "ironlog-uid";
 
@@ -135,6 +136,14 @@ export async function POST(req: NextRequest) {
       },
     }).catch(() => {}); // non-fatal — friendship is the source of truth
 
+    // Push notification — fire-and-forget so a missing VAPID env or
+    // no-subs case doesn't block the API response.
+    sendPushToUser(target.id, {
+      title: "New friend request",
+      body: `${me.username} wants to be friends`,
+      url: "/?friends=1",
+    }).catch(() => {});
+
     return json({ friendship });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed to send request" }, 500);
@@ -166,6 +175,24 @@ export async function PATCH(req: NextRequest) {
         where: { id: friendshipId },
         data: { status: "accepted", acceptedAt: new Date() },
       });
+      // Notify the original sender (userA) that their request was accepted.
+      const me = await prisma.user.findUnique({ where: { id: uid }, select: { username: true } });
+      if (me) {
+        sendPushToUser(f.userAId, {
+          title: "Friend request accepted",
+          body: `${me.username} accepted your friend request`,
+          url: "/?friends=1",
+        }).catch(() => {});
+        await prisma.message.create({
+          data: {
+            fromId: uid,
+            toId: f.userAId,
+            body: `${me.username} accepted your friend request`,
+            type: "friend_accepted",
+            requestId: friendshipId,
+          },
+        }).catch(() => {});
+      }
       return json({ friendship: updated });
     }
 

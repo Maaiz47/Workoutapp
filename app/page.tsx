@@ -1060,6 +1060,198 @@ function ProgressPhotosCard({ currentWeight }: { currentWeight: number | null })
 
 // Monthly challenges card — surfaces the current month's catalogue with
 // opt-in toggle + live progress bar against personal history. Global
+// ─── FRIENDS CARD ───────────────────────────────────────────────────────
+// Athlete-to-athlete (or any-user) social connection management. Lives
+// in Settings → SOCIAL. Search box at the top sends a request by
+// username; pending received requests render at the top with
+// accept/decline; pending sent show greyed-out with cancel; accepted
+// friends listed with unfriend. (qa: friend-system-athletes — slice 2)
+type FriendRow = {
+  id: string;
+  status: string;
+  direction: "incoming" | "outgoing";
+  requestedAt: string;
+  acceptedAt: string | null;
+  friend: { id: string; username: string };
+};
+
+function FriendsCard() {
+  const [accepted, setAccepted] = useState<FriendRow[]>([]);
+  const [pendingSent, setPendingSent] = useState<FriendRow[]>([]);
+  const [pendingReceived, setPendingReceived] = useState<FriendRow[]>([]);
+  const [searchUsername, setSearchUsername] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null); // friendship id being mutated
+  const [status, setStatus] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [filter, setFilter] = useState(""); // search inside friend list
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch("/api/friends");
+      const data = await r.json();
+      if (r.ok) {
+        setAccepted(data.accepted ?? []);
+        setPendingSent(data.pendingSent ?? []);
+        setPendingReceived(data.pendingReceived ?? []);
+      }
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const sendRequest = async () => {
+    const name = searchUsername.trim();
+    if (!name) return;
+    setBusy("__send__");
+    setStatus(null);
+    try {
+      const r = await fetch("/api/friends", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toUsername: name }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        setStatus({ kind: "err", text: data.error ?? "Failed to send request" });
+      } else {
+        setSearchUsername("");
+        setStatus({ kind: "ok", text: data.autoAccepted ? `You're now friends with ${name}` : `Request sent to ${name}` });
+        refresh();
+      }
+    } catch {
+      setStatus({ kind: "err", text: "Network error" });
+    }
+    setBusy(null);
+  };
+
+  const respond = async (friendshipId: string, action: "accept" | "decline") => {
+    setBusy(friendshipId);
+    try {
+      await fetch("/api/friends", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ friendshipId, action }),
+      });
+      refresh();
+    } catch {}
+    setBusy(null);
+  };
+
+  const unfriend = async (friendshipId: string) => {
+    if (!confirm("Remove this friend? You can send a fresh request later.")) return;
+    setBusy(friendshipId);
+    try {
+      await fetch("/api/friends", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ friendshipId }),
+      });
+      refresh();
+    } catch {}
+    setBusy(null);
+  };
+
+  const filteredAccepted = filter
+    ? accepted.filter(f => f.friend.username.toLowerCase().includes(filter.toLowerCase()))
+    : accepted;
+
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: 20, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>👥 FRIENDS</span>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+          {accepted.length} · {pendingReceived.length} pending
+        </span>
+      </div>
+
+      {/* Send request */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={searchUsername}
+            onChange={e => setSearchUsername(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") sendRequest(); }}
+            placeholder="@username to add"
+            style={{ flex: 1, padding: "10px 12px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 13, fontFamily: "'DM Sans', sans-serif", outline: "none" }}
+          />
+          <button
+            onClick={sendRequest}
+            disabled={!searchUsername.trim() || busy === "__send__"}
+            style={{ padding: "10px 16px", background: "rgba(255,107,107,0.12)", border: "1px solid rgba(255,107,107,0.4)", borderRadius: 10, color: "#FF6B6B", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace", opacity: !searchUsername.trim() ? 0.5 : 1 }}
+          >{busy === "__send__" ? "…" : "ADD"}</button>
+        </div>
+        {status && (
+          <div style={{ marginTop: 8, padding: "6px 10px", background: status.kind === "err" ? "rgba(255,107,107,0.08)" : "rgba(46,204,113,0.08)", border: `1px solid ${status.kind === "err" ? "rgba(255,107,107,0.25)" : "rgba(46,204,113,0.25)"}`, borderRadius: 8, fontSize: 11, color: status.kind === "err" ? "#FF6B6B" : "#2ecc71" }}>
+            {status.text}
+          </div>
+        )}
+      </div>
+
+      {/* Pending received */}
+      {pendingReceived.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "#4ECDC4", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>INCOMING ({pendingReceived.length})</div>
+          {pendingReceived.map(f => (
+            <div key={f.id} style={{ padding: "10px 12px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 10, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{f.friend.username}</span>
+              <button onClick={() => respond(f.id, "accept")} disabled={busy === f.id} style={{ padding: "6px 12px", background: "#4ECDC4", border: "none", borderRadius: 6, color: "#000", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{busy === f.id ? "…" : "ACCEPT"}</button>
+              <button onClick={() => respond(f.id, "decline")} disabled={busy === f.id} style={{ padding: "6px 12px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 6, color: "rgba(255,107,107,0.8)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>DECLINE</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pending sent */}
+      {pendingSent.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>SENT ({pendingSent.length})</div>
+          {pendingSent.map(f => (
+            <div key={f.id} style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{f.friend.username}</span>
+              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>PENDING</span>
+              <button onClick={() => unfriend(f.id)} disabled={busy === f.id} style={{ padding: "4px 8px", background: "transparent", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 4, color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1, cursor: "pointer" }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Accepted friends */}
+      {accepted.length > 0 && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.45)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>FRIENDS ({accepted.length})</div>
+            {accepted.length > 4 && (
+              <input
+                value={filter}
+                onChange={e => setFilter(e.target.value)}
+                placeholder="search…"
+                style={{ padding: "4px 8px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#fff", fontSize: 11, width: 100, fontFamily: "'DM Sans', sans-serif", outline: "none" }}
+              />
+            )}
+          </div>
+          {filteredAccepted.map(f => (
+            <div key={f.id} style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{f.friend.username}</span>
+              <button onClick={() => unfriend(f.id)} disabled={busy === f.id} style={{ padding: "4px 10px", background: "transparent", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "rgba(255,107,107,0.7)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{busy === f.id ? "…" : "REMOVE"}</button>
+            </div>
+          ))}
+          {filteredAccepted.length === 0 && filter && (
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: 10 }}>No friends match "{filter}"</div>
+          )}
+        </div>
+      )}
+
+      {!loading && accepted.length === 0 && pendingReceived.length === 0 && pendingSent.length === 0 && (
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", textAlign: "center", padding: "12px 0", lineHeight: 1.5 }}>
+          No friends yet — search above by @username to send a request.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // leaderboard rank lands in a follow-up slice (needs server-side opt-in
 // table and aggregation).
 function ChallengesCard({ history, bodyMetrics, gender }: { history: Record<string, any[]>; bodyMetrics?: any[]; gender?: string | null }) {
@@ -4792,6 +4984,12 @@ function HomePage() {
   const [trainerRequests, setTrainerRequests] = useState<any[]>([]);
   const [sendingRequest, setSendingRequest] = useState<string | null>(null);
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
+  // Search-as-you-type filters for list views with potentially many
+  // rows. Hidden at the top of each list when the underlying list is
+  // small. (qa: search-boxes-lists)
+  const [conversationsFilter, setConversationsFilter] = useState("");
+  const [clientsFilter, setClientsFilter] = useState("");
+  const [groupsFilter, setGroupsFilter] = useState("");
   const [respondingRequest, setRespondingRequest] = useState<string | null>(null);
   const [clients, setClients] = useState<any[]>([]);
   // Trainer's full multi-dim TierBreakdown — fetched from
@@ -10441,7 +10639,18 @@ function HomePage() {
                   <img src="/ai/empty-clients.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.55, borderRadius: 14, marginBottom: 10 }} />
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontStyle: "italic" }}>No accepted clients yet — find one below</div>
                 </div>
-              ) : clients.map(c => (
+              ) : (<>
+                {/* Client list search — filters by username as you
+                    type. Hidden when list is short. (qa: search-boxes-lists) */}
+                {clients.length > 4 && (
+                  <input
+                    value={clientsFilter}
+                    onChange={e => setClientsFilter(e.target.value)}
+                    placeholder="🔎 Search clients…"
+                    style={{ width: "100%", padding: "8px 12px", marginBottom: 8, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, color: "#fff", fontSize: 12, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }}
+                  />
+                )}
+                {clients.filter(c => !clientsFilter || c.username.toLowerCase().includes(clientsFilter.toLowerCase())).map(c => (
                 <div key={c.id} className="card-hover" onClick={() => openClientDetail(c)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>@{c.username}</div>
@@ -10453,6 +10662,7 @@ function HomePage() {
                   <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 18 }}>›</span>
                 </div>
               ))}
+              </>)}
               {/* ── Find new clients (inline) ── */}
               <button onClick={() => setShowFindClients(s => !s)} style={{ width: "100%", marginTop: clients.length > 0 ? 6 : 0, padding: "10px 14px", background: showFindClients ? "rgba(255,107,107,0.08)" : "rgba(78,205,196,0.08)", border: `1px solid ${showFindClients ? "rgba(255,107,107,0.25)" : "rgba(78,205,196,0.22)"}`, borderRadius: 12, color: showFindClients ? "#FF6B6B" : "#4ECDC4", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
                 {showFindClients ? "CLOSE SEARCH" : "+ FIND CLIENTS"}
@@ -10623,7 +10833,18 @@ function HomePage() {
                     : "You're not in any groups yet. Ask a trainer to add you to one of theirs, or accept an invite when you receive one."}
                 </div>
               ) : (
-                lbGroups.map(grp => {
+                <>
+                {/* Group list search — filters by group name as you
+                    type. Hidden when list is short. (qa: search-boxes-lists) */}
+                {lbGroups.length > 4 && (
+                  <input
+                    value={groupsFilter}
+                    onChange={e => setGroupsFilter(e.target.value)}
+                    placeholder="🔎 Search groups…"
+                    style={{ width: "100%", padding: "8px 12px", marginBottom: 8, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, color: "#fff", fontSize: 12, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }}
+                  />
+                )}
+                {lbGroups.filter(grp => !groupsFilter || grp.name.toLowerCase().includes(groupsFilter.toLowerCase())).map(grp => {
                   // Detect trainer-led groups by checking the role of the
                   // member whose userId matches grp.createdBy. Trainer-led
                   // groups get distinct visual treatment per @maaiz:
@@ -11201,7 +11422,8 @@ function HomePage() {
                   </div>
                   </div>
                   );
-                })
+                })}
+                </>
               )}
             </div>
           )}
@@ -11213,10 +11435,22 @@ function HomePage() {
   // ─── MESSAGES LIST ──────────────────────────────────────────────────
   if (view === "messages") return (
     <div key="messages" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
-      <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+      <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
         <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>MESSAGES</div>
       </div>
+      {/* Search box — filters conversations by partner username
+          as you type. Hidden when list is short. (qa: search-boxes-lists) */}
+      {conversations.length > 4 && (
+        <div style={{ padding: "0 20px 12px" }}>
+          <input
+            value={conversationsFilter}
+            onChange={e => setConversationsFilter(e.target.value)}
+            placeholder="🔎 Search conversations…"
+            style={{ width: "100%", padding: "10px 12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#fff", fontSize: 13, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }}
+          />
+        </div>
+      )}
       <div style={{ padding: "0 20px" }}>
         {conversations.length === 0 && (
           <div style={{ textAlign: "center", marginTop: 60 }}>
@@ -11224,7 +11458,7 @@ function HomePage() {
             <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No messages yet</div>
           </div>
         )}
-        {conversations.map(c => {
+        {conversations.filter(c => !conversationsFilter || c.partner.username.toLowerCase().includes(conversationsFilter.toLowerCase())).map(c => {
           const lm = c.latestMessage;
           const isSentByMe = lm?.fromId === user?.id;
           const previewTick = isSentByMe
@@ -11239,7 +11473,7 @@ function HomePage() {
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4 }}>
                 {previewTick && <span style={{ color: previewTick.color, letterSpacing: -2, paddingRight: 2, flexShrink: 0 }}>{previewTick.label}</span>}
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {lm.type === "adoption_request" ? "Trainer request" : lm.type === "plan_proposal" ? "Plan update proposed" : lm.body}
+                  {lm.type === "adoption_request" ? "Trainer request" : lm.type === "friend_request" ? "Friend request" : lm.type === "friend_accepted" ? "Friend accepted" : lm.type === "plan_proposal" ? "Plan update proposed" : lm.body}
                 </span>
               </div>
             </div>
@@ -11306,6 +11540,35 @@ function HomePage() {
                   </div>
                 )}
                 {!isPending && !isMine && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4, fontFamily: "'Space Mono', monospace" }}>RESOLVED</div>}
+              </div>
+            );
+          }
+          if (msg.type === "friend_request" || msg.type === "friend_accepted") {
+            const isAccepted = msg.type === "friend_accepted";
+            // Inline accept/decline for incoming friend requests via
+            // /api/friends PATCH. requestId on the Message is the
+            // Friendship id. (qa: friend-system-athletes)
+            const handle = async (action: "accept" | "decline") => {
+              setRespondingRequest(msg.requestId);
+              try {
+                await fetch("/api/friends", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ friendshipId: msg.requestId, action }),
+                });
+              } catch {}
+              setRespondingRequest(null);
+            };
+            return (
+              <div key={msg.id} style={{ background: "rgba(162,155,254,0.06)", border: "1px solid rgba(162,155,254,0.22)", borderRadius: 14, padding: "14px 16px", maxWidth: "85%" }}>
+                <div style={{ fontSize: 10, color: "#A29BFE", letterSpacing: 3, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>{isAccepted ? "FRIEND ACCEPTED" : "FRIEND REQUEST"}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: !isMine && !isAccepted ? 12 : 0 }}>{msg.body}</div>
+                {!isMine && !isAccepted && (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => handle("accept")} disabled={respondingRequest === msg.requestId} style={{ flex: 1, padding: "9px", background: "#A29BFE", border: "none", borderRadius: 8, color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{respondingRequest === msg.requestId ? "…" : "ACCEPT"}</button>
+                    <button onClick={() => handle("decline")} disabled={respondingRequest === msg.requestId} style={{ flex: 1, padding: "9px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.8)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{respondingRequest === msg.requestId ? "…" : "DECLINE"}</button>
+                  </div>
+                )}
               </div>
             );
           }
@@ -12133,6 +12396,12 @@ function HomePage() {
               </div>
             )}
           </div>
+
+          {/* ── SECTION: SOCIAL — friend search/list + accept incoming
+              friend requests. Athletes connect with athletes here.
+              (qa: friend-system-athletes — slice 2) ── */}
+          <SettingsSectionHeader label="SOCIAL" icon="👥" color="rgba(78,205,196,0.75)" />
+          <FriendsCard />
 
           {/* ── SECTION: TRAINING — modality knobs (HIIT) + trainer
               role upgrade live here. ── */}
