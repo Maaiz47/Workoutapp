@@ -2,6 +2,26 @@
 
 ---
 
+## Tier badges ship · 2026-05-23 — Vivid + Simple + Trainer ladders + Mentor rename (qa: tier-icons-vivid, tier-icons-simple, tier-icons-trainer, tier-themes)
+
+Shipped the full image-gen v2 Batch 2 + 3 + new trainer-tier batch — 18 transparent crest-style PNGs across three ladders:
+
+- **Athlete Vivid** (`/public/tier-icons/vivid/`): kitten → fox → big-dawg → lion → gorilla → bear. Front-facing animal crests with aggression ramp starting at lion (T4).
+- **Athlete Simple** (`/public/tier-icons/simple/`): bronze → silver → gold → platinum → diamond → master. Front-facing medallions with aggressive geometry kicking in at platinum (T4 shattered) and master (T6 molten crown).
+- **Trainer** (`/public/tier-icons/trainer/`): spotter → strategist → pro → mentor → legend → hall-of-fame. Coach-symbol crests (hand, knight, whistle, eagle, gem, apex star) — distinct enough from animals/medallions that the three ladders never collide visually.
+
+**Rename**: Trainer T4 went from "Master" → "Mentor" because the athlete Simple ladder already has T6 Master (the molten crown). Two Masters across ladders would have been confusing in toasts/chips. Mentor sits naturally between Pro and Legend.
+
+**Wire-up (Phase 1)**: `lib/tiers.ts` now carries an optional `iconPath` field alongside the existing emoji `icon`; a new `<TierGlyph>` helper component in `app/page.tsx` renders the PNG when present and falls back to the emoji if the image fails to load. Three highest-visibility render sites switched over so far:
+- Tier breakdown modal — big 58px headline + 16/22px tier ladder grid
+- Tier-up promo toast — 36px badge in the celebration overlay
+
+Other tier-icon render surfaces (leaderboard chips, member list, smaller pills) still show the emoji for now — they'll get the upgrade in a follow-up sweep so this push stays surgical.
+
+Compression: all 18 PNGs are 192×192 palette-quantized, 7-26 KB each (target was <35 KB tier-icon / <25 KB avatar). Total bundle additional weight: ~240 KB across all three ladders combined.
+
+---
+
 ## QA pass · 2026-05-23 — Pre-deploy QA fixes: sticky tier-modal close + everywhere celebrations + role chip + Apple autofill (qa: tier-modal-sticky-close, celebration-overlays-everywhere, profile-role-chip-not-toggle, weight-input-convention-clarity)
 
 @maaiz dropped three submissions through the in-app feedback panel while I was working on the premium-polish push. Per the pre-deploy QA-comment scan rule, addressed them all before pushing.

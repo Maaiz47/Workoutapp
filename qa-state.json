@@ -1,6 +1,61 @@
 {
   "items": [
     {
+      "id": "tier-icons-vivid",
+      "title": "Athlete Vivid tier ladder — raster crest icons replace emoji",
+      "area": "Tiers",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-icons-batch-2",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Make sure your Tier Theme is set to Vivid in Settings → APP PREFERENCES → 🏆 TIER NAMES (default).",
+        "Open the tier breakdown modal (tap your tier pill on the home/profile chip).",
+        "Verify the BIG headline icon at the top of the modal renders as a PNG (kitten / fox / big-dawg / lion / gorilla / bear depending on your tier), NOT the emoji glyph.",
+        "Verify the tier-ladder strip below the headline shows all 6 PNG icons (greyscale for un-reached tiers, glowing colour for your current one).",
+        "Trigger a tier promotion (or set a fake high score in dev tools). Verify the tier-up toast shows the PNG icon for your new tier.",
+        "Fallback test: rename one of the PNGs in /public/tier-icons/vivid/ temporarily. Reload — verify the missing tier falls back to the emoji (no broken image)."
+      ],
+      "notes": "[2026-05-23] Slice 1/N: 6 transparent crest PNGs at /public/tier-icons/vivid/<id>.png (kitten through bear), front-facing animal heads with aggression ramp from T4 lion. Wire-up via new <TierGlyph src={t.iconPath} emoji={t.icon} size={N} /> helper in app/page.tsx. iconPath added to AnimalTier type in lib/tiers.ts. Three render sites switched: modal headline (58px), ladder grid (16-22px), promo toast (36px). Next slice: leaderboard chips, member list, breakdown headline destructure."
+    },
+    {
+      "id": "tier-icons-simple",
+      "title": "Athlete Simple tier ladder — raster medallion icons replace emoji",
+      "area": "Tiers",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-icons-batch-3",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Switch Tier Theme to Simple in Settings → APP PREFERENCES → 🏆 TIER NAMES.",
+        "Open the tier breakdown modal.",
+        "Verify the BIG headline icon at the top renders the bronze / silver / gold / platinum / diamond / master medallion PNG (NOT the 🥉 🥈 🥇 🏆 💎 👑 emoji).",
+        "Verify the tier-ladder strip shows all 6 medallion PNGs.",
+        "Trigger a tier-up toast — verify it uses the medallion PNG.",
+        "Verify the platinum (T4) and master (T6) icons feel visibly more aggressive than gold (T3) — broken-shard / molten-crown energy."
+      ],
+      "notes": "[2026-05-23] Slice 1/N: 6 transparent medallion PNGs at /public/tier-icons/simple/<id>.png. Aggression ramp kicks in at platinum (shattered medal + lifting figure) and master (molten crown + obsidian base). Same TierGlyph wire-up + three render sites as tier-icons-vivid. Next slice: rest of the tier-icon render surfaces."
+    },
+    {
+      "id": "tier-icons-trainer",
+      "title": "Trainer tier ladder — raster coach-symbol icons replace emoji",
+      "area": "Tiers",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-icons-trainer",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Sign in as a trainer (role = trainer in profile).",
+        "Open the tier breakdown modal — trainer ladder section.",
+        "Verify the BIG headline icon at the top renders the spotter / strategist / pro / mentor / legend / hall-of-fame PNG (NOT the 🤝 🧠 ⚡ 👑 🏆 ⭐ emoji).",
+        "Verify the trainer ladder strip shows all 6 coach-symbol PNGs.",
+        "Trigger a trainer tier-up toast — verify it uses the PNG.",
+        "Verify T4 displays as Mentor (NOT Master — to avoid collision with the athlete Simple T6 Master). Old Master users should automatically rename; no migration required.",
+        "Verify the badge progression feels coherently 'coach' (hand → knight → whistle → eagle → gem → apex star) and distinct from animal/medallion ladders."
+      ],
+      "notes": "[2026-05-23] Slice 1/N: 6 transparent coach-symbol PNGs at /public/tier-icons/trainer/<id>.png. Trainer T4 renamed from Master → Mentor to avoid collision with athlete Simple T6 Master (the molten crown). Same TierGlyph wire-up + three render sites. Next slice: rest of the trainer-tier-icon render surfaces."
+    },
+    {
       "id": "daily-quest-pb-bugfix",
       "title": "Daily PB-hunt quest actually ticks when a PB is hit (was stuck pending)",
       "area": "Home",

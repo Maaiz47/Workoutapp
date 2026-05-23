@@ -20,6 +20,10 @@ export type AnimalTier = {
   tierNum: number;
   label: string;
   icon: string;
+  // Optional PNG path that supersedes `icon` when present.
+  // Renderers fall back to the emoji `icon` when iconPath is missing
+  // or the image fails to load. (qa: tier-icons-vivid, tier-icons-simple, tier-icons-trainer)
+  iconPath?: string;
   // The MIN headline score required to reach this tier (0-100).
   min: number;
   color: string;
@@ -38,20 +42,20 @@ export type AthleteTierTheme = "vivid" | "simple";
 
 export const ATHLETE_TIER_THEMES: Record<AthleteTierTheme, AnimalTier[]> = {
   vivid: [
-    { tierNum: 1, label: "Kitten",   icon: "🐱", min: 0,  color: "#94a3b8", bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.25)" },
-    { tierNum: 2, label: "Fox",      icon: "🦊", min: 15, color: "#fb923c", bg: "rgba(251,146,60,0.08)",  border: "rgba(251,146,60,0.3)"   },
-    { tierNum: 3, label: "Big Dawg", icon: "🐕", min: 30, color: "#a78bfa", bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.3)"  },
-    { tierNum: 4, label: "Lion",     icon: "🦁", min: 50, color: "#f97316", bg: "rgba(249,115,22,0.10)",  border: "rgba(249,115,22,0.35)"  },
-    { tierNum: 5, label: "Gorilla",  icon: "🦍", min: 70, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)"  },
-    { tierNum: 6, label: "Bear",     icon: "🐻", min: 90, color: "#92400e", bg: "rgba(146,64,14,0.12)",   border: "rgba(146,64,14,0.45)"   },
+    { tierNum: 1, label: "Kitten",   icon: "🐱", iconPath: "/tier-icons/vivid/kitten.png",   min: 0,  color: "#94a3b8", bg: "rgba(148,163,184,0.08)", border: "rgba(148,163,184,0.25)" },
+    { tierNum: 2, label: "Fox",      icon: "🦊", iconPath: "/tier-icons/vivid/fox.png",      min: 15, color: "#fb923c", bg: "rgba(251,146,60,0.08)",  border: "rgba(251,146,60,0.3)"   },
+    { tierNum: 3, label: "Big Dawg", icon: "🐕", iconPath: "/tier-icons/vivid/big-dawg.png", min: 30, color: "#a78bfa", bg: "rgba(167,139,250,0.08)", border: "rgba(167,139,250,0.3)"  },
+    { tierNum: 4, label: "Lion",     icon: "🦁", iconPath: "/tier-icons/vivid/lion.png",     min: 50, color: "#f97316", bg: "rgba(249,115,22,0.10)",  border: "rgba(249,115,22,0.35)"  },
+    { tierNum: 5, label: "Gorilla",  icon: "🦍", iconPath: "/tier-icons/vivid/gorilla.png",  min: 70, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)"  },
+    { tierNum: 6, label: "Bear",     icon: "🐻", iconPath: "/tier-icons/vivid/bear.png",     min: 90, color: "#92400e", bg: "rgba(146,64,14,0.12)",   border: "rgba(146,64,14,0.45)"   },
   ],
   simple: [
-    { tierNum: 1, label: "Bronze",   icon: "🥉", min: 0,  color: "#a8784a", bg: "rgba(168,120,74,0.08)",  border: "rgba(168,120,74,0.3)"  },
-    { tierNum: 2, label: "Silver",   icon: "🥈", min: 15, color: "#cbd5e1", bg: "rgba(203,213,225,0.08)", border: "rgba(203,213,225,0.3)" },
-    { tierNum: 3, label: "Gold",     icon: "🥇", min: 30, color: "#facc15", bg: "rgba(250,204,21,0.08)",  border: "rgba(250,204,21,0.35)" },
-    { tierNum: 4, label: "Platinum", icon: "🏆", min: 50, color: "#7dd3fc", bg: "rgba(125,211,252,0.10)", border: "rgba(125,211,252,0.35)"},
-    { tierNum: 5, label: "Diamond",  icon: "💎", min: 70, color: "#60a5fa", bg: "rgba(96,165,250,0.10)",  border: "rgba(96,165,250,0.4)"  },
-    { tierNum: 6, label: "Master",   icon: "👑", min: 90, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
+    { tierNum: 1, label: "Bronze",   icon: "🥉", iconPath: "/tier-icons/simple/bronze.png",   min: 0,  color: "#a8784a", bg: "rgba(168,120,74,0.08)",  border: "rgba(168,120,74,0.3)"  },
+    { tierNum: 2, label: "Silver",   icon: "🥈", iconPath: "/tier-icons/simple/silver.png",   min: 15, color: "#cbd5e1", bg: "rgba(203,213,225,0.08)", border: "rgba(203,213,225,0.3)" },
+    { tierNum: 3, label: "Gold",     icon: "🥇", iconPath: "/tier-icons/simple/gold.png",     min: 30, color: "#facc15", bg: "rgba(250,204,21,0.08)",  border: "rgba(250,204,21,0.35)" },
+    { tierNum: 4, label: "Platinum", icon: "🏆", iconPath: "/tier-icons/simple/platinum.png", min: 50, color: "#7dd3fc", bg: "rgba(125,211,252,0.10)", border: "rgba(125,211,252,0.35)"},
+    { tierNum: 5, label: "Diamond",  icon: "💎", iconPath: "/tier-icons/simple/diamond.png",  min: 70, color: "#60a5fa", bg: "rgba(96,165,250,0.10)",  border: "rgba(96,165,250,0.4)"  },
+    { tierNum: 6, label: "Master",   icon: "👑", iconPath: "/tier-icons/simple/master.png",   min: 90, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
   ],
 };
 
@@ -89,12 +93,12 @@ export const ATHLETE_TIERS: AnimalTier[] = ATHLETE_TIER_THEMES.vivid;
 // Strategist signals plan design; Pro/Master/Hall-of-Fame are the
 // achievement-arc ceiling. (qa: tier-themes — final naming pass)
 export const TRAINER_TIERS: AnimalTier[] = [
-  { tierNum: 1, label: "Spotter",      icon: "🤝", min: 0,  color: "#94a3b8", bg: "rgba(148,163,184,0.10)", border: "rgba(148,163,184,0.3)" },
-  { tierNum: 2, label: "Strategist",   icon: "🧠", min: 15, color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)"  },
-  { tierNum: 3, label: "Pro",          icon: "⚡", min: 30, color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
-  { tierNum: 4, label: "Mentor",       icon: "👑", min: 50, color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.35)" },
-  { tierNum: 5, label: "Legend",       icon: "🏆", min: 70, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
-  { tierNum: 6, label: "Hall of Fame", icon: "⭐", min: 88, color: "#f0c040", bg: "rgba(240,192,64,0.12)",  border: "rgba(240,192,64,0.45)" },
+  { tierNum: 1, label: "Spotter",      icon: "🤝", iconPath: "/tier-icons/trainer/spotter.png",      min: 0,  color: "#94a3b8", bg: "rgba(148,163,184,0.10)", border: "rgba(148,163,184,0.3)" },
+  { tierNum: 2, label: "Strategist",   icon: "🧠", iconPath: "/tier-icons/trainer/strategist.png",   min: 15, color: "#4ECDC4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.3)"  },
+  { tierNum: 3, label: "Pro",          icon: "⚡", iconPath: "/tier-icons/trainer/pro.png",          min: 30, color: "#FFD166", bg: "rgba(255,209,102,0.10)", border: "rgba(255,209,102,0.35)" },
+  { tierNum: 4, label: "Mentor",       icon: "👑", iconPath: "/tier-icons/trainer/mentor.png",       min: 50, color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.35)" },
+  { tierNum: 5, label: "Legend",       icon: "🏆", iconPath: "/tier-icons/trainer/legend.png",       min: 70, color: "#FF6B6B", bg: "rgba(255,107,107,0.10)", border: "rgba(255,107,107,0.4)" },
+  { tierNum: 6, label: "Hall of Fame", icon: "⭐", iconPath: "/tier-icons/trainer/hall-of-fame.png", min: 88, color: "#f0c040", bg: "rgba(240,192,64,0.12)",  border: "rgba(240,192,64,0.45)" },
 ];
 
 export type SubRank = {

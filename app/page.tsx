@@ -84,6 +84,27 @@ async function subscribeToPush(): Promise<"granted" | "denied" | "unsupported" |
   }
 }
 
+// Renders a tier icon — image PNG if a path is provided + still loadable,
+// emoji fallback otherwise. Drop-in replacement for inline `{tier.icon}`
+// renders that previously showed an emoji glyph.
+// (qa: tier-icons-vivid, tier-icons-simple, tier-icons-trainer)
+function TierGlyph({ src, emoji, size, style }: { src?: string | null; emoji: string; size: number; style?: React.CSSProperties }) {
+  const [errored, setErrored] = useState(false);
+  if (src && !errored) {
+    return (
+      <img
+        src={src}
+        width={size}
+        height={size}
+        alt=""
+        onError={() => setErrored(true)}
+        style={{ display: "inline-block", verticalAlign: "middle", objectFit: "contain", ...style }}
+      />
+    );
+  }
+  return <span style={{ fontSize: size, lineHeight: 1, display: "inline-block", verticalAlign: "middle", ...style }}>{emoji}</span>;
+}
+
 // ─── HOOKS ──────────────────────────────────────────────────────────────
 function useCountdown() {
   const [seconds, setSeconds] = useState(0);
@@ -3866,7 +3887,7 @@ function HomeGlobals({
       )}
       {tierPromoToast && (
         <div onClick={onTierPromoDismiss} style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", zIndex: 9200, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(12px)", border: `1px solid ${tierPromoToast.tier.color}`, borderRadius: 16, padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", boxShadow: `0 8px 32px ${tierPromoToast.tier.color}44` }}>
-          <span style={{ fontSize: 36 }}>{tierPromoToast.tier.icon}</span>
+          <TierGlyph src={tierPromoToast.tier.iconPath} emoji={tierPromoToast.tier.icon} size={36} />
           <div>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>TIER UP!</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: tierPromoToast.tier.color }}>{tierPromoToast.tier.label} <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.45)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· T{displayTierNum(tierPromoToast.tier.tierNum)}</span></div>
@@ -13536,7 +13557,7 @@ function HomePage() {
                       badge as a sibling chip so it's not confusable with
                       the headline name. */}
                   <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12, position: "relative" }}>
-                    <div style={{ fontSize: 58, lineHeight: 1, filter: "drop-shadow(0 4px 14px rgba(240,192,64,0.45))" }}>{tier.icon}</div>
+                    <div style={{ lineHeight: 1, filter: "drop-shadow(0 4px 14px rgba(240,192,64,0.45))" }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={58} /></div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 26, fontWeight: 800, color: "#f0c040", letterSpacing: -0.3, lineHeight: 1 }}>{tier.label.toUpperCase()}</div>
                       <div style={{ display: "inline-flex", marginTop: 6, fontSize: 10, color: expM.color, background: `${expM.color}1A`, border: `1px solid ${expM.color}55`, padding: "3px 8px", borderRadius: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, fontWeight: 700 }}>{expM.icon} {expM.label}</div>
@@ -13552,7 +13573,7 @@ function HomePage() {
                       const isCurrent = i === tierIdx;
                       return (
                         <div key={t.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, opacity: reached ? 1 : 0.35 }}>
-                          <div style={{ fontSize: isCurrent ? 22 : 16, lineHeight: 1, filter: isCurrent ? `drop-shadow(0 0 8px ${t.color})` : reached ? "none" : "grayscale(1)", transition: "all 0.3s" }}>{t.icon}</div>
+                          <div style={{ lineHeight: 1, filter: isCurrent ? `drop-shadow(0 0 8px ${t.color})` : reached ? "none" : "grayscale(1)", transition: "all 0.3s" }}><TierGlyph src={t.iconPath} emoji={t.icon} size={isCurrent ? 22 : 16} /></div>
                           <div style={{ fontSize: 7, color: isCurrent ? t.color : "rgba(255,255,255,0.4)", marginTop: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 1, fontWeight: 700 }}>{t.label.toUpperCase().slice(0, 6)}</div>
                         </div>
                       );
