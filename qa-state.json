@@ -1,6 +1,42 @@
 {
   "items": [
     {
+      "id": "tier-strength-absolute-blend",
+      "title": "Strength sub-rank blends rate-of-change with absolute strength (best e1RM ÷ bodyweight)",
+      "area": "Tiers",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-strength-absolute-blend",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open the tier breakdown modal as a veteran lifter (≥12mo of history, slow rate of gains, high absolute strength). Verify the Strength sub-rank no longer crashes to 30-50 — it now floats based on best-e1RM-÷-bodyweight.",
+        "Verify the Strength sub-rank detail line reads `+X.X% e1RM · best YYYkg (Z.ZZ× BW)` when both rate AND absolute have data.",
+        "Verify a novice still benefits — a 3-month user with 1.5%/wk gains gets ~85 Strength (rate beats absolute).",
+        "Verify a veteran with 0% rate but 1.5× BW e1RM gets 60+ Strength (absolute beats rate).",
+        "Check that a user without bodyweight logged still gets the rate-based score (no crash on null).",
+        "Tier promotion: a long-term user previously stuck at T4-T5 should now be solidly in T5 — confirm @maaiz/@munchy/@alla land where expected."
+      ],
+      "notes": "[2026-05-23] Shipped: lib/tiers.ts — strengthSubRank now takes bodyweight as a 3rd arg, computes absolute via top e1RM ÷ bw mapped 0.5× → 20, 1.0× → 40, 1.5× → 60, 2.0× → 80, 2.5× → 100. Final Strength = max(rateScore, absoluteScore). computeAthleteTier passes s.weightCurrentKg automatically. CanonicalTier callers transparent. Detail string shows both signals when both available."
+    },
+    {
+      "id": "tier-technique-subrank",
+      "title": "Technique sub-rank — supersets / drop chains / IP work feed the tier headline",
+      "area": "Tiers",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-technique-subrank",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open the tier breakdown modal. Verify there are now EIGHT sub-ranks (Consistency, Strength, Progression, Volume, Mastery, Technique [new], Body Comp, Habits).",
+        "Verify the Technique sub-rank detail reads `X IP lifetime · supersets/dropsets/techniques` when the user has IP > 0.",
+        "Verify a user with 0 lifetime IP shows Technique as hasData=false (not counted in headline average) with detail `log supersets or drop chains to earn IP`.",
+        "Verify a session with a superset awards +5 IP and a drop chain awards +3 IP (per the awardIP calls in app/page.tsx).",
+        "Verify the Technique score scales reasonably: ~50 IP → 57, ~200 IP → 77, ~500 IP → 90.",
+        "Promote a user across a tier boundary purely via Technique IP — verify the headline reflects it."
+      ],
+      "notes": "[2026-05-23] Shipped: new 8th sub-rank in computeAthleteTier. Score = scoreFromCount(totalIntensityPointsLifetime, 200) — 200 IP ≈ 77 score. AthleteStatsForTier gains totalIntensityPointsLifetime?: number; CanonicalTier builder reads totalIntensityPoints and plumbs it through. UI auto-picks up because the modal renders the subRanks array dynamically. Quests/missions not yet wired (client-side only); to add them later, persist completion counts server-side and sum into the IP input."
+    },
+    {
       "id": "tier-scoring-calibration-v3",
       "title": "Tier scoring v3 — slower headline progression so 6-month users land at T4, not T5",
       "area": "Tiers",

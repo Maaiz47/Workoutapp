@@ -202,6 +202,13 @@ export type AthleteStatsForTier = {
   weightChange90dKg?: number | null;
   bfChange90dPct?: number | null;
   gender?: string | null;           // "male" / "female" / "other"
+
+  // ── v3.2 inputs (qa: tier-strength-absolute-blend, tier-technique-subrank) ──
+  // Lifetime sum of WorkoutLog.intensityPoints. Each session can earn
+  // up to 25 IP (superset = +5, drop chain = +3). Feeds the Technique
+  // sub-rank so users doing supersets/dropsets/etc. actually move the
+  // headline. Optional — absent / 0 means hasData=false for Technique.
+  totalIntensityPointsLifetime?: number;
 };
 
 // Adherence curve — peaks at 100% of weekly target, drops gently
@@ -233,23 +240,54 @@ function adherenceScore(sessionsLast4Weeks: number, daysPerWeek: number): number
   return Math.max(0, Math.round(90 - excess * 100));
 }
 
-// Strength sub-rank — measures whether the user is GETTING STRONGER,
-// not how many lifetime PRs they've banked. Methodology:
+// Strength sub-rank — measures BOTH whether the user is getting
+// stronger (rate) AND whether they're objectively strong (absolute).
+// Final score is max(rateScore, absoluteScore) so veterans plateaued
+// at elite numbers don't get punished for natural rate decay.
+//
+// Rate methodology (unchanged from v2/v3):
 //   1. Filter to exercises with ≥4 sets logged in the last 180 days.
-//   2. Pick the top 6 by set count (the user's actual main lifts).
-//   3. For each: take the best e1RM in the FIRST 90 days of the
-//      window vs the best e1RM in the SECOND 90 days. % change.
-//   4. Average % change across the 6.
-//   5. Map -5% → +15% linearly to 25 → 100. Floor at 25 (a true
-//      plateau is still showing up — don't crash the tier).
-// (qa: tier-scoring-v2)
-function strengthSubRank(recentByExercise: Record<string, RecentSet[]>, todayMs: number): { score: number; hasData: boolean; detail: string; pctChange: number | null; qualifiedCount: number } {
+//   2. Pick the top 6 by set count.
+//   3. Best e1RM in first 90d vs best e1RM in last 90d → % change.
+//   4. Map -5% → +20% linearly into 25 → 100. Floor at 25.
+//
+// Absolute methodology (v3.2):
+//   - Top e1RM across all qualified exercises ÷ current bodyweight.
+//   - 0.5× BW → 20, 1.0× → 40, 1.5× → 60, 2.0× → 80, 2.5× → 100.
+//   - Skipped if bodyweight unavailable.
+//
+// (qa: tier-scoring-calibration-v3, tier-strength-absolute-blend)
+function strengthSubRank(
+  recentByExercise: Record<string, RecentSet[]>,
+  todayMs: number,
+  currentBodyweightKg?: number | null,
+): { score: number; hasData: boolean; detail: string; pctChange: number | null; qualifiedCount: number } {
   const qualified = Object.entries(recentByExercise)
     .map(([id, sets]) => ({ id, sets, count: sets.length }))
     .filter(e => e.count >= 4)
     .sort((a, b) => b.count - a.count)
     .slice(0, 6);
   if (qualified.length === 0) return { score: 50, hasData: false, detail: "log ≥4 sets of an exercise to start tracking", pctChange: null, qualifiedCount: 0 };
+
+  // ── Absolute strength component ────────────────────────────────────
+  let topE1RM = 0;
+  for (const { sets } of qualified) {
+    for (const s of sets) {
+      const e = epley1RM(s.weight, s.reps);
+      if (e > topE1RM) topE1RM = e;
+    }
+  }
+  let absoluteScore = 0;
+  let absoluteHasData = false;
+  let absoluteRatio: number | null = null;
+  if (currentBodyweightKg && currentBodyweightKg > 0 && topE1RM > 0) {
+    absoluteHasData = true;
+    absoluteRatio = topE1RM / currentBodyweightKg;
+    // Linear: 0.5× → 20, 1.0× → 40, 1.5× → 60, 2.0× → 80, 2.5× → 100
+    absoluteScore = Math.min(100, Math.max(20, Math.round(20 + (absoluteRatio - 0.5) * 40)));
+  }
+
+  // ── Rate-of-change component ──────────────────────────────────────
   const halfPoint = todayMs - 90 * 86400000;
   const pctChanges: number[] = [];
   for (const { sets } of qualified) {
@@ -262,22 +300,37 @@ function strengthSubRank(recentByExercise: Record<string, RecentSet[]>, todayMs:
     if (e1rm1 <= 0) continue;
     pctChanges.push((e1rm2 - e1rm1) / e1rm1);
   }
-  if (pctChanges.length === 0) {
-    // Not enough history split across both halves — show the user
-    // their setup is in progress without crashing them.
+  let rateScore = 50;
+  let rateHasData = false;
+  let avgPct: number | null = null;
+  if (pctChanges.length > 0) {
+    rateHasData = true;
+    avgPct = pctChanges.reduce((a, b) => a + b, 0) / pctChanges.length;
+    const raw = 25 + ((avgPct + 0.05) / 0.25) * 75;
+    rateScore = Math.max(25, Math.min(100, Math.round(raw)));
+  }
+
+  // ── Blend ─────────────────────────────────────────────────────────
+  const hasData = rateHasData || absoluteHasData;
+  if (!hasData) {
     return { score: 50, hasData: false, detail: "keep logging — strength trend kicks in past 90d of history", pctChange: null, qualifiedCount: qualified.length };
   }
-  const avgPct = pctChanges.reduce((a, b) => a + b, 0) / pctChanges.length;
-  // Map -5% .. +20% linearly into 25 .. 100. Clamp. 0% gain → 40,
-  // 10% → 70, 20% → 100. Mid-range gains (5-15%) get a meaningful
-  // payoff so committed intermediate lifters can drive the headline
-  // above T4 without needing freakish PR rates. Plateauers floor at
-  // 25 via the clamp. (qa: tier-scoring-calibration-v3)
-  const raw = 25 + ((avgPct + 0.05) / 0.25) * 75;
-  const score = Math.max(25, Math.min(100, Math.round(raw)));
-  const pctRounded = Math.round(avgPct * 1000) / 10; // one decimal place
-  const detail = `${pctRounded >= 0 ? "+" : ""}${pctRounded}% e1RM (180d, top ${pctChanges.length})`;
-  return { score, hasData: true, detail, pctChange: avgPct, qualifiedCount: qualified.length };
+  // max() so the dominant signal wins — beginners ride rate, veterans
+  // ride absolute. Plateaued amateurs get the better of two modest
+  // scores.
+  const finalScore = Math.max(rateScore, absoluteScore);
+
+  let detail: string;
+  if (rateHasData && absoluteHasData) {
+    const pctRounded = Math.round((avgPct as number) * 1000) / 10;
+    detail = `${pctRounded >= 0 ? "+" : ""}${pctRounded}% e1RM · best ${Math.round(topE1RM)}kg (${(absoluteRatio as number).toFixed(2)}× BW)`;
+  } else if (rateHasData) {
+    const pctRounded = Math.round((avgPct as number) * 1000) / 10;
+    detail = `${pctRounded >= 0 ? "+" : ""}${pctRounded}% e1RM (180d, top ${pctChanges.length})`;
+  } else {
+    detail = `best e1RM ${Math.round(topE1RM)}kg (${(absoluteRatio as number).toFixed(2)}× BW) · trend pending`;
+  }
+  return { score: finalScore, hasData: true, detail, pctChange: avgPct, qualifiedCount: qualified.length };
 }
 
 // Progression sub-rank — rewards a rising weekly-volume trend over
@@ -401,9 +454,12 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
     0.1 * scoreFromCount(weeklyStreak, 8)
   );
 
-  // Strength v2 — e1RM trend instead of lifetime PR count.
+  // Strength v3.2 — rate-of-change blended with absolute strength
+  // (best e1RM ÷ bodyweight) via max(). Veterans plateaued at elite
+  // numbers no longer regress as gain rates naturally slow.
+  // (qa: tier-strength-absolute-blend)
   const todayMs = Date.now();
-  const strengthRes = strengthSubRank(s.recentSetsByExercise ?? {}, todayMs);
+  const strengthRes = strengthSubRank(s.recentSetsByExercise ?? {}, todayMs, s.weightCurrentKg);
 
   // Progression v2 — new sub-rank. Weekly volume regression slope.
   const progressionRes = progressionSubRank(s.weeklyVolumes ?? []);
@@ -446,6 +502,15 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   // Body Comp v2 — new sub-rank (sex-aware).
   const bcRes = bodyCompSubRank(s.weightCurrentKg, s.bfCurrentPct, s.weightChange90dKg, s.bfChange90dPct, s.gender);
 
+  // Technique v3.2 — rewards intensity work logged via supersets /
+  // drop chains / techniques. Each session can earn up to 25 IP
+  // (superset = +5, drop chain = +3). Lifetime total is summed.
+  // Midpoint 200 IP = ~40 technique-sessions, hits ~77 at mid; 500 IP
+  // climbs toward 90+. (qa: tier-technique-subrank)
+  const techniquePts = s.totalIntensityPointsLifetime ?? 0;
+  const technique = scoreFromCount(techniquePts, 200);
+  const techniqueHasData = techniquePts > 0;
+
   // Detail strings.
   const sessions4w = s.sessionsLast4Weeks ?? 0;
   const dpw = s.daysPerWeek ?? 4;
@@ -462,6 +527,7 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
     { id: "progression", label: "Progression", icon: "🚀", score: progressionRes.score, detail: progressionRes.detail,                                 hasData: progressionRes.hasData },
     { id: "volume",      label: "Volume",      icon: "📈", score: volume,           detail: `${Math.round(s.totalVolumeKg / 1000)}k kg-reps lifetime`, hasData: s.totalVolumeKg > 0 },
     { id: "mastery",     label: "Mastery",     icon: "🏆", score: mastery,          detail: `${masteryCount} exercises ≥4 sets (last 6mo) · ${s.distinctExercises} lifetime`, hasData: masteryHasData },
+    { id: "technique",   label: "Technique",   icon: "⚡", score: technique,        detail: techniqueHasData ? `${techniquePts} IP lifetime · supersets/dropsets/techniques` : "log supersets or drop chains to earn IP", hasData: techniqueHasData },
     { id: "bodycomp",    label: "Body Comp",   icon: "⚖️", score: bcRes.score,      detail: bcRes.detail,                                              hasData: bcRes.hasData },
     { id: "habits",      label: "Habits",      icon: "💧", score: habits,           detail: `${hg}d hydration · ${sl}d sleep · ${en}d energy (14d)`,    hasData: habitsAny },
   ];

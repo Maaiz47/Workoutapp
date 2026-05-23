@@ -89,6 +89,7 @@ function buildCanonicalTier(s: {
   weightChange90dKg?: number | null;
   bfChange90dPct?: number | null;
   gender?: string | null;
+  totalIntensityPointsLifetime?: number;
 }): CanonicalTier {
   const breakdown = computeAthleteTier({
     totalSessions: s.totalSessions,
@@ -112,6 +113,7 @@ function buildCanonicalTier(s: {
     weightChange90dKg: s.weightChange90dKg,
     bfChange90dPct: s.bfChange90dPct,
     gender: s.gender,
+    totalIntensityPointsLifetime: s.totalIntensityPointsLifetime,
   });
   // tierScoreBonus is no longer blended into the canonical headline
   // (qa: tier-scoring-v2) — the lucky-drop reward was a silent
@@ -320,6 +322,7 @@ export function computeStatsFromLogs(
     weightChange90dKg: extra.weightChange90dKg,
     bfChange90dPct: extra.bfChange90dPct,
     gender: extra.gender,
+    totalIntensityPointsLifetime: totalIntensityPoints,
   });
 
   void ninetyDaysAgo;

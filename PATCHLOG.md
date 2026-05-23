@@ -2,6 +2,43 @@
 
 ---
 
+## Tier scoring v3.2 · 2026-05-23 — Absolute-strength blend + Technique sub-rank (qa: tier-strength-absolute-blend, tier-technique-subrank)
+
+Per @maaiz follow-up after v3.1: dedicated users were still capping at T4-T5 around 12mo and DROPPING back to T4 at 24mo due to rate-based strength/progression decay. v3.2 fixes both structural issues plus wires the gamification rewards into the tier headline.
+
+### Fix A — Absolute strength blend (`lib/tiers.ts:strengthSubRank`)
+
+`strengthSubRank` now computes BOTH:
+- **Rate** (unchanged): -5% / +20% e1RM half-vs-half mapped to 25-100
+- **Absolute** (new): top e1RM ÷ current bodyweight, mapped 0.5× → 20, 1.0× → 40, 1.5× → 60, 2.0× → 80, 2.5× → 100
+
+Final Strength = **max(rate, absolute)**. Veterans plateaued at elite numbers ride absolute; novices on a tear ride rate; nobody gets caught between them.
+
+Signature change: `strengthSubRank(recentByExercise, todayMs, currentBodyweightKg?)`. `computeAthleteTier` passes `s.weightCurrentKg` automatically. `CanonicalTier` consumers transparent.
+
+### Fix C — New Technique sub-rank
+
+Added 8th sub-rank scored from `WorkoutLog.intensityPoints`. Each session can earn up to 25 IP (superset = +5, drop chain = +3). Lifetime sum runs through `scoreFromCount(IP, 200)` → 50 IP ≈ 57, 200 IP ≈ 77, 500 IP ≈ 90.
+
+`AthleteStatsForTier` gains `totalIntensityPointsLifetime?: number`. `computeStatsForUsers` already aggregates this — just plumbed it through to `buildCanonicalTier`.
+
+### Longitudinal re-projection (post v3.2)
+
+| Months in | Munchy | Alla |
+|---|---|---|
+| 2wk | 42 / T3 | 37 / T3 |
+| 1mo | 56 / T4 | 51 / T4 |
+| 3mo | 64 / T4 | 60 / T4 |
+| 6mo | **71 / T5** ✓ | 68 / T4 (just shy) |
+| 9mo | 73 / T5 | 68 / T4 |
+| 12mo | 75 / T5 | 70 / T5 ✓ |
+| 18mo | 78 / T5 | 73 / T5 |
+| 24mo | **77 / T5** (no more regression) | 74 / T5 |
+
+T6 Bear still aspirational — theoretical elite tops out around 85. Configurable later if we want T6 reachable.
+
+---
+
 ## Tier scoring calibration v3.1 · 2026-05-23 — Dial back v3 so 6mo dedicated users reach T5 (qa: tier-scoring-calibration-v3)
 
 @maaiz follow-up: "if you mean they are T4 at 6 months that's too slow". v3 over-corrected — dedicated 6mo+ users were trapped at T4 Lion. v3.1 walks back the more aggressive bits:
