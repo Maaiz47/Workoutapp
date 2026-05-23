@@ -2,6 +2,18 @@
 
 ---
 
+## Fix · 2026-05-23 — All leaderboard rows showed as Kittens (CanonicalTier missing tierNum) (qa: tier-num-on-canonical)
+
+Per @maaiz: "Why are all the test users kittens?". Traced the bug to `lib/leaderboardStats.ts`: `CanonicalTier` interface carried `idx` (0-based position) but NOT `tierNum` (1-based canonical rank). The leaderboard APIs read `s.tier.tierNum ?? 1`, which always fell back to 1 (= Kitten) for everyone.
+
+Verified by querying the deployed `/api/leaderboard/global` as `test_veteran_chen`:
+- Score 74 (correctly mapped to T5 Gorilla via the v3.2 calibration)
+- `tierNum: 1` returned for ALL rows → frontend rendered every row as Kitten via `tierByNum(1)`
+
+Fix: added `tierNum: number` to the `CanonicalTier` interface and populated it in `buildCanonicalTier` from `t.tierNum`. Now every API consumer sees the correct rank.
+
+---
+
 ## Achievements + challenges expansion · 2026-05-23 — Bodyweight milestones, warmup/cooldown habits, monthly challenge library, premium bonus avatars (qa: achievements-bodyweight-benchmarks, achievements-warmup-cooldown-habits, monthly-challenges-library-rotation, achievements-premium-bonus-avatars)
 
 Per @maaiz: "Which major exercise have milestones? I expect bench press, push ups, sit ups, bicep curls, pull ups etc etc · Some bodyweight movements, stretching/warmup milestones ones could be good too · I want some of the harder milestones to also unlock some premium, extra bonus avatars - add to generate prompts list" + "Check if monthly challenges are actually realistic but challenging, make a large library to rotate 3 randomly every month" + "Check global averages and make milestones scaled accordingly".

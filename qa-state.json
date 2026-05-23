@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "tier-num-on-canonical",
+      "title": "Leaderboard tier rendering shows the correct tier (was stuck at Kitten for everyone)",
+      "area": "Leaderboards",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-num-on-canonical",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open the global leaderboard (/leaderboard or Settings → 🏆 GLOBAL RANK).",
+        "Verify each row shows the user's ACTUAL tier badge — not all rows defaulting to Kitten T1.",
+        "Sanity check: test_veteran_chen (270 days of history, advanced fitness) should be Gorilla T5; test_beginner_lila (18 days history) should be Big Dawg / Lion / etc. — anything but Kitten.",
+        "Same fix applies to the in-group leaderboard rows + the chat-sidebar mini standings — all of those read s.tier.tierNum.",
+        "Trigger a tier-up promotion. Verify the promo toast shows the correct destination tier label."
+      ],
+      "notes": "[2026-05-23] Fixed: CanonicalTier interface in lib/leaderboardStats.ts only carried `idx` (0-based ladder position), not `tierNum` (1-based canonical rank). API consumers read `s.tier.tierNum ?? 1` and always fell back to 1 → frontend rendered Kitten via tierByNum(1). Added tierNum to the interface + populated from t.tierNum in buildCanonicalTier. Discovered while debugging @maaiz's 'why are all the test users kittens' question — verified live by querying the deployed leaderboard API."
+    },
+    {
       "id": "achievements-bodyweight-benchmarks",
       "title": "Bodyweight rep-count milestones — push-ups / pull-ups / sit-ups / dips / BW squats / curls",
       "area": "Achievements",

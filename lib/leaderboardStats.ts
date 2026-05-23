@@ -23,6 +23,11 @@ export interface CanonicalTier {
   min: number;
   score: number; // 0-100 headlineScore
   idx: number;   // position on the ladder, 0-indexed
+  // 1-based tierNum so leaderboard API + frontend code can use the
+  // canonical AnimalTier.tierNum field directly. Previously only
+  // `idx` was carried, which made API consumers fall back to
+  // tierNum=1 (Kitten) for everyone. (qa: tier-num-on-canonical)
+  tierNum: number;
 }
 
 export interface LeaderboardMemberStats {
@@ -136,6 +141,7 @@ function buildCanonicalTier(s: {
     min: t.min,
     score,
     idx: resolvedIdx,
+    tierNum: t.tierNum,
   };
 }
 
