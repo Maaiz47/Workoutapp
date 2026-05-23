@@ -2,6 +2,12 @@
 
 ---
 
+## Nudge · 2026-05-23 — force redeploy (production stuck at 6c7b47e)
+
+Vercel did not pick up the 3 commits after the cron-schedule change (d012874 workout polish · 538a274 effort prompt · deaa9db effort suggestion hint) — production stayed pinned to 6c7b47e ~57 minutes after the last real-content push. ignoreCommand confirmed PROCEED locally for the diff, so this is either a quota/queue issue or a missed webhook. Empty-ish nudge commit to force a fresh build attempt.
+
+---
+
 ## QA pass · 2026-05-23 — Effort prompt suggestion hint (qa: workout-effort-prompt)
 
 Slice 2 of the effort backfill prompt — added a ★ LIKELY badge above whichever chip matches the user's most recent RPE for the same exercise (this-session first, then last-session). Pure visual cue: the chip is NOT pre-selected, the user still has to tap to confirm. New help line `★ HINT BASED ON YOUR RECENT EFFORT — TAP TO CONFIRM` only renders when a suggestion is available. Brand-new exercises with no history show the prompt with no hint.
