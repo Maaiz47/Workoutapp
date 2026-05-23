@@ -1,6 +1,25 @@
 {
   "items": [
     {
+      "id": "workout-effort-prompt",
+      "title": "Effort backfill prompt after LOG SET (when no chip was tapped)",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass workout-effort-prompt",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout. In the input panel, enter weight + reps but do NOT tap any effort chip. Tap LOG SET.",
+        "Verify a bottom-sheet prompt appears titled `How hard was <exercise> · set N?` with the 1-10 effort chips inline.",
+        "Tap a chip (e.g. 8) — verify the just-logged set's rpe gets backfilled (open EDIT SETS to confirm).",
+        "Log another set without effort, tap SKIP instead. Verify the prompt dismisses and the set has no rpe.",
+        "Log another set without effort, tap DON'T ASK AGAIN. Verify the prompt dismisses and SUBSEQUENT log-set actions in this session do NOT fire the prompt.",
+        "Finish the workout. Start a new one. Log a set without effort. Verify the prompt RE-APPEARS (the suppression is session-scoped, not persistent).",
+        "Pick an effort chip before LOG SET. Verify the prompt does NOT fire (only fires when the chip was untouched at the time of logging)."
+      ],
+      "notes": "[2026-05-23] Shipped: small bottom-sheet prompt fires after each LOG SET when effortInput was null. Tapping a chip calls patchSet({rpe: meta.value}) on the just-logged set key. SKIP dismisses; DON'T ASK AGAIN sets a session-scoped flag (effortPromptDisabled) that suppresses for the rest of the active workout. Suppression auto-resets when the workout finishes / starts fresh. (Reported by @maaiz: 'prompt to select effort scale of not selected between sets/exercises')."
+    },
+    {
       "id": "workout-warmup-skip",
       "title": "Warm-up / stretch DONE + SKIP per-set buttons (always-expand panel)",
       "area": "Workout",

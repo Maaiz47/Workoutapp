@@ -2,6 +2,12 @@
 
 ---
 
+## QA pass · 2026-05-23 — Effort backfill prompt (qa: workout-effort-prompt)
+
+Quick follow-up to the polish batch — added the post-LOG-SET prompt the user asked for. When the user logs a set without picking an effort chip, a small bottom-sheet appears with the 1-10 chips inline; tapping one backfills the just-logged set's rpe via `patchSet`. SKIP dismisses without saving; DON'T ASK AGAIN sets a session-scoped suppression flag that resets when the workout ends. Works across all three log-set branches (standard, superset, drop set).
+
+---
+
 ## QA pass · 2026-05-23 — Workout polish batch (qa: workout-warmup-skip, workout-warmup-mark-each-set, workout-set-edit-after-done, workout-set-edit-effort, exercise-local-images, session-autoresume-silent, workout-assisted-exercise, workout-music-launcher, home-hub-singleline, profile-avatars, workout-equipment-aware-input)
 
 Processing pass for the 9 unprocessed QA comments + two new bug reports surfaced mid-session by @maaiz. 12 distinct fixes shipped in a single push.

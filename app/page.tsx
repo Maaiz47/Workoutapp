@@ -4344,6 +4344,12 @@ function HomePage() {
   // (qa: workout-assisted-exercise — slice 1/2: UI + storage; volume
   // integration in next slice.)
   const [assistedBW, setAssistedBW] = useState(false);
+  // Effort backfill prompt — fires after LOG SET when no effort chip
+  // was tapped. User can pick an effort to backfill the just-logged
+  // set, skip, or disable the prompt for the rest of the session.
+  // (qa: workout-effort-prompt)
+  const [effortPrompt, setEffortPrompt] = useState<{ key: string; setLabel: string; exName: string } | null>(null);
+  const [effortPromptDisabled, setEffortPromptDisabled] = useState(false);
   const [logFlashId, setLogFlashId] = useState<string | null>(null);
   const [newPBs, setNewPBs] = useState<{ name: string; weight: number; reps: number }[]>([]);
   const [restStartTime, setRestStartTime] = useState<number>(0);
@@ -13472,18 +13478,28 @@ function HomePage() {
                 const handleLog = () => {
                   if (!ns) return;
                   const logOpts = { rpe: effortInput, note: null, assistance: assistanceKg > 0 ? assistanceKg : null };
+                  // If the user logged the set WITHOUT picking an effort
+                  // chip, fire a small backfill prompt so they don't lose
+                  // the RPE data point. Suppressed if they've tapped
+                  // "DON'T ASK AGAIN" earlier this session.
+                  // (qa: workout-effort-prompt)
+                  const setKey = `${ex.id}-${ns}`;
+                  const shouldPromptEffort = effortInput == null && !effortPromptDisabled;
                   if (superCtx && superCtx.idx < superCtx.group.length - 1) {
                     logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
+                    if (shouldPromptEffort) setEffortPrompt({ key: setKey, setLabel: `Set ${ns}`, exName: ex.name });
                     const nextEx = superCtx.group[superCtx.idx + 1];
                     const { weight: nw, reps: nr } = lastSessionBest(nextEx.id);
                     setExpanded(nextEx.id); setWInput(nw ? String(nw) : ""); setRInput(nr ? String(nr) : ""); setBwAddWeight(false); setAssistedBW(false); setManualBW(false); setEffortInput(null); setProgression(null);
                   } else if (dropCount > 0) {
                     logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
+                    if (shouldPromptEffort) setEffortPrompt({ key: setKey, setLabel: `Set ${ns}`, exName: ex.name });
                     const w = parseFloat(effectiveWeight) || 0;
                     setPendingDrop({ exId: ex.id, setNum: ns, dropNum: 1 });
                     setDropWInput(w > 0 ? String(Math.round(w * 0.8 * 4) / 4) : ""); setDropRInput(""); setEffortInput(null); setProgression(null);
                   } else {
                     logSet(ex.id, ns, effectiveWeight, rInput, undefined, logOpts);
+                    if (shouldPromptEffort) setEffortPrompt({ key: setKey, setLabel: `Set ${ns}`, exName: ex.name });
                     setEffortInput(null); setProgression(null);
                     if (ns + 1 > ex.sets) {
                       setExpanded(null);
@@ -14885,6 +14901,35 @@ function HomePage() {
           </div>
         );
       })()}
+      {/* Effort backfill prompt — small bottom sheet that appears
+          when the user logs a set without picking an effort chip.
+          Tapping a chip patches the just-logged set's rpe; SKIP or
+          tap-outside dismisses; DON'T ASK AGAIN suppresses for the
+          rest of the session. (qa: workout-effort-prompt) */}
+      {effortPrompt && (
+        <div onClick={() => setEffortPrompt(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 9995, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 16, paddingBottom: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 420, background: "rgba(20,20,24,0.98)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 14, padding: 14, boxShadow: "0 -8px 32px rgba(0,0,0,0.6)" }}>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 4, fontFamily: "'DM Sans', sans-serif" }}>
+              How hard was <strong style={{ color: "#fff" }}>{effortPrompt.exName}</strong> · {effortPrompt.setLabel.toLowerCase()}?
+            </div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 1, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>1 = WARM-UP · 10 = FAILURE</div>
+            <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
+              {EFFORT_SCALE.map(meta => (
+                <button
+                  key={meta.value}
+                  onClick={() => { patchSet(effortPrompt.key, { rpe: meta.value }); setEffortPrompt(null); }}
+                  title={`${meta.value}: ${meta.rpe} · ${meta.rir}`}
+                  style={{ flex: 1, minWidth: 0, padding: "9px 0", background: `${meta.color}1a`, border: `1px solid ${meta.color}44`, borderRadius: 5, color: meta.color, fontSize: 12, fontWeight: 700, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                >{meta.value}</button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "space-between", marginTop: 4 }}>
+              <button onClick={() => setEffortPrompt(null)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer", padding: "6px 0" }}>SKIP</button>
+              <button onClick={() => { setEffortPromptDisabled(true); setEffortPrompt(null); }} style={{ background: "transparent", border: "none", color: "rgba(255,107,107,0.55)", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer", padding: "6px 0" }}>DON&apos;T ASK AGAIN</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Tier promotion toast — fires once when the user's headline
           tier number crosses up. Tap to dismiss. (qa: tier-promotion-toast) */}
       {tierPromoToast && (
