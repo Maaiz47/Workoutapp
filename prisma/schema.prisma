@@ -409,6 +409,14 @@ model CustomExercise {
   type             String   @default("compound")
   difficulty       String   @default("intermediate")
   photoUrls        String[]
+  // How weight is entered for this exercise. Drives the per-input
+  // convention hint shown to athletes in the session screen. Same
+  // values as the auto-derived convention for built-in exercises:
+  //   'barbell-total' | 'dumbbell-per' | 'stack-pin' |
+  //   'bodyweight-added' | 'time-only' | 'reps-only' | null (auto)
+  // Null = fall back to equipment-derived hint (legacy default).
+  // (qa: custom-exercise-weight-input-type)
+  weightInputType  String?
   createdAt        DateTime @default(now())
   trainer          User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 

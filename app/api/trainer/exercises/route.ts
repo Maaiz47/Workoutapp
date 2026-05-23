@@ -40,12 +40,20 @@ export async function POST(req: NextRequest) {
       type = "compound",
       difficulty = "intermediate",
       photoUrls = [],
+      weightInputType = null,
     } = body ?? {};
 
     if (!name || typeof name !== "string" || name.trim() === "") {
       return json({ error: "name is required" }, 400);
     }
     if (name.length > 80) return json({ error: "name too long (80 max)" }, 400);
+    // Validate weightInputType — null = auto (legacy default). All
+    // other values must match the canonical convention strings used
+    // by the session weight-input hint. (qa: custom-exercise-weight-input-type)
+    const VALID_WEIGHT_TYPES = ["barbell-total", "dumbbell-per", "stack-pin", "bodyweight-added", "time-only", "reps-only"];
+    if (weightInputType != null && (typeof weightInputType !== "string" || !VALID_WEIGHT_TYPES.includes(weightInputType))) {
+      return json({ error: "Invalid weightInputType" }, 400);
+    }
 
     const okStrArr = (a: unknown, max: number) =>
       Array.isArray(a) && a.length <= max && a.every(x => typeof x === "string" && x.length <= 40);
@@ -72,7 +80,7 @@ export async function POST(req: NextRequest) {
     );
     if (!photosOk) return json({ error: "Photo URLs must come from our Cloudinary account" }, 400);
 
-    const exercise = await prisma.customExercise.create({
+    const exercise = await (prisma.customExercise.create as any)({
       data: {
         trainerId: uid,
         name: name.trim(),
@@ -82,6 +90,7 @@ export async function POST(req: NextRequest) {
         type,
         difficulty,
         photoUrls,
+        weightInputType: weightInputType ?? null,
       },
     });
 

@@ -2,6 +2,29 @@
 
 ---
 
+## QA pass · 2026-05-23 — Bar-weight helper + Maaiz migration endpoint + custom-exercise weight type (qa: weight-input-bar-helper, bar-weight-data-migration-maaiz, custom-exercise-weight-input-type)
+
+@maaiz: 'what if I don't know the weight? Or if there's standard weights for different length bars have helper text. All of maaiz input have been one side plates only for all barbell related exercises, and without bar weight. Can you update maaiz data for barbell or ez curl included weights? Always used the smaller ez curl bar. I guess the custom exercises a trainer makes they would need to classify weight time if applicable too.'
+
+### weight-input-bar-helper
+- 📏 BAR? toggle next to the WEIGHT label on barbell + EZ-curl exercises only. Tap to expand a yellow reference card listing standard bar weights:
+  - Olympic 20 kg / Women's Olympic 15 kg / Standard ~10 kg / Smith 7-15 kg / Trap/hex 18-25 kg (for regular barbells)
+  - Standard EZ ~7 kg / Olympic EZ ~11 kg (for EZ-curl exercises)
+- Reinforces 'total on bar (incl. bar)' so users don't fall back to one-side input.
+
+### bar-weight-data-migration-maaiz
+- New POST `/api/admin/migrate-bar-weights` endpoint (ADMIN_SECRET-gated). Body: `{ username, dryRun (default true), barbellBarKg (default 20), ezCurlBarKg (default 7) }`.
+- Walks every WorkoutLog row for the named user, finds sets on barbell-equipped exercises, mutates each set's weight: `new = old * 2 + bar_kg`. EZ-curl exercises use the smaller bar (7 kg default).
+- Dry-run returns counts + first 20 mutations as a preview sample. Apply with `dryRun: false`. Vercel function logs carry an audit line per apply.
+- Reusable for any future user with the same convention drift.
+
+### custom-exercise-weight-input-type
+- New `weightInputType: String?` column on CustomExercise. Validated against 6 canonical values + null (= auto, legacy).
+- Trainer creator form now has a chip-row picker after TYPE / DIFFICULTY: Auto / Total on bar / Per dumbbell / Stack pin / Bodyweight + added / Time only / Reps only.
+- Session screen reads `exLibData.weightInputType` first; falls back to equipment-derived hint if null. Built-in exercises unchanged.
+
+---
+
 ## QA pass · 2026-05-23 — Friend search fix + achievements expansion + weight input clarity + bottom-hub Progress removal (qa: friend-search-case-insensitive, achievements-strength-benchmarks, achievements-cardio-hiit, achievements-volume, achievements-behaviour-expanded, weight-input-convention-clarity, home-hub-progress-bottom-removed)
 
 @maaiz: 'Not getting any search results from find and add friends. Remove progress tab button from the bottom of main as it's already at the top. We need like way more achievements like HIIT related, cardio based etc I thought we discussed this. Strength achievements like difficult to achieve target weights on particular major exercises (like a bench press goal). Have you decided what the best way is to input weights?'

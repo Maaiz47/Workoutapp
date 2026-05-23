@@ -4741,6 +4741,11 @@ function HomePage() {
   const [log, setLog] = useState<Record<string, { weight: number; reps: number; skipped?: boolean; rpe?: number; note?: string }>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
   const [wInput, setWInput] = useState("");
+  // Whether the per-set 'standard bar weights' guide is expanded
+  // under the weight input. Hidden by default; appears as a small
+  // 📏 BAR? toggle only on barbell / EZ-curl exercises.
+  // (qa: weight-input-bar-helper)
+  const [barGuideOpen, setBarGuideOpen] = useState(false);
   // Cardio set inputs — used when the expanded exercise is a cardio
   // machine (treadmill, bike, rower, elliptical). Separate state so
   // weight/reps stay untouched. (qa: maaiz — "record how long
@@ -5051,6 +5056,11 @@ function HomePage() {
   const [exCreatorType, setExCreatorType] = useState("compound");
   const [exCreatorDiff, setExCreatorDiff] = useState("intermediate");
   const [exCreatorPhotos, setExCreatorPhotos] = useState<string[]>([]);
+  // Per-exercise weight-input convention. Trainers pick this so the
+  // session-screen hint ('per dumbbell' / 'total on bar' / etc) is
+  // unambiguous for the athletes using their custom exercise. Null =
+  // auto-derive from equipment (legacy default). (qa: custom-exercise-weight-input-type)
+  const [exCreatorWeightInputType, setExCreatorWeightInputType] = useState<string | null>(null);
   const [exCreatorUploading, setExCreatorUploading] = useState(false);
   const [exCreatorSaving, setExCreatorSaving] = useState(false);
 
@@ -9917,9 +9927,9 @@ function HomePage() {
               if (!exCreatorName.trim()) return;
               setExCreatorSaving(true);
               try {
-                const res = await fetch("/api/trainer/exercises", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: exCreatorName.trim(), primaryMuscles: exCreatorPrimary, secondaryMuscles: exCreatorSecondary, equipment: exCreatorEquip, type: exCreatorType, difficulty: exCreatorDiff, photoUrls: exCreatorPhotos }) });
+                const res = await fetch("/api/trainer/exercises", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: exCreatorName.trim(), primaryMuscles: exCreatorPrimary, secondaryMuscles: exCreatorSecondary, equipment: exCreatorEquip, type: exCreatorType, difficulty: exCreatorDiff, photoUrls: exCreatorPhotos, weightInputType: exCreatorWeightInputType }) });
                 const data = await res.json();
-                if (data.exercise) { setCustomExercises(p => [data.exercise, ...p]); setShowExCreator(false); setExCreatorName(""); setExCreatorPrimary([]); setExCreatorSecondary([]); setExCreatorEquip([]); setExCreatorPhotos([]); setExCreatorType("compound"); setExCreatorDiff("intermediate"); }
+                if (data.exercise) { setCustomExercises(p => [data.exercise, ...p]); setShowExCreator(false); setExCreatorName(""); setExCreatorPrimary([]); setExCreatorSecondary([]); setExCreatorEquip([]); setExCreatorPhotos([]); setExCreatorType("compound"); setExCreatorDiff("intermediate"); setExCreatorWeightInputType(null); }
                 else alert(data.error ?? "Save failed");
               } catch { alert("Save failed"); } finally { setExCreatorSaving(false); }
             };
@@ -9955,6 +9965,27 @@ function HomePage() {
                     <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>DIFFICULTY</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{["beginner","intermediate","advanced"].map(d => chipBtn(d, exCreatorDiff === d, () => setExCreatorDiff(d), "#96CEB4"))}</div>
                   </div>
+                </div>
+                {/* Weight input convention. Lets the trainer pin
+                    down EXACTLY what an athlete should type when
+                    logging the exercise so PR/tier scoring stays
+                    consistent. 'Auto' falls back to the equipment-
+                    derived hint (e.g. equipment=barbell → 'total on
+                    bar'). (qa: custom-exercise-weight-input-type) */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>WEIGHT INPUT CONVENTION</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {([
+                      { id: null,                  label: "Auto (from equipment)" },
+                      { id: "barbell-total",       label: "Total on bar (incl. bar)" },
+                      { id: "dumbbell-per",        label: "Per dumbbell" },
+                      { id: "stack-pin",           label: "Machine/cable stack pin" },
+                      { id: "bodyweight-added",    label: "Bodyweight + added kg" },
+                      { id: "time-only",           label: "Time only (no weight)" },
+                      { id: "reps-only",           label: "Reps only (no weight)" },
+                    ] as const).map(opt => chipBtn(opt.label, exCreatorWeightInputType === opt.id, () => setExCreatorWeightInputType(opt.id), "#A29BFE"))}
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 6, lineHeight: 1.5 }}>Athletes see this label next to the weight input — keeps PRs and tier scoring consistent across users.</div>
                 </div>
                 {/* Photo upload */}
                 <div style={{ marginBottom: 14 }}>
@@ -14874,6 +14905,12 @@ function HomePage() {
                 const isBarbell = equipList.includes("barbell");
                 const isDumbbell = equipList.includes("dumbbell");
                 const isBarbellOrDB = isBarbell || isDumbbell;
+                // EZ curl bar is its own beast — shorter, curved, much
+                // lighter than a 20kg Olympic bar. Detect by exercise
+                // id substring so we can hint the right standard bar
+                // weight in the helper text.
+                // (qa: weight-input-bar-helper)
+                const isEzBar = ex.id === "ez-bar-curl" || ex.id.includes("ez-bar");
                 const weightStep = isMachine ? 5 : isBarbellOrDB ? 2.5 : 1.25;
                 // Convention hint shown under the weight input so the
                 // user knows what the number represents. Per @maaiz:
@@ -14886,8 +14923,26 @@ function HomePage() {
                 //   cable     → the pin's stack weight
                 //   bodyweight → added/assistance weight
                 // (qa: weight-input-convention-clarity)
+                // Trainer-authored exercises can pin their own
+                // convention via CustomExercise.weightInputType. Falls
+                // back to the equipment-derived hint when null/legacy.
+                // (qa: custom-exercise-weight-input-type)
+                const explicitConvention: string | null = (exLibData as any)?.weightInputType ?? null;
+                const conventionFromExplicit: string | null = (() => {
+                  switch (explicitConvention) {
+                    case "barbell-total": return "total on bar (incl. bar)";
+                    case "dumbbell-per": return "per dumbbell";
+                    case "stack-pin": return "stack pin";
+                    case "bodyweight-added": return "added kg";
+                    case "time-only": return "time (no weight)";
+                    case "reps-only": return "reps (no weight)";
+                    default: return null;
+                  }
+                })();
                 const weightConvention = activeBW
                   ? (assistedBW ? "assistance kg" : "added kg")
+                  : conventionFromExplicit
+                  ? conventionFromExplicit
                   : isBarbell ? "total on bar (incl. bar)"
                   : isDumbbell ? "per dumbbell"
                   : equipList.includes("machine") ? "stack pin"
@@ -15579,9 +15634,48 @@ function HomePage() {
                                   barbell+dumbbell 2.5kg, machine 5kg, default 1.25kg.
                                   (qa: workout-equipment-aware-input) */}
                               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
-                                <span>{assistedBW ? "ASSISTANCE (kg)" : activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}{weightConvention ? <span style={{ marginLeft: 6, color: "rgba(162,155,254,0.7)", textTransform: "none", letterSpacing: 0.5 }}>· {weightConvention}</span> : null}</span>
+                                <span>
+                                  {assistedBW ? "ASSISTANCE (kg)" : activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}
+                                  {weightConvention ? <span style={{ marginLeft: 6, color: "rgba(162,155,254,0.7)", textTransform: "none", letterSpacing: 0.5 }}>· {weightConvention}</span> : null}
+                                  {(isBarbell || isEzBar) && !activeBW && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setBarGuideOpen(o => !o)}
+                                      title="Standard bar weights — tap to expand"
+                                      style={{ marginLeft: 6, padding: "1px 6px", background: barGuideOpen ? "rgba(255,209,102,0.18)" : "rgba(255,209,102,0.08)", border: "1px solid rgba(255,209,102,0.3)", borderRadius: 4, color: "#FFD166", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", textTransform: "uppercase" }}
+                                    >📏 BAR{barGuideOpen ? " ▴" : "?"}</button>
+                                  )}
+                                </span>
                                 <span style={{ color: "rgba(255,255,255,0.25)" }}>±{weightStep}{isMachine ? " · pin" : isBarbellOrDB ? " · plate" : ""}</span>
                               </div>
+                              {/* Standard bar weights reference. Shown
+                                  only on barbell / EZ-curl exercises when
+                                  the user taps 📏 BAR?. Helps users who
+                                  don't know what to include in their
+                                  number — convention is TOTAL on the bar
+                                  (incl. the bar itself).
+                                  (qa: weight-input-bar-helper) */}
+                              {(isBarbell || isEzBar) && barGuideOpen && !activeBW && (
+                                <div className="fade-in" style={{ marginBottom: 8, padding: "8px 10px", background: "rgba(255,209,102,0.05)", border: "1px solid rgba(255,209,102,0.22)", borderRadius: 8, fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.55 }}>
+                                  <div style={{ fontSize: 9, fontWeight: 700, color: "#FFD166", letterSpacing: 2, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>STANDARD BAR WEIGHTS</div>
+                                  {isEzBar ? (
+                                    <>
+                                      <div>· <strong>Standard EZ curl bar</strong> — ~7 kg (smaller bar at most gyms)</div>
+                                      <div>· <strong>Olympic EZ curl bar</strong> — ~11 kg (thick sleeves, takes Olympic plates)</div>
+                                      <div style={{ marginTop: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Tip: not sure which bar? Tap the small one if it spins/clicks freely — that's an Olympic curl bar. Otherwise it's the standard.</div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div>· <strong>Olympic barbell</strong> — 20 kg (7ft, standard at most gyms)</div>
+                                      <div>· <strong>Women's Olympic</strong> — 15 kg (7ft, slightly thinner)</div>
+                                      <div>· <strong>Standard barbell</strong> — ~10 kg (shorter, 6ft, common in home gyms)</div>
+                                      <div>· <strong>Smith machine bar</strong> — 7-15 kg (counterbalanced; check the machine label)</div>
+                                      <div>· <strong>Trap / hex bar</strong> — 18-25 kg (heavier than Olympic, varies by brand)</div>
+                                      <div style={{ marginTop: 6, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Enter TOTAL weight on the bar (plates × 2 + bar). Don't enter one side only — your PRs and tier scoring rely on the total.</div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
                               <div style={{ display: "flex", alignItems: "center" }}>
                                 <button onClick={() => setWInput(String(Math.max(0, +((parseFloat(wInput) || 0) - weightStep).toFixed(2))))} style={{ width: 34, height: 42, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px 0 0 10px", color: "#FF6B6B", fontSize: 16, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                                 <input type="number" inputMode="decimal" value={wInput} onChange={e => setWInput(e.target.value)} placeholder="0" style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderLeft: "none", borderRight: "none", color: "#fff", fontSize: 17, fontFamily: "'Space Mono', monospace", padding: "8px 2px", textAlign: "center", outline: "none" }} />

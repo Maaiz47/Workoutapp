@@ -175,6 +175,58 @@
       "notes": "[2026-05-23] Per @maaiz: 'Unbury the analytics and present them in an intuitive way through the progress slice somewhere'. Current state: analytics ARE there but scattered — VolumeHeatmap on Dashboard, body-metric chart on Dashboard, EXERCISES tab has per-exercise progression sparkline (only for current-split exercises), tier sub-rank details inside the tier modal. Power-user-grade insights (e1RM trends per exercise, weekly volume regression slope, PR-rate-of-change) are computed inside computeAthleteTier but only surfaced as one-liners in the sub-rank detail strings.\n\nProposed:\n1. New 'ANALYTICS' sub-tab on Progress (alongside Dashboard + Exercises). OR reorganise Dashboard to lead with the most useful charts at the top.\n2. Charts to include (each with a 1-sentence plain-English interpretation underneath):\n   - Per-exercise e1RM trendline. Powered by the same recentSetsByExercise + epley1RM that feeds the Strength sub-rank. Multi-line with up to 6 top lifts; tap a line to isolate.\n   - Weekly volume heatmap (already exists on Dashboard — keep, but add month gridlines + trend annotation 'rising 1.2%/wk').\n   - Body composition dual-axis chart: weight (left axis) + BF% (right axis) over time, with 90d-rolling mean overlay. Powered by BodyMetric rows.\n   - Session-frequency calendar: monthly heat-grid showing days with at least one session. Surfaces consistency patterns + breaks.\n   - PR rate-of-change: bar chart of PR count per month, last 6mo. Shows whether the user is still making progress or plateauing.\n3. Interpretation footer per chart: pulls from the existing tier sub-rank detail strings (already computed by computeAthleteTier) so we don't re-derive — just re-surface them as 'what this chart tells you'.\n4. De-gamify respect: charts always visible (analytics are educational, not gamification). Tier-overlay decorations (animal emojis, headline scores in chart corners) hidden in pure mode.\n\nSlices:\n1. New Progress sub-tab + reuse existing VolumeHeatmap + body-metric chart at the top with new framing copy.\n2. Add per-exercise e1RM trendline (multi-line chart, top 6 lifts).\n3. Add session-frequency calendar + PR rate-of-change.\n4. Interpretation footers for each chart.\n\nGates: needs design call on whether ANALYTICS is a new sub-tab vs a Dashboard reorder. Recommended new sub-tab — keeps Dashboard scannable for the casual user, gives a dedicated home for serious power-users to dig in. Pairs with the dashboard-cards-rearrangeable planning item."
     },
     {
+      "id": "weight-input-bar-helper",
+      "title": "Standard-bar-weight helper text under the weight input",
+      "area": "Workout",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass weight-input-bar-helper",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open a session with a BARBELL exercise (e.g. Bench Press). Verify a small yellow 📏 BAR? toggle appears next to the WEIGHT label.",
+        "Tap it. Verify a yellow info card opens listing standard bar weights: Olympic 20 kg, Women's Olympic 15 kg, Standard ~10 kg, Smith 7-15 kg, Trap/hex 18-25 kg. With the tip 'Enter TOTAL weight on the bar (plates × 2 + bar)'.",
+        "Tap the toggle again to collapse.",
+        "Open an EZ-CURL exercise (EZ Bar Curl). Verify the toggle is present and shows EZ-curl-specific guidance: standard EZ ~7 kg, Olympic EZ ~11 kg.",
+        "Open a non-bar exercise (dumbbell / machine). Verify the toggle does NOT appear."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'what if I don't know the weight? Or if there's standard weights for different length bars have helper text for user to decide and input the right weight amount'. Solution: small expandable 📏 BAR? toggle next to the WEIGHT label that opens an inline reference card. Bar list adapts to exercise type — EZ-curl exercises show curl-bar weights, all other barbell exercises show Olympic/standard/Smith/trap-bar weights. Convention tip reinforces 'total on bar incl. bar' so users don't fall back into one-side input."
+    },
+    {
+      "id": "bar-weight-data-migration-maaiz",
+      "title": "Admin migration — convert one-side-plates-only entries to total-on-bar",
+      "area": "Admin",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass bar-weight-data-migration-maaiz",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "Dry-run first: curl -X POST <host>/api/admin/migrate-bar-weights -H 'x-admin-key: $ADMIN_SECRET' -H 'Content-Type: application/json' -d '{\"username\":\"maaiz\",\"dryRun\":true,\"barbellBarKg\":20,\"ezCurlBarKg\":7}'",
+        "Verify the response shows logsCount, logsToTouch, setsToMutate, and a sample[] array of {key, before, after, bar, date} — each `after` should equal `before*2 + bar`.",
+        "Verify the sample looks correct — bench press 60 → 140 (60*2+20), squat 60 → 140, EZ-curl 15 → 37 (15*2+7).",
+        "If satisfied, run again with dryRun:false to apply. Response includes appliedCount.",
+        "Check Vercel function logs for the audit line: [admin/migrate-bar-weights] target=@maaiz (...) logs-touched=N sets-mutated=M.",
+        "Open Maaiz's Progress dashboard — verify the strength PR table now shows realistic 'total on bar' weights, and the tier breakdown's Strength + Volume sub-ranks recompute (might tick up a tier or two)."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'All of maaiz input have been one side plates only for all barbell related exercises, and without bar weight. Can you update maaiz data for barbell or ez curl included weights? Always used the smaller ez curl bar'.\n\nBuilt /api/admin/migrate-bar-weights as a re-runnable one-off endpoint:\n- Header: x-admin-key (gated by ADMIN_SECRET env var)\n- Body: { username, dryRun (default true), barbellBarKg (default 20), ezCurlBarKg (default 7) }\n- Mutation formula: new_weight = current_weight * 2 + bar_kg\n- Detection: every set whose exerciseId maps to an EXERCISES entry tagged with equipment:'barbell'. The id 'ez-bar-curl' (or any future id containing 'ez-bar') uses ezCurlBarKg; everything else uses barbellBarKg.\n- Dry-run returns counts + first 20 mutations as a preview sample. Apply with dryRun:false.\n- Vercel function log line on apply: [admin/migrate-bar-weights] target=... logs-touched=N sets-mutated=M.\n- Reuses the same endpoint for any future user who reports the same convention drift — pass their username + custom bar weights if different.\n\nFollow-up to consider: a per-user `inputConventionMigratedAt` flag so we don't double-apply. Currently safe to re-run since the formula doubles + adds bar, but if hit twice the second pass would inflate further. Until that flag lands, treat this endpoint as run-once-per-user."
+    },
+    {
+      "id": "custom-exercise-weight-input-type",
+      "title": "Trainers can pin the weight-input convention on custom exercises",
+      "area": "Trainer",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass custom-exercise-weight-input-type",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → Custom Exercise Library (trainer-only) → tap + to create a new exercise.",
+        "In the creator form, verify a 'WEIGHT INPUT CONVENTION' chip row appears with 7 options: Auto (from equipment) / Total on bar (incl. bar) / Per dumbbell / Machine-cable stack pin / Bodyweight + added kg / Time only (no weight) / Reps only (no weight).",
+        "Pick a non-default option (e.g. 'Per dumbbell'). Save.",
+        "Have an athlete log a session using this custom exercise. Verify the WEIGHT label in the input row carries '· per dumbbell' (or whatever convention you picked) — matches the convention you set, not the auto-derived one.",
+        "Edit the exercise to set convention='Auto'. Re-log. Verify the label falls back to the equipment-derived hint (or no hint if equipment is empty)."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'I guess the custom exercises a trainer makes they would need to classify weight time if applicable too'.\n\n- Added `weightInputType: String?` column to CustomExercise (nullable — null means auto-derive from equipment, the legacy behaviour).\n- Validated against 6 canonical values: barbell-total, dumbbell-per, stack-pin, bodyweight-added, time-only, reps-only.\n- Trainer creator form now has a chip-row picker right after TYPE / DIFFICULTY. Defaults to 'Auto'.\n- Session screen reads exLibData.weightInputType first; falls back to equipment-derived hint if null. Built-in exercises don't carry the field so their behaviour is unchanged.\n- time-only / reps-only signal cardio or bodyweight-only exercises that don't take a weight input. Frontend rendering of the input field itself can be hidden in a follow-up slice (right now the hint label changes but the input still accepts a number)."
+    },
+    {
       "id": "friend-search-case-insensitive",
       "title": "Friend search accepts any casing + @ prefix",
       "area": "Social",
