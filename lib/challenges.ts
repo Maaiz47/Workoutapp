@@ -28,39 +28,86 @@ export function currentMonthIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-// Active challenges — only the ones for the current month are surfaced.
-// Update this list each month, or add 2-3 evergreens that re-fire each
-// month with a new monthIso. v1 keeps it simple: replace before each month.
-export const CHALLENGES: Challenge[] = [
-  {
-    id: "may-2026-pushups",
-    monthIso: currentMonthIso(),
-    title: "Push-Up Monster",
-    body: "Log 1,000 push-up reps across the month.",
-    icon: "💥",
-    metric: "total_reps",
-    target: 1000,
-    exerciseSubstrings: ["push-up", "pushup"],
-  },
-  {
-    id: "may-2026-sessions",
-    monthIso: currentMonthIso(),
-    title: "Showing Up",
-    body: "20 logged sessions this month.",
-    icon: "📅",
-    metric: "total_sessions",
-    target: 20,
-  },
-  {
-    id: "may-2026-volume",
-    monthIso: currentMonthIso(),
-    title: "Heavy Hauler",
-    body: "Move 50,000 kg of total volume (weight × reps).",
-    icon: "🏋",
-    metric: "total_volume_kg",
-    target: 50_000,
-  },
+// ── Monthly challenge LIBRARY ────────────────────────────────────────
+// All challenges live here as TEMPLATES (without a fixed monthIso). The
+// `getMonthChallenges(monthIso)` selector below hashes the monthIso and
+// deterministically picks 3 from this pool — so every user worldwide
+// sees the same 3 for any given month, but the 3 rotate every month.
+// Targets are calibrated against typical engaged-user activity per
+// pickTodayQuest research — each marked as "modest / solid / hard" in
+// the comment so the picker can be tuned later.
+// (qa: monthly-challenges-library-rotation)
+type ChallengeTemplate = Omit<Challenge, "id" | "monthIso"> & { id: string; difficulty: "modest" | "solid" | "hard" };
+
+const CHALLENGE_LIBRARY: ChallengeTemplate[] = [
+  // ── Rep-count challenges on a specific exercise group ──────────────
+  { id: "pushup-monster",      title: "Push-Up Monster",      body: "Log 750 push-up reps across the month.",                  icon: "💥", metric: "total_reps",      target: 750,    exerciseSubstrings: ["push-up", "pushup", "push up"],                      difficulty: "solid" },
+  { id: "pushup-thousand",     title: "Push-Up 1K",           body: "1,000 push-ups in a single month. Real grind.",            icon: "💪", metric: "total_reps",      target: 1000,   exerciseSubstrings: ["push-up", "pushup", "push up"],                      difficulty: "hard"  },
+  { id: "pullup-builder",      title: "Pull-Up Builder",       body: "150 pull-ups (or chin-ups) total this month.",            icon: "🤜", metric: "total_reps",      target: 150,    exerciseSubstrings: ["pull-up", "pullup", "pull up", "chin-up", "chinup"], difficulty: "solid" },
+  { id: "pullup-three-hundred",title: "Pull-Up 300",           body: "300 pull-ups (or chin-ups) total this month — elite back work.", icon: "🦅", metric: "total_reps", target: 300, exerciseSubstrings: ["pull-up", "pullup", "pull up", "chin-up", "chinup"], difficulty: "hard"  },
+  { id: "situp-core",          title: "Core Forge",            body: "1,000 sit-ups / crunches across the month.",              icon: "🌀", metric: "total_reps",      target: 1000,   exerciseSubstrings: ["sit-up", "situp", "sit up", "crunch"],               difficulty: "solid" },
+  { id: "bwsquat-legend",      title: "Squat Legend",          body: "1,500 bodyweight squats this month — leg endurance test.", icon: "🦵", metric: "total_reps",      target: 1500,   exerciseSubstrings: ["bodyweight squat", "air squat", "body weight squat"],difficulty: "solid" },
+  { id: "curl-builder",        title: "Bicep Builder",         body: "400 bicep curl reps across the month.",                   icon: "💪", metric: "total_reps",      target: 400,    exerciseSubstrings: ["bicep curl", "barbell curl", "dumbbell curl", "ez curl", "preacher curl"], difficulty: "solid" },
+  { id: "tricep-tear",         title: "Tricep Tear",           body: "400 tricep extension / kickback reps this month.",        icon: "🔱", metric: "total_reps",      target: 400,    exerciseSubstrings: ["tricep", "skullcrusher", "pushdown"],                difficulty: "solid" },
+  { id: "row-sergeant",        title: "Row Sergeant",          body: "400 row reps (any row variant) this month.",              icon: "🚣", metric: "total_reps",      target: 400,    exerciseSubstrings: ["row"],                                               difficulty: "solid" },
+  { id: "press-pile",          title: "Press Pile",            body: "400 shoulder press reps (any variant) this month.",       icon: "🗿", metric: "total_reps",      target: 400,    exerciseSubstrings: ["shoulder press", "overhead press", "military press"], difficulty: "solid" },
+  { id: "dip-discipline",      title: "Dip Discipline",        body: "200 dips across the month.",                              icon: "🤸", metric: "total_reps",      target: 200,    exerciseSubstrings: ["dip"],                                               difficulty: "solid" },
+  { id: "bench-builder",       title: "Bench Builder",         body: "300 bench press reps total this month.",                  icon: "🏋️", metric: "total_reps",      target: 300,    exerciseSubstrings: ["bench press"],                                       difficulty: "solid" },
+  { id: "deadlift-discipline", title: "Deadlift Discipline",   body: "200 deadlift reps across the month.",                     icon: "🪨", metric: "total_reps",      target: 200,    exerciseSubstrings: ["deadlift"],                                          difficulty: "solid" },
+
+  // ── Session count challenges ───────────────────────────────────────
+  { id: "showing-up-bronze",   title: "Showing Up",            body: "16 logged sessions this month.",                          icon: "📅", metric: "total_sessions", target: 16,                                                                                              difficulty: "modest" },
+  { id: "showing-up-silver",   title: "Solid Month",           body: "22 logged sessions this month.",                          icon: "🗓️", metric: "total_sessions", target: 22,                                                                                              difficulty: "solid"  },
+  { id: "showing-up-gold",     title: "Relentless",            body: "26 logged sessions this month — almost daily.",           icon: "🔥", metric: "total_sessions", target: 26,                                                                                              difficulty: "hard"   },
+
+  // ── Total volume challenges ────────────────────────────────────────
+  { id: "heavy-hauler",        title: "Heavy Hauler",          body: "Move 50,000 kg of total volume (weight × reps).",         icon: "🏋", metric: "total_volume_kg", target: 50_000,                                                                                         difficulty: "modest" },
+  { id: "iron-worker",         title: "Iron Worker",           body: "100,000 kg of total volume this month.",                  icon: "⛓️", metric: "total_volume_kg", target: 100_000,                                                                                        difficulty: "solid"  },
+  { id: "lift-mountain",       title: "Lift the Mountain",     body: "200,000 kg of total volume — a serious month.",           icon: "⛰️", metric: "total_volume_kg", target: 200_000,                                                                                        difficulty: "hard"   },
+
+  // ── Variety challenges ─────────────────────────────────────────────
+  { id: "variety-champion",    title: "Variety Champion",      body: "Train 15 distinct exercises this month.",                 icon: "🎲", metric: "exercise_distinct", target: 15,                                                                                            difficulty: "modest" },
+  { id: "variety-master",      title: "Variety Master",        body: "Train 25 distinct exercises this month.",                 icon: "🎨", metric: "exercise_distinct", target: 25,                                                                                            difficulty: "solid"  },
 ];
+
+// Deterministic monthly picker — same 3 challenges shown to every user
+// for any given month (so leaderboards can be cross-compared), but the
+// 3 rotate to a fresh combination each month. Seeded by monthIso so the
+// rotation is reproducible across the codebase / client / server.
+// Always returns one MODEST + one SOLID + one HARD challenge so the
+// difficulty spread feels fair.
+// (qa: monthly-challenges-library-rotation)
+function hashSeed(seed: string): number {
+  let h = 5381;
+  for (const ch of seed) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
+  return h;
+}
+
+export function getMonthChallenges(monthIso?: string): Challenge[] {
+  const iso = monthIso ?? currentMonthIso();
+  const buckets: Record<"modest" | "solid" | "hard", ChallengeTemplate[]> = { modest: [], solid: [], hard: [] };
+  for (const c of CHALLENGE_LIBRARY) buckets[c.difficulty].push(c);
+  const pick = (bucket: ChallengeTemplate[], salt: string) => {
+    const idx = hashSeed(iso + ":" + salt) % bucket.length;
+    return bucket[idx];
+  };
+  const chosen = [pick(buckets.modest, "m"), pick(buckets.solid, "s"), pick(buckets.hard, "h")];
+  return chosen.map(t => ({
+    id: t.id,                  // stable across months for opt-in localStorage keys
+    monthIso: iso,
+    title: t.title,
+    body: t.body,
+    icon: t.icon,
+    metric: t.metric,
+    target: t.target,
+    exerciseSubstrings: t.exerciseSubstrings,
+  }));
+}
+
+// Backward-compatible export — returns the 3 challenges for the
+// current month so existing call sites that read `CHALLENGES`
+// directly keep working without changes.
+export const CHALLENGES: Challenge[] = getMonthChallenges();
 
 // Compute the user's current progress against a challenge from their
 // workout history. Caller passes the same `history` map the rest of the

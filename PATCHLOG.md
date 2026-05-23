@@ -2,6 +2,55 @@
 
 ---
 
+## Achievements + challenges expansion · 2026-05-23 — Bodyweight milestones, warmup/cooldown habits, monthly challenge library, premium bonus avatars (qa: achievements-bodyweight-benchmarks, achievements-warmup-cooldown-habits, monthly-challenges-library-rotation, achievements-premium-bonus-avatars)
+
+Per @maaiz: "Which major exercise have milestones? I expect bench press, push ups, sit ups, bicep curls, pull ups etc etc · Some bodyweight movements, stretching/warmup milestones ones could be good too · I want some of the harder milestones to also unlock some premium, extra bonus avatars - add to generate prompts list" + "Check if monthly challenges are actually realistic but challenging, make a large library to rotate 3 randomly every month" + "Check global averages and make milestones scaled accordingly".
+
+### Bodyweight benchmarks (lib/milestones.ts)
+Added 14 bodyweight rep-count milestones across 5 movements. Thresholds calibrated against global fitness benchmarks (US Army APFT, Marine Corps PFT, ACSM norms, NSCA testing). Each movement has 3-4 progressive tiers, with the top one flagged `premium: true` so it also unlocks a bonus avatar:
+
+- **Push-ups**: 20 (avg adult fit) → 50 (solid) → 100 (top 5%) → **200 ELITE (Marine Corps)** 🏛️
+- **Pull-ups**: 5 (adult fit) → 10 (solid) → 20 (advanced) → **30 ELITE (Army max-score)** 👑
+- **Sit-ups**: 50 (solid) → 100 (APFT max-tier) → **200 ELITE** 🌊
+- **Dips**: 10 (beginner-solid) → 25 (advanced) → **50 ELITE** 🚀
+- **BW squats**: 50 (avg) → 100 (solid) → 250 (trained) → **500 ELITE (iron-mind)** 🌋
+- **Bicep curls (weighted)**: 20kg / 30kg / 40kg
+
+Counter helpers: new `bestRepsForNames(state, names[])` matches the existing `bestForNames` pattern but operates on a new `maxRepsByName` field. `app/page.tsx` walks history once to populate.
+
+### Warmup / cooldown habit milestones
+First-use flags already existed (`first-warmup`, `first-cooldown`). Added six habit-formation milestones based on lifetime counts:
+- Warmups: 10, 50, 200 sessions
+- Cooldowns: 10, 50, 200 sessions
+
+New `warmupSessionCount` / `cooldownSessionCount` counters added to `MilestoneState`, populated from the same per-session loop in app/page.tsx.
+
+### Monthly challenge library + rotation
+Expanded from **3 hardcoded challenges** to a **21-entry library** with deterministic monthly rotation. `getMonthChallenges(monthIso)` hashes the iso month and picks one MODEST + one SOLID + one HARD challenge, so every user sees the same 3 each month but the trio rotates fresh each month.
+
+Library covers:
+- Rep counts on specific exercises (push-ups, pull-ups, sit-ups, BW squats, curls, triceps, rows, presses, dips, bench, deadlift) — 13 entries
+- Session count: 16 / 22 / 26 — 3 entries
+- Total volume: 50k / 100k / 200k kg — 3 entries
+- Variety: 15 / 25 distinct exercises — 2 entries
+
+Targets calibrated against the v3.2 tier-scoring simulation data (a typical 6mo dedicated user does ~250k/month volume, ~80 sessions/3mo so ~26/mo cap is achievable but hard). Backward-compatible: `export const CHALLENGES` still works and returns this month's rotation.
+
+### Premium bonus avatars (schema only — images pending)
+Added a new `AvatarSource = "milestone-bonus"` type alongside `"tier"` and `"lucky"`. Five new bonus avatars in `lib/avatars.ts` tied 1-to-1 to the elite bodyweight milestones via `unlocksMilestoneId`:
+
+| Avatar | Milestone | Flavour |
+|---|---|---|
+| `mb-pushup-elite` | 200 push-ups | 200-Push-Up Crown |
+| `mb-pullup-elite` | 30 pull-ups | 30-Pull-Up Champion |
+| `mb-situp-elite` | 200 sit-ups | 200-Sit-Up Sovereign |
+| `mb-dip-elite` | 50 dips | 50-Dip Phenom |
+| `mb-bwsquat-elite` | 500 BW squats | 500-Squat Titan |
+
+Exported `MILESTONE_BONUS_BY_MILESTONE_ID` lookup for the avatar mint pipeline (server-side `/api/avatars` POST/GET — to be wired in a follow-up). Image-gen prompts added to `/image-prompts-v2.md` as **Batch 10** (5 images, ~125 KB compressed).
+
+---
+
 ## Big bundle · 2026-05-23 — Group convs in Messages, friends→groups, dashboard reorder, version reset, avatar tier label, calendar verified (qa: messages-group-inbox, groups-friend-invite, dashboard-kpi-top, wellness-open-by-default, profile-avatar-tier-label, version-patch-reset-on-minor)
 
 Per @maaiz "fix everything then deploy" — bundling a stack of UX fixes

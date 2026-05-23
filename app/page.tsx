@@ -6869,6 +6869,12 @@ function HomePage() {
             const exById: Record<string, any> = {};
             for (const ex of EXERCISES as any[]) exById[ex.id] = ex;
             const maxByName: Record<string, number> = {};
+            // Best reps in a single set, by lowercased exercise name.
+            // Used by bodyweight milestones (push-ups, pull-ups, sit-ups,
+            // dips, bodyweight squats) where the rep count IS the
+            // benchmark — load is constant (your bodyweight).
+            // (qa: achievements-bodyweight-benchmarks)
+            const maxRepsByName: Record<string, number> = {};
             let totalVolumeKg = 0;
             let hiitSessionCount = 0;
             let cardioSessionCount = 0;
@@ -6876,18 +6882,22 @@ function HomePage() {
             let totalCardioKm = 0;
             let hasUsedWarmup = false;
             let hasUsedCooldown = false;
+            let warmupSessionCount = 0;
+            let cooldownSessionCount = 0;
             for (const dayId in history) {
               for (const session of history[dayId]) {
                 const sets = (session.sets ?? {}) as Record<string, any>;
                 let sessionHasHiit = false;
                 let sessionHasCardio = false;
                 let sessionCardioMinutes = 0;
+                let sessionHasWarmup = false;
+                let sessionHasCooldown = false;
                 for (const k in sets) {
                   const v = sets[k];
                   if (!v || v.skipped) continue;
                   const exKey = k.replace(/-d\d+$/, "").replace(/-\d+$/, "");
-                  if (exKey.startsWith("wu-")) hasUsedWarmup = true;
-                  if (exKey.startsWith("cd-")) hasUsedCooldown = true;
+                  if (exKey.startsWith("wu-")) { hasUsedWarmup = true; sessionHasWarmup = true; }
+                  if (exKey.startsWith("cd-")) { hasUsedCooldown = true; sessionHasCooldown = true; }
                   const w = Number(v.weight) || 0;
                   const r = Number(v.reps) || 0;
                   if (w > 0 && r > 0) totalVolumeKg += w * r;
@@ -6906,6 +6916,9 @@ function HomePage() {
                     }
                     const nm = (ex.name as string).toLowerCase();
                     if (w > 0 && w > (maxByName[nm] ?? 0)) maxByName[nm] = w;
+                    // Track best-reps-in-a-single-set for bodyweight
+                    // benchmarks. Skips cardio (where reps = seconds).
+                    if (ex.type !== "cardio" && r > 0 && r > (maxRepsByName[nm] ?? 0)) maxRepsByName[nm] = r;
                   }
                 }
                 if (sessionHasHiit) hiitSessionCount += 1;
@@ -6914,6 +6927,8 @@ function HomePage() {
                   totalCardioMinutes += sessionCardioMinutes;
                   totalCardioKm += (sessionCardioMinutes / 60) * 10; // 10 km/h estimator
                 }
+                if (sessionHasWarmup) warmupSessionCount += 1;
+                if (sessionHasCooldown) cooldownSessionCount += 1;
               }
             }
 
@@ -6934,6 +6949,7 @@ function HomePage() {
                 return m ? (m.bodyFatPct as number) : null;
               })(),
               maxByName,
+              maxRepsByName,
               totalVolumeKg,
               hiitSessionCount,
               cardioSessionCount,
@@ -6941,6 +6957,8 @@ function HomePage() {
               totalCardioKm,
               hasUsedWarmup,
               hasUsedCooldown,
+              warmupSessionCount,
+              cooldownSessionCount,
             };
             const achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
             const newOnes = detectNewMilestones(mState, achieved);

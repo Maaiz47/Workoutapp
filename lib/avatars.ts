@@ -5,7 +5,7 @@
 // power — they don't change tier score, just give the user a
 // collectable to chase. (qa: profile-avatars, random-rare-rewards)
 
-export type AvatarSource = "tier" | "lucky";
+export type AvatarSource = "tier" | "lucky" | "milestone-bonus";
 
 export type Avatar = {
   id: string;            // stable, never reused — used as filename: /avatars/<id>.png
@@ -13,12 +13,20 @@ export type Avatar = {
   source: AvatarSource;
   // For source="tier": the tier the user must reach to unlock (1-6).
   // For source="lucky": null (only obtainable via the lucky-drop roll).
+  // For source="milestone-bonus": null (gated via unlocksMilestoneId).
   tier?: number;
   // Short flavour line shown when the avatar is awarded.
   flavour: string;
   // Rarity weight when rolling lucky drops. Higher = more common.
   // Only consulted for source="lucky" rows. Default 10.
   luckyWeight?: number;
+  // For source="milestone-bonus": the milestone id whose unlock also
+  // grants this avatar. Premium bonus avatars are tied 1-to-1 with the
+  // hardest milestones (e.g. 200 push-ups, 30 pull-ups). When the user
+  // crosses the milestone the server-side avatar mint pipeline reads
+  // this field and grants the avatar.
+  // (qa: achievements-premium-bonus-avatars)
+  unlocksMilestoneId?: string;
 };
 
 // 20 tier-unlocked avatars — 3-4 per tier so users have a few to
@@ -75,7 +83,29 @@ const LUCKY_AVATARS: Avatar[] = [
   { id: "lucky-mythic",        name: "Mythic Echo",        source: "lucky", luckyWeight: 1,  flavour: "Almost no one finds this one." },
 ];
 
-export const AVATARS: Avatar[] = [...TIER_AVATARS, ...LUCKY_AVATARS];
+// Premium milestone-bonus avatars. Each ties 1-to-1 to a hard
+// milestone in lib/milestones.ts via `unlocksMilestoneId`. Images live
+// at /avatars/mb-<id>.png — prompts in /image-prompts-v2.md Batch 10.
+// (qa: achievements-premium-bonus-avatars)
+const MILESTONE_BONUS_AVATARS: Avatar[] = [
+  { id: "mb-pushup-elite",  name: "200-Push-Up Crown",  source: "milestone-bonus", unlocksMilestoneId: "pushups-200",  flavour: "200 in a row. The floor remembers." },
+  { id: "mb-pullup-elite",  name: "30-Pull-Up Champion", source: "milestone-bonus", unlocksMilestoneId: "pullups-30",   flavour: "Marine Corps perfect. Your back never stops." },
+  { id: "mb-situp-elite",   name: "200-Sit-Up Sovereign", source: "milestone-bonus", unlocksMilestoneId: "situps-200",   flavour: "Endurance core. Iron breath." },
+  { id: "mb-dip-elite",     name: "50-Dip Phenom",      source: "milestone-bonus", unlocksMilestoneId: "dips-50",      flavour: "Half a hundred dips. Calisthenics elite." },
+  { id: "mb-bwsquat-elite", name: "500-Squat Titan",    source: "milestone-bonus", unlocksMilestoneId: "bwsquats-500", flavour: "Half a thousand reps. Iron mind, iron legs." },
+];
+
+export const AVATARS: Avatar[] = [...TIER_AVATARS, ...LUCKY_AVATARS, ...MILESTONE_BONUS_AVATARS];
+
+// Lookup table for the avatar mint pipeline — for a given milestone id,
+// returns the bonus avatar (if any) the user should also receive.
+// (qa: achievements-premium-bonus-avatars)
+export const MILESTONE_BONUS_BY_MILESTONE_ID: Record<string, Avatar> = MILESTONE_BONUS_AVATARS.reduce(
+  (acc, av) => { if (av.unlocksMilestoneId) acc[av.unlocksMilestoneId] = av; return acc; },
+  {} as Record<string, Avatar>,
+);
+
+export const MILESTONE_BONUS_AVATAR_POOL: Avatar[] = MILESTONE_BONUS_AVATARS;
 
 export function findAvatar(id: string | null | undefined): Avatar | null {
   if (!id) return null;

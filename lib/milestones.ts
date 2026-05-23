@@ -30,6 +30,14 @@ export type MilestoneState = {
   // walks history and pre-computes this. Missing names map to 0.
   // (qa: achievements-strength-benchmarks)
   maxByName?: Record<string, number>;
+  // Best reps in a single set, by lowercased exercise name. Feeds
+  // bodyweight milestones (push-ups, pull-ups, sit-ups, dips, BW
+  // squats) where the rep count IS the benchmark — load is constant
+  // (your bodyweight) so absolute reps measure capacity directly.
+  // Thresholds calibrated against global fitness averages (US Army
+  // APFT, ACSM norms, NSCA testing protocols).
+  // (qa: achievements-bodyweight-benchmarks)
+  maxRepsByName?: Record<string, number>;
   // Lifetime total volume in kg×reps. Feeds the volume milestones.
   totalVolumeKg?: number;
   // Lifetime count of sessions where AT LEAST ONE exercise was
@@ -47,6 +55,11 @@ export type MilestoneState = {
   // First-use behaviour flags. Track when a user explores a feature.
   hasUsedWarmup?: boolean;
   hasUsedCooldown?: boolean;
+  // Lifetime count of sessions where the user logged ≥1 warmup
+  // set (or cooldown set). Feeds the habit-formation milestones.
+  // (qa: achievements-warmup-cooldown-habits)
+  warmupSessionCount?: number;
+  cooldownSessionCount?: number;
 };
 
 // Pick the best weight across one or more exercise-name substrings.
@@ -69,12 +82,36 @@ export function bestForNames(state: MilestoneState, names: string[]): number {
   return best;
 }
 
+// Same as bestForNames but operates on maxRepsByName — max reps in a
+// single set across any matching exercise. Used by bodyweight
+// milestones (push-ups / pull-ups / sit-ups / dips / BW squats).
+// (qa: achievements-bodyweight-benchmarks)
+export function bestRepsForNames(state: MilestoneState, names: string[]): number {
+  const map = state.maxRepsByName ?? {};
+  let best = 0;
+  for (const exName in map) {
+    for (const target of names) {
+      if (exName.includes(target.toLowerCase())) {
+        if (map[exName] > best) best = map[exName];
+        break;
+      }
+    }
+  }
+  return best;
+}
+
 export type Milestone = {
   id: string;
   label: string;       // headline shown on the celebration overlay
   body: string;        // 1-2 sentence flavour text
   icon: string;        // single emoji
-  category: "anniversary" | "consistency" | "strength" | "behaviour" | "tier" | "hiit" | "cardio" | "volume";
+  category: "anniversary" | "consistency" | "strength" | "behaviour" | "tier" | "hiit" | "cardio" | "volume" | "bodyweight" | "warmup-cooldown";
+  // Premium tag — when true, hitting this milestone also unlocks a
+  // bonus avatar (linked by the milestone id ↔ avatar id mapping
+  // in lib/avatars.ts). Render gold-banner styling on the celebration
+  // overlay + an extra "+ AVATAR UNLOCKED" line.
+  // (qa: achievements-premium-bonus-avatars)
+  premium?: boolean;
   // Plain-English "how to earn this" string. Shown in the info modal for
   // locked milestones so users know what to work toward. New ids should
   // always include one; missing falls back to body.
@@ -179,6 +216,66 @@ export const MILESTONES: Milestone[] = [
   // ── Behaviour — first-time feature use. (qa: achievements-behaviour-expanded)
   { id: "first-warmup",  label: "First warmup logged",       body: "Joints warm, injury risk down.",                      icon: "🔥", category: "behaviour", requirement: "Complete a warmup row in any session.",            check: s => !!s.hasUsedWarmup },
   { id: "first-cooldown",label: "First cooldown logged",     body: "Recovery starts with the last set, not the next morning.", icon: "🌬️", category: "behaviour", requirement: "Complete a cooldown row in any session.",          check: s => !!s.hasUsedCooldown },
+
+  // ── Bodyweight benchmarks — single-best-set rep counts on the
+  //    big bodyweight movements. Thresholds calibrated against
+  //    global fitness averages:
+  //      Push-ups:  20 = average adult male / female fit, 50 = solid,
+  //                 100 = top 5% intermediate, 200 = elite (Marines).
+  //      Pull-ups:   5 = adult fit, 10 = solid, 20 = advanced,
+  //                 30 = elite (US Army max score for "perfect").
+  //      Sit-ups:   25 = average, 50 = solid, 100 = APFT max-tier,
+  //                 200 = elite.
+  //      Dips:      10 = beginner-solid, 25 = advanced, 50 = elite.
+  //      BW squats: 50 = average, 100 = solid, 250 = trained, 500
+  //                 = endurance-elite (military fitness ladder).
+  //    Each milestone label maps to one of these brackets. Elite
+  //    tiers (premium: true) unlock a bonus avatar — see
+  //    lib/avatars.ts ach- entries + /image-prompts-v2.md Batch 10.
+  //    (qa: achievements-bodyweight-benchmarks)
+  { id: "pushups-20",   label: "20 push-ups",            body: "First plateau cleared. Average adult fitness benchmark.", icon: "💪", category: "bodyweight", requirement: "Log a set of 20+ push-ups (any push-up variant).",                                       check: s => bestRepsForNames(s, ["push-up", "push up", "pushup"]) >= 20 },
+  { id: "pushups-50",   label: "50 push-ups",            body: "Half a hundred in one set. Solid base built.",            icon: "🔥", category: "bodyweight", requirement: "Log a set of 50+ push-ups in a single set.",                                             check: s => bestRepsForNames(s, ["push-up", "push up", "pushup"]) >= 50 },
+  { id: "pushups-100",  label: "100 push-ups",           body: "A century unbroken. Top 5% of gym-goers.",                icon: "💯", category: "bodyweight", requirement: "Log a set of 100+ push-ups in a single set.",                                            check: s => bestRepsForNames(s, ["push-up", "push up", "pushup"]) >= 100 },
+  { id: "pushups-200",  label: "200 push-ups · ELITE",   body: "200 in a row. Marine Corps fitness elite.",               icon: "🏛️", category: "bodyweight", requirement: "Log a set of 200+ push-ups in a single set — unlocks a bonus avatar.", premium: true, check: s => bestRepsForNames(s, ["push-up", "push up", "pushup"]) >= 200 },
+
+  { id: "pullups-5",    label: "5 pull-ups",             body: "First five. Real pulling strength.",                      icon: "🤜", category: "bodyweight", requirement: "Log a set of 5+ pull-ups (or chin-ups).",                                                check: s => bestRepsForNames(s, ["pull-up", "pull up", "pullup", "chin-up", "chinup", "chin up"]) >= 5 },
+  { id: "pullups-10",   label: "10 pull-ups",            body: "Double digits. Solid back development.",                  icon: "💪", category: "bodyweight", requirement: "Log a set of 10+ pull-ups (or chin-ups).",                                              check: s => bestRepsForNames(s, ["pull-up", "pull up", "pullup", "chin-up", "chinup", "chin up"]) >= 10 },
+  { id: "pullups-20",   label: "20 pull-ups",            body: "Advanced lat strength territory.",                        icon: "🦅", category: "bodyweight", requirement: "Log a set of 20+ pull-ups (or chin-ups).",                                              check: s => bestRepsForNames(s, ["pull-up", "pull up", "pullup", "chin-up", "chinup", "chin up"]) >= 20 },
+  { id: "pullups-30",   label: "30 pull-ups · ELITE",    body: "Marine Corps max-score territory. One-percenter.",        icon: "👑", category: "bodyweight", requirement: "Log a set of 30+ pull-ups (or chin-ups) — unlocks a bonus avatar.", premium: true, check: s => bestRepsForNames(s, ["pull-up", "pull up", "pullup", "chin-up", "chinup", "chin up"]) >= 30 },
+
+  { id: "situps-50",    label: "50 sit-ups",             body: "Half-century core. Solid baseline.",                      icon: "🔄", category: "bodyweight", requirement: "Log a set of 50+ sit-ups (or crunches).",                                                check: s => bestRepsForNames(s, ["sit-up", "sit up", "situp", "crunch"]) >= 50 },
+  { id: "situps-100",   label: "100 sit-ups",            body: "Century core. APFT max-tier rep range.",                  icon: "🌀", category: "bodyweight", requirement: "Log a set of 100+ sit-ups (or crunches).",                                              check: s => bestRepsForNames(s, ["sit-up", "sit up", "situp", "crunch"]) >= 100 },
+  { id: "situps-200",   label: "200 sit-ups · ELITE",    body: "Endurance core that won't fail you. Bonus avatar.",       icon: "🌊", category: "bodyweight", requirement: "Log a set of 200+ sit-ups (or crunches) — unlocks a bonus avatar.", premium: true,   check: s => bestRepsForNames(s, ["sit-up", "sit up", "situp", "crunch"]) >= 200 },
+
+  { id: "dips-10",      label: "10 dips",                body: "First ten. Triceps + chest in one move.",                 icon: "🤸", category: "bodyweight", requirement: "Log a set of 10+ dips (parallel bar / bench).",                                          check: s => bestRepsForNames(s, ["dip"]) >= 10 },
+  { id: "dips-25",      label: "25 dips",                body: "Strong dips. Advanced upper-body.",                       icon: "🏋️", category: "bodyweight", requirement: "Log a set of 25+ dips.",                                                                 check: s => bestRepsForNames(s, ["dip"]) >= 25 },
+  { id: "dips-50",      label: "50 dips · ELITE",        body: "Half a hundred dips. Calisthenics elite.",                icon: "🚀", category: "bodyweight", requirement: "Log a set of 50+ dips — unlocks a bonus avatar.", premium: true,                          check: s => bestRepsForNames(s, ["dip"]) >= 50 },
+
+  { id: "bwsquats-50",  label: "50 bodyweight squats",   body: "Reps in the legs. Endurance base started.",               icon: "🦵", category: "bodyweight", requirement: "Log a set of 50+ bodyweight squats.",                                                   check: s => bestRepsForNames(s, ["bodyweight squat", "air squat", "body weight squat"]) >= 50 },
+  { id: "bwsquats-100", label: "100 bodyweight squats",  body: "Century squat. Real leg endurance.",                      icon: "🏃", category: "bodyweight", requirement: "Log a set of 100+ bodyweight squats.",                                                  check: s => bestRepsForNames(s, ["bodyweight squat", "air squat", "body weight squat"]) >= 100 },
+  { id: "bwsquats-250", label: "250 bodyweight squats",  body: "Mental + physical endurance benchmark.",                  icon: "⛰️", category: "bodyweight", requirement: "Log a set of 250+ bodyweight squats.",                                                  check: s => bestRepsForNames(s, ["bodyweight squat", "air squat", "body weight squat"]) >= 250 },
+  { id: "bwsquats-500", label: "500 squats · ELITE",     body: "Half a thousand reps. Iron mind territory.",              icon: "🌋", category: "bodyweight", requirement: "Log a set of 500+ bodyweight squats — unlocks a bonus avatar.", premium: true,           check: s => bestRepsForNames(s, ["bodyweight squat", "air squat", "body weight squat"]) >= 500 },
+
+  // ── Bicep curl benchmarks (weighted but typically light enough
+  //    they don't show in the bench/squat/dl benchmarks above).
+  //    Thresholds: 20kg = casual, 30kg = solid, 40kg = strong,
+  //    50kg+ = elite isolation strength.
+  //    (qa: achievements-bodyweight-benchmarks)
+  { id: "curls-20kg",   label: "Bicep curls · 20 kg",    body: "First proper curl benchmark — clean form.",               icon: "💪", category: "strength", requirement: "Log a bicep curl set at 20 kg or more.",                                                    check: s => bestForNames(s, ["bicep curl", "barbell curl", "dumbbell curl", "ez curl", "preacher curl"]) >= 20 },
+  { id: "curls-30kg",   label: "Bicep curls · 30 kg",    body: "Solid curl strength. Sleeve-stretcher.",                  icon: "🧗", category: "strength", requirement: "Log a bicep curl set at 30 kg or more.",                                                    check: s => bestForNames(s, ["bicep curl", "barbell curl", "dumbbell curl", "ez curl", "preacher curl"]) >= 30 },
+  { id: "curls-40kg",   label: "Bicep curls · 40 kg",    body: "Advanced isolation strength.",                            icon: "🏗️", category: "strength", requirement: "Log a bicep curl set at 40 kg or more.",                                                    check: s => bestForNames(s, ["bicep curl", "barbell curl", "dumbbell curl", "ez curl", "preacher curl"]) >= 40 },
+
+  // ── Warmup / cooldown habit milestones — reward consistent
+  //    pre/post work, not just the first-time use. Computed from
+  //    hasUsedWarmup / hasUsedCooldown flags PLUS the new lifetime
+  //    warmupSessionCount / cooldownSessionCount counters.
+  //    (qa: achievements-warmup-cooldown-habits)
+  { id: "warmup-10",    label: "10 warmups logged",      body: "Joints respect the work that respects them.",             icon: "🔥", category: "warmup-cooldown", requirement: "Log a warmup set in 10 different sessions.",                                       check: s => (s.warmupSessionCount ?? 0) >= 10 },
+  { id: "warmup-50",    label: "50 warmups logged",      body: "Warming up is a non-negotiable habit now.",               icon: "🌅", category: "warmup-cooldown", requirement: "Log a warmup set in 50 different sessions.",                                       check: s => (s.warmupSessionCount ?? 0) >= 50 },
+  { id: "warmup-200",   label: "200 warmups logged",     body: "Two hundred prep blocks. Injury-proofed.",                icon: "🛡️", category: "warmup-cooldown", requirement: "Log a warmup set in 200 different sessions.",                                      check: s => (s.warmupSessionCount ?? 0) >= 200 },
+  { id: "cooldown-10",  label: "10 cooldowns logged",    body: "Recovery isn't optional — you've made it routine.",        icon: "🌬️", category: "warmup-cooldown", requirement: "Log a cooldown set in 10 different sessions.",                                     check: s => (s.cooldownSessionCount ?? 0) >= 10 },
+  { id: "cooldown-50",  label: "50 cooldowns logged",    body: "Half a hundred recovery flows. Body thanks you.",         icon: "🍃", category: "warmup-cooldown", requirement: "Log a cooldown set in 50 different sessions.",                                     check: s => (s.cooldownSessionCount ?? 0) >= 50 },
+  { id: "cooldown-200", label: "200 cooldowns logged",   body: "Recovery champion. Your future self benefits.",            icon: "🧘", category: "warmup-cooldown", requirement: "Log a cooldown set in 200 different sessions.",                                    check: s => (s.cooldownSessionCount ?? 0) >= 200 },
 ];
 
 // Maps tier milestone id → universal tier number (1-6). The IDs are

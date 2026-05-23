@@ -682,6 +682,103 @@ COULD be elevated to raster later if the user wants:
 
 ---
 
+---
+
+## Batch 10 — Premium milestone bonus avatars (5 images) NEW
+
+Per @maaiz: "I want some of the harder milestones to also unlock some
+premium, extra bonus avatars". Five new profile avatars unlocked by
+the hardest bodyweight milestones (see `lib/milestones.ts` premium:
+true entries). Calibrated against global fitness averages so the gate
+is genuinely impressive (Marine Corps / APFT / calisthenics-elite
+benchmarks).
+
+| Avatar id | Unlocks at | Milestone | Vibe |
+|---|---|---|---|
+| `mb-pushup-elite`  | 200 push-ups in one set  | `pushups-200`  | Iron-floor crown |
+| `mb-pullup-elite`  | 30 pull-ups in one set   | `pullups-30`   | Steel-bar champion |
+| `mb-situp-elite`   | 200 sit-ups in one set   | `situps-200`   | Sovereign core |
+| `mb-dip-elite`     | 50 dips in one set       | `dips-50`      | Parallel-bar phenom |
+| `mb-bwsquat-elite` | 500 BW squats in one set | `bwsquats-500` | Iron-legs titan |
+
+### Style guide (paste as prefix to every Batch 10 prompt)
+
+> Generate a 512×512 PNG profile avatar. Style: **dark-mode app icon**,
+> centred subject on a deep matte radial gradient background, soft
+> rim-light, premium aesthetic. PREMIUM tier — these are the rarest
+> avatars in the app, granted only at elite bodyweight performance.
+> Treat with extra weight: heavier rim-light, embossed metal details,
+> sparks/embers, halo more dramatic than the regular tier-unlock
+> avatars. NO human faces (use silhouettes / abstract emblems), NO
+> text, NO numbers. Tier-coloured radial halo fading to black. Square
+> 512×512, ~10% safe margin so it reads at 48px in a circle.
+
+### `mb-pushup-elite.png` — 200-Push-Up Crown
+> [style guide] · Subject: a stylised crown forged out of barbell
+> plates, hovering over a faint cross-pattern reminiscent of a
+> push-up grip on the floor. Crown rendered in molten bronze with
+> gold edges. Below the crown, faint chalk-dust particles rise from
+> where hands would press. Mood: floor-mastery, earned-through-pain,
+> calisthenics royalty. Accent colour `#f0c040` (gold) with `#a8784a`
+> (bronze) shadows. Halo: bright gold glow with chalk-dust particles.
+
+### `mb-pullup-elite.png` — 30-Pull-Up Champion
+> [style guide] · Subject: a stylised pull-up bar wrapped with a
+> golden chain that loops around itself in a figure-eight, with
+> dramatic golden wings spread behind the bar. Bar in brushed steel
+> catching gold rim-light. Mood: airborne elite, gravity-defeating,
+> back-strength champion. Accent colour `#f0c040` (gold) with
+> `#94a3b8` (steel) highlights on the bar. Halo: gold glow with
+> faint motion-blur lines suggesting upward pulls.
+
+### `mb-situp-elite.png` — 200-Sit-Up Sovereign
+> [style guide] · Subject: a stylised abstract emblem of a flexed
+> torso silhouette (front-on, no face/head, just the V-taper outline)
+> with a glowing core ring at the navel position emitting concentric
+> light pulses. Rendered in deep coral-red flame transitioning to
+> golden highlights at the edges. Mood: iron-core sovereign,
+> endurance fortress, breath-mastery. Accent colour `#FF6B6B` (coral)
+> with `#f0c040` (gold) highlights. Halo: pulsing red-gold glow.
+
+### `mb-dip-elite.png` — 50-Dip Phenom
+> [style guide] · Subject: two parallel bars crossing the frame
+> horizontally with a stylised flying-figure silhouette (chest down
+> between the bars, arms locked at the top of a dip) suspended
+> between them. Both bars in polished chrome. Sparks scattering at
+> the bar grip points. Mood: parallel-bar phenom, controlled-power,
+> calisthenics elite. Accent colour `#a78bfa` (violet) with chrome
+> highlights. Halo: violet-white glow with subtle spark particles.
+
+### `mb-bwsquat-elite.png` — 500-Squat Titan
+> [style guide] · Subject: a stylised emblem of two muscular legs
+> (knee-down view, no torso/face) in a low squat hold, with molten
+> magma cracks glowing along the quad muscles and golden energy
+> beams shooting downward into a fractured stone base. Mood:
+> iron-legs titan, mental-endurance crucible, leg-day apex. Accent
+> colour `#92400e` (dark amber/brown) with `#FF6B6B` (coral) magma
+> cracks. Halo: amber glow with rising heat shimmer.
+
+### Wire-up
+
+- Avatars catalogue: each id already added to `lib/avatars.ts`
+  `MILESTONE_BONUS_AVATARS` with `unlocksMilestoneId` linking to the
+  milestone in `lib/milestones.ts`. The lookup table
+  `MILESTONE_BONUS_BY_MILESTONE_ID` is exported for the mint pipeline.
+- Mint trigger: `app/api/avatars` POST/GET — after the existing
+  tier-source backfill, walk the user's achieved-milestones list and
+  upsert any `MILESTONE_BONUS_AVATARS` entry whose `unlocksMilestoneId`
+  is in their set.
+- UI: the avatar picker already groups by `source`. Add a "PREMIUM"
+  section header for `source === "milestone-bonus"` rows.
+- Celebration overlay: when a premium milestone fires, the existing
+  milestone-celebrate flow can append an extra "+ AVATAR UNLOCKED"
+  line tied to the avatar's name.
+
+Render targets: same as Batch 5 (192×192 PNG quality 85, <25 KB each).
+Total batch budget: ~125 KB compressed for all 5.
+
+---
+
 ## After all batches land
 
 Total: **63 images** (53 if Batch 9 deferred). Breakdown:

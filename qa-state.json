@@ -1,6 +1,77 @@
 {
   "items": [
     {
+      "id": "achievements-bodyweight-benchmarks",
+      "title": "Bodyweight rep-count milestones — push-ups / pull-ups / sit-ups / dips / BW squats / curls",
+      "area": "Achievements",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass achievements-bodyweight-benchmarks",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard → expand Achievements. Verify the grid now contains entries for push-ups (20/50/100/200), pull-ups (5/10/20/30), sit-ups (50/100/200), dips (10/25/50), bodyweight squats (50/100/250/500), and bicep curls (20kg/30kg/40kg).",
+        "Verify the top tier of each bodyweight family (push 200 / pull 30 / sit 200 / dip 50 / squat 500) is tagged ELITE in its label.",
+        "Log a workout with a push-up set of 25 reps. Save. Verify the 20-push-up milestone fires + appears in the achieved list.",
+        "Log a pull-up set of 6 reps. Verify the 5-pull-up milestone fires.",
+        "Log a bodyweight squat set of 60 reps. Verify the 50-bw-squat milestone fires.",
+        "Log a bicep curl set at 25kg. Verify the 20kg curl milestone fires.",
+        "Negative: log a sit-up set of 40 reps. Verify the 50-sit-up milestone does NOT fire."
+      ],
+      "notes": "[2026-05-23] Shipped: 14 new bodyweight milestones in lib/milestones.ts. Thresholds calibrated against US Army APFT, Marine Corps PFT, ACSM norms. New maxRepsByName field on MilestoneState; new bestRepsForNames helper. app/page.tsx walks session history once to populate maxRepsByName (skipped for cardio where reps = seconds). Each premium-tier milestone (200/30/200/50/500) is marked premium:true and links to a milestone-bonus avatar in lib/avatars.ts."
+    },
+    {
+      "id": "achievements-warmup-cooldown-habits",
+      "title": "Warmup / cooldown habit-formation milestones (10 / 50 / 200 sessions)",
+      "area": "Achievements",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass achievements-warmup-cooldown-habits",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open the Achievements grid in Progress → Dashboard.",
+        "Verify six new entries appear in the warmup-cooldown category: 10/50/200 warmups, 10/50/200 cooldowns.",
+        "Log 10 sessions where each includes at least one warmup set (any exercise with id starting `wu-`). Verify the '10 warmups logged' milestone fires.",
+        "Log 10 sessions with at least one cooldown set (`cd-` prefix). Verify '10 cooldowns logged' fires.",
+        "Sanity: existing first-warmup / first-cooldown milestones still fire on first use."
+      ],
+      "notes": "[2026-05-23] Shipped: 6 new milestones in lib/milestones.ts (warmup-10/50/200 + cooldown-10/50/200). New warmupSessionCount + cooldownSessionCount counters on MilestoneState, populated from app/page.tsx history walk (one increment per session that contains at least one wu- or cd- exercise)."
+    },
+    {
+      "id": "monthly-challenges-library-rotation",
+      "title": "Monthly challenges — 21-entry library with deterministic 3-pick monthly rotation",
+      "area": "Challenges",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass monthly-challenges-library-rotation",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard → Challenges card. Verify exactly 3 challenges are visible for the current month.",
+        "Verify the difficulty spread: one modest, one solid, one hard (e.g. Showing Up 16 / Heavy Hauler 50k / Squat Legend 1500).",
+        "Note the 3 challenge ids. Compare with another account — they should see the SAME 3 (deterministic per-month rotation).",
+        "Manually advance the device clock to next month (or wait). Verify the 3 challenges change to a fresh combination.",
+        "Tap a challenge to view progress — opt-in toggle should still work.",
+        "Sanity: a non-opted-in challenge no longer drags the headline tier (challenges are cosmetic / streak rewards, not tier inputs)."
+      ],
+      "notes": "[2026-05-23] Shipped: lib/challenges.ts grew from 3 hardcoded entries to a 21-entry CHALLENGE_LIBRARY[] with template structure (id + difficulty + metric + target). New getMonthChallenges(monthIso) hashes the iso month and picks one MODEST + one SOLID + one HARD challenge. Same 3 for every user worldwide each month; rotates fresh each month. Backward-compatible: CHALLENGES export still works (returns current month's rotation). Library covers: rep counts on 11 exercises, session count (3 tiers), total volume (3 tiers), variety (2 tiers)."
+    },
+    {
+      "id": "achievements-premium-bonus-avatars",
+      "title": "Premium bonus avatars unlocked by elite bodyweight milestones",
+      "area": "Profile",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass achievements-premium-bonus-avatars",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → tap avatar → avatar picker.",
+        "Scroll through the catalogue. Verify 5 new PREMIUM section entries appear (locked initially): 200-Push-Up Crown, 30-Pull-Up Champion, 200-Sit-Up Sovereign, 50-Dip Phenom, 500-Squat Titan.",
+        "Each locked tile's tooltip reads `Unlocks at: <milestone-label>` (e.g. 'Unlocks at: 200 push-ups').",
+        "Hit a premium milestone (e.g. log 200 push-ups in one set). Verify the corresponding bonus avatar unlocks server-side AND the celebration overlay shows a '+ AVATAR UNLOCKED' line.",
+        "Equip the bonus avatar. Verify it renders on the home profile chip + leaderboards + DM headers."
+      ],
+      "notes": "[2026-05-23] Schema landed: new AvatarSource='milestone-bonus' + unlocksMilestoneId field. 5 entries in lib/avatars.ts MILESTONE_BONUS_AVATARS array. MILESTONE_BONUS_BY_MILESTONE_ID lookup exported for the mint pipeline. Image-gen prompts added to /image-prompts-v2.md as Batch 10. Still TODO: (a) generate the 5 PNG files, (b) wire the mint logic in /api/avatars to read achievedMilestones and upsert milestone-bonus rows, (c) extend AvatarPickerView to render a 'PREMIUM' section header and the locked-tooltip text. Schema is ready so those follow-ups are mostly UI."
+    },
+    {
       "id": "messages-group-inbox",
       "title": "Group conversations show up in the Messages inbox alongside DMs",
       "area": "Messages",
