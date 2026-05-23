@@ -107,12 +107,29 @@ export async function PATCH(req: NextRequest) {
   if (body.action === "force-reset") {
     const tempPassword = generateTempPassword();
     const passwordHash = await hashPassword(tempPassword);
-    const user = await prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id: userId },
       data: { passwordHash, mustResetPassword: true },
       select: { id: true, username: true, mustResetPassword: true },
     });
-    return json({ user, tempPassword });
+    // Re-read from the DB to verify the flag actually persisted
+    // (defends against silent caching / serverless cold-start
+    // weirdness — admin alert quotes this value so they know the
+    // change really landed). (qa: auth-must-reset)
+    const verified = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { mustResetPassword: true },
+    });
+    // Server-side audit trail. Shows up in Vercel logs and lets us
+    // confirm the action ran when a user later reports 'I wasn't
+    // prompted to reset'. (qa: auth-must-reset)
+    console.log(
+      `[admin/force-reset] target=${updated.username} (${updated.id}) ` +
+      `flag-after-write=${updated.mustResetPassword} ` +
+      `flag-after-reread=${verified?.mustResetPassword} ` +
+      `ts=${new Date().toISOString()}`
+    );
+    return json({ user: updated, tempPassword, verifiedMustReset: verified?.mustResetPassword ?? null });
   }
 
   // Set the extra-roles array directly (multi-role support). Lets an

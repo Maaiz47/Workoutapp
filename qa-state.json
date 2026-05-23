@@ -817,16 +817,18 @@
       "lastTested": "2026-05-21",
       "status": "regression-retest",
       "steps": [
-        "In the admin panel tap '🔒 FORCE RESET' for a test user",
-        "Confirm the admin sees an alert with a TEMP password (also auto-copied to clipboard); share that with the user",
-        "Log in as that user using the TEMP password — old password should no longer work",
-        "Verify you are redirected to the must-reset-password screen, NOT the dashboard",
-        "Tap the 👁 eye toggle next to each password field — verify it reveals/hides typed characters",
-        "Enter a new password and confirm",
-        "Verify you are then taken to the dashboard normally",
-        "Confirm mustResetPassword is now false in the DB and the new password works on subsequent logins"
+        "Open admin panel → tap '🔒 FORCE RESET' for a test user.",
+        "Confirm the alert shows BOTH the TEMP password AND a '✓ flag verified true in DB' line. If the line reads '⚠ flag state in DB: false/null', the write silently failed — investigate Vercel logs and rerun.",
+        "Verify the temp password is on the clipboard (paste somewhere to check).",
+        "Already-logged-in case: have the same test user already signed in on another device/tab. Wait up to 60 seconds, or background and re-foreground the app. Verify they're bounced to the must-reset-password screen automatically — no manual log-out needed.",
+        "Fresh-login case: log in as the test user using the TEMP password — old password should no longer work. Verify you land on the must-reset-password screen, NOT the dashboard.",
+        "Tap the 👁 eye toggle next to each password field — verify it reveals/hides typed characters.",
+        "Enter a new password and confirm.",
+        "Verify you are then taken to the dashboard normally.",
+        "Confirm mustResetPassword is now false in the DB and the new password works on subsequent logins.",
+        "Server-side audit: check Vercel function logs for a line starting '[admin/force-reset]' with the target username, both flag values (write + reread), and timestamp."
       ],
-      "notes": "[2026-05-21] Fixed: admin force-reset now generates a TEMP password (via lib/crypto.generateTempPassword), hashes + saves it, AND flips mustResetPassword=true. The plaintext temp is returned to the admin UI (auto-copied to clipboard + shown in the alert) so they can share it with the user. Previously the action only flipped the flag without changing the password, so a user who'd forgotten their old password still couldn't log in — the must-reset prompt never had a chance to fire. (qa: Amanii: 'Admin panel says reset password required but can't log in because no prompt to put new password')\n[2026-05-21 ecd2e59] Fixed: must-reset screen password fields declare autocomplete=\"new-password\" so iCloud Keychain offers to update the saved credential when the user sets their new password.\n[2026-05-21 01da6f1] Fixed: must-reset screen now has eye toggle on both password fields."
+      "notes": "[2026-05-23 hardening pass] Per @maaiz: 'Amaniis user was stuck on must reset password in admin panel, but she wasn't getting asked to set up a new password on next login attempt … take them to reset password immediately on next app open if still logged in, otherwise just prompt to make a new password on trying to log in with username'. Code review found the standard flow was wired correctly (login → mustReset → reset screen) but the in-session case had no refresh trigger — a logged-in user whose tab was foregrounded the whole time would never re-fetch /api/auth, so the admin's flag flip never propagated. Fixes:\n- Client: refreshUser now fires on visibilitychange (existing) PLUS pageshow (iOS bfcache + PWA wake-up), window focus (desktop), AND a 60s background interval. Whichever fires first, the client picks up mustReset=true and renders the reset screen immediately on app reopen / focus.\n- Server: /api/admin force-reset now re-reads the user row after the write and returns verifiedMustReset; also writes a server-side audit log via console.log (visible in Vercel function logs) tagged [admin/force-reset] with username, id, write-flag, reread-flag, ts. Confirms whether the write actually landed.\n- Admin UI alert now quotes the verified-true / verified-false state alongside the temp password so the admin sees real DB state, not just optimistic local UI.\n- Existing 'prompt on next username login' path unchanged — already worked, ships intact.\n[2026-05-21] Fixed: admin force-reset now generates a TEMP password (via lib/crypto.generateTempPassword), hashes + saves it, AND flips mustResetPassword=true. The plaintext temp is returned to the admin UI (auto-copied to clipboard + shown in the alert) so they can share it with the user. Previously the action only flipped the flag without changing the password, so a user who'd forgotten their old password still couldn't log in — the must-reset prompt never had a chance to fire. (qa: Amanii: 'Admin panel says reset password required but can't log in because no prompt to put new password')\n[2026-05-21 ecd2e59] Fixed: must-reset screen password fields declare autocomplete=\"new-password\" so iCloud Keychain offers to update the saved credential when the user sets their new password.\n[2026-05-21 01da6f1] Fixed: must-reset screen now has eye toggle on both password fields."
     },
     {
       "id": "onboarding-profile-setup",

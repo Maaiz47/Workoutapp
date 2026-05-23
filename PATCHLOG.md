@@ -2,6 +2,25 @@
 
 ---
 
+## QA pass · 2026-05-23 — Admin force-reset hardening (qa: auth-must-reset)
+
+@maaiz reported Amanii was stuck on mustResetPassword in the admin panel but wasn't being prompted to set a new password on next login. Code review showed the standard login → mustReset → reset-screen path was wired correctly, but the in-session case had no refresh trigger — a user with a foregrounded tab never re-fetched `/api/auth`, so the admin's flag flip never propagated client-side.
+
+### Client
+- `refreshUser` now fires on `visibilitychange` (existing) **plus** `pageshow` (iOS bfcache + PWA wake-up), `window.focus` (desktop), and a 60s background interval. Whichever fires first, the client picks up `mustReset=true` and renders the reset screen.
+
+### Server
+- `/api/admin` `force-reset` now re-reads the user row after the write and returns `verifiedMustReset`. Writes a server-side audit line to Vercel function logs: `[admin/force-reset] target=<username> (<id>) flag-after-write=<bool> flag-after-reread=<bool> ts=<iso>`.
+
+### Admin UI
+- Force-reset alert now quotes the verified-true / verified-false state alongside the temp password, so the admin sees real DB state instead of an optimistic local update. Also updates the copy to explain both prompt paths (next login OR next app open if already signed in).
+
+### Behaviour result (per @maaiz)
+- **Already logged in**: bounced to the reset screen on next app open / focus / within 60s.
+- **Not logged in**: prompted to set a new password when they sign in with their @username (unchanged — already worked).
+
+---
+
 ## QA pass · 2026-05-23 — Friends moved to home hub + trainer '+ CLIENT' shortcut (qa: friend-system-athletes)
 
 @maaiz couldn't find the Friends UI because the SOCIAL section had landed inside the PROFILE-view conditional block (only renders when the Settings ↔ Profile toggle is on PROFILE). On top of that, the user wanted Friends as a home-level surface and a discreet way for trainers to turn friends into clients.

@@ -164,7 +164,15 @@ export default function AdminPage() {
         // they'd forgotten their old one. (qa: auth-must-reset)
         if (data.tempPassword) {
           try { await navigator.clipboard?.writeText(data.tempPassword); } catch {}
-          alert(`@${username}'s temporary password:\n\n${data.tempPassword}\n\n(copied to clipboard — share via DM). They'll be prompted to choose a new password on first login.`);
+          // Quote the verified DB-state flag in the alert so the
+          // admin can confirm the flag actually persisted — not just
+          // an optimistic UI update. If verifiedMustReset is anything
+          // other than true here, the write silently failed and the
+          // user won't be prompted. (qa: auth-must-reset)
+          const flagState = data.verifiedMustReset === true
+            ? "✓ flag verified true in DB"
+            : `⚠ flag state in DB: ${data.verifiedMustReset} — re-run if not true`;
+          alert(`@${username}'s temporary password:\n\n${data.tempPassword}\n\n(copied to clipboard — share via DM). ${flagState}.\n\nThey'll be prompted to choose a new password on first login OR on next app open if already signed in.`);
         } else {
           alert(`@${username} will be forced to reset password on next login.`);
         }

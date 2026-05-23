@@ -5364,11 +5364,31 @@ function HomePage() {
     refreshUser();
   }, []);
 
-  // Re-check role when tab regains focus — catches admin role changes without requiring a full reload
+  // Re-check user on every realistic 'app reopened' trigger so an
+  // admin-issued force-reset (mustResetPassword=true) actually lands
+  // on the client mid-session, not just after a fresh login.
+  // - visibilitychange: tab/PWA returns to foreground (most reliable)
+  // - pageshow: iOS Safari back-forward cache + PWA wake-up (covers
+  //   the case where visibilitychange doesn't fire because the page
+  //   was restored from bfcache rather than re-rendered)
+  // - focus: desktop window focus
+  // - 60s interval: foreground-active sessions where none of the
+  //   above ever fire (long single-tab use)
+  // (qa: auth-must-reset)
   useEffect(() => {
     const onVisible = () => { if (document.visibilityState === "visible") refreshUser(); };
+    const onPageShow = () => refreshUser();
+    const onFocus = () => refreshUser();
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("focus", onFocus);
+    const id = setInterval(refreshUser, 60_000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("focus", onFocus);
+      clearInterval(id);
+    };
   }, [refreshUser]);
 
   // Minimum splash duration so the fall animation completes
