@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "profile-role-stack",
+      "title": "Profile view shows ALL roles a user holds (athlete + trainer + admin stack)",
+      "area": "Profile",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass profile-role-stack",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Log in as a user with BOTH the trainer role (or extraRoles=['trainer']) AND any workout history. Open Settings → Profile.",
+        "Verify the IDENTITY card's ROLE row shows BOTH chips side by side: TRAINER (teal) and ATHLETE (grey).",
+        "Log in as an athlete-only user. Open profile. Verify only the ATHLETE chip shows.",
+        "Log in as an admin who is also a trainer. Verify three chips: ADMIN (purple) · TRAINER (teal) · ATHLETE (grey).",
+        "Log in as a non-trainer who has submitted a trainer role request (roleRequest='trainer'). Verify ATHLETE chip + the existing REVIEWING affordance still display correctly."
+      ],
+      "notes": "[2026-05-23] Shipped: removed the `!isTrainer && !isAdmin` gate around the ATHLETE chip — every user has athlete data (workout logs), so the chip is now always rendered. Admin and Trainer chips stack on top when held. Dual-role users (athlete + trainer) now see BOTH chips instead of just the highest-priority. (Reported by @maaiz: 'profile for athlete can show both athlete and trainer role'.)"
+    },
+    {
       "id": "profile-avatars-home-fix",
       "title": "Home profile button uses real avatar + opens picker on tap",
       "area": "Profile",
@@ -18,7 +35,7 @@
         "Select a different unlocked avatar. Verify it appears in BOTH the home chip and the Settings profile circle immediately.",
         "Pick the Default tile in the picker. Verify the home chip falls back to the initial-letter / default avatar."
       ],
-      "notes": "[2026-05-23] Fixed: home profile chip was hardcoded to /ai/avatar-default.png regardless of profile.avatarId, which made every avatar selection feel like a no-op from the home surface. Now uses findAvatar(currentAvatarId). Also simplified the cramped chip layout (25% column width on a 360px phone): dropped the chevron + role-chip pill, replaced with a single-line role label below the username. Tapping the avatar image opens the picker directly (with e.stopPropagation); tapping elsewhere still routes to Settings. (Reported by @maaiz: 'profile button UI needs fixing alignment username and trainer status' + 'change avatar button is not doing anything'.)"
+      "notes": "[2026-05-23] Slice 3 — REAL ROOT CAUSE: avatar picker render was inside HomePage's main return JSX, BELOW every view-specific early return (`if (view === 'settings' || view === 'profile') { return (...); }` at ~11081). So tapping the ✎ pencil or CHANGE AVATAR from Settings flipped `avatarPickerOpen` to true, but the picker render at line ~15229 was never reached because the function had already returned for the Settings view. The picker render now lives inside HomeGlobals (the overlay-portal-mounted component on document.body root) which renders REGARDLESS of which view is active. Same pattern used for QuickFeedbackFab + TierInfoModal. Required passing avatarPickerOpen/setter + avatarInventory/setter + currentAvatarId/setter through HomeGlobals props.\n[2026-05-23] Slice 2: per follow-up @maaiz request — home chip is now AVATAR-ONLY (no username, no role text). Fixed width 56px so Progress + Tier get more breathing room. Tap routes to Settings → Profile where username + ALL role chips + avatar picker live. The grid is now `56px 1fr 2fr`.\n[2026-05-23] Slice 1: home profile chip was hardcoded to /ai/avatar-default.png regardless of profile.avatarId, which made every avatar selection feel like a no-op from the home surface. Now uses findAvatar(currentAvatarId). Also simplified the cramped chip layout (25% column width on a 360px phone): dropped the chevron + role-chip pill, replaced with a single-line role label below the username. Tapping the avatar image opens the picker directly (with e.stopPropagation); tapping elsewhere still routes to Settings. (Reported by @maaiz: 'profile button UI needs fixing alignment username and trainer status' + 'change avatar button is not doing anything'.)"
     },
     {
       "id": "tier-modal-tier-labels",

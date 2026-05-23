@@ -2,6 +2,18 @@
 
 ---
 
+## QA pass · 2026-05-23 — Home chip avatar-only + profile role stack (qa: profile-avatars-home-fix, profile-role-stack)
+
+Two related UX tightening follow-ups.
+
+### profile-avatars-home-fix (slice 2)
+Per @maaiz: home chip should show ONLY the avatar — no username text, no role label. Tap routes to Settings → Profile where the full identity (username + all roles + tier badges + avatar picker) lives. Grid changed from `1fr 1fr 2fr` to a fixed `56px 1fr 2fr` so Progress + Tier get more breathing room on narrow phones.
+
+### profile-role-stack
+Profile view's IDENTITY card now shows ALL roles a user holds, not just the highest-priority one. Removed the `!isTrainer && !isAdmin` gate around the ATHLETE chip — every user has workout data, so the chip is always rendered. Trainer + Admin chips stack on top when held. Dual-role users (athlete who became a trainer) finally see BOTH chips.
+
+---
+
 ## QA pass · 2026-05-23 — Home profile chip fix + tier breakdown labels + bright-text theme (qa: profile-avatars-home-fix, tier-modal-tier-labels, theme-bright-text)
 
 Three small UX-impact fixes bundled.

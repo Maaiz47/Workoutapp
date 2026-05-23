@@ -3415,7 +3415,9 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
 // needs to be inserted into EACH branch's return — there's no
 // single bottom render to attach to.
 function HomeGlobals({
-  user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, trainerBreakdown, tierTheme, onJumpToLeaderboard, onOpenGlobalLeaderboard,
+  user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, trainerBreakdown, tierTheme,
+  avatarPickerOpen, setAvatarPickerOpen, avatarInventory, setAvatarInventory, currentAvatarId, setCurrentAvatarId,
+  onJumpToLeaderboard, onOpenGlobalLeaderboard,
 }: {
   user: { username: string; role: string; extraRoles?: string[] } | null;
   view: string;
@@ -3429,6 +3431,20 @@ function HomeGlobals({
   athleteBreakdown: TierBreakdown | null;
   trainerBreakdown: TierBreakdown | null;
   tierTheme: "vivid" | "simple";
+  // Avatar picker state — lifted into HomeGlobals so the picker can
+  // render via the overlay portal (document.body root) and remain
+  // visible across ALL view branches. Previously the picker was
+  // mounted inside HomePage's main return JSX, which gets skipped by
+  // the view-specific early returns (Settings, Customise, etc.) —
+  // tapping the ✎ pencil or CHANGE AVATAR from Settings → Profile
+  // did nothing because the picker render was unreachable.
+  // (qa: profile-avatars-home-fix)
+  avatarPickerOpen: boolean;
+  setAvatarPickerOpen: (b: boolean) => void;
+  avatarInventory: any | null;
+  setAvatarInventory: (v: any | ((prev: any) => any)) => void;
+  currentAvatarId: string | null;
+  setCurrentAvatarId: (id: string | null) => void;
   // Optional callback wired from HomePage — closes the tier modal,
   // navigates to home view, scrolls to the user's "YOU" row in the
   // first visible leaderboard group. Lets the user jump from the
@@ -3470,6 +3486,81 @@ function HomeGlobals({
         onJumpToLeaderboard={onJumpToLeaderboard}
         onOpenGlobalLeaderboard={onOpenGlobalLeaderboard}
       />
+      {/* Avatar picker — rendered HERE in HomeGlobals so it survives
+          every view's early-return JSX. The overlay-portal lives on
+          document.body and re-renders on every HomePage commit, so
+          this stays in sync with the latest avatarPickerOpen state
+          regardless of where the user is in the app.
+          (qa: profile-avatars-home-fix slice 3) */}
+      {avatarPickerOpen && (() => {
+        if (!avatarInventory) {
+          fetch("/api/avatars").then(r => r.json()).then((data) => {
+            if (!data.error) {
+              setAvatarInventory(data);
+              if (typeof data.selected === "string" || data.selected === null) setCurrentAvatarId(data.selected);
+            }
+          }).catch(() => {});
+        }
+        const unlockedIds = new Set([
+          ...(avatarInventory?.tierUnlocked ?? []).map((a: any) => a.id),
+          ...(avatarInventory?.luckyUnlocked ?? []).map((a: any) => a.id),
+        ]);
+        const all = avatarInventory?.all ?? AVATARS;
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 9990, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }} onClick={() => setAvatarPickerOpen(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto", background: "rgba(15,15,18,0.98)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, padding: 18, color: "#fff" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ fontSize: 11, letterSpacing: 3, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>AVATAR</div>
+                <button onClick={() => setAvatarPickerOpen(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 18, cursor: "pointer" }}>✕</button>
+              </div>
+              {!avatarInventory ? (
+                <div style={{ textAlign: "center", padding: "30px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Loading…</div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>Current tier: <span style={{ color: "#FFE66D" }}>{avatarInventory.tier}/6</span> · Lucky bonus: <span style={{ color: "#34d399" }}>+{avatarInventory.tierScoreBonus}</span> score</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                    <button onClick={async () => {
+                      try {
+                        await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: null }) });
+                        setCurrentAvatarId(null);
+                        setAvatarInventory((inv: any) => inv ? { ...inv, selected: null } : inv);
+                      } catch {}
+                    }} style={{ background: currentAvatarId === null ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${currentAvatarId === null ? "rgba(78,205,196,0.45)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: "pointer", color: "#fff" }}>
+                      <img src="/ai/avatar-default.png" alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} />
+                      <div style={{ fontSize: 10, fontWeight: 600 }}>Default</div>
+                    </button>
+                    {all.map((av: Avatar) => {
+                      const isUnlocked = unlockedIds.has(av.id);
+                      const isSelected = currentAvatarId === av.id;
+                      const isLucky = av.source === "lucky";
+                      return (
+                        <button key={av.id} disabled={!isUnlocked} onClick={async () => {
+                          if (!isUnlocked) return;
+                          try {
+                            const res = await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: av.id }) });
+                            if (res.ok) {
+                              setCurrentAvatarId(av.id);
+                              setAvatarInventory((inv: any) => inv ? { ...inv, selected: av.id } : inv);
+                            }
+                          } catch {}
+                        }} title={isUnlocked ? av.flavour : `${av.source === "tier" ? `Unlocks at Tier ${av.tier}` : "Rare drop — keep training!"}`} style={{ background: isSelected ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.45)" : isLucky ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.6, position: "relative", color: "#fff", textAlign: "left" }}>
+                          {isUnlocked ? (
+                            <img src={`/avatars/${av.id}.png`} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} onError={e => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
+                          ) : (
+                            <div style={{ width: "100%", aspectRatio: "1", borderRadius: 8, marginBottom: 4, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🔒</div>
+                          )}
+                          <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isUnlocked ? "#fff" : "rgba(255,255,255,0.55)" }}>{av.name}</div>
+                          <div style={{ fontSize: 8, color: isLucky ? "#a855f7" : av.source === "tier" ? "#FFE66D" : "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 1, fontFamily: "'Space Mono', monospace" }}>{isLucky ? "RARE" : `TIER ${av.tier}`}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </>
   );
 }
@@ -4349,6 +4440,12 @@ function HomePage() {
         athleteBreakdown={myAthleteBreakdown}
         trainerBreakdown={myTrainerBreakdown}
         tierTheme={tierTheme}
+        avatarPickerOpen={avatarPickerOpen}
+        setAvatarPickerOpen={setAvatarPickerOpen}
+        avatarInventory={avatarInventory}
+        setAvatarInventory={setAvatarInventory}
+        currentAvatarId={currentAvatarId}
+        setCurrentAvatarId={setCurrentAvatarId}
         onOpenGlobalLeaderboard={() => {
           setTierModalOpen(false);
           setView("globalLeaderboard");
@@ -8501,57 +8598,46 @@ function HomePage() {
               the proportions hold at all screen widths. Athletes see
               just the athlete tier; trainers see both stacked.
               (qa: home-hub-singleline) */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8, alignItems: "stretch" }}>
-            {/* LEFT — profile button. With the 25% column width on a
-                360px phone the previous avatar+username+role-chip+
-                chevron layout was cramped: username truncated to one
-                letter and the role chip wrapped under it awkwardly.
-                Also: this row always showed /ai/avatar-default.png
-                regardless of the user's selected avatar, so "change
-                avatar" felt broken from this surface. Fix: use the
-                actual currentAvatarId via findAvatar(), drop the
-                chevron, and render the role as a tiny inline label
-                (no chip background) — fits cleanly.
-                (qa: home-hub-singleline + profile-avatars) */}
+          {/* Top row: avatar-only chip (LEFT, fixed 56px) + Progress
+              (1fr) + Tier (2fr). Username + role chips live inside
+              the Settings → Profile view (the chip taps through to
+              there). Per user request: home chip stays minimal —
+              just the avatar — to free space for the wider Progress
+              + Tier cards. (qa: home-hub-singleline) */}
+          <div style={{ display: "grid", gridTemplateColumns: "56px 1fr 2fr", gap: 8, alignItems: "stretch" }}>
+            {/* LEFT — avatar-only profile chip. Tap routes to Settings
+                → Profile (where username + role chips + avatar picker
+                + tier badges all live). Long-press / direct avatar tap
+                used to open the picker but with the slimmer footprint
+                the entire chip IS the avatar now; an additional tap
+                target on top of itself would just be redundant.
+                (qa: home-hub-singleline + profile-avatars-home-fix) */}
             <button
               onClick={() => setView("profile")}
+              title="Profile"
               style={{
                 minWidth: 0,
                 background: "rgba(10,10,18,0.5)",
                 backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
                 border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 12, cursor: "pointer", textAlign: "left",
-                padding: "8px 10px",
+                borderRadius: 12, cursor: "pointer",
+                padding: 6,
                 boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)",
-                display: "flex", alignItems: "center", gap: 8,
+                display: "flex", alignItems: "center", justifyContent: "center",
               }}
             >
               {(() => {
                 const av = currentAvatarId ? findAvatar(currentAvatarId) : null;
                 const src = av ? `/avatars/${av.id}.png` : "/ai/avatar-default.png";
-                // Tapping the avatar image opens the picker DIRECTLY
-                // (with stopPropagation so the surrounding button's
-                // "go to Settings" doesn't fire too). Tap anywhere
-                // else in the button still routes to Settings →
-                // Profile where the ✎ pencil and CHANGE AVATAR button
-                // also live. (qa: profile-avatars)
                 return (
                   <img
                     src={src}
                     alt=""
-                    onClick={(e) => { e.stopPropagation(); setAvatarPickerOpen(true); }}
                     onError={(e) => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }}
-                    style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)", cursor: "pointer" }}
+                    style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }}
                   />
                 );
               })()}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", letterSpacing: -0.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.2 }}>{user.username}</div>
-                <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: userHasRole(user, "admin") ? "#a29bfe" : userHasRole(user, "trainer") ? "#4ECDC4" : "rgba(255,255,255,0.45)", fontFamily: "'Space Mono', monospace", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {userHasRole(user, "admin") ? "ADMIN" : userHasRole(user, "trainer") ? "TRAINER" : "ATHLETE"}
-                  {user.role === "user" && user.roleRequest ? " · REVIEWING" : ""}
-                </div>
-              </div>
             </button>
 
             {/* MIDDLE — progress button. Sits between Profile and Tier so
@@ -11370,15 +11456,18 @@ function HomePage() {
             {/* Role labels — explicit "what am I" indicators. */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>ROLE</span>
+              {/* Every user IS an athlete (they have workout logs), so
+                  ATHLETE renders always. ADMIN + TRAINER stack on top
+                  when held. This lets dual-role users (athlete +
+                  trainer) see BOTH chips instead of just the highest-
+                  priority one. (qa: profile-role-stack) */}
               {userHasRole(user, "admin") && (
                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#a29bfe", background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 6, padding: "3px 10px" }}>ADMIN</span>
               )}
               {isTrainer && (
                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.25)", borderRadius: 6, padding: "3px 10px" }}>TRAINER</span>
               )}
-              {!isTrainer && !userHasRole(user, "admin") && (
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 10px" }}>ATHLETE</span>
-              )}
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 10px" }}>ATHLETE</span>
             </div>
 
             {/* Tier badges — both ladders the user participates in. The
@@ -15133,79 +15222,11 @@ function HomePage() {
           {_content}
         </motion.div>
       </AnimatePresence>
-      {/* Avatar picker — mounted at top level so the pencil icon
-          works from any view (Settings → Profile, etc.). Previously
-          gated behind view === "customise" which made the pencil a
-          silent no-op everywhere else. (qa: profile-avatars) */}
-      {avatarPickerOpen && (() => {
-        if (!avatarInventory) {
-          fetch("/api/avatars").then(r => r.json()).then((data) => {
-            if (!data.error) {
-              setAvatarInventory(data);
-              if (typeof data.selected === "string" || data.selected === null) setCurrentAvatarId(data.selected);
-            }
-          }).catch(() => {});
-        }
-        const unlockedIds = new Set([
-          ...(avatarInventory?.tierUnlocked ?? []).map(a => a.id),
-          ...(avatarInventory?.luckyUnlocked ?? []).map(a => a.id),
-        ]);
-        const all = avatarInventory?.all ?? AVATARS;
-        return (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 9990, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }} onClick={() => setAvatarPickerOpen(false)}>
-            <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, maxHeight: "85vh", overflowY: "auto", background: "rgba(15,15,18,0.98)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18, padding: 18, color: "#fff" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ fontSize: 11, letterSpacing: 3, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>AVATAR</div>
-                <button onClick={() => setAvatarPickerOpen(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 18, cursor: "pointer" }}>✕</button>
-              </div>
-              {!avatarInventory ? (
-                <div style={{ textAlign: "center", padding: "30px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Loading…</div>
-              ) : (
-                <>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>Current tier: <span style={{ color: "#FFE66D" }}>{avatarInventory.tier}/6</span> · Lucky bonus: <span style={{ color: "#34d399" }}>+{avatarInventory.tierScoreBonus}</span> score</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-                    <button onClick={async () => {
-                      try {
-                        await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: null }) });
-                        setCurrentAvatarId(null);
-                        setAvatarInventory(inv => inv ? { ...inv, selected: null } : inv);
-                      } catch {}
-                    }} style={{ background: currentAvatarId === null ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${currentAvatarId === null ? "rgba(78,205,196,0.45)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: "pointer", color: "#fff" }}>
-                      <img src="/ai/avatar-default.png" alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} />
-                      <div style={{ fontSize: 10, fontWeight: 600 }}>Default</div>
-                    </button>
-                    {all.map((av: Avatar) => {
-                      const isUnlocked = unlockedIds.has(av.id);
-                      const isSelected = currentAvatarId === av.id;
-                      const isLucky = av.source === "lucky";
-                      return (
-                        <button key={av.id} disabled={!isUnlocked} onClick={async () => {
-                          if (!isUnlocked) return;
-                          try {
-                            const res = await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: av.id }) });
-                            if (res.ok) {
-                              setCurrentAvatarId(av.id);
-                              setAvatarInventory(inv => inv ? { ...inv, selected: av.id } : inv);
-                            }
-                          } catch {}
-                        }} title={isUnlocked ? av.flavour : `${av.source === "tier" ? `Unlocks at Tier ${av.tier}` : "Rare drop — keep training!"}`} style={{ background: isSelected ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.45)" : isLucky ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.6, position: "relative", color: "#fff", textAlign: "left" }}>
-                          {isUnlocked ? (
-                            <img src={`/avatars/${av.id}.png`} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} onError={e => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
-                          ) : (
-                            <div style={{ width: "100%", aspectRatio: "1", borderRadius: 8, marginBottom: 4, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🔒</div>
-                          )}
-                          <div style={{ fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isUnlocked ? "#fff" : "rgba(255,255,255,0.55)" }}>{av.name}</div>
-                          <div style={{ fontSize: 8, color: isLucky ? "#a855f7" : av.source === "tier" ? "#FFE66D" : "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 1, fontFamily: "'Space Mono', monospace" }}>{isLucky ? "RARE" : `TIER ${av.tier}`}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+      {/* Avatar picker render lives inside HomeGlobals (the overlay-
+          portal-mounted component) so it's reachable from every view
+          — Settings, Customise, Progress, etc. The version that used
+          to sit here was bypassed by every view's early-return JSX.
+          (qa: profile-avatars-home-fix slice 3) */}
       {/* Effort backfill prompt — small bottom sheet that appears
           when the user logs a set without picking an effort chip.
           Tapping a chip patches the just-logged set's rpe; SKIP or
