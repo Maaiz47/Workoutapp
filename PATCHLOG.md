@@ -2,6 +2,17 @@
 
 ---
 
+## Tier modal polish · 2026-05-23 — Bigger badges, fix GORILL truncation, earn-more-points tips (qa: tier-modal-action-tips, home-hub-premium-polish)
+
+Per @maaiz: "tier badges need to still be showed larger especially inside the tier modal", "gorilla is displaying as gorill at the bar", and "Make suggestion steps to users to collect more tier points".
+
+- **Headline tier icon** in the breakdown modal bumped 58 → 82 px so the tier badge actually dominates the modal header.
+- **Tier ladder strip** in the modal — current icon 22 → 36 px, others 16 → 28 px so the whole row reads chunky and proportional to the headline.
+- **GORILL → GORILLA**: ladder strip label was sliced to 6 chars (`label.slice(0, 6)`), truncating "Gorilla". Now uses the full label with `wordBreak: break-word` so longer tiers wrap to two lines if needed. Same fix on `CompactTierDotBar` (slice 6 → 8).
+- **NEW: "⚡ EARN MORE POINTS" tip card** under the Path-to-Next callout. Surfaces 2-3 concrete actions tailored to the user's WEAKEST sub-rank (e.g. for Technique: "Tag a superset → +5 IP / session", "Run a drop chain → +3 IP", "Tag RPE on hard sets"). Per-dim tip libraries cover all 8 sub-ranks (consistency / strength / progression / volume / mastery / technique / bodycomp / habits).
+
+---
+
 ## Fix · 2026-05-23 — All leaderboard rows showed as Kittens (CanonicalTier missing tierNum) (qa: tier-num-on-canonical)
 
 Per @maaiz: "Why are all the test users kittens?". Traced the bug to `lib/leaderboardStats.ts`: `CanonicalTier` interface carried `idx` (0-based position) but NOT `tierNum` (1-based canonical rank). The leaderboard APIs read `s.tier.tierNum ?? 1`, which always fell back to 1 (= Kitten) for everyone.

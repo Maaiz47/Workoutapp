@@ -4408,7 +4408,7 @@ function TierLadder({
               const isCurrentTierDot = highlight === t.label;
               const dotSize = isCurrentTierDot ? 14 : 10;
               const dotTop = isCurrentTierDot ? 9 : 11;
-              const abbrev = t.label.toUpperCase().split(" ")[0].slice(0, 6);
+              const abbrev = t.label.toUpperCase().split(" ")[0].slice(0, 8);
               return (
                 <div key={t.label} style={{ position: "absolute", left: `${pct}%`, top: 0, transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" }}>
                   <div style={{
@@ -13782,7 +13782,7 @@ function HomePage() {
                       badge as a sibling chip so it's not confusable with
                       the headline name. */}
                   <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12, position: "relative" }}>
-                    <div style={{ lineHeight: 1, filter: "drop-shadow(0 4px 14px rgba(240,192,64,0.45))" }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={58} /></div>
+                    <div style={{ lineHeight: 1, filter: "drop-shadow(0 4px 14px rgba(240,192,64,0.45))" }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={82} /></div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 26, fontWeight: 800, color: "#f0c040", letterSpacing: -0.3, lineHeight: 1 }}>{tier.label.toUpperCase()}</div>
                       <div style={{ display: "inline-flex", marginTop: 6, fontSize: 10, color: expM.color, background: `${expM.color}1A`, border: `1px solid ${expM.color}55`, padding: "3px 8px", borderRadius: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, fontWeight: 700 }}>{expM.icon} {expM.label}</div>
@@ -13797,9 +13797,9 @@ function HomePage() {
                       const reached = i <= tierIdx;
                       const isCurrent = i === tierIdx;
                       return (
-                        <div key={t.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, opacity: reached ? 1 : 0.35 }}>
-                          <div style={{ lineHeight: 1, filter: isCurrent ? `drop-shadow(0 0 8px ${t.color})` : reached ? "none" : "grayscale(1)", transition: "all 0.3s" }}><TierGlyph src={t.iconPath} emoji={t.icon} size={isCurrent ? 22 : 16} /></div>
-                          <div style={{ fontSize: 7, color: isCurrent ? t.color : "rgba(255,255,255,0.4)", marginTop: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 1, fontWeight: 700 }}>{t.label.toUpperCase().slice(0, 6)}</div>
+                        <div key={t.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, minWidth: 0, opacity: reached ? 1 : 0.35 }}>
+                          <div style={{ lineHeight: 1, filter: isCurrent ? `drop-shadow(0 0 8px ${t.color})` : reached ? "none" : "grayscale(1)", transition: "all 0.3s" }}><TierGlyph src={t.iconPath} emoji={t.icon} size={isCurrent ? 36 : 28} /></div>
+                          <div style={{ fontSize: 8, color: isCurrent ? t.color : "rgba(255,255,255,0.4)", marginTop: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, fontWeight: 700, textAlign: "center", lineHeight: 1.1, wordBreak: "break-word" }}>{t.label.toUpperCase()}</div>
                         </div>
                       );
                     })}
@@ -13842,6 +13842,72 @@ function HomePage() {
                       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>Focus on {breakdown.focusNext.icon} <strong>{breakdown.focusNext.label}</strong> — it's your weakest dimension. {breakdown.focusNext.detail}.</div>
                     </div>
                   )}
+                  {/* Concrete actions to earn more tier points — bias
+                      toward the user's weakest sub-rank so the tip is
+                      relevant to THEM. Per @maaiz: "Make suggestion
+                      steps to users to collect more tier points like
+                      if they can get points from doing a superset or
+                      dropset, or some extra treadmill time or anything".
+                      (qa: tier-modal-action-tips) */}
+                  {next && (() => {
+                    const weakestId = breakdown.focusNext?.id ?? "consistency";
+                    type Tip = { icon: string; text: string };
+                    const TIPS_BY_DIM: Record<string, Tip[]> = {
+                      consistency: [
+                        { icon: "📅", text: "Log a session today — every day toward your weekly target adds adherence points." },
+                        { icon: "🔁", text: "Don't skip the rest days — hitting EXACTLY your daysPerWeek beats overtraining." },
+                        { icon: "🔥", text: "Keep the weekly streak alive — every consecutive week at target adds streak bonus." },
+                      ],
+                      strength: [
+                        { icon: "📈", text: "Add 2.5 kg to one main lift this week — rate of growth drives the Strength score." },
+                        { icon: "🏋️", text: "Hit 4+ sets on each of your top lifts so they qualify for the e1RM trend." },
+                        { icon: "⚖️", text: "Log your bodyweight — the absolute-strength signal needs BW to compute multiples." },
+                      ],
+                      progression: [
+                        { icon: "🚀", text: "Add one extra working set per week — rising weekly volume is the slope this dim tracks." },
+                        { icon: "📊", text: "Log at least 9 weeks of sessions to unlock the Progression sub-rank." },
+                        { icon: "📦", text: "Keep volume trending up gently — even 1%/week beats plateau here." },
+                      ],
+                      volume: [
+                        { icon: "🔂", text: "Add an accessory set or two — lifetime kg-reps is the metric, every set counts." },
+                        { icon: "🦵", text: "Big-lift days inflate volume fast (squat / deadlift × 5×5)." },
+                        { icon: "🏃", text: "Treadmill / cardio sets don't count for Volume — stick to weighted reps." },
+                      ],
+                      mastery: [
+                        { icon: "🎲", text: "Hit ≥4 working sets on each exercise — that's what qualifies it for Mastery." },
+                        { icon: "🧱", text: "Rotate in one new compound this month — distinct exercises drive the score." },
+                        { icon: "📚", text: "Stick with your variety — abandoning lifts before 4 sets resets your count." },
+                      ],
+                      technique: [
+                        { icon: "⟳", text: "Tag a superset in your next session — +5 IP per session toward Technique." },
+                        { icon: "🔻", text: "Run a drop chain on your last set — +3 IP per session." },
+                        { icon: "🎯", text: "Tag RPE on hard sets — RPE 8+ adds intensity points too." },
+                      ],
+                      bodycomp: [
+                        { icon: "⚖️", text: "Log a weight + body-fat reading this week — Body Comp needs current data." },
+                        { icon: "📉", text: "Track 90-day deltas — keeping weight + BF in the maintenance band scores best." },
+                      ],
+                      habits: [
+                        { icon: "💧", text: "Hit your hydration target today — biggest weight in the Habits sub-rank." },
+                        { icon: "😴", text: "Log sleep this morning — even just one tap counts." },
+                        { icon: "⚡", text: "Tap your energy level — adds Habits points and feeds wellness trends." },
+                      ],
+                    };
+                    const tips = TIPS_BY_DIM[weakestId] ?? TIPS_BY_DIM.consistency;
+                    return (
+                      <div style={{ marginTop: 8, padding: "10px 12px", background: "rgba(240,192,64,0.05)", border: "1px solid rgba(240,192,64,0.18)", borderRadius: 8 }}>
+                        <div style={{ fontSize: 9, color: "rgba(240,192,64,0.75)", letterSpacing: 1, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>⚡ EARN MORE POINTS</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {tips.map((t, i) => (
+                            <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: 11, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>
+                              <span style={{ fontSize: 13, flexShrink: 0, lineHeight: 1.2 }}>{t.icon}</span>
+                              <span>{t.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {exp.source === "blended" && (
                     <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 0.5 }}>
                       Experience level inherited from onboarding — locks to actual training in {monthsUntilExpRecordedExpires(monthsOnApp).toFixed(1)} months.
