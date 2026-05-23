@@ -3913,19 +3913,19 @@ function TierInfoModal({
           Tiers are <strong>progression badges</strong> you earn over time — they're not
           roles. There are two ladders:
           <ul style={{ margin: "8px 0 0 0", paddingLeft: 18, color: "rgba(255,255,255,0.65)" }}>
-            <li>🐯 <strong>Athlete tiers</strong> (Kitten → Gorilla) — earned by training.</li>
-            <li>🤝 <strong>Trainer tiers</strong> (Spotter → Hall of Fame) — earned by coaching clients AND keeping your own training on track. Discipline (your own athlete score) is one of the five dimensions.</li>
+            <li>🐯 <strong>Athlete tiers</strong> — 100% based on YOUR training stats. No boost for being a trainer, having more friends, paying, or anything else. Same formula for everyone.</li>
+            <li>🤝 <strong>Trainer tiers</strong> (Spotter → Hall of Fame) — earned by coaching clients (roster size, retention, client progression, total reach) AND your own training discipline. Your athlete score is one of five dimensions, so a slacking trainer can't ladder up by client volume alone.</li>
           </ul>
           {isAthlete && isTrainer && (
             <div style={{ marginTop: 8, fontSize: 12, color: "rgba(78,205,196,0.85)" }}>
-              You're on both ladders — your trainer rank AND your own athlete rank are tracked independently.
+              You're on both ladders — your trainer rank AND your own athlete rank are tracked independently. Comparing two athletes' tiers? Their roles don't matter — only the seven training sub-ranks below.
             </div>
           )}
         </div>
 
         <TierLadder
           title="ATHLETE LADDER"
-          subtitle={`Earned by training · headline = average of 5 sub-ranks · ${athleteUnit}`}
+          subtitle={`Earned by training · headline = average of your seven sub-ranks (only ones with data count) · ${athleteUnit}`}
           tiers={athleteTiersLite(tierTheme)}
           accent="#f0c040"
           highlight={athleteTier?.label ?? null}
@@ -3939,37 +3939,57 @@ function TierInfoModal({
             which dimension is the cheapest to push next. Renders only
             when we have the local breakdown loaded.
             (qa: tier-explainability) */}
-        {isAthlete && athleteBreakdown && (
-          <div style={{
-            marginTop: 0, marginBottom: 16, padding: "12px 14px",
-            background: "rgba(240,192,64,0.05)",
-            border: "1px solid rgba(240,192,64,0.2)",
-            borderRadius: 12,
-          }}>
-            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 3, color: "#f0c040", fontFamily: "'Space Mono', monospace", marginBottom: 10 }}>
-              🎯 YOUR ATHLETE SUB-RANKS · HEADLINE {athleteBreakdown.headlineScore}/100
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {athleteBreakdown.subRanks.map(r => (
-                <div key={r.id} style={{ opacity: r.hasData ? 1 : 0.55 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                    <div style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{r.icon} {r.label}{!r.hasData && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginLeft: 6, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· NOT COUNTED</span>}</div>
-                    <div style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: r.hasData ? "rgba(240,192,64,0.85)" : "rgba(255,255,255,0.3)", fontWeight: 700 }}>{r.hasData ? `${r.score}/100` : "—"}</div>
-                  </div>
-                  <div style={{ height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden", marginBottom: 3 }}>
-                    <div style={{ width: `${Math.max(2, r.score)}%`, height: "100%", background: r.hasData ? "linear-gradient(90deg, #f0c040, #f97316)" : "rgba(255,255,255,0.15)" }} />
-                  </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{r.detail}</div>
-                </div>
-              ))}
-            </div>
-            {athleteBreakdown.focusNext && (
-              <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(78,205,196,0.07)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
-                <strong style={{ color: "#4ECDC4" }}>↑ Path to next:</strong> {athleteBreakdown.focusNext.label.toLowerCase()} has the biggest upside ({athleteBreakdown.focusNext.score}/100) — closing the gap to 100 moves your headline more than any other dim.
+        {isAthlete && athleteBreakdown && (() => {
+          // Resolve the immediate next-tier rung + the headline gap
+          // to it. Gives the user a concrete progression target
+          // ("you need +N pts to reach Lion") instead of just the
+          // weakest-sub-rank hint. (qa: tier-explainability)
+          const themedTiers = getAthleteTiers(tierTheme);
+          const hScore = athleteBreakdown.headlineScore;
+          const currentIdx = themedTiers.findIndex(t => t.label === athleteBreakdown.headline.label);
+          const nextRung = currentIdx >= 0 ? themedTiers[currentIdx + 1] ?? null : null;
+          const pointsToNext = nextRung ? Math.max(0, nextRung.min - hScore) : 0;
+          const countedCount = athleteBreakdown.subRanks.filter(r => r.hasData).length;
+          return (
+            <div style={{
+              marginTop: 0, marginBottom: 16, padding: "12px 14px",
+              background: "rgba(240,192,64,0.05)",
+              border: "1px solid rgba(240,192,64,0.2)",
+              borderRadius: 12,
+            }}>
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 3, color: "#f0c040", fontFamily: "'Space Mono', monospace", marginBottom: 4 }}>
+                🎯 YOUR ATHLETE SUB-RANKS · HEADLINE {hScore}/100
               </div>
-            )}
-          </div>
-        )}
+              {/* Concrete next-rung headline. Shows the math so users
+                  can see exactly what crosses them into the next tier.
+                  (qa: tier-explainability) */}
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, marginBottom: 10 }}>
+                {nextRung
+                  ? <>To reach <strong style={{ color: nextRung.color }}>{nextRung.icon} {nextRung.label}</strong> you need <strong style={{ color: "#fff" }}>+{pointsToNext} pts</strong> on the headline (currently {hScore}, next at {nextRung.min}). Headline = average of the {countedCount} counted sub-rank{countedCount === 1 ? "" : "s"} below.</>
+                  : <>You're at the top of the ladder ({athleteBreakdown.headline.label}). Keep grinding — every sub-rank still tracks individually.</>}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {athleteBreakdown.subRanks.map(r => (
+                  <div key={r.id} style={{ opacity: r.hasData ? 1 : 0.55 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                      <div style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{r.icon} {r.label}{!r.hasData && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginLeft: 6, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· NOT COUNTED</span>}</div>
+                      <div style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", color: r.hasData ? "rgba(240,192,64,0.85)" : "rgba(255,255,255,0.3)", fontWeight: 700 }}>{r.hasData ? `${r.score}/100` : "—"}</div>
+                    </div>
+                    <div style={{ height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden", marginBottom: 3 }}>
+                      <div style={{ width: `${Math.max(2, r.score)}%`, height: "100%", background: r.hasData ? "linear-gradient(90deg, #f0c040, #f97316)" : "rgba(255,255,255,0.15)" }} />
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{r.detail}</div>
+                  </div>
+                ))}
+              </div>
+              {athleteBreakdown.focusNext && (
+                <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(78,205,196,0.07)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, fontSize: 11, color: "rgba(255,255,255,0.75)" }}>
+                  <strong style={{ color: "#4ECDC4" }}>↑ Quickest win:</strong> {athleteBreakdown.focusNext.label.toLowerCase()} is your lowest counted sub-rank ({athleteBreakdown.focusNext.score}/100). Closing that gap moves your headline faster than any other dim because all counted sub-ranks weight equally.
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <TierLadder
           title="TRAINER LADDER"

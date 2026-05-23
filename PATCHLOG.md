@@ -2,6 +2,19 @@
 
 ---
 
+## QA pass · 2026-05-23 — Tier explainability — confirm no role boost + next-rung target (qa: tier-explainability)
+
+@maaiz asked whether Maaiz (trainer) being Big Dawg while Alla (athlete) is Lion was due to a hidden trainer boost. Investigation: NO — `computeAthleteTier` reads only training + wellness data; role / trainer status never feeds the score. Alla genuinely outranks Maaiz on the seven sub-ranks. Made it crystal clear in the tier modal so users don't have to wonder.
+
+- Intro paragraph: explicit "100% based on YOUR training stats. No boost for being a trainer, having more friends, paying, or anything else. Same formula for everyone."
+- Trainer-side bullet rewritten to make the difference unambiguous: trainer tier folds in roster + retention + client progression + reach + the trainer's own athlete-discipline (5 dimensions). Athlete tier doesn't.
+- Dual-role helper line: when comparing two athletes' tiers, roles don't matter — only the seven sub-ranks below.
+- ATHLETE LADDER subtitle corrected from "5 sub-ranks" to "seven sub-ranks (only ones with data count)".
+- Added concrete next-rung callout: "To reach 🦁 Lion you need +N pts on the headline (currently X, next at 50). Headline = average of the K counted sub-ranks below." Users no longer have to do the math themselves.
+- Focus-next callout renamed Path to next → Quickest win; copy explains that all counted sub-ranks weight equally, so pushing the lowest one moves the headline most.
+
+---
+
 ## QA pass · 2026-05-23 — Admin force-reset hardening (qa: auth-must-reset)
 
 @maaiz reported Amanii was stuck on mustResetPassword in the admin panel but wasn't being prompted to set a new password on next login. Code review showed the standard login → mustReset → reset-screen path was wired correctly, but the in-session case had no refresh trigger — a user with a foregrounded tab never re-fetched `/api/auth`, so the admin's flag flip never propagated client-side.
