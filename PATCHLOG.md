@@ -2,6 +2,20 @@
 
 ---
 
+## QA pass · 2026-05-23 — Friends moved to home hub + trainer '+ CLIENT' shortcut (qa: friend-system-athletes)
+
+@maaiz couldn't find the Friends UI because the SOCIAL section had landed inside the PROFILE-view conditional block (only renders when the Settings ↔ Profile toggle is on PROFILE). On top of that, the user wanted Friends as a home-level surface and a discreet way for trainers to turn friends into clients.
+
+### What changed
+- **Removed** the Settings/Profile SOCIAL section + FriendsCard render. Friends is no longer a settings drawer entry.
+- **New home-hub button**: 🤝 Friends (purple A29BFE accent) between Groups and (trainer-only) Clients. Carries an incoming-count badge when there are pending received friend requests. Visible to both athletes and trainers.
+- **New view `friendsHub`**: dedicated screen rendering FriendsCard full-width with back nav. Wired into swipeBack so the iOS swipe-from-edge returns home.
+- **Trainer '+ CLIENT' chip on each accepted friend row**: small purple chip alongside REMOVE. Tapping sends an adoption request via the existing `/api/trainer/request` POST (sendAdoptionRequest reused). States: '+ CLIENT' (default) → 'REQUESTED' (greyed, after send) → 'CLIENT' (purple pill, once friend has accepted). Hidden for athletes.
+- **Page-level pending count**: new `pendingFriendCount` state mirrors GET /api/friends → pendingReceived.length. Refetched on user-load and on every home-view entry so the badge stays fresh after accept/decline.
+- **Tutorial step added** (`friends-hub`): introduces the home hub Friends button and the trainer '+ CLIENT' shortcut.
+
+---
+
 ## QA pass · 2026-05-23 — Watermark regression + quick-win UX + friend system slice 2 (UI + push) + search boxes + tier number inversion (qa: workout-rest-motivational-phrases, tier-ladder-dot-bar, wellness-collapsed-default, home-hub-singleline, achievements-discoverability-progress, friend-system-athletes, push-notifications-requests, search-boxes-lists, tier-number-display-inverted, trainer-made-missions, dashboard-cards-rearrangeable, exercises-tab-all-exercises, leaderboards-rearrangeable)
 
 Big pass — fixed the watermark scroll regression from the last

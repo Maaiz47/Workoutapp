@@ -84,6 +84,13 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     where: "Progress → tap your tier chip",
   },
   {
+    id: "friends-hub",
+    icon: "🤝",
+    title: "Find your friends",
+    body: "Tap 🤝 Friends on the home hub to add training partners by @username. Send a request, accept incoming ones, and unfriend any time. Trainers see a discreet '+ CLIENT' shortcut on each friend row so they can also send a coaching request without re-searching.",
+    where: "Home → 🤝 Friends",
+  },
+  {
     id: "updates",
     icon: "🔄",
     title: "Stay current",

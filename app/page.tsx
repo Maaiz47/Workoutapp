@@ -1075,7 +1075,17 @@ type FriendRow = {
   friend: { id: string; username: string };
 };
 
-function FriendsCard() {
+function FriendsCard({
+  isTrainer = false,
+  clientIds,
+  pendingClientIds,
+  onAddAsClient,
+}: {
+  isTrainer?: boolean;
+  clientIds?: Set<string>;
+  pendingClientIds?: Set<string>;
+  onAddAsClient?: (userId: string, username: string) => Promise<void>;
+} = {}) {
   const [accepted, setAccepted] = useState<FriendRow[]>([]);
   const [pendingSent, setPendingSent] = useState<FriendRow[]>([]);
   const [pendingReceived, setPendingReceived] = useState<FriendRow[]>([]);
@@ -1231,12 +1241,42 @@ function FriendsCard() {
               />
             )}
           </div>
-          {filteredAccepted.map(f => (
-            <div key={f.id} style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{f.friend.username}</span>
-              <button onClick={() => unfriend(f.id)} disabled={busy === f.id} style={{ padding: "4px 10px", background: "transparent", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "rgba(255,107,107,0.7)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{busy === f.id ? "…" : "REMOVE"}</button>
-            </div>
-          ))}
+          {filteredAccepted.map(f => {
+            // Trainer-only discreet 'add as client' shortcut. Hidden
+            // entirely if the friend is already a client. Greyed if
+            // a request is pending. Tappable otherwise — sends a
+            // trainer adoption request to that user. The friend will
+            // see it via the normal trainer-request push + Messages
+            // thread. (qa: friend-system-athletes)
+            const alreadyClient = !!(isTrainer && clientIds && clientIds.has(f.friend.id));
+            const requestPending = !!(isTrainer && pendingClientIds && pendingClientIds.has(f.friend.id));
+            const trainerCtaBusy = busy === `trainer:${f.friend.id}`;
+            const handleAddAsClient = async () => {
+              if (!onAddAsClient || alreadyClient || requestPending) return;
+              setBusy(`trainer:${f.friend.id}`);
+              try { await onAddAsClient(f.friend.id, f.friend.username); } catch {}
+              setBusy(null);
+            };
+            return (
+              <div key={f.id} style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{f.friend.username}</span>
+                {isTrainer && alreadyClient && (
+                  <span title="Already your client" style={{ fontSize: 9, color: "#a855f7", letterSpacing: 1, fontFamily: "'Space Mono', monospace", padding: "2px 6px", background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.22)", borderRadius: 4 }}>CLIENT</span>
+                )}
+                {isTrainer && !alreadyClient && (
+                  <button
+                    onClick={handleAddAsClient}
+                    disabled={requestPending || trainerCtaBusy}
+                    title={requestPending ? "Request already sent" : "Send a trainer request to add as client"}
+                    style={{ padding: "4px 8px", background: requestPending ? "rgba(255,255,255,0.04)" : "rgba(168,85,247,0.08)", border: `1px solid ${requestPending ? "rgba(255,255,255,0.1)" : "rgba(168,85,247,0.28)"}`, borderRadius: 6, color: requestPending ? "rgba(255,255,255,0.4)" : "#a855f7", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: requestPending ? "default" : "pointer", fontFamily: "'Space Mono', monospace", opacity: trainerCtaBusy ? 0.55 : 1 }}
+                  >
+                    {trainerCtaBusy ? "…" : requestPending ? "REQUESTED" : "+ CLIENT"}
+                  </button>
+                )}
+                <button onClick={() => unfriend(f.id)} disabled={busy === f.id} style={{ padding: "4px 10px", background: "transparent", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "rgba(255,107,107,0.7)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{busy === f.id ? "…" : "REMOVE"}</button>
+              </div>
+            );
+          })}
           {filteredAccepted.length === 0 && filter && (
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: 10 }}>No friends match "{filter}"</div>
           )}
@@ -4987,6 +5027,18 @@ function HomePage() {
   const [trainerSearching, setTrainerSearching] = useState(false);
   const [trainerHasSearched, setTrainerHasSearched] = useState(false);
   const [trainerSearchError, setTrainerSearchError] = useState<string | null>(null);
+  // Friends — page-level slim mirror so the home hub can show a
+  // pending-incoming badge without each FriendsCard mount refetching
+  // just to count. (qa: friend-system-athletes)
+  const [pendingFriendCount, setPendingFriendCount] = useState(0);
+  const fetchPendingFriendCount = useCallback(async () => {
+    try {
+      const r = await fetch("/api/friends");
+      if (!r.ok) return;
+      const data = await r.json();
+      setPendingFriendCount((data.pendingReceived ?? []).length);
+    } catch {}
+  }, []);
   const [trainerRequests, setTrainerRequests] = useState<any[]>([]);
   const [sendingRequest, setSendingRequest] = useState<string | null>(null);
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
@@ -5238,7 +5290,7 @@ function HomePage() {
   const changeTheme = (t: "iron"|"mono"|"vivid") => { setAppTheme(t); localStorage.setItem("ironlog-theme", t); };
   const changeAccent = (c: string) => { setAccentColor(c); localStorage.setItem("ironlog-accent", c); };
 
-  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "globalLeaderboard", "groupsHub", "clientsHub", "avatarPicker"]);
+  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "globalLeaderboard", "groupsHub", "clientsHub", "friendsHub", "avatarPicker"]);
   useSwipeBack(() => {
     if (view === "conversation") { setView("messages"); setActiveConversation(null); }
     else if (view === "messages") setView("home");
@@ -5248,6 +5300,7 @@ function HomePage() {
     else if (view === "globalLeaderboard") setView("home");
     else if (view === "groupsHub") setView("home");
     else if (view === "clientsHub") setView("home");
+    else if (view === "friendsHub") setView("home");
     else if (view === "workout" && started) setView("home"); // leave but keep session alive
     else if (view === "avatarPicker") setView("profile"); // avatar picker → back to Settings → Profile
   }, swipeBackViews.has(view));
@@ -5335,6 +5388,12 @@ function HomePage() {
       }).catch(() => {});
     }
   }, [user]);
+
+  // Refresh the home-hub friend badge whenever the user is set OR
+  // we land back on the home view (e.g. after accepting a request
+  // in friendsHub, the badge should decrement on return).
+  useEffect(() => { if (user) fetchPendingFriendCount(); }, [user, fetchPendingFriendCount]);
+  useEffect(() => { if (view === "home") fetchPendingFriendCount(); }, [view, fetchPendingFriendCount]);
 
   useEffect(() => {
     if (userHasRole(user, "trainer")) {
@@ -9823,6 +9882,16 @@ function HomePage() {
             <span style={{ fontSize: 22, lineHeight: 1 }}>🏝️</span>
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Groups</span>
           </button>
+          {/* Friends — opens the dedicated FriendsHub view (athletes
+              AND trainers). Hub-level entry so users can find/manage
+              friends without digging into Settings. Trainers also
+              get a discreet '+ CLIENT' shortcut inside the friend
+              list. (qa: friend-system-athletes) */}
+          <button className="card-hover nav-btn" onClick={() => goTo("friendsHub")} title="Friends" style={{ position: "relative", flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: "rgba(162,155,254,0.05)", border: "1px solid rgba(162,155,254,0.22)", borderRadius: 12, color: "#A29BFE", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box" }}>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>🤝</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Friends</span>
+            {pendingFriendCount > 0 && <span style={{ position: "absolute", top: 4, right: 4, background: "#A29BFE", color: "#000", borderRadius: 10, padding: "1px 6px", fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{pendingFriendCount}</span>}
+          </button>
           {/* Clients — opens the dedicated Clients view, trainer-only.
               Used to be inline on home. (qa: home-hub-consolidation) */}
           {userHasRole(user, "trainer") && (
@@ -10623,6 +10692,38 @@ function HomePage() {
   // ─── CLIENTS HUB ──────────────────────────────────────────────────
   // Trainer's roster + actions, lifted out of the home dashboard.
   // (qa: home-hub-consolidation)
+  // ─── FRIENDS HUB ────────────────────────────────────────────────────
+  // Dedicated home-hub surface for friends — search, accept incoming,
+  // unfriend, plus a discreet '+ CLIENT' shortcut on each accepted
+  // friend row for trainers. Both athletes and trainers see this.
+  // (qa: friend-system-athletes)
+  if (view === "friendsHub") {
+    const isTrainer = userHasRole(user, "trainer");
+    const clientIds = new Set<string>(clients.map((c: any) => c.id));
+    const pendingClientIds = new Set<string>(
+      (trainerRequests ?? []).filter((r: any) => r.status === "pending").map((r: any) => r.userId)
+    );
+    const handleAddAsClient = async (userId: string, _username: string) => {
+      await sendAdoptionRequest(userId);
+    };
+    return (
+      <div key="friendsHub" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: 80, minHeight: "100dvh", boxSizing: "border-box" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "24px 20px 8px" }}>
+          <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>FRIENDS</div>
+        </div>
+        <div style={{ padding: "16px 20px 0" }}>
+          <FriendsCard
+            isTrainer={isTrainer}
+            clientIds={clientIds}
+            pendingClientIds={pendingClientIds}
+            onAddAsClient={handleAddAsClient}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (view === "clientsHub") return (
     <div key="clientsHub" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: 80, minHeight: "100dvh", boxSizing: "border-box" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "24px 20px 8px" }}>
@@ -12403,14 +12504,10 @@ function HomePage() {
             )}
           </div>
 
-          {/* ── SECTION: SOCIAL — friend search/list + accept incoming
-              friend requests. Athletes connect with athletes here.
-              (qa: friend-system-athletes — slice 2) ── */}
-          <SettingsSectionHeader label="SOCIAL" icon="👥" color="rgba(78,205,196,0.75)" />
-          <FriendsCard />
-
           {/* ── SECTION: TRAINING — modality knobs (HIIT) + trainer
-              role upgrade live here. ── */}
+              role upgrade live here. Friends moved to its own home-
+              hub surface (view === "friendsHub") so it's not buried
+              in Settings/Profile. (qa: friend-system-athletes) ── */}
           <SettingsSectionHeader label="TRAINING" icon="🏋️" color="rgba(255,140,66,0.75)" />
 
           {/* Target session duration — editable post-onboarding so
