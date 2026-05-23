@@ -4419,7 +4419,11 @@ function TierLadder({
               const isCurrentTierDot = highlight === t.label;
               const dotSize = isCurrentTierDot ? 14 : 10;
               const dotTop = isCurrentTierDot ? 9 : 11;
-              const abbrev = t.label.toUpperCase().split(" ")[0].slice(0, 8);
+              // Full label uppercased — was previously splitting on
+              // space + taking first word, which truncated "Big Dawg"
+              // to "BIG" and "Hall of Fame" to "HALL" on the dot bar.
+              // (qa: tier-modal-action-tips)
+              const abbrev = t.label.toUpperCase();
               return (
                 <div key={t.label} style={{ position: "absolute", left: `${pct}%`, top: 0, transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" }}>
                   <div style={{

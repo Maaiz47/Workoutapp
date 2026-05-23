@@ -17,7 +17,17 @@ export type TutorialStep = {
   where?: string;
 };
 
-export const TUTORIAL_VERSION = "v5";
+// v6 (2026-05-23) — large batch of new surfaces since v5:
+//   · new tier badge PNGs (animal / medallion / coach-symbol crests)
+//   · Technique sub-rank (supersets / drop chains feed the tier headline)
+//   · "EARN MORE POINTS" tip card inside the tier breakdown modal
+//   · Group conversations surfaced in the Messages inbox
+//   · Athletes inviting friends to leaderboard groups
+//   · Dashboard reorder (KPIs at top, Wellness open by default)
+//   · Floating bottom hub + sticky Settings ⇄ Profile toggle
+//   · Bodyweight + warmup/cooldown milestones with premium bonus avatars
+//   · Monthly challenges now a rotating library (3 random / month)
+export const TUTORIAL_VERSION = "v6";
 export const TUTORIAL_STORAGE_KEY = `ironlog-tutorial-seen-${TUTORIAL_VERSION}`;
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -31,8 +41,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "qa-feedback",
     icon: "🥋",
     title: "Found a bug? Got an idea?",
-    body: "Tap the teal 💬 NOTE pill in the bottom-right of any screen — pick 🐞 BUG or 💡 IDEA, type a sentence, send. The note auto-captures which screen you were on. The pill is for reporting issues only; to mark something as ✓ WORKING, head to the full /qa dashboard. Toggle the pill on/off any time from Settings → FEEDBACK & QA.",
-    where: "💬 NOTE pill (everywhere) · Settings → FEEDBACK & QA · /qa dashboard",
+    body: "Tap the teal ‹ tab on the right edge of any screen (around 3/4 of the way down) — pick 🐞 BUG or 💡 IDEA, type a sentence, send. The note auto-captures which screen you were on. The tab is for reporting issues only; to mark something as ✓ WORKING, head to the full /qa dashboard. Toggle the tab on/off any time from Settings → FEEDBACK & QA.",
+    where: "Right-edge ‹ tab (everywhere) · Settings → FEEDBACK & QA · /qa dashboard",
   },
   {
     id: "start-workout",
@@ -58,37 +68,79 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "supersets-dropsets",
     icon: "⟳",
-    title: "Supersets + drop sets",
-    body: "Every exercise card has a + SUPERSET button (pair two with recommended pairings) and a + DROP SET toggle (open-ended drop chain to failure). Routine builder supports both too.",
+    title: "Supersets + drop sets · earn TECHNIQUE points",
+    body: "Every exercise card has a + SUPERSET button (pair two with recommended pairings) and a + DROP SET toggle (open-ended drop chain to failure). Each superset awards +5 IP, each drop chain +3 IP — these now feed the new Technique sub-rank that contributes to your tier score.",
     where: "Active session · Routine builder",
   },
   {
-    id: "customise",
-    icon: "🛠",
-    title: "Customise your routine",
-    body: "Open the Customise screen for any day to edit warm-ups, exercises, sets/reps/rest, and cool-downs. Add an exercise just for today (+ SESSION) or save it to your routine (+ ROUTINE).",
-    where: "Home → Customise",
+    id: "bottom-hub",
+    icon: "🧭",
+    title: "Floating bottom hub",
+    body: "Messages, Progress, Ranks, Groups, Friends (and Clients if you're a trainer) live in a floating bar fixed to the bottom of the screen. Stays reachable while you scroll. Tap an icon to jump straight to that view.",
+    where: "Home — bottom of screen",
   },
   {
-    id: "global-rankings",
-    icon: "🌍",
-    title: "See how you stack up",
-    body: "The 🏆 Leaderboards button on home opens the Ranks page — tabs for ATHLETES, TRAINERS, and (if you're a trainer) MY CLIENTS. Toggle between Top 100, your tier band, or around-you. Athletes can opt out of being named in Settings; trainers are always public.",
-    where: "Home → 🏆 Leaderboards",
+    id: "tier-badges",
+    icon: "🦁",
+    title: "Tier badges + 'EARN MORE POINTS' tips",
+    body: "Tap your tier chip at the top-right of home to see the breakdown. The headline tier wears a custom badge (Kitten → Bear / Bronze → Master / Spotter → Hall of Fame); switch the look between Vivid animals and Simple medallions in Settings → 🏆 TIER NAMES. Inside the modal, the '⚡ EARN MORE POINTS' card gives you 2-3 concrete actions to climb — tailored to your weakest sub-rank.",
+    where: "Home tier chip · Settings → 🏆 TIER NAMES",
   },
   {
     id: "tier-sub-ranks",
     icon: "🏅",
     title: "How your tier is scored",
-    body: "Tap your tier chip to see the breakdown. Strength tracks your e1RM trend (are you getting stronger?), Progression tracks rising weekly volume, Body Comp scores condition + maintenance (sex-calibrated), and Consistency rewards hitting your weekly target — rest days included. Sub-ranks you don't have data for are quietly skipped so empty dims don't drag your headline.",
+    body: "8 sub-ranks feed the headline: Consistency · Strength (rate × absolute) · Progression · Volume · Mastery · Technique (NEW) · Body Comp · Habits. Sub-ranks you don't have data for are skipped so empty dims don't drag your headline. Veterans no longer regress — strength absolute (e1RM ÷ bodyweight) prevents that.",
     where: "Progress → tap your tier chip",
   },
   {
-    id: "friends-hub",
+    id: "dashboard-layout",
+    icon: "📊",
+    title: "Progress dashboard at a glance",
+    body: "Open Progress from the bottom hub. Your KPI cards (THIS WEEK / STREAK / AVG TIME) sit at the top. Wellness is right below and OPEN by default — tap once to log hydration / sleep / energy. Below that: Challenges (3 random per month), Achievements wall, Volume Heatmap, Tier Card, PBs.",
+    where: "Progress (bottom hub) → Dashboard",
+  },
+  {
+    id: "milestones-v2",
+    icon: "🏆",
+    title: "More milestones — including ELITE-only bonus avatars",
+    body: "The Achievements grid now includes bodyweight benchmarks (push-ups 20/50/100/200, pull-ups 5/10/20/30, sit-ups, dips, BW squats, curls) and warmup/cooldown habit goals. The hardest tier of each — 200 push-ups, 30 pull-ups, etc. — unlocks a PREMIUM bonus avatar reserved for that single feat.",
+    where: "Progress → Achievements",
+  },
+  {
+    id: "monthly-challenges",
+    icon: "🎯",
+    title: "Monthly challenges — 3 random each month",
+    body: "The Challenges card on Progress now rotates a fresh trio every month — one MODEST, one SOLID, one HARD. Everyone in the app sees the same 3 for any given month, so you can compare with your friends. Opt-in per challenge from the card.",
+    where: "Progress → Challenges card",
+  },
+  {
+    id: "global-rankings",
+    icon: "🌍",
+    title: "See how you stack up",
+    body: "The 🏆 Ranks button on the bottom hub opens the leaderboard — tabs for ATHLETES, TRAINERS, and (if you're a trainer) MY CLIENTS. Toggle between Top 100, your tier band, or around-you. Every row shows the user's avatar + tier badge side-by-side at the same size. Anonymous? Toggle visibility in Settings → APP PREFERENCES.",
+    where: "Bottom hub → 🏆 Ranks",
+  },
+  {
+    id: "friends-and-groups",
     icon: "🤝",
-    title: "Find your friends",
-    body: "Tap 🤝 Friends on the home hub to add training partners by @username. Send a request, accept incoming ones, and unfriend any time. Trainers see a discreet '+ CLIENT' shortcut on each friend row so they can also send a coaching request without re-searching.",
-    where: "Home → 🤝 Friends",
+    title: "Friends · Groups · Group chat in your inbox",
+    body: "Add friends by @username from the 🤝 Friends hub. Inside any leaderboard group you're a member of, scroll to '+ ADD FRIENDS' to invite your accepted friends to join — they'll appear on the group rankings once they accept. Group conversations now show up in your Messages inbox alongside DMs with a gold GROUP · N chip — tap to enter the chat, with the 🏆 STANDINGS toggle to see who's leading inside.",
+    where: "Home → 🤝 Friends · 🏝️ Groups · 💬 Messages",
+  },
+  {
+    id: "customise",
+    icon: "🛠",
+    title: "Customise your routine",
+    body: "Open the Customise screen for any day to edit warm-ups, exercises, sets/reps/rest, and cool-downs. Add an exercise just for today (+ SESSION) or save it to your routine (+ ROUTINE). Trainers: your custom exercises live in a collapsible MY EXERCISES card on home — closed by default to keep the view compact.",
+    where: "Home → Customise · Home → MY EXERCISES (trainer)",
+  },
+  {
+    id: "profile-settings",
+    icon: "👤",
+    title: "Profile, Settings, Avatar",
+    body: "Tap your avatar at the top-left of home to open your profile. From there, the floating ⚙ SETTINGS pill at the top-right gets you to APP PREFERENCES, FEEDBACK & QA, account, and the AVATAR PICKER (tier-unlocked, lucky-drop, and the new milestone-bonus premium avatars).",
+    where: "Home top-left avatar → Profile · ⚙ SETTINGS top-right",
   },
   {
     id: "updates",

@@ -2,6 +2,17 @@
 
 ---
 
+## Polish · 2026-05-23 — Tutorial v6, README catch-up, BIG label truncation, CLAUDE.md image-gen tracker (qa: tier-modal-action-tips, docs-catch-up)
+
+Per @maaiz: "have you been updating tutorial, qa, patch log, readme, and other necessities?" — PATCHLOG + qa-state were current but tutorial + README had fallen behind. Catch-up pass:
+
+- **Tutorial bumped v5 → v6** (`lib/tutorial.ts`). Existing users will see the refreshed tutorial once on next load. New steps added: floating bottom hub, tier-badges + EARN MORE POINTS tips, dashboard layout reorder, milestones-v2 (bodyweight + warmup/cooldown + premium avatars), monthly challenges rotation, friends-and-groups (group chat in Messages inbox + invite-friends-to-groups), profile-settings (sticky floating ⚙ pill). Updated existing steps: feedback-fab (now a side tab), supersets-dropsets (now feeds Technique sub-rank), tier-sub-ranks (now 8 dims incl. Technique + absolute strength). Renamed v5 → v6 forces the tutorial overlay to resurface once for existing users.
+- **README.md** rewritten: Messaging section now covers group conversations in the inbox + avatars/tiers side-by-side. NEW Leaderboard Groups + Tier System (v3.2) + Achievements/Milestones sections covering everything shipped since v1.1.0. Progress section updated to reflect the new dashboard order.
+- **BIG label bug**: tier dot-bar abbreviated labels by splitting on space + slicing 8 chars, so "Big Dawg" rendered as "BIG" and "Hall of Fame" as "HALL". Now uses the full label (no split, no slice). Per @maaiz: "Bigdawg... says only big in the tier progress bar".
+- **CLAUDE.md image-gen tracker** updated to reflect actual shipped progress: 22/63 images live (Batches 1 + 2 + 3 + 6 + trainer tier badges), 41 pending across stretches, achievement avatars, trainer tier unlocks, sub-rank icons, category icons, and the new Batch 10 premium milestone avatars.
+
+---
+
 ## More polish + bugs · 2026-05-23 — Profile cap, sticky Settings toggle, group chat back-nav, in-chat leaderboard fix (qa: home-hub-premium-polish, settings-toggle-sticky-floating, group-chat-back-nav, group-chat-leaderboard-fetch)
 
 Per @maaiz:

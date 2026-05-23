@@ -35,37 +35,47 @@ nudge, not nag.
   `cd-lat-stretch` (frame 1 has no lateral bend), `plyo-pushup`
   (apex looks like a dive not a clap-pushup), `star-jump` (crouch
   start too wide vs spec's "tight crouch / feet together").
-- [ ] **Image-gen plan v2 — 34 images** (flagged 2026-05-23 by
-  @maaiz). All prompts + style guides + per-image specs + wire-up
-  steps live in `/image-prompts-v2.md`. Five batches:
-  1. New default avatar (1 image, instant standalone win)
-  2. Athlete tier icons — Vivid theme animals (6 images, aggressive
-     at top tiers per user request — Lion / Gorilla / Bear)
-  3. Athlete tier icons — Simple theme medals (6 images, also
-     aggressive at top — Platinum / Diamond / Master refresh)
-  4. Stretch frame regens (8 images = 4 pairs — replaces
-     `wu-scap-shrugs`, `cd-glute-pretzel`, `terminal-knee-extension`,
-     `high-knees` per the wrong-image reminder above; gates on these
-     getting re-added to `LOCAL_STRETCH_IDS`)
-  5. Achievement-unlock avatars (6 images — blacksmithing-themed
-     spark → hammer → anvil → phoenix → crucible → blacksmith
-     ladder; gates on `achievements-v1` shipping)
-  6. Trainer default avatar (1 image — coach variant of the default
-     for users with `trainer` role; clipboard + stopwatch motif)
-  7. Trainer tier-unlock avatars (12 images, 2 per tier — Spotter →
-     Hall of Fame; each tier has two themed alternatives like
-     spotter-a/spotter-b)
-  8. Tier sub-rank icons (11 images — Strength / Consistency /
+- [ ] **Image-gen plan v2 — ~22/63 shipped, ~41 pending** (flagged
+  2026-05-23 by @maaiz). All prompts + style guides + per-image
+  specs + wire-up steps live in `/image-prompts-v2.md`. Progress per
+  batch (✓ = generated + wired up + compressed + in /public/):
+  1. ✓ New athlete default avatar (1/1) — chrome barbell at
+     `/public/ai/avatar-default.png`.
+  2. ✓ Athlete tier icons — Vivid theme animals (6/6) — front-facing
+     transparent crest PNGs at `/public/tier-icons/vivid/`.
+     Aggression ramp lands at lion (T4) → gorilla (T5) → bear (T6).
+  3. ✓ Athlete tier icons — Simple theme medals (6/6) — front-facing
+     transparent medallion PNGs at `/public/tier-icons/simple/`.
+     Aggressive refreshes for platinum + diamond + master.
+  4. [ ] Stretch frame regens (0/8 — 4 pairs pending). Re-add each
+     id to `LOCAL_STRETCH_IDS` in `lib/exerciseImages.ts` after
+     placing the new frames (`wu-scap-shrugs`, `cd-glute-pretzel`,
+     `terminal-knee-extension`, `high-knees`).
+  5. [ ] Achievement-unlock avatars (0/7 — gates on `achievements-v1`
+     shipping). Blacksmithing-themed ladder.
+  6. ✓ Trainer default avatar (1/1) — clipboard + stopwatch at
+     `/public/ai/avatar-default-trainer.png`.
+  7. [ ] Trainer tier-unlock avatars (0/12). Note: we did ship
+     SIX trainer TIER BADGES (different thing — coach-symbol crests
+     at `/public/tier-icons/trainer/`) which replaced the trainer
+     ladder emojis. The 12 unlock-AVATARS (2 per tier × 6 — Spotter
+     "helping hand"/"safety bar" etc.) are still pending.
+  8. [ ] Tier sub-rank icons (0/11) — Strength / Consistency /
      Progression / Volume / Mastery / Body Comp / Habits + 4
-     trainer-specific). Powers tier-modal cohesion + reused in
-     Batch 9.
-  9. Achievement category icons (11 images, OPTIONAL — generate
-     only if Batch 8 lands and visual cohesion is wanted). 5 of 11
-     reuse Batch 8 assets.
+     trainer-specific. Schema lives in `lib/tiers.ts` SubRank type;
+     icons stay emoji until these ship.
+  9. [ ] Achievement category icons (0/11, OPTIONAL).
+  10. [ ] **NEW Batch 10 — Premium milestone-bonus avatars (0/5)**:
+      schema landed in `lib/avatars.ts` (MILESTONE_BONUS_AVATARS,
+      `source: "milestone-bonus"`, `unlocksMilestoneId`). 5 PNGs
+      pending (`mb-pushup-elite` / `mb-pullup-elite` /
+      `mb-situp-elite` / `mb-dip-elite` / `mb-bwsquat-elite`).
+      Prompts at the bottom of `/image-prompts-v2.md`.
+
   File-size optimisation pass spec'd inline in `/image-prompts-v2.md`
   — target <25 KB per avatar, <35 KB per tier icon, <12 KB per
-  sub-rank/category icon. Total batch ~1.4 MB compressed (vs 3 MB
-  for the existing launch batch).
+  sub-rank/category icon. The 22 shipped images so far compress to
+  ~310 KB total (mostly under target).
 - [ ] **Achievements system v1** (flagged 2026-05-23 by @maaiz).
   Full design + 55-achievement catalogue lives in `/ACHIEVEMENTS.md`.
   TL;DR: new Progress tab sub-tab, 55 achievements across 11

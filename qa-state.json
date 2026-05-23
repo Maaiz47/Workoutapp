@@ -1,6 +1,24 @@
 {
   "items": [
     {
+      "id": "docs-catch-up",
+      "title": "Tutorial v6 + README catch-up + CLAUDE.md image-gen tracker refreshed",
+      "area": "App",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass docs-catch-up",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Wipe localStorage `ironlog-tutorial-seen-v5` and `ironlog-tutorial-seen-v6` to force the tutorial overlay to fire.",
+        "Open the app. Tutorial should appear with v6 step list — verify steps for: floating bottom hub, tier badges + EARN MORE POINTS tips, dashboard layout, milestones-v2 (bodyweight + premium avatars), monthly challenges rotation, friends-and-groups, sticky settings pill.",
+        "Skip through each step + verify it dismisses cleanly. Reload — tutorial should NOT re-appear.",
+        "Existing users with `ironlog-tutorial-seen-v5` set should see the v6 tutorial fire once on next load (storage key bumped).",
+        "Open README.md in the repo. Verify it covers: group convs in Messages inbox, Leaderboard Groups (with friends-invite + clients-invite), Tier System v3.2 (8 sub-ranks incl. Technique + absolute strength), Achievements/Milestones (incl. premium bonus avatars).",
+        "Open CLAUDE.md image-gen reminder. Verify it tracks 22/63 images shipped, with per-batch ✓ / [ ] status."
+      ],
+      "notes": "[2026-05-23] Tutorial bumped v5 → v6 (forces re-display for existing users). lib/tutorial.ts gets new steps for floating hub / tier badges / dashboard reorder / milestones-v2 / monthly challenges rotation / friends-and-groups / sticky settings, plus refreshed existing steps. README.md grew sections for Messaging (group conv inbox), Leaderboard Groups, Tier System v3.2, Achievements/Milestones, Progress dashboard reorder. CLAUDE.md image-gen plan v2 reminder converted from binary checkbox to per-batch tracker reflecting actual shipped state."
+    },
+    {
       "id": "settings-toggle-sticky-floating",
       "title": "SETTINGS ⇄ PROFILE toggle is a sticky floating pill at top-right",
       "area": "Settings",

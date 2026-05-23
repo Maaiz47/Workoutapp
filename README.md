@@ -100,10 +100,16 @@ No ads. No subscriptions. No fluff. Just your lifts.
 - **Form cues:** 2–3 activation-focused coaching cues per exercise shown below the form demo image in the FORM modal; covers 119 exercises via `lib/formCues.ts` with ID-first then name-match lookup
 
 ### Progress
-- **Dashboard tab:** 28-day activity calendar, weekly streak, average session time, Personal Bests per exercise (best weight + reps achieved)
+- **Dashboard tab:** KPI cards (THIS WEEK / STREAK / AVG TIME) pinned at the top, Wellness card open by default, then Monthly Challenges (3 random), Achievements wall, Volume Heatmap, Tier Card, Personal Bests
 - **Exercises tab:** per-exercise analytics — avg weight, avg reps, PB, weight trend chart, full session history
-- **History tab:** full session log grouped by training day, expandable per session
+- **History tab:** full session log grouped by training day, expandable per session (with a monthly intensity-heatmap calendar — colour ramps coral-red 0.18→0.73 opacity based on `volume × avgRpe/10`)
 - **Body tab:** log weight and body fat % over time, set target goals, trend chart, progress-to-goal bars
+
+### Achievements + Milestones
+- ~80 milestones spanning anniversaries, consistency, strength benchmarks, HIIT, cardio (incl. distance estimator), volume, behaviour, tier reaches, bodyweight benchmarks (push-ups / pull-ups / sit-ups / dips / BW squats / curls), and warmup/cooldown habit goals
+- **Premium tier** of bodyweight milestones (200 push-ups, 30 pull-ups, 200 sit-ups, 50 dips, 500 BW squats) unlocks a bonus avatar reserved for that single feat
+- Celebration overlay fires per milestone with a "+ AVATAR UNLOCKED" line for premium tiers
+- Achievements wall lives on Progress → Dashboard with locked/unlocked tile states
 
 ### Body Metrics
 - Log weight (kg) and body fat % with a date stamp
@@ -135,13 +141,33 @@ No ads. No subscriptions. No fluff. Just your lifts.
 - Push notification sent to client on proposal; to trainer on response
 
 ### Messaging
-- In-app direct messaging between users and their trainer
+- In-app direct messaging between any two users
+- **Group conversations land in the same inbox** — group chats sit alongside DMs in `/messages` with a gold `GROUP · N` chip (member count) and a NEW chip if there's unread activity. Tap the chip to open the chat; entry is tracked via `lastSeenGroupAt[groupId]` in localStorage so re-opening clears the NEW state
 - Real-time polling (1-second incremental `?since=` fetch for conversation thread; 5-second list refresh while on the messages screen)
 - **Message status indicators** — sent (`✓`), delivered (`✓✓` grey), read (`✓✓` teal) shown on sent bubbles and in the conversation list preview
+- Avatar chip + tier badge render next to every username everywhere a user is listed (leaderboards, member lists, chat headers, mini standings) at matched 24px sizes
 - Conversation list always shows the absolute latest message — updates instantly after sending without needing to leave and re-open
 - Unread message badge on the home screen nav button
 - **Smart notifications:** push banner suppressed when the app tab is in focus — a soft beep + short vibration is played instead; browser tab title flashes `💬 New message` if the user is on a different view. Banner notifications fire normally when the app is backgrounded
-- Swipe left-to-right from the edge to go back in any conversation or detail view
+- Swipe left-to-right from the edge to go back in any conversation or detail view; group chat back-nav returns to wherever you came from (Messages inbox vs Groups view)
+
+### Leaderboard Groups
+- Create or join groups for shared rankings across athletes + trainers
+- **Trainers** add their clients to a group via the `+ ADD CLIENTS` panel; **athletes** invite their accepted friends via the `+ ADD FRIENDS` panel (mirror flow, role-aware)
+- Group invites land as in-app chips with INVITE / INVITED / MEMBER states; trainer-to-trainer invites still work as before
+- Each group surfaces an in-chat 🏆 STANDINGS panel (members + scores + tier badges) and an optional shared workout that every member can subscribe to
+- Group conversations join the user's unified Messages inbox (see above)
+
+### Tier System (v3.2)
+- 8 sub-ranks feed the headline tier score (0-100):
+  - Consistency · Strength (rate × absolute via best e1RM ÷ bodyweight) · Progression · Volume · Mastery · **Technique** (NEW, fed by superset / drop chain IP) · Body Comp · Habits
+- Two visual themes for athletes — **Vivid** (Kitten → Fox → Big Dawg → Lion → Gorilla → Bear, animal head crests) and **Simple** (Bronze → Silver → Gold → Platinum → Diamond → Master, medallion crests). Toggle in Settings → 🏆 TIER NAMES
+- **Trainer ladder** is separate — Spotter → Strategist → Pro → Mentor → Legend → Hall of Fame, with coach-symbol crests (hand / chess knight / whistle / heraldic eagle / purple gem / apex star)
+- Tier breakdown modal shows a chunky 82px headline badge + full 6-tier ladder strip + per-sub-rank progress bars + a `⚡ EARN MORE POINTS` tip card with 2-3 concrete actions targeted at the user's weakest sub-rank
+- All tier-icon render surfaces (modal, ladder grid, promo toast, leaderboards, member lists, chat headers) use the PNG badges; emoji is kept only as an `<img onError>` fallback
+- Veterans no longer regress — Strength `max(rate, absolute)` means slow-but-strong lifters keep their score
+- **Premium milestone-bonus avatars** unlock when users hit the elite tier of a bodyweight benchmark (200 push-ups, 30 pull-ups, 200 sit-ups, 50 dips, 500 BW squats)
+- Monthly challenges are now a deterministic rotation — 21-entry library + a `getMonthChallenges(monthIso)` selector that picks one MODEST + one SOLID + one HARD challenge per month, same 3 for every user worldwide
 
 ### Push Notifications
 - Web Push API with VAPID keys
