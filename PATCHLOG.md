@@ -2,6 +2,35 @@
 
 ---
 
+## Tier scoring calibration v3.1 · 2026-05-23 — Dial back v3 so 6mo dedicated users reach T5 (qa: tier-scoring-calibration-v3)
+
+@maaiz follow-up: "if you mean they are T4 at 6 months that's too slow". v3 over-corrected — dedicated 6mo+ users were trapped at T4 Lion. v3.1 walks back the more aggressive bits:
+
+- `scoreFromCount` denominator multiplier 10× → 5× (was 3× originally; 5× is the middle ground — gives ~74 at midpoint instead of ~80 at 3× or ~60 at 10×).
+- Consistency `sessions180d` midpoint 100 → 80 (3.1×/wk benchmark, more reachable for committed weekly trainers).
+- Mastery midpoint 25 → 20 (was 18 originally).
+- Volume sqrt ceiling 5M → 3M kg-reps. 1M → 58, 2M → 82, 3M → 100. Years of training still hit 100 but 6mo dedicated lifters get a believable 55-65 instead of <50.
+- Adherence cap stays at 90 (the v3 fix that should stay).
+- Strength range stays at -5%..+20% (also a v3 keeper).
+
+Re-simulated against the same 10 personas:
+
+| Persona | Score | Tier |
+|---|---:|---|
+| 3mo casual | 64 | T4 Lion |
+| 6mo dedicated | **70** | **T5 Gorilla ✓** |
+| 1yr serious | 73 | T5 Gorilla ✓ |
+| 8mo veteran | 70 | T5 Gorilla |
+| Plateauer | 55 | T4 Lion |
+| Inconsistent | 42 | T3 Big Dawg |
+| Grinder | 69 | T4 Lion (just shy) |
+| Quitter | 39 | T3 Big Dawg |
+| Elite (1yr+, 20% gain) | 75 | T5 Gorilla |
+
+Maaiz / Munchy / Alla as 3-6mo dedicated users should now land in the T4 → T5 transition rather than getting stuck at T4 or rocketing to T5 too early.
+
+---
+
 ## Tier scoring calibration v3 · 2026-05-23 — Slow down upper-tier progression (qa: tier-scoring-calibration-v3)
 
 Per @maaiz: "maaiz munchy and alla have too fast a progression in tiers" — traced the curves and they were inflating across the board. A typical 6-month user was landing at T5 Gorilla / Diamond; should be T4 Lion / Platinum.

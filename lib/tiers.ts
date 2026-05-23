@@ -124,14 +124,15 @@ export type TierBreakdown = {
 };
 
 // Soft-cap log scaler — diminishing returns. Maps a raw count to 0-100.
-// v3 calibration: denominator widened 3× → 10× so the curve hits ~60
-// at midpoint (was ~79) and climbs slower past it. Combined with the
-// midpoint bumps in computeAthleteTier, this stretches the meaningful
-// range so a 6mo user doesn't saturate every dim.
-// (qa: tier-scoring-calibration-v3)
+// v3.1 calibration: denominator multiplier 3× → 5× (originally bumped
+// to 10× in v3 but that over-flattened — dedicated 6-12mo users got
+// trapped at T4 Lion). 5× gives ~74 at midpoint instead of ~80 (v0)
+// or ~60 (v3). Combined with the midpoint bumps in computeAthleteTier,
+// this lets 6mo+ users cross into T5 while still slowing brand-new
+// users out of T5 territory. (qa: tier-scoring-calibration-v3)
 function scoreFromCount(value: number, midpoint: number): number {
   if (value <= 0) return 0;
-  const score = 100 * (Math.log(1 + value) / Math.log(1 + midpoint * 10));
+  const score = 100 * (Math.log(1 + value) / Math.log(1 + midpoint * 5));
   return Math.min(100, Math.max(0, Math.round(score)));
 }
 
@@ -390,11 +391,12 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   const adherence = adherenceScore(s.sessionsLast4Weeks ?? 0, s.daysPerWeek ?? 4);
   const recent180dSessions = s.sessions180d ?? Math.min(s.totalSessions, 60);
   const weeklyStreak = s.weeklyStreak ?? 0;
-  // Consistency v3 — sessions180d midpoint raised 60 → 100. 100 sessions
-  // in 180 days = full 4×/wk for the whole window; 60 was too lenient
-  // (≈ 2.3/wk gave 79 score). (qa: tier-scoring-calibration-v3)
+  // Consistency v3.1 — sessions180d midpoint 60 → 80 (was 100 in v3 but
+  // that flattened the curve too aggressively). 80 sessions in 180d ≈
+  // 3.1/wk which is a sensible "established weekly trainer" benchmark.
+  // (qa: tier-scoring-calibration-v3)
   const consistency = Math.round(
-    0.3 * scoreFromCount(recent180dSessions, 100) +
+    0.3 * scoreFromCount(recent180dSessions, 80) +
     0.6 * adherence +
     0.1 * scoreFromCount(weeklyStreak, 8)
   );
@@ -406,13 +408,12 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   // Progression v2 — new sub-rank. Weekly volume regression slope.
   const progressionRes = progressionSubRank(s.weeklyVolumes ?? []);
 
-  // Volume v3 — replaced log curve with sqrt-based scaling against a
-  // 5M kg-reps ceiling. The old log curve saturated at 90+ by 6mo and
-  // failed to differentiate intermediate from veteran lifters. Sqrt
-  // (1M → 45, 2M → 63, 5M → 100) keeps the diminishing-returns shape
-  // but stretches the meaningful range to multi-year lifetime work.
+  // Volume v3.1 — sqrt curve against 3M kg-reps ceiling (was 5M in
+  // v3, which left 6mo users at Volume=48 and trapped them at T4).
+  // 3M ceiling: 1M → 58, 2M → 82, 3M → 100. Years of training still
+  // hit 100, but 6mo dedicated lifters get a believable 55-65.
   // (qa: tier-scoring-calibration-v3)
-  const volume = Math.min(100, Math.max(0, Math.round(100 * Math.sqrt(Math.max(0, s.totalVolumeKg) / 5_000_000))));
+  const volume = Math.min(100, Math.max(0, Math.round(100 * Math.sqrt(Math.max(0, s.totalVolumeKg) / 3_000_000))));
 
   // Mastery v2 — exercises with ≥4 sets in 180d (depth-weighted
   // distinct count). Raises the bar from naive "logged at least
@@ -425,10 +426,11 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   const masteryHasData = Object.keys(recentByEx).length > 0
     ? masteryQualified > 0
     : masteryLegacy > 0;
-  // Mastery v3 — midpoint raised 18 → 25 so a 6-month user with the
-  // typical 12-15 lifts isn't already at 60+ score.
-  // (qa: tier-scoring-calibration-v3)
-  const mastery = scoreFromCount(masteryCount, 25);
+  // Mastery v3.1 — midpoint 18 → 20 (was 25 in v3 which paired with
+  // the 10× denominator gave 6mo users mastery=46). 20 gives a typical
+  // 6mo user with 12 mastered exercises ~56, room to grow toward 25-30
+  // for veteran lifters. (qa: tier-scoring-calibration-v3)
+  const mastery = scoreFromCount(masteryCount, 20);
 
   // Habits — unchanged from v1.
   const hg = s.hydrationGoalDays ?? 0;
