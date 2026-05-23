@@ -5210,6 +5210,20 @@ function HomePage() {
   // ── Trainer custom exercises ──
   const [customExercises, setCustomExercises] = useState<any[]>([]);
   const [showExCreator, setShowExCreator] = useState(false);
+  // Custom-exercises list — collapsed by default per @maaiz so the
+  // home view stays compact for trainers. Toggle state persisted to
+  // localStorage so the user's preference sticks across sessions.
+  // (qa: my-exercises-collapsed-default)
+  const [showCustomExList, setShowCustomExList] = useState<boolean>(() => {
+    try { return localStorage.getItem("ironlog-my-exercises-open") === "1"; } catch { return false; }
+  });
+  const toggleCustomExList = useCallback(() => {
+    setShowCustomExList(s => {
+      const next = !s;
+      try { localStorage.setItem("ironlog-my-exercises-open", next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }, []);
   const [exCreatorName, setExCreatorName] = useState("");
   const [exCreatorPrimary, setExCreatorPrimary] = useState<string[]>([]);
   const [exCreatorSecondary, setExCreatorSecondary] = useState<string[]>([]);
@@ -10054,13 +10068,16 @@ function HomePage() {
       {userHasRole(user, "trainer") && (
         <div style={{ padding: "20px 20px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <span style={{ fontSize: 18, lineHeight: 1 }}>🏋️</span>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>MY EXERCISES</div>
-            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
-            <button onClick={() => setShowExCreator(s => !s)} style={{ padding: "5px 12px", background: showExCreator ? "rgba(255,107,107,0.16)" : "rgba(78,205,196,0.16)", border: `1px solid ${showExCreator ? "rgba(255,107,107,0.4)" : "rgba(78,205,196,0.4)"}`, borderRadius: 14, color: showExCreator ? "#FF6B6B" : "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+            <div onClick={toggleCustomExList} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, cursor: "pointer", minWidth: 0 }}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>🏋️</span>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 3, fontWeight: 700, fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>MY EXERCISES{customExercises.length > 0 ? ` (${customExercises.length})` : ""}</div>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>{showCustomExList ? "▲" : "▼"}</span>
+            </div>
+            <button onClick={() => { setShowExCreator(s => !s); if (!showCustomExList) setShowCustomExList(true); }} style={{ padding: "5px 12px", background: showExCreator ? "rgba(255,107,107,0.16)" : "rgba(78,205,196,0.16)", border: `1px solid ${showExCreator ? "rgba(255,107,107,0.4)" : "rgba(78,205,196,0.4)"}`, borderRadius: 14, color: showExCreator ? "#FF6B6B" : "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
               {showExCreator ? "CANCEL" : "+ NEW"}
             </button>
-          </div>
+          </div>{showCustomExList && (<div>
 
           {/* Creator form */}
           {showExCreator && (() => {
@@ -10190,15 +10207,23 @@ function HomePage() {
               <button onClick={async () => { if (!confirm(`Delete "${ex.name}"?`)) return; const res = await fetch(`/api/trainer/exercises/${ex.id}`, { method: "DELETE" }); if ((await res.json()).ok) setCustomExercises(p => p.filter(e => e.id !== ex.id)); }} style={{ background: "none", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "rgba(255,107,107,0.5)", fontSize: 9, padding: "4px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}>DEL</button>
             </div>
           ))}
+          </div>)}
         </div>
       )}
+      {/* Spacer — leaves room at the bottom of the page so the
+          fixed floating hub doesn't cover the last card. Matches the
+          hub's height + bottom inset. (qa: home-hub-floating) */}
+      <div style={{ height: "calc(96px + env(safe-area-inset-bottom, 0px))" }} aria-hidden />
       {/* Hub buttons — single row, fits any viewport. Used to be a
           2-col grid under a "QUICK ACTIONS" header; the icons + short
           labels are self-explanatory so the header is gone. Each
           button is flex:1 with minWidth:0 so they share width
           evenly and labels truncate on extremely narrow screens.
-          (qa: home-hub-singleline) */}
-      <div style={{ padding: "20px 20px 0" }}>
+          Per @maaiz the hub is now FLOATING — fixed to the bottom of
+          the viewport with a glass-blur background so it stays
+          reachable while the user scrolls long pages.
+          (qa: home-hub-singleline, home-hub-floating) */}
+      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, padding: "12px 20px calc(12px + env(safe-area-inset-bottom, 0px))", background: "rgba(10,10,18,0.78)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: "1px solid rgba(255,255,255,0.06)", zIndex: 60 }}>
         <div style={{ display: "flex", flexWrap: "nowrap", gap: 6, justifyContent: "center", maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
           <button className="card-hover nav-btn" onClick={() => goTo("messages")} title="Messages" style={{ position: "relative", flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: unreadCount > 0 ? "rgba(78,205,196,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${unreadCount > 0 ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box" }}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>💬</span>

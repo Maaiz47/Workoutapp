@@ -1,6 +1,41 @@
 {
   "items": [
     {
+      "id": "home-hub-floating",
+      "title": "Bottom hub buttons float fixed to the viewport on home (always reachable)",
+      "area": "Home",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass home-hub-floating",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open home. Verify the bottom row of buttons (Messages / Progress / Ranks / Groups / Friends [/ Clients for trainers]) is anchored to the BOTTOM of the screen, NOT scrolling away as you scroll the page.",
+        "Scroll the home view. Hub stays fixed at the bottom with a glass-blur background.",
+        "Verify the last card on home (Saved Routines) isn't covered by the floating hub — there should be a small spacer so it's fully visible at scroll-bottom.",
+        "iPhone notch / home-bar: hub respects safe-area inset (padding extends below the bar)."
+      ],
+      "notes": "[2026-05-23] Bottom hub container moved from inline-flow to `position: fixed; left: 0; right: 0; bottom: 0` with `padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px))`. Glass blur background + thin top border so it reads as a system bar. Added a 96px+inset spacer above so the last in-flow card on home doesn't get covered. Per @maaiz: 'Bottom tabs to be fixed on screen floating'."
+    },
+    {
+      "id": "my-exercises-collapsed-default",
+      "title": "Trainer 'My Exercises' list is collapsed by default on home",
+      "area": "Home",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass my-exercises-collapsed-default",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Sign in as a trainer. Open home.",
+        "Verify the MY EXERCISES section header is visible but the LIST of saved custom exercises is HIDDEN by default.",
+        "Header chevron should read ▼ when collapsed.",
+        "Tap the header — the list expands and the chevron flips to ▲. localStorage `ironlog-my-exercises-open` flips to '1'.",
+        "Reload — the list stays open (user choice respected).",
+        "Tap the chevron again — collapses, '0' stored, reload keeps closed.",
+        "Tapping '+ NEW' auto-expands the list (so the new exercise creator form is visible) even if the user had it collapsed."
+      ],
+      "notes": "[2026-05-23] New showCustomExList state defaults to false, only reads localStorage to flip to '1' (explicit user open). Header is a tappable div with chevron indicator. Per @maaiz: 'Make my exercises a closed list by default'."
+    },
+    {
       "id": "tier-modal-action-tips",
       "title": "Tier breakdown modal shows concrete action tips to earn more points (per-dim, biased toward weakest sub-rank)",
       "area": "Tiers",

@@ -2,6 +2,15 @@
 
 ---
 
+## Home polish · 2026-05-23 — Floating bottom hub + My Exercises closed by default (qa: home-hub-floating, my-exercises-collapsed-default)
+
+Per @maaiz:
+
+- **My Exercises** (trainer-only section on home) is now collapsed by default. Header is tappable to expand; chevron ▼/▲ shows state; "+ NEW" button auto-expands the list. Toggle persists to localStorage (`ironlog-my-exercises-open`).
+- **Bottom hub** (Messages / Progress / Ranks / Groups / Friends / Clients) is now FIXED-FLOATING. Sits at `position: fixed; bottom: 0` with safe-area inset padding + glass-blur background + thin top border. Added a bottom spacer to the home view so the last card isn't covered by the floating hub.
+
+---
+
 ## Tier modal polish · 2026-05-23 — Bigger badges, fix GORILL truncation, earn-more-points tips (qa: tier-modal-action-tips, home-hub-premium-polish)
 
 Per @maaiz: "tier badges need to still be showed larger especially inside the tier modal", "gorilla is displaying as gorill at the bar", and "Make suggestion steps to users to collect more tier points".
