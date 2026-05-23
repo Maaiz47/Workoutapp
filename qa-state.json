@@ -1,6 +1,60 @@
 {
   "items": [
     {
+      "id": "profile-avatars-home-fix",
+      "title": "Home profile button uses real avatar + opens picker on tap",
+      "area": "Profile",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass profile-avatars-home-fix",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open home as a trainer-tagged user. Verify the LEFT profile chip shows your selected avatar (not /ai/avatar-default.png). If you haven't picked one yet, the default is fine.",
+        "Verify the layout — username on top, role label (ADMIN / TRAINER / ATHLETE) below — fits on one line each, no truncation, no chip wrapping under the username.",
+        "Tap the avatar IMAGE in the chip. Verify the AVATAR picker overlay opens directly (skips Settings).",
+        "Tap anywhere ELSE in the chip (text area, edges). Verify it navigates to Settings → Profile view as before.",
+        "From Settings, tap the ✎ pencil overlay on the avatar circle. Verify the picker opens.",
+        "From Settings, tap the CHANGE AVATAR button below the profile card. Verify the picker opens.",
+        "Select a different unlocked avatar. Verify it appears in BOTH the home chip and the Settings profile circle immediately.",
+        "Pick the Default tile in the picker. Verify the home chip falls back to the initial-letter / default avatar."
+      ],
+      "notes": "[2026-05-23] Fixed: home profile chip was hardcoded to /ai/avatar-default.png regardless of profile.avatarId, which made every avatar selection feel like a no-op from the home surface. Now uses findAvatar(currentAvatarId). Also simplified the cramped chip layout (25% column width on a 360px phone): dropped the chevron + role-chip pill, replaced with a single-line role label below the username. Tapping the avatar image opens the picker directly (with e.stopPropagation); tapping elsewhere still routes to Settings. (Reported by @maaiz: 'profile button UI needs fixing alignment username and trainer status' + 'change avatar button is not doing anything'.)"
+    },
+    {
+      "id": "tier-modal-tier-labels",
+      "title": "Tier breakdown rows show explicit `· TIER N` labels",
+      "area": "Tier",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-modal-tier-labels",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open home → tap your tier chip (top-right of the welcome row) to open the Tier modal.",
+        "Scroll the FULL TIER LADDER section. Verify each row reads `<Label> · TIER <N>` (e.g. `Kitten · TIER 1`, `Big Dawg · TIER 3`, `Bear · TIER 6` for the vivid theme).",
+        "Switch to the SIMPLE theme (Settings → APP PREFERENCES → THEME). Re-open the tier modal — verify the same `· TIER N` suffix shows for Bronze/Silver/Gold/Platinum/Diamond/Master.",
+        "Confirm the trainer ladder shows the same affordance (Spotter · TIER 1, Strategist · TIER 2, …)."
+      ],
+      "notes": "[2026-05-23] Shipped: tier-row render now derives the tier number from the array index (1-based) and renders `· TIER <n>` as a small grey suffix next to the label. Works for any ladder passed to the breakdown component (athlete-vivid, athlete-simple, trainer). (Reported by @maaiz: 'Tiers to be labelled like this in full tier breakdown in the tier modal — Bear - tier 1 / Gorilla - tier 2 / etc' — implemented as `Label · TIER N` per ladder order, the numeric is the actual rung).",
+      "extraNotes": "Reading note: @maaiz's example `Bear - tier 1, Gorilla - tier 2` showed Bear as the lowest tier — implemented faithful to the LADDER order, which is Kitten(1) → Bear(6) per our defined ATHLETE_TIER_THEMES. If you actually want the LADDER REVERSED (Bear as top → Tier 1), that's a separate bigger change. Flag if needed."
+    },
+    {
+      "id": "theme-bright-text",
+      "title": "Bright-text readability mode (Settings → THEME)",
+      "area": "Theme",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass theme-bright-text",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → APP PREFERENCES → THEME. Verify a new yellow card labelled `💡 BRIGHT TEXT` sits below the theme picker with a description and an ON/OFF chip on the right.",
+        "Tap ON. Verify the whole app's content brightens noticeably (faint greys become readable). Modals, chips, and overlays all get the boost too.",
+        "Dim your phone brightness to near minimum — verify the boost is enough to keep small chip text readable.",
+        "Toggle OFF. Verify the screen returns to the default dark theme.",
+        "Refresh / reopen the app — verify the toggle state persists (stored in localStorage)."
+      ],
+      "notes": "[2026-05-23] Shipped: localStorage-backed `ironlog.brightText` flag drives a body-wide CSS filter (`brightness(1.16) contrast(1.06) saturate(1.05)`). Filter on body so modals + portals get it too. Stored client-side only — no DB roundtrip. (Reported by @maaiz: 'add to theme to select a helper to brighten text fonts for readability on low screen brightness'.)"
+    },
+    {
       "id": "planner-equipment-strict",
       "title": "Plan generator only uses equipment available at the selected location",
       "area": "Plan",

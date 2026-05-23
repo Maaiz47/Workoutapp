@@ -2,6 +2,21 @@
 
 ---
 
+## QA pass · 2026-05-23 — Home profile chip fix + tier breakdown labels + bright-text theme (qa: profile-avatars-home-fix, tier-modal-tier-labels, theme-bright-text)
+
+Three small UX-impact fixes bundled.
+
+### profile-avatars-home-fix
+The home profile chip was hardcoded to `/ai/avatar-default.png` regardless of `profile.avatarId`, which made every avatar selection feel broken from that surface. It also crammed avatar + username + role-chip + chevron into 25% column width on a 360px phone, truncating the username to one letter and wrapping the role chip awkwardly. Two fixes: (1) use `findAvatar(currentAvatarId)` so the real selected avatar renders; (2) drop the chevron and the chip background — render role as a tiny inline label below the username. Cleaner, real avatar, no truncation. Bonus: tapping the avatar IMAGE specifically opens the picker directly (`e.stopPropagation()` so the surrounding button's "go to Settings" doesn't fire too).
+
+### tier-modal-tier-labels
+Tier breakdown rows in the modal now read `<Label> · TIER <N>` instead of just `<Label>`. Number derived from the array index (1-based). Works for both athlete themes (vivid + simple) and the trainer ladder. Per @maaiz's example `Bear - tier 1` — implemented faithful to the ladder order we defined (Kitten=1, Bear=6); flagged in qa-state notes that if @maaiz actually wants the ladder REVERSED (Bear as top → Tier 1), that's a separate bigger change.
+
+### theme-bright-text
+New yellow `💡 BRIGHT TEXT` toggle under Settings → APP PREFERENCES → THEME. Flips a localStorage flag (`ironlog.brightText`) which renders a `<style>` tag with `filter: brightness(1.16) contrast(1.06) saturate(1.05)` on body when on. Filter on body covers modals + portals too. Useful when reading on dimmed brightness — gym lighting, outdoor sun, etc.
+
+---
+
 ## Hotfix · 2026-05-23 — vercel-should-skip false-positive skipping all deploys (qa: planner-equipment-strict)
 
 Real root cause of the "deploys not landing" saga: my own `scripts/vercel-should-skip.sh` had a silent fallback that treated missing `VERCEL_GIT_PREVIOUS_SHA` (common after a manual redeploy of an older commit) as "no changes — skip" instead of "can't diff — proceed". Vercel uses shallow clones, so after the manual redeploy of `6c7b47e` the script could never resolve that SHA → `git diff` errored with "fatal: bad object" → `|| true` swallowed the error → empty `$CHANGES` → exit 0 (skip). Every push since the manual redeploy got cancelled in ~8s with no build attempted.

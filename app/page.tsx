@@ -3830,8 +3830,13 @@ function TierLadder({
         border: "1px solid rgba(255,255,255,0.06)",
         borderRadius: 12, padding: 6,
       }}>
-        {tiers.map(t => {
+        {tiers.map((t, i) => {
           const me = highlight === t.label && isParticipant;
+          // Tier number derived from the array index (1-based). User
+          // asked for the breakdown rows to explicitly carry their
+          // tier number alongside the label so it's unambiguous which
+          // rung each represents. (qa: tier-modal-tier-labels)
+          const tierNum = i + 1;
           return (
             <div key={t.label} style={{
               padding: "8px 10px",
@@ -3846,7 +3851,7 @@ function TierLadder({
                     fontSize: 13, fontWeight: 700,
                     color: me ? t.color : "rgba(255,255,255,0.85)",
                     letterSpacing: 0.5,
-                  }}>{t.label}</div>
+                  }}>{t.label} <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginLeft: 4 }}>· TIER {tierNum}</span></div>
                   <div style={{
                     fontSize: 10, color: "rgba(255,255,255,0.4)",
                     fontFamily: "'Space Mono', monospace", letterSpacing: 1,
@@ -4678,6 +4683,21 @@ function HomePage() {
   // the names + icons on the athlete ladder; tier numbers + score
   // breakpoints are universal. (qa: tier-themes)
   const [tierTheme, setTierTheme] = useState<"vivid" | "simple">("vivid");
+  // Bright-text mode — boost screen brightness via a CSS filter on
+  // body when the user is reading on a dimmed phone (low-brightness
+  // condition). Stored in localStorage; no DB roundtrip. Bumps body
+  // brightness+contrast+saturation by ~15% which is enough to lift
+  // 0.3-0.4 opacity greys out of the unreadable zone without
+  // washing the dark theme entirely.
+  // (qa: theme-bright-text)
+  const [brightText, setBrightText] = useState(false);
+  useEffect(() => {
+    try { if (localStorage.getItem("ironlog.brightText") === "true") setBrightText(true); } catch {}
+  }, []);
+  const updateBrightText = (v: boolean) => {
+    setBrightText(v);
+    try { localStorage.setItem("ironlog.brightText", v ? "true" : "false"); } catch {}
+  };
   // Opt-OUT of the global athlete leaderboard. When true, the user's
   // row on the global board renders as "Athlete #<rank>" not their
   // username. Trainers can't opt out — their leaderboard is for
@@ -8482,7 +8502,17 @@ function HomePage() {
               just the athlete tier; trainers see both stacked.
               (qa: home-hub-singleline) */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8, alignItems: "stretch" }}>
-            {/* LEFT — profile button */}
+            {/* LEFT — profile button. With the 25% column width on a
+                360px phone the previous avatar+username+role-chip+
+                chevron layout was cramped: username truncated to one
+                letter and the role chip wrapped under it awkwardly.
+                Also: this row always showed /ai/avatar-default.png
+                regardless of the user's selected avatar, so "change
+                avatar" felt broken from this surface. Fix: use the
+                actual currentAvatarId via findAvatar(), drop the
+                chevron, and render the role as a tiny inline label
+                (no chip background) — fits cleanly.
+                (qa: home-hub-singleline + profile-avatars) */}
             <button
               onClick={() => setView("profile")}
               style={{
@@ -8491,30 +8521,37 @@ function HomePage() {
                 backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
                 border: "1px solid rgba(255,255,255,0.08)",
                 borderRadius: 12, cursor: "pointer", textAlign: "left",
-                padding: "8px 12px",
+                padding: "8px 10px",
                 boxShadow: "0 4px 18px -6px rgba(0,0,0,0.7)",
-                display: "flex", alignItems: "center", gap: 10,
+                display: "flex", alignItems: "center", gap: 8,
               }}
             >
-              <img src="/ai/avatar-default.png" alt="" style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)" }} />
+              {(() => {
+                const av = currentAvatarId ? findAvatar(currentAvatarId) : null;
+                const src = av ? `/avatars/${av.id}.png` : "/ai/avatar-default.png";
+                // Tapping the avatar image opens the picker DIRECTLY
+                // (with stopPropagation so the surrounding button's
+                // "go to Settings" doesn't fire too). Tap anywhere
+                // else in the button still routes to Settings →
+                // Profile where the ✎ pencil and CHANGE AVATAR button
+                // also live. (qa: profile-avatars)
+                return (
+                  <img
+                    src={src}
+                    alt=""
+                    onClick={(e) => { e.stopPropagation(); setAvatarPickerOpen(true); }}
+                    onError={(e) => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }}
+                    style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.25)", cursor: "pointer" }}
+                  />
+                );
+              })()}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", letterSpacing: -0.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.username}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
-                  {userHasRole(user, "admin") && (
-                    <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#a29bfe", background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 3, padding: "1px 5px", fontFamily: "'Space Mono', monospace" }}>ADMIN</span>
-                  )}
-                  {userHasRole(user, "trainer") && (
-                    <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#4ECDC4", background: "rgba(78,205,196,0.1)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 3, padding: "1px 5px", fontFamily: "'Space Mono', monospace" }}>TRAINER</span>
-                  )}
-                  {!userHasRole(user, "trainer") && !userHasRole(user, "admin") && (
-                    <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 3, padding: "1px 5px", fontFamily: "'Space Mono', monospace" }}>ATHLETE</span>
-                  )}
-                  {user.role === "user" && user.roleRequest && (
-                    <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#fdcb6e", background: "rgba(253,203,110,0.1)", border: "1px solid rgba(253,203,110,0.3)", borderRadius: 3, padding: "1px 5px", fontFamily: "'Space Mono', monospace" }}>REVIEWING</span>
-                  )}
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", letterSpacing: -0.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.2 }}>{user.username}</div>
+                <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color: userHasRole(user, "admin") ? "#a29bfe" : userHasRole(user, "trainer") ? "#4ECDC4" : "rgba(255,255,255,0.45)", fontFamily: "'Space Mono', monospace", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {userHasRole(user, "admin") ? "ADMIN" : userHasRole(user, "trainer") ? "TRAINER" : "ATHLETE"}
+                  {user.role === "user" && user.roleRequest ? " · REVIEWING" : ""}
                 </div>
               </div>
-              <span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>›</span>
             </button>
 
             {/* MIDDLE — progress button. Sits between Profile and Tier so
@@ -11225,6 +11262,18 @@ function HomePage() {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Bright-text readability toggle — boosts whole-screen
+                contrast via a CSS filter on body. Useful when reading
+                on low device brightness (gym lighting, outdoor sun).
+                (qa: theme-bright-text) */}
+            <div style={{ marginTop: 14, padding: "12px 14px", background: "rgba(255,230,109,0.04)", border: "1px solid rgba(255,230,109,0.18)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#FFE66D", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>💡 BRIGHT TEXT</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 3, lineHeight: 1.4 }}>Brightens fonts + chips when you&apos;re reading on low screen brightness (e.g. dimmed at the gym).</div>
+              </div>
+              <button onClick={() => updateBrightText(!brightText)} title={brightText ? "Disable bright text" : "Enable bright text"} style={{ flexShrink: 0, padding: "6px 14px", background: brightText ? "rgba(255,230,109,0.18)" : "rgba(255,255,255,0.04)", border: `1px solid ${brightText ? "rgba(255,230,109,0.45)" : "rgba(255,255,255,0.1)"}`, borderRadius: 14, color: brightText ? "#FFE66D" : "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{brightText ? "ON" : "OFF"}</button>
             </div>
           </div>
 
@@ -15064,6 +15113,14 @@ function HomePage() {
   // is reached).
   return (
     <>
+      {/* Bright-text readability mode — applies a body-wide CSS filter
+          that lifts the perceived brightness/contrast so faint chips
+          and 0.3-0.4 opacity greys stay legible on low screen
+          brightness. Rendered as a style tag rather than a wrapper so
+          modals + portals also get the boost. (qa: theme-bright-text) */}
+      {brightText && (
+        <style>{`html, body { filter: brightness(1.16) contrast(1.06) saturate(1.05); }`}</style>
+      )}
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={_viewKey}
