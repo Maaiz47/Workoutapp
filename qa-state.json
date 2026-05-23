@@ -691,25 +691,23 @@
     },
     {
       "id": "workout-in-session-exercise-add",
-      "title": "Adding an exercise mid-session — this session only or save to routine",
+      "title": "Adding an exercise mid-session — Bonus section sits before cooldown, not after",
       "area": "Workout",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": "2026-05-21",
+      "lastTested": "2026-05-23",
       "status": "regression-retest",
       "steps": [
-        "Start an active workout session",
-        "Tap '+ Add Exercise' (in-session browser button)",
-        "Verify the helper line at the top explains + SESSION vs + ROUTINE",
-        "Verify each exercise row now shows two buttons: '+ SESSION' (teal) and '+ ROUTINE' (red)",
-        "Tap '+ SESSION' on an exercise — verify it appears in the current session in the Bonus group, no confirm dialog",
-        "Tap '+ ROUTINE' on another exercise — verify a confirm dialog warns about modifying the saved routine before proceeding",
-        "Cancel the confirm — verify nothing happens",
-        "Accept the confirm — verify the exercise is added to BOTH the active session AND the saved routine",
-        "End the workout, start a fresh session of the same day — verify the ROUTINE-saved exercise is still there, the SESSION-only one is NOT",
-        "Log sets for both added exercises — verify they save in the WorkoutLog"
+        "Start an active workout session that includes a cooldown section.",
+        "Tap '+ Add Exercise' and add an exercise via + SESSION. Verify the new BONUS section sits BETWEEN the main work and the COOL-DOWN section — not at the very bottom.",
+        "Add a second exercise via + SESSION. Verify it appends to the SAME existing BONUS section (still before cooldown).",
+        "Open Customise on the same workout and verify the section order in the editor matches: WARM-UP → MAIN → BONUS → COOL-DOWN.",
+        "Edge case — workout WITHOUT a cooldown section. Add a + SESSION exercise. Verify the BONUS section appends to the end as before (no cooldown to insert before).",
+        "Legacy data — if a workout already has BONUS positioned AFTER cooldown, adding a new + SESSION exercise auto-moves BONUS back to before cooldown.",
+        "+ ROUTINE flow still works: confirm dialog appears, accept → exercise added to both session + saved routine.",
+        "Verify the helper line at the top still explains + SESSION vs + ROUTINE."
       ],
-      "notes": ""
+      "notes": "[2026-05-23] Shipped: handleAdd in app/page.tsx now finds the first cooldown section (by `type === 'cooldown'` OR name starting with COOL) and splices BONUS BEFORE it. If BONUS exists but sits after cooldown (legacy state), the next + SESSION add moves it back into the correct position. Falls through to the original `sections.push(...)` if no cooldown exists. (Reported by @maaiz: 'want to be able to place new exercise added during session at wanted order — before cooldowns especially')."
     },
     {
       "id": "plan-customise-add-remove",

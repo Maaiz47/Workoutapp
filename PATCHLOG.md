@@ -2,6 +2,12 @@
 
 ---
 
+## QA pass · 2026-05-23 — In-session add inserts BONUS before cooldown (qa: workout-in-session-exercise-add)
+
+`handleAdd` now detects the first cooldown section (by `type === "cooldown"` or name starting with `COOL`) and splices the BONUS section directly before it instead of pushing to the end. If the user's data already has BONUS sitting after cooldown (legacy state), the next + SESSION add quietly moves it back into the correct slot. No cooldown present → unchanged push-to-end behaviour. (Reported by @maaiz: "want to be able to place new exercise added during session at wanted order — before cooldowns especially".)
+
+---
+
 ## QA pass · 2026-05-23 — Wellness inputs + broader image audit (qa: wellness-hydration-tracking, wellness-sleep-tracking, exercise-local-images)
 
 Three asks bundled into one push.

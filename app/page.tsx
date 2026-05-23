@@ -14817,11 +14817,27 @@ function HomePage() {
             setActiveDay(d => {
               if (!d) return d;
               const sections = [...d.sections];
+              // Position rule: Bonus sits BEFORE any cooldown so newly
+              // added exercises don't land after the user's wind-down
+              // stretches. If no cooldown exists, append to the end as
+              // before. (qa: workout-in-session-exercise-add)
+              const cooldownIdx = sections.findIndex((s: any) => s.type === "cooldown" || s.name.toUpperCase().startsWith("COOL"));
               const bonusIdx = sections.findIndex(s => s.name.toUpperCase() === "BONUS");
               if (bonusIdx >= 0) {
-                sections[bonusIdx] = { ...sections[bonusIdx], exercises: [...sections[bonusIdx].exercises, newEx] };
+                const updated = { ...sections[bonusIdx], exercises: [...sections[bonusIdx].exercises, newEx] };
+                // If the existing Bonus row sits AFTER a cooldown
+                // (legacy data), move it back before — keeps the
+                // running order sane on later adds too.
+                if (cooldownIdx >= 0 && bonusIdx > cooldownIdx) {
+                  sections.splice(bonusIdx, 1);
+                  sections.splice(cooldownIdx, 0, updated);
+                } else {
+                  sections[bonusIdx] = updated;
+                }
               } else {
-                sections.push({ name: "Bonus", exercises: [newEx] });
+                const newSection = { name: "Bonus", exercises: [newEx] };
+                if (cooldownIdx >= 0) sections.splice(cooldownIdx, 0, newSection);
+                else sections.push(newSection);
               }
               return { ...d, sections };
             });

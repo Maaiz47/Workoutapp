@@ -1,5 +1,9 @@
 {
   "processedIds": {
+    "cmphqronw0008frouiah11umr": {
+      "ts": "2026-05-23T03:00:00Z",
+      "summary": "@maaiz: 'want to place new exercise added during session at wanted order, before cooldowns especially'. handleAdd now splices the BONUS section before the first cooldown (detected by section.type === 'cooldown' or name starting with COOL). Legacy data where BONUS sits after cooldown auto-corrects on next add. (qa: workout-in-session-exercise-add)"
+    },
     "cmphnt24i0002z9q55072kezp": {
       "ts": "2026-05-23T02:00:00Z",
       "summary": "@maaiz: 'stretches/warm-ups don't let me mark each set done'. Per-set chip panel always renders (single + multi set) with explicit ✓ DONE / ↷ SKIP buttons replacing the hidden tap-cycle. (qa: workout-warmup-skip + workout-warmup-mark-each-set)"
