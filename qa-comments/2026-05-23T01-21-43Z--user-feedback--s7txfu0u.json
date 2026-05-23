@@ -1,0 +1,10 @@
+{
+  "id": "cmphnxtwe00084bl2s7txfu0u",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=workout] Session restored notice on app reopen is annoying , can be restored without user being told, they’ll see the active session in home",
+  "screenshotUrl": null,
+  "ts": "2026-05-23T01:21:43.068Z"
+}
