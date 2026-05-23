@@ -7345,9 +7345,24 @@ function HomePage() {
     const todayMs = Date.now();
     const oneEightyDaysAgo = todayMs - 180 * 86400000;
     let totalVolume = 0;
+    // v3.2: lifetime intensityPoints sum (Technique sub-rank).
+    let totalIntensityPointsLifetime = 0;
+    // v3.3: sets per Balance bucket in the last 180d. Bucket mapping
+    // mirrors lib/leaderboardStats.ts muscleGroupToBalanceBucket — keep
+    // both in sync. (qa: tier-balance-subrank)
+    const setsByMuscleGroup: Record<string, number> = {};
+    const exById: Record<string, any> = {};
+    for (const ex of EXERCISES as any[]) exById[ex.id] = ex;
+    const toBucket = (mg: string): string | null => {
+      if (mg === "chest" || mg === "back" || mg === "shoulders" || mg === "core" || mg === "quads") return mg;
+      if (mg === "biceps" || mg === "triceps" || mg === "forearms") return "arms";
+      if (mg === "hamstrings" || mg === "glutes" || mg === "calves") return "posterior";
+      return null;
+    };
     for (const dayId in history) for (const s of history[dayId]) {
       const sessionTs = s.date ? +new Date(s.date) : 0;
       const isRecent = sessionTs >= oneEightyDaysAgo;
+      totalIntensityPointsLifetime += (s.intensityPoints ?? 0);
       const sets = (s.sets ?? {}) as Record<string, any>;
       for (const k in sets) {
         const exKey = k.replace(/-\d+(-d\d+)?$/, "");
@@ -7362,6 +7377,20 @@ function HomePage() {
             recentDistinctEx.add(exKey);
             if (!recentSetsByExercise[exKey]) recentSetsByExercise[exKey] = [];
             recentSetsByExercise[exKey].push({ dateMs: sessionTs, weight: w, reps: r, rpe });
+            // Bucket by primary muscle group. A set counts at most
+            // ONCE per bucket (multi-muscle exercises like deadlift
+            // contribute to multiple buckets, but only +1 per bucket).
+            const ex = exById[exKey];
+            if (ex && Array.isArray(ex.primaryMuscles)) {
+              const seenBuckets = new Set<string>();
+              for (const mg of ex.primaryMuscles as string[]) {
+                const bucket = toBucket(mg);
+                if (bucket && !seenBuckets.has(bucket)) {
+                  seenBuckets.add(bucket);
+                  setsByMuscleGroup[bucket] = (setsByMuscleGroup[bucket] ?? 0) + 1;
+                }
+              }
+            }
           }
         }
         totalVolume += w * r;
@@ -7474,6 +7503,8 @@ function HomePage() {
       weightChange90dKg: weight90 != null && weightCurrent != null ? Math.round((weightCurrent - weight90) * 10) / 10 : null,
       bfChange90dPct: bf90 != null && bfCurrent != null ? Math.round((bfCurrent - bf90) * 10) / 10 : null,
       gender: ob.gender || null,
+      totalIntensityPointsLifetime,
+      setsByMuscleGroup,
     };
     return computeAthleteTier(stats, tierTheme);
   }, [user, history, overall, tierTheme, ob.daysPerWeek, ob.weightKg, ob.bodyFatPct, ob.gender, bodyMetrics]);
@@ -13999,6 +14030,11 @@ function HomePage() {
                         { icon: "💧", text: "Hit your hydration target today — biggest weight in the Habits sub-rank." },
                         { icon: "😴", text: "Log sleep this morning — even just one tap counts." },
                         { icon: "⚡", text: "Tap your energy level — adds Habits points and feeds wellness trends." },
+                      ],
+                      balance: [
+                        { icon: "🦵", text: "Hit your legs this week — quads + posterior chain (hams/glutes/calves) are usually the gaps." },
+                        { icon: "🧠", text: "Don't skip core — even 8 sets of crunches/planks over 180d unlocks the core bucket." },
+                        { icon: "🤸", text: "Aim to touch all 7 buckets across the month: chest, back, shoulders, arms, quads, posterior, core." },
                       ],
                     };
                     const tips = TIPS_BY_DIM[weakestId] ?? TIPS_BY_DIM.consistency;

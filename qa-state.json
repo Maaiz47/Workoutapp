@@ -1,6 +1,25 @@
 {
   "items": [
     {
+      "id": "tier-balance-subrank",
+      "title": "Balance sub-rank rewards muscle-group coverage (chest/back/shoulders/arms/quads/posterior/core)",
+      "area": "Tiers",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-balance-subrank",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open the tier breakdown modal. Verify a 9th sub-rank labelled 'Balance' (⚖️ icon) appears in the grid.",
+        "If you have <8 lifetime sessions: Balance shows 'NOT COUNTED' and is excluded from the headline average.",
+        "If you have ≥8 sessions: Balance reads e.g. '5/7 groups · missing: quads, posterior'. Score = (coveredBuckets / 7) × 100.",
+        "Log enough sessions to hit all 7 buckets (chest / back / shoulders / arms / quads / posterior / core). Verify Balance = 100 and detail reads 'all 7 muscle groups covered (180d)'.",
+        "Skip leg day for two weeks. Verify Balance drops as quads + posterior buckets fall below the 8-set threshold.",
+        "If Balance is your WEAKEST sub-rank, the EARN MORE POINTS tip card should show balance-specific tips (hit legs / core / coverage).",
+        "Body Comp icon should no longer clash with Balance — Body Comp is now 🧬, Balance is ⚖️."
+      ],
+      "notes": "[2026-05-23] Shipped: new 9th sub-rank in computeAthleteTier. AthleteStatsForTier gains setsByMuscleGroup?: Record<string, number>. Both lib/leaderboardStats.ts (server-side) and the client-side myAthleteBreakdown useMemo populate it by walking history + looking up exercise primaryMuscles + bucketing into 7 canonical groups (arms = biceps+triceps+forearms, posterior = hams+glutes+calves). Each set counts at most ONCE per bucket so multi-muscle exercises like deadlift contribute to multiple buckets without inflating. Min 8 sets per bucket to count as 'covered'. Min 8 lifetime sessions to unlock the dim (hasData)."
+    },
+    {
       "id": "docs-catch-up",
       "title": "Tutorial v6 + README catch-up + CLAUDE.md image-gen tracker refreshed",
       "area": "App",

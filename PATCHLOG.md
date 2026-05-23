@@ -2,6 +2,25 @@
 
 ---
 
+## Feat · 2026-05-23 — Balance sub-rank (9th dim, muscle-group coverage) (qa: tier-balance-subrank)
+
+Per @maaiz: "Maaiz has clearly been skipping leg day · How is he being penalised for neglecting areas? Should he be?". Audit: nothing in the 8-dim scoring system penalised muscle-group neglect — a user could bench + curl every day and still rocket up the ladder.
+
+New **Balance** sub-rank (9th dim) — rewards covering all 7 major muscle-group buckets in the last 180 days:
+- `chest` · `back` · `shoulders` · `arms` (biceps + triceps + forearms) · `quads` · `posterior` (hamstrings + glutes + calves) · `core`
+
+Each bucket needs **≥8 sets in the last 180 days** (about one session's worth) to count as "covered". Score = `(coveredBuckets / 7) × 100`.
+
+- Skipped (hasData=false) until the user has ≥8 lifetime sessions so brand-new accounts aren't penalised.
+- A leg-skipper drops to ~57 (4/7 buckets) and the EARN MORE POINTS tip card surfaces the missing buckets explicitly: "missing: quads, posterior, core".
+- A balanced lifter hits 100. A powerlifter doing Big 3 + accessories naturally lands at 85-100 because deadlift + squat + bench tag back / posterior / chest / shoulders / core.
+
+Implementation: new `setsByMuscleGroup: Record<string, number>` input on `AthleteStatsForTier`. Populated by both `computeStatsForUsers` (server-side leaderboard pipeline, imports `EXERCISES` for primary-muscle lookup) and the client-side `myAthleteBreakdown` useMemo (inlined `toBucket` mapper). Each set counts at most ONCE per bucket so multi-muscle exercises (deadlift hits back + posterior + core) contribute to multiple buckets cleanly without inflating.
+
+Tip library extended with a `balance` key — 3 actionable nudges focused on legs / core / coverage.
+
+---
+
 ## Fix · 2026-05-23 — Hide BW toggle on principally-weighted exercises (qa: weight-input-convention-clarity)
 
 Per @maaiz: "Shouldn't be able to select bodyweight at all on non body weight exercises like bench press or anything involving dumbbells as a principal". The `BW` chip used to appear for ALL non-bodyweight exercises so you could mark e.g. a bench press as "bodyweight today" — which was nonsense for principally-weighted movements.

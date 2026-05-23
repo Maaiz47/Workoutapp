@@ -209,6 +209,17 @@ export type AthleteStatsForTier = {
   // sub-rank so users doing supersets/dropsets/etc. actually move the
   // headline. Optional — absent / 0 means hasData=false for Technique.
   totalIntensityPointsLifetime?: number;
+
+  // ── v3.3 input (qa: tier-balance-subrank) ──
+  // Sets-per-muscle-group bucket in the last 180 days. Keys are the
+  // canonical buckets used by the Balance sub-rank:
+  //   "chest" | "back" | "shoulders" | "arms" | "quads" | "posterior" | "core"
+  // Bucket mapping (handled by the caller — both server-side
+  // computeStatsForUsers and the client-side app/page.tsx compute it):
+  //   - arms      = biceps + triceps + forearms
+  //   - posterior = hamstrings + glutes + calves
+  // Optional — absent / undefined means hasData=false for Balance.
+  setsByMuscleGroup?: Record<string, number>;
 };
 
 // Adherence curve — peaks at 100% of weekly target, drops gently
@@ -511,6 +522,32 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   const technique = scoreFromCount(techniquePts, 200);
   const techniqueHasData = techniquePts > 0;
 
+  // Balance v3.3 — rewards covering all 7 major muscle-group buckets
+  // in the last 180 days. Each bucket needs ≥8 sets in the window to
+  // count as "covered" (roughly one session's worth). Score = (covered
+  // buckets / 7) × 100. Skipped (hasData=false) until the user has at
+  // least 8 lifetime sessions so brand-new accounts aren't penalised.
+  //
+  // Bucket map (the upstream caller supplies setsByMuscleGroup with
+  // these canonical keys — see lib/exercises.ts MuscleGroup type for
+  // the raw → bucket mapping):
+  //   chest · back · shoulders · arms · quads · posterior · core
+  // (qa: tier-balance-subrank)
+  const BUCKETS = ["chest", "back", "shoulders", "arms", "quads", "posterior", "core"] as const;
+  const MIN_SETS_PER_BUCKET = 8;
+  const setsByGroup = s.setsByMuscleGroup ?? {};
+  const coveredBuckets = BUCKETS.filter(b => (setsByGroup[b] ?? 0) >= MIN_SETS_PER_BUCKET);
+  const balance = Math.round((coveredBuckets.length / BUCKETS.length) * 100);
+  const balanceHasData = s.totalSessions >= 8 && Object.keys(setsByGroup).length > 0;
+  // Detail string surfaces which buckets are missing so the user
+  // knows exactly which area to attack.
+  const missingBuckets = BUCKETS.filter(b => (setsByGroup[b] ?? 0) < MIN_SETS_PER_BUCKET);
+  const balanceDetail = balanceHasData
+    ? (missingBuckets.length === 0
+        ? `all ${BUCKETS.length} muscle groups covered (180d)`
+        : `${coveredBuckets.length}/${BUCKETS.length} groups · missing: ${missingBuckets.join(", ")}`)
+    : "log ≥8 sessions across the major muscle groups to unlock";
+
   // Detail strings.
   const sessions4w = s.sessionsLast4Weeks ?? 0;
   const dpw = s.daysPerWeek ?? 4;
@@ -528,7 +565,8 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
     { id: "volume",      label: "Volume",      icon: "📈", score: volume,           detail: `${Math.round(s.totalVolumeKg / 1000)}k kg-reps lifetime`, hasData: s.totalVolumeKg > 0 },
     { id: "mastery",     label: "Mastery",     icon: "🏆", score: mastery,          detail: `${masteryCount} exercises ≥4 sets (last 6mo) · ${s.distinctExercises} lifetime`, hasData: masteryHasData },
     { id: "technique",   label: "Technique",   icon: "⚡", score: technique,        detail: techniqueHasData ? `${techniquePts} IP lifetime · supersets/dropsets/techniques` : "log supersets or drop chains to earn IP", hasData: techniqueHasData },
-    { id: "bodycomp",    label: "Body Comp",   icon: "⚖️", score: bcRes.score,      detail: bcRes.detail,                                              hasData: bcRes.hasData },
+    { id: "balance",     label: "Balance",     icon: "⚖️", score: balance,          detail: balanceDetail,                                             hasData: balanceHasData },
+    { id: "bodycomp",    label: "Body Comp",   icon: "🧬", score: bcRes.score,      detail: bcRes.detail,                                              hasData: bcRes.hasData },
     { id: "habits",      label: "Habits",      icon: "💧", score: habits,           detail: `${hg}d hydration · ${sl}d sleep · ${en}d energy (14d)`,    hasData: habitsAny },
   ];
 

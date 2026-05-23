@@ -5,6 +5,29 @@
 
 import { prisma } from "./prisma";
 import { computeAthleteTier, ATHLETE_TIERS, AnimalTier, RecentSet } from "./tiers";
+import { EXERCISES, type MuscleGroup } from "./exercises";
+
+// Build an exerciseId → primaryMuscles map once at module load. Both
+// computeStatsForUsers and the client mirror in app/page.tsx use this
+// to bucket sets into Balance sub-rank groups. (qa: tier-balance-subrank)
+const MUSCLES_BY_EX_ID: Record<string, MuscleGroup[]> = (() => {
+  const m: Record<string, MuscleGroup[]> = {};
+  for (const ex of EXERCISES as any[]) m[ex.id] = (ex.primaryMuscles ?? []) as MuscleGroup[];
+  return m;
+})();
+
+// Map a raw MuscleGroup to one of the seven Balance buckets.
+//   chest, back, shoulders, core      → themselves
+//   biceps, triceps, forearms          → "arms"
+//   hamstrings, glutes, calves         → "posterior"
+//   quads                              → "quads"
+//   cardio                             → null (not counted)
+export function muscleGroupToBalanceBucket(g: MuscleGroup): string | null {
+  if (g === "chest" || g === "back" || g === "shoulders" || g === "core" || g === "quads") return g;
+  if (g === "biceps" || g === "triceps" || g === "forearms") return "arms";
+  if (g === "hamstrings" || g === "glutes" || g === "calves") return "posterior";
+  return null; // cardio, anything else
+}
 
 // Canonical athlete tier label shipped on every leaderboard row so
 // the frontend doesn't have to re-derive (or worse, fall back to the
@@ -95,6 +118,7 @@ function buildCanonicalTier(s: {
   bfChange90dPct?: number | null;
   gender?: string | null;
   totalIntensityPointsLifetime?: number;
+  setsByMuscleGroup?: Record<string, number>;
 }): CanonicalTier {
   const breakdown = computeAthleteTier({
     totalSessions: s.totalSessions,
@@ -119,6 +143,7 @@ function buildCanonicalTier(s: {
     bfChange90dPct: s.bfChange90dPct,
     gender: s.gender,
     totalIntensityPointsLifetime: s.totalIntensityPointsLifetime,
+    setsByMuscleGroup: s.setsByMuscleGroup,
   });
   // tierScoreBonus is no longer blended into the canonical headline
   // (qa: tier-scoring-v2) — the lucky-drop reward was a silent
@@ -211,6 +236,8 @@ export function computeStatsFromLogs(
   const recentDistinctEx = new Set<string>();
   const recentSetsByExercise: Record<string, RecentSet[]> = {};
   const volumeByWeek = new Map<number, number>();
+  // Sets per Balance bucket in the last 180d (qa: tier-balance-subrank)
+  const setsByMuscleGroup: Record<string, number> = {};
   let totalVolume = 0;
   let rpeBonusIP = 0;
   for (const log of logs) {
@@ -238,6 +265,20 @@ export function computeStatsFromLogs(
           recentDistinctEx.add(eid);
           if (!recentSetsByExercise[eid]) recentSetsByExercise[eid] = [];
           recentSetsByExercise[eid].push({ dateMs: ms, weight: w, reps: r, rpe });
+          // Bucket this set by its exercise's PRIMARY muscle groups,
+          // mapping each into the canonical Balance bucket. One set
+          // can contribute to multiple buckets if the exercise has
+          // multiple primary muscles (deadlift hits back AND posterior).
+          // (qa: tier-balance-subrank)
+          const muscles = MUSCLES_BY_EX_ID[eid] ?? [];
+          const seenBuckets = new Set<string>();
+          for (const mg of muscles) {
+            const bucket = muscleGroupToBalanceBucket(mg);
+            if (bucket && !seenBuckets.has(bucket)) {
+              seenBuckets.add(bucket);
+              setsByMuscleGroup[bucket] = (setsByMuscleGroup[bucket] ?? 0) + 1;
+            }
+          }
         }
       }
       if (!prs[eid] || w > prs[eid].weight || (w === prs[eid].weight && r > prs[eid].reps)) {
@@ -329,6 +370,7 @@ export function computeStatsFromLogs(
     bfChange90dPct: extra.bfChange90dPct,
     gender: extra.gender,
     totalIntensityPointsLifetime: totalIntensityPoints,
+    setsByMuscleGroup,
   });
 
   void ninetyDaysAgo;
