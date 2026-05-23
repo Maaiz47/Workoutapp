@@ -3834,6 +3834,56 @@ function TierLadder({
         )}
       </div>
       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>{subtitle}</div>
+      {/* Dot ladder bar — every tier breakpoint rendered as a dot at
+          its score-position (0-100), with gap distances proportional
+          to actual score-difficulty between tiers. Filled track shows
+          the user's progress across the WHOLE ladder, not just from
+          current tier → next tier (which the old single-segment bar
+          did). Per @maaiz: "filled from lowest to max tier with dots
+          identifying each tier point, distance between dots scaled to
+          show difficulty to next tier dynamically".
+          (qa: tier-ladder-dot-bar) */}
+      {isParticipant && (() => {
+        const lastIdx = tiers.length - 1;
+        const filledPct = Math.min(100, Math.max(0, currentRaw));
+        const fillGradient = tiers.length > 1
+          ? `linear-gradient(90deg, ${tiers[0].color}, ${tiers[Math.min(lastIdx, Math.max(0, currentIdx))].color})`
+          : tiers[0].color;
+        return (
+          <div style={{ position: "relative", margin: "14px 6px 18px", height: 42 }}>
+            {/* Background track */}
+            <div style={{ position: "absolute", top: 14, left: 0, right: 0, height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2 }} />
+            {/* Filled portion up to currentRaw */}
+            <div style={{ position: "absolute", top: 14, left: 0, width: `${filledPct}%`, height: 3, background: fillGradient, borderRadius: 2, transition: "width 0.6s ease", boxShadow: `0 0 8px ${tiers[Math.max(0, currentIdx)]?.color ?? tiers[0].color}55` }} />
+            {/* Dots at each tier's `min` position */}
+            {tiers.map((t) => {
+              const pct = t.min;
+              const reached = currentRaw >= t.min;
+              const isCurrentTierDot = highlight === t.label;
+              const dotSize = isCurrentTierDot ? 14 : 10;
+              const dotTop = isCurrentTierDot ? 9 : 11;
+              const abbrev = t.label.toUpperCase().split(" ")[0].slice(0, 6);
+              return (
+                <div key={t.label} style={{ position: "absolute", left: `${pct}%`, top: 0, transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" }}>
+                  <div style={{
+                    width: dotSize, height: dotSize, borderRadius: "50%",
+                    background: reached ? t.color : "rgba(255,255,255,0.12)",
+                    border: `${isCurrentTierDot ? 2 : 1}px solid ${reached ? t.color : "rgba(255,255,255,0.18)"}`,
+                    boxShadow: isCurrentTierDot ? `0 0 10px ${t.color}` : "none",
+                    marginTop: dotTop, transition: "all 0.3s",
+                  }} />
+                  <div style={{
+                    fontSize: 8, fontWeight: 700,
+                    color: isCurrentTierDot ? t.color : reached ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.25)",
+                    fontFamily: "'Space Mono', monospace", letterSpacing: 0.5,
+                    textAlign: "center", whiteSpace: "nowrap",
+                  }}>{abbrev}</div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
       <div style={{
         display: "flex", flexDirection: "column", gap: 4,
         background: "rgba(255,255,255,0.02)",
@@ -8712,9 +8762,19 @@ function HomePage() {
         {/* Daily Quest — randomised tiny goal per day. Suppressed when
             the user has toggled de-gamify mode in Settings. */}
         {!deGamified && (() => {
-          const q = pickTodayQuest();
+          const q = pickTodayQuest(user?.id ?? null);
           const today = new Date().toISOString().slice(0, 10);
           let sessionsToday = 0, hasPRToday = false, hasRpeToday = false;
+          // Slice 1 quest-rework state — track more dimensions so the
+          // extended pool (variety / volume / superset / drop / cardio
+          // / warmup / body metric) can evaluate. (qa: daily-quest-rework)
+          const distinctExercisesToday = new Set<string>();
+          let workingSetsToday = 0;
+          let hasSupersetToday = false;
+          let hasDropSetToday = false;
+          let hasCardioToday = false;
+          let warmupsPerfectToday = true;
+          let warmupsSeenToday = false;
           const todaysSession = (history[activeDay?.id ?? ""] ?? []).find((s: any) => (s.date ?? "").slice(0, 10) === today);
           // Build BEFORE-TODAY lifetime PR map (max weight + reps per
           // exercise key, considering only sets logged on days STRICTLY
@@ -8746,32 +8806,64 @@ function HomePage() {
             const sets = (s.sets ?? {}) as Record<string, any>;
             for (const k in sets) {
               const v = sets[k];
-              if (!v || v.skipped) continue;
+              if (!v) continue;
+              const isDropSet = /-d\d+$/.test(k);
+              const eid = k.replace(/-\d+(-d\d+)?$/, "");
+              if (eid) distinctExercisesToday.add(eid);
+              if (v.skipped) continue;
               if (typeof v.rpe === "number") hasRpeToday = true;
               const w = v.weight ?? 0;
               const r = v.reps ?? 0;
-              const eid = k.replace(/-\d+(-d\d+)?$/, "");
+              if (w > 0 || r > 0) workingSetsToday += 1;
+              if (isDropSet) hasDropSetToday = true;
+              if (v.cardio) hasCardioToday = true;
               const prior = preTodayBest[eid];
-              // PB if (a) first time logging this exercise (no prior) and
-              // the set has weight + reps, OR (b) beats the prior best
-              // weight, OR (c) ties the prior weight but with more reps.
               if (w > 0 && r > 0) {
                 if (!prior) hasPRToday = true;
                 else if (w > prior.weight) hasPRToday = true;
                 else if (w === prior.weight && r > prior.reps) hasPRToday = true;
               }
             }
+            // Superset detection: the workout-save side flags this via
+            // intensityPoints stored on the log row — any IP > 0 means
+            // at least one technique award fired (superset or drop set).
+            // Combined with the drop-set detection above this means
+            // hasSupersetToday is true when IP exists but no drop-set
+            // detected, OR when drop-set was found we also infer
+            // superset isn't separately tagged. Best-effort heuristic.
+            if ((s.intensityPoints ?? 0) >= 5 && !hasDropSetToday) hasSupersetToday = true;
+            // Warm-up "perfect" tracking via warmupSetState — only
+            // meaningful if the session was started + tracked locally;
+            // for historical reads we fall back to true (no penalty).
           }
-          // PR today computed inline above (was an unfinished TODO).
+          // Warmups-perfect today: walk warmupSetState for keys belonging
+          // to today's active day. If any warmup set is missing OR
+          // SKIPPED, perfect = false. If no warmups present at all,
+          // perfect stays true vacuously (no warmups → quest doesn't fire).
+          for (const k in warmupSetState) {
+            warmupsSeenToday = true;
+            if (warmupSetState[k] !== "done") { warmupsPerfectToday = false; break; }
+          }
+          if (!warmupsSeenToday) warmupsPerfectToday = false;
+          // Body metric logged today — check bodyMetrics for today's iso date.
+          const bodyMetricToday = bodyMetrics.some((m: any) => (m.date ?? "").slice(0, 10) === today);
+          // Sleep + energy state.
           const sleepToday = readSleepToday();
           const state: QuestState = {
             todaySessionsCount: sessionsToday,
-            todayHasPR: hasPRToday, // refined below if data is rich
+            todayHasPR: hasPRToday,
             todayHasRpeLogged: hasRpeToday,
             hydrationToday: readHydrationToday(),
             hydrationTarget: HYDRATION_TARGET,
             sleepLoggedToday: sleepToday.sleepHours != null,
             energyLoggedToday: sleepToday.energy != null,
+            todayDistinctExercises: distinctExercisesToday.size,
+            todayWorkingSetsCount: workingSetsToday,
+            todayHasSuperset: hasSupersetToday,
+            todayHasDropSet: hasDropSetToday,
+            todayHasCardio: hasCardioToday,
+            todayWarmupsPerfect: warmupsPerfectToday,
+            todayBodyMetricLogged: bodyMetricToday,
             totalSessionsLifetime: overall.totalSessions,
           };
           const done = q.isDone(state);
@@ -10341,8 +10433,34 @@ function HomePage() {
                     : "You're not in any groups yet. Ask a trainer to add you to one of theirs, or accept an invite when you receive one."}
                 </div>
               ) : (
-                lbGroups.map(grp => (
-                  <div key={grp.id} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, marginBottom: 8, overflow: "hidden" }}>
+                lbGroups.map(grp => {
+                  // Detect trainer-led groups by checking the role of the
+                  // member whose userId matches grp.createdBy. Trainer-led
+                  // groups get distinct visual treatment per @maaiz:
+                  // teal/gold gradient border, COACH-LED chip, slightly
+                  // elevated card shadow + halo. Athlete-made groups stay
+                  // on the default neutral border. (qa: trainer-group-visual-identity)
+                  const creator = grp.members?.find((m: any) => m.userId === grp.createdBy);
+                  const isTrainerLed = creator?.role === "trainer";
+                  const creatorName = creator?.user?.username ?? null;
+                  return (
+                  <div key={grp.id} style={{
+                    // Outer wrapper carries the gradient border for
+                    // trainer-led groups (1px border emulated by 1px
+                    // padding + inner background). Athlete groups skip
+                    // the gradient and use a plain border directly.
+                    background: isTrainerLed ? "linear-gradient(135deg, rgba(78,205,196,0.5), rgba(240,192,64,0.4))" : "transparent",
+                    border: isTrainerLed ? "none" : "1px solid rgba(255,255,255,0.06)",
+                    borderRadius: 12, marginBottom: 8, overflow: "hidden",
+                    padding: isTrainerLed ? 1 : 0,
+                    boxShadow: isTrainerLed ? "0 6px 22px -10px rgba(78,205,196,0.35), 0 0 0 1px rgba(240,192,64,0.12)" : "none",
+                  }}>
+                  <div style={{
+                    background: isTrainerLed
+                      ? "radial-gradient(circle at 20% 0%, rgba(78,205,196,0.08), rgba(15,15,18,0.95) 70%)"
+                      : "rgba(255,255,255,0.02)",
+                    borderRadius: 11,
+                  }}>
                     <div onClick={async () => {
                       const opening = activeLbGroup?.id !== grp.id;
                       setActiveLbGroup(opening ? grp : null);
@@ -10365,9 +10483,17 @@ function HomePage() {
                         } catch {} finally { setGroupChallengesLoading(false); }
                       }
                     }} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{grp.name}</div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{grp.members?.length ?? 0} members · {grp.privacy}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{grp.name}</div>
+                          {isTrainerLed && (
+                            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1.5, color: "#4ECDC4", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.35)", borderRadius: 4, padding: "2px 6px", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>🤝 COACH-LED</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
+                          {grp.members?.length ?? 0} members · {grp.privacy}
+                          {isTrainerLed && creatorName && <span> · led by <span style={{ color: "rgba(78,205,196,0.7)" }}>@{creatorName}</span></span>}
+                        </div>
                       </div>
                       <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 14 }}>{activeLbGroup?.id === grp.id ? "▲" : "▼"}</span>
                     </div>
@@ -10883,7 +11009,9 @@ function HomePage() {
                       </div>
                     )}
                   </div>
-                ))
+                  </div>
+                  );
+                })
               )}
             </div>
           )}
@@ -13601,7 +13729,7 @@ function HomePage() {
                     strokeDasharray={`${dash} ${C}`} strokeLinecap="round"
                     style={{ transition: "stroke-dasharray 0.25s linear" }} />
                 </svg>
-                <div style={{ fontSize: 72, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>{rest.seconds}</div>
+                <div className="rest-timer-idle" style={{ fontSize: 72, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", lineHeight: 1, textShadow: "0 4px 24px rgba(0,0,0,0.5), 0 0 16px rgba(255,255,255,0.08)" }}>{rest.seconds}</div>
               </div>
               {hasPB && (
                 <div className="pb-pop" style={{ marginTop: 36, background: "rgba(12,12,15,0.85)", border: "1px solid rgba(255,215,0,0.3)", borderRadius: 16, padding: "20px 28px", maxWidth: 320, width: "85%", textAlign: "center", position: "relative", overflow: "hidden" }}>
@@ -13635,7 +13763,7 @@ function HomePage() {
             document.body
           );
         })()}
-        <div style={{ padding: "16px 20px 14px", background: `linear-gradient(180deg, ${activeDay.color}10, transparent)`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="session-header-depth" style={{ padding: "16px 20px 14px", background: `linear-gradient(180deg, ${activeDay.color}10, transparent)`, borderBottom: "1px solid rgba(255,255,255,0.04)", position: "relative", zIndex: 2 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
             {/* Left cluster: Home nav + Music quick-launch. Music was
                 previously sat right next to QUIT × on the right, which
@@ -13939,14 +14067,14 @@ function HomePage() {
                               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                                 <span style={{ fontSize: 15, fontWeight: 600, color: "#fff", lineHeight: 1.2, wordBreak: "break-word", flex: "1 1 auto", minWidth: 0 }}>{ex.name}</span>
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                  {/* `TAP` label removed for non-trackable
+                                      rows — trackable rows don't show this
+                                      kind of label either, and the set-box
+                                      strip rendered below (now also showing
+                                      for non-trackable rows) makes the
+                                      affordance obvious enough.
+                                      (qa: session-warmup-row-polish) */}
                                   {(allDone || wuDone) && <span style={{ fontSize: 16, color: "#2ecc71" }}>✓</span>}
-                                  {!trackable && !wuDone && (
-                                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
-                                      {wuSetsCount > 1
-                                        ? `${wuDoneCount + wuSkipCount}/${wuSetsCount} · TAP`
-                                        : "TAP"}
-                                    </span>
-                                  )}
                                 </div>
                               </div>
                               {/* Meta line — sets × reps, last session,
@@ -14087,6 +14215,45 @@ function HomePage() {
                           </div>
                         );
                       })()}
+                      {/* Non-trackable set-box strip — mirrors the
+                          trackable version below so warmups + stretches
+                          + cooldowns show numbered set boxes inline
+                          (not just hidden behind row-expand). Reads
+                          warmupSetState, NOT log. Tap cycles
+                          pending → done → skipped → pending (same
+                          state machine as the chip panel). User asked
+                          for the warmup rows to match exercise rows.
+                          (qa: session-warmup-row-polish) */}
+                      {!trackable && (
+                        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                          {Array.from({ length: wuSetsCount }, (_, i) => {
+                            const k = `${ex.id}-${i + 1}`;
+                            const state = warmupSetState[k];
+                            const isDone = state === "done";
+                            const isSkipped = state === "skipped";
+                            return (
+                              <button
+                                key={i}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setWarmupSetState(prev => {
+                                    const cur = prev[k];
+                                    const next = { ...prev };
+                                    if (!cur) next[k] = "done";
+                                    else if (cur === "done") next[k] = "skipped";
+                                    else delete next[k];
+                                    return next;
+                                  });
+                                }}
+                                style={{ position: "relative", width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace", background: isSkipped ? "rgba(255,107,107,0.08)" : isDone ? "#2ecc7120" : "rgba(255,255,255,0.04)", color: isSkipped ? "rgba(255,107,107,0.55)" : isDone ? "#2ecc71" : "rgba(255,255,255,0.45)", border: isSkipped ? "1px solid rgba(255,107,107,0.22)" : "1px solid transparent", cursor: "pointer", padding: 0 }}
+                                title={isDone ? "Marked done — tap to cycle to skip" : isSkipped ? "Marked skipped — tap to clear" : "Tap to mark done"}
+                              >
+                                {isSkipped ? "−" : isDone ? "✓" : i + 1}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                       {trackable && (
                         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
                           {Array.from({ length: ex.sets }, (_, i) => {

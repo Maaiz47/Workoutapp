@@ -2,6 +2,21 @@
 
 ---
 
+## QA pass · 2026-05-23 — UX backlog clear: warmup boxes + dot ladder + coach-led groups + 3D session feel + quest pool expansion (qa: session-warmup-row-polish, tier-ladder-dot-bar, trainer-group-visual-identity, session-page-3d-aesthetic, daily-quest-rework)
+
+Five UX items from the held queue, all shipped in one push.
+
+- **session-warmup-row-polish** — removed the `TAP` / `N/N · TAP` text affordance on non-trackable rows (matches trackable exercise rows). Added the same set-box strip warmups/stretches/cooldowns were missing — each box reads from `warmupSetState` and cycles pending → ✓ done → − skipped → pending on tap.
+- **tier-ladder-dot-bar** — replaced the old single-segment "current → next tier" progress bar with a full-ladder dot bar. Each tier breakpoint is a dot positioned at its score-min (0-100); gaps proportional to actual score distance (so Lion → Gorilla visibly wider than Kitten → Fox). Filled track up to currentRaw using the tier-color gradient. Current dot is larger + glows.
+- **trainer-group-visual-identity** — trainer-led groups now render with a teal→gold gradient border, subtle radial halo background, 🤝 COACH-LED chip, and a `led by @<trainerUsername>` subtitle. Detection: walks `grp.members` to find the row whose userId matches `grp.createdBy` + checks role. Athlete-made groups stay on the neutral default border.
+- **session-page-3d-aesthetic (slice 1)** — three CSS depth touches: logSetFlash now uses perspective + rotateX press-down for tactile feel (was flat scale/brightness); rest countdown number gets a subtle ±2° Y-axis idle rotation (`restTimerIdle` keyframe); session header gets `session-header-depth` class with inset shadow + soft top drop-shadow. Slice 2 (card parallax + pointer tilt) deferred to a separate slice.
+- **daily-quest-rework (slice 1)** — QUEST_POOL expanded 7 → 14 with Variety, Volume push, Superset day, Drop set day, Get cardio in, Warmup pro, Tracker check. `pickTodayQuest(userId)` now uses `hash(userId + iso)` for per-user rotation. QuestState extended with 8 optional new computed fields. Slice 2 (celebration animation, tier-score bonus, auto-dismiss) deferred.
+
+### Deferred / planning only
+- **friend-system-athletes** — needs a schema migration + Friendship table + 4 endpoints + new UI. Too large for a single push session. Planning intact in qa-state.
+
+---
+
 ## QA pass · 2026-05-23 — Daily PB quest fix + PR→PB rename + Pro Tip hide visibility + UX queue planning (qa: daily-quest-pb-bugfix, pr-to-pb-rename, pro-tip-hide-visibility, daily-quest-rework, friend-system-athletes, trainer-group-visual-identity)
 
 Mixed code + planning pass. @maaiz hit rapid-fire UX asks; shippable fixes done now, big new features captured as planning artefacts.

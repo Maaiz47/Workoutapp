@@ -153,12 +153,39 @@ input[type="number"] { -moz-appearance: textfield; }
 
 
 /* ── Log SET button flash ─────────────────────────────────────────────── */
+/* 3D-feel press feedback per @maaiz (qa: session-page-3d-aesthetic).
+   Combines a slight perspective tilt with the existing scale + glow so
+   the button feels like a physical key being struck instead of a flat
+   highlight. perspective on the parent isn't required — `transform-style`
+   on the button itself handles the depth illusion. */
 @keyframes logSetFlash {
-  0%   { transform: scale(1);    filter: brightness(1); }
-  30%  { transform: scale(1.06); filter: brightness(1.8); box-shadow: 0 0 20px rgba(46,204,113,0.5); }
-  100% { transform: scale(1);    filter: brightness(1); box-shadow: none; }
+  0%   { transform: perspective(600px) translateZ(0) scale(1); filter: brightness(1); }
+  15%  { transform: perspective(600px) translateZ(-6px) rotateX(8deg) scale(0.97); filter: brightness(1.4); box-shadow: inset 0 4px 12px rgba(0,0,0,0.4), 0 0 0 rgba(46,204,113,0); }
+  45%  { transform: perspective(600px) translateZ(8px) rotateX(-4deg) scale(1.07); filter: brightness(1.85); box-shadow: 0 8px 28px rgba(46,204,113,0.55), 0 0 26px rgba(46,204,113,0.4); }
+  100% { transform: perspective(600px) translateZ(0) scale(1); filter: brightness(1); box-shadow: none; }
 }
-.log-flash { animation: logSetFlash 0.38s ease both; }
+.log-flash { animation: logSetFlash 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; transform-style: preserve-3d; }
+
+/* ── Rest timer idle motion ───────────────────────────────────────────── */
+/* Subtle ±2° Y-axis idle rotation on the big countdown number so the
+   rest screen reads as a living thing, not a static page. 4s period;
+   tiny but adds depth perception via the perspective shift.
+   (qa: session-page-3d-aesthetic) */
+@keyframes restTimerIdle {
+  0%, 100% { transform: perspective(800px) rotateY(0deg) translateZ(0); }
+  25%      { transform: perspective(800px) rotateY(2deg) translateZ(4px); }
+  50%      { transform: perspective(800px) rotateY(0deg) translateZ(0); }
+  75%      { transform: perspective(800px) rotateY(-2deg) translateZ(4px); }
+}
+.rest-timer-idle { animation: restTimerIdle 4s ease-in-out infinite; transform-style: preserve-3d; }
+
+/* ── Session header depth ─────────────────────────────────────────────── */
+/* Soft inset bottom-shadow on the session header so it visually
+   "floats" above the exercise list, suggesting layering.
+   (qa: session-page-3d-aesthetic) */
+.session-header-depth {
+  box-shadow: 0 8px 24px -16px rgba(0,0,0,0.7), inset 0 -1px 0 rgba(255,255,255,0.04);
+}
 
 /* ── PB celebration ───────────────────────────────────────────────────── */
 @keyframes pbOverlay { 0% { opacity: 0; } 5% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }

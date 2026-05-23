@@ -46,24 +46,56 @@ export type QuestState = {
   sleepLoggedToday: boolean;
   energyLoggedToday: boolean;
   totalSessionsLifetime: number;
+  // ── Slice 1 of daily-quest-rework expansion (qa: daily-quest-rework) ──
+  // Optional fields — undefined = caller couldn't compute. Quests that
+  // need missing data evaluate to false (don't show up as done if we
+  // can't tell). Keep these all OPTIONAL so legacy QuestState callers
+  // still type-check.
+  todayDistinctExercises?: number;       // distinct exercises trained today
+  todayWorkingSetsCount?: number;        // total working sets logged today (non-skipped, non-warmup)
+  todayHasSuperset?: boolean;            // any superset locked today
+  todayHasDropSet?: boolean;             // any drop chain today
+  todayHasCardio?: boolean;              // any cardio set logged today
+  todayWarmupsPerfect?: boolean;         // every warmup set marked ✓ today
+  todayBodyMetricLogged?: boolean;       // logged weight or BF today
+  todayLongestSessionMin?: number;       // longest single session duration today (minutes)
+  todayHasMaxRpe?: boolean;              // at least one set logged at RPE 10
 };
 
+// Pool now ~14 quests, was 7. New quests are technique- and
+// variety-flavoured to give the rotation more dimensions. Per-user
+// random rotation lives in `pickTodayQuest()` below — different users
+// can see different quests on the same day.
+// (qa: daily-quest-rework — slice 1: pool expansion + rotation)
 export const QUEST_POOL: DailyQuest[] = [
-  { id: "q-hydrate",  title: "Hydrate",        body: "Hit your hydration target today.",                 icon: "💧", isDone: s => s.hydrationToday >= s.hydrationTarget },
-  { id: "q-train",    title: "Train",          body: "Log at least one session today.",                  icon: "🏋", isDone: s => s.todaySessionsCount >= 1 },
-  { id: "q-rpe",      title: "Tag effort",     body: "Log RPE on any set today.",                        icon: "🎯", isDone: s => s.todayHasRpeLogged },
-  { id: "q-sleep",    title: "Sleep check-in", body: "Log how you slept this morning.",                  icon: "😴", isDone: s => s.sleepLoggedToday },
-  { id: "q-energy",   title: "Energy check",   body: "Tap your energy level for today.",                 icon: "⚡", isDone: s => s.energyLoggedToday },
-  { id: "q-pr-hunt",  title: "PB hunt",        body: "Beat a personal best in any lift today.",          icon: "🥇", isDone: s => s.todayHasPR },
-  { id: "q-double",   title: "Double up",      body: "Log a session AND hit your hydration target.",     icon: "🔥", isDone: s => s.todaySessionsCount >= 1 && s.hydrationToday >= s.hydrationTarget },
+  // Foundational
+  { id: "q-hydrate",       title: "Hydrate",        body: "Hit your hydration target today.",                       icon: "💧", isDone: s => s.hydrationToday >= s.hydrationTarget },
+  { id: "q-train",         title: "Train",          body: "Log at least one session today.",                        icon: "🏋", isDone: s => s.todaySessionsCount >= 1 },
+  { id: "q-rpe",           title: "Tag effort",     body: "Log RPE on any set today.",                              icon: "🎯", isDone: s => s.todayHasRpeLogged },
+  { id: "q-sleep",         title: "Sleep check-in", body: "Log how you slept this morning.",                        icon: "😴", isDone: s => s.sleepLoggedToday },
+  { id: "q-energy",        title: "Energy check",   body: "Tap your energy level for today.",                       icon: "⚡", isDone: s => s.energyLoggedToday },
+  { id: "q-pr-hunt",       title: "PB hunt",        body: "Beat a personal best in any lift today.",                icon: "🥇", isDone: s => s.todayHasPR },
+  { id: "q-double",        title: "Double up",      body: "Log a session AND hit your hydration target.",           icon: "🔥", isDone: s => s.todaySessionsCount >= 1 && s.hydrationToday >= s.hydrationTarget },
+
+  // ── Slice 1 additions ──
+  { id: "q-variety",       title: "Variety",        body: "Train 3+ distinct exercises today.",                     icon: "🎲", isDone: s => (s.todayDistinctExercises ?? 0) >= 3 },
+  { id: "q-volume",        title: "Volume push",    body: "Log 15+ working sets today.",                            icon: "📈", isDone: s => (s.todayWorkingSetsCount ?? 0) >= 15 },
+  { id: "q-superset",      title: "Superset day",   body: "Complete a superset today.",                             icon: "⟳", isDone: s => !!s.todayHasSuperset },
+  { id: "q-dropset",       title: "Drop set day",   body: "Run a drop chain today.",                                icon: "🔻", isDone: s => !!s.todayHasDropSet },
+  { id: "q-cardio",        title: "Get cardio in",  body: "Log a cardio set today (machine OR outdoor).",          icon: "🏃", isDone: s => !!s.todayHasCardio },
+  { id: "q-warmup-perfect",title: "Warmup pro",     body: "Mark every warmup set as ✓ DONE today.",                icon: "🤸", isDone: s => !!s.todayWarmupsPerfect },
+  { id: "q-body-metric",   title: "Tracker check",  body: "Log a weight or body-fat reading today.",                icon: "⚖️", isDone: s => !!s.todayBodyMetricLogged },
 ];
 
-// Deterministic pick: stable per ISO date. So the same quest doesn't
-// regenerate after a hot reload.
-export function pickTodayQuest(): DailyQuest {
+// Deterministic but PER-USER rotation: hash(userId + iso). Different
+// users see different quests the same day; the same user sees a stable
+// quest each day. Falls back to global-deterministic when no userId is
+// available (anon/preview sessions). (qa: daily-quest-rework slice 1)
+export function pickTodayQuest(userId?: string | null): DailyQuest {
   const iso = todayIso();
-  let hash = 0;
-  for (const ch of iso) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  const seed = (userId ?? "anon") + "|" + iso;
+  let hash = 5381;
+  for (const ch of seed) hash = ((hash * 33) ^ ch.charCodeAt(0)) >>> 0;
   return QUEST_POOL[hash % QUEST_POOL.length];
 }
 
