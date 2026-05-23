@@ -15,7 +15,7 @@ import { pickWarmupForDay } from "../lib/warmups";
 import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutorial";
 import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTargetReps, detectPlateau, shouldSuggestDeload } from "../lib/performance";
-import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown, AnimalTier, getAthleteTiers } from "../lib/tiers";
+import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown, AnimalTier, getAthleteTiers, displayTierNum, TIER_COUNT } from "../lib/tiers";
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
@@ -4219,13 +4219,19 @@ function TierLadder({
         border: "1px solid rgba(255,255,255,0.06)",
         borderRadius: 12, padding: 6,
       }}>
-        {tiers.map((t, i) => {
+        {/* Render top-tier-first (reversed array) so the reading
+            order matches the new display numbering: TIER 1 row sits
+            at the top of the list, TIER 6 at the bottom.
+            (qa: tier-number-display-inverted) */}
+        {tiers.map((t, originalI) => [t, originalI] as const).reverse().map(([t, i]) => {
           const me = highlight === t.label && isParticipant;
           // Tier number derived from the array index (1-based). User
           // asked for the breakdown rows to explicitly carry their
           // tier number alongside the label so it's unambiguous which
-          // rung each represents. (qa: tier-modal-tier-labels)
-          const tierNum = i + 1;
+          // rung each represents. Display uses inverted numbering
+          // (1 = top) per @maaiz. (qa: tier-modal-tier-labels,
+          // tier-number-display-inverted)
+          const tierNum = displayTierNum(i + 1);
           return (
             <div key={t.label} style={{
               padding: "8px 10px",
@@ -4388,7 +4394,7 @@ function ClientLeaderboardBlock({ tierTheme }: { tierTheme: "vivid" | "simple" }
               <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{c.username}</div>
-                <div style={{ fontSize: 10, color: tier.color, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tier.icon} T{tier.tierNum} · {tier.label}</div>
+                <div style={{ fontSize: 10, color: tier.color, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tier.icon} T{displayTierNum(tier.tierNum)} · {tier.label}</div>
               </div>
               <div style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: sort === "volume" ? "#a29bfe" : "rgba(255,255,255,0.7)", fontFamily: "'Space Mono', monospace" }}>{volK}k</div>
               <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: sort === "sessions" ? "#a29bfe" : "#fff" }}>{c.totalSessions}</div>
@@ -4500,7 +4506,7 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
                 <div style={{ fontSize: 13, color: medal ? undefined : "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{medal ?? `#${r.rank}`}</div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : displayName}</div>
-                  <div style={{ fontSize: 10, color: tier.color, marginTop: 1 }}>{tier.icon} T{tier.tierNum} · {tier.label}</div>
+                  <div style={{ fontSize: 10, color: tier.color, marginTop: 1 }}>{tier.icon} T{displayTierNum(tier.tierNum)} · {tier.label}</div>
                 </div>
                 <div style={{ textAlign: "right", fontSize: 13, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>{r.score}</div>
                 <div style={{ textAlign: "right", fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{kind === "athlete" ? `${r.totalSessions} S` : `${r.rosterCount} C`}</div>
@@ -4604,7 +4610,7 @@ function AvatarPickerView({
                     <div style={{ width: "100%", aspectRatio: "1", borderRadius: 8, marginBottom: 4, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🔒</div>
                   )}
                   <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isUnlocked ? "#fff" : "rgba(255,255,255,0.55)" }}>{av.name}</div>
-                  <div style={{ fontSize: 8, color: isLucky ? "#a855f7" : av.source === "tier" ? "#FFE66D" : "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 1, fontFamily: "'Space Mono', monospace" }}>{isLucky ? "RARE" : `TIER ${av.tier}`}</div>
+                  <div style={{ fontSize: 8, color: isLucky ? "#a855f7" : av.source === "tier" ? "#FFE66D" : "rgba(255,255,255,0.4)", letterSpacing: 1, marginTop: 1, fontFamily: "'Space Mono', monospace" }}>{isLucky ? "RARE" : `TIER ${displayTierNum(av.tier)}`}</div>
                 </button>
               );
             })}
@@ -9046,7 +9052,7 @@ function HomePage() {
                 const tIdx = TRAINER_TIERS.findIndex(x => x.label === t.label);
                 const next = TRAINER_TIERS[tIdx + 1];
                 const remaining = next ? Math.max(0, next.min - clients.length) : 0;
-                const tierNum = tIdx + 1;
+                const tierNum = displayTierNum(tIdx + 1);
                 return (
                   <div style={{ padding: "3px 6px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
@@ -9077,7 +9083,7 @@ function HomePage() {
                 return (
                   <div style={{ padding: "3px 6px", background: h.bg, border: `1px solid ${h.border}`, borderRadius: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h.icon} {h.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{h.tierNum}</span></span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h.icon} {h.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{displayTierNum(h.tierNum)}</span></span>
                       <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
                         {next ? `+${remaining} → ${next.label.toUpperCase()}` : "★ TOP"}
                       </span>
@@ -12062,7 +12068,7 @@ function HomePage() {
                     style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: 1, color: t.color, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
                   >
                     <span style={{ fontSize: 12 }}>{t.emoji}</span>
-                    <span>{t.label.toUpperCase()} · TRAINER TIER {idx + 1}/{TRAINER_TIERS.length}</span>
+                    <span>{t.label.toUpperCase()} · TRAINER TIER {displayTierNum(idx + 1)}/{TRAINER_TIERS.length}</span>
                   </button>
                 );
               })()}
@@ -12079,7 +12085,7 @@ function HomePage() {
                     style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: 1, color: h.color, background: h.bg, border: `1px solid ${h.border}`, borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
                   >
                     <span style={{ fontSize: 12 }}>{h.icon}</span>
-                    <span>{h.label.toUpperCase()} · ATHLETE TIER {idx + 1}/{ATHLETE_TIERS.length}</span>
+                    <span>{h.label.toUpperCase()} · ATHLETE TIER {displayTierNum(idx + 1)}/{ATHLETE_TIERS.length}</span>
                   </button>
                 );
               })()}
@@ -13009,7 +13015,7 @@ function HomePage() {
                       is a ranking ladder, not a generic stat card. */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12, position: "relative" }}>
                     <div style={{ fontSize: 10, fontWeight: 800, color: "#f0c040", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>🏆 YOUR RANK</div>
-                    <div style={{ fontSize: 9, color: "rgba(240,192,64,0.6)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>TIER {tierIdx + 1} OF {ATHLETE_TIERS.length}</div>
+                    <div style={{ fontSize: 9, color: "rgba(240,192,64,0.6)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>TIER {displayTierNum(tierIdx + 1)} OF {ATHLETE_TIERS.length}</div>
                   </div>
 
                   {/* Headline tier — big icon + big name. Plus experience

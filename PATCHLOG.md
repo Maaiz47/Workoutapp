@@ -2,6 +2,99 @@
 
 ---
 
+## QA pass · 2026-05-23 — Watermark regression + quick-win UX + friend system slice 2 (UI + push) + search boxes + tier number inversion (qa: workout-rest-motivational-phrases, tier-ladder-dot-bar, wellness-collapsed-default, home-hub-singleline, achievements-discoverability-progress, friend-system-athletes, push-notifications-requests, search-boxes-lists, tier-number-display-inverted, trainer-made-missions, dashboard-cards-rearrangeable, exercises-tab-all-exercises, leaderboards-rearrangeable)
+
+Big pass — fixed the watermark scroll regression from the last
+deploy, landed all five quick wins, shipped friend-system slice 2
+(UI + push notifications for both friend AND trainer request flows),
+added search boxes to long lists, and flipped tier-number display so
+TIER 1 = top. Four planning items captured for the remaining big
+asks (rearrangeable cards/groups, exercises tab redesign, trainer
+missions).
+
+### workout-rest-motivational-phrases — regression fix (watermark scrolling)
+- Long phrases (40+ chars) in the rotated 52px watermark were
+  overflowing the container's clip rect and causing visible page
+  shift when the home tagline rotated. New `WATERMARK_PHRASES =
+  PHRASES.filter(p => p.length <= 22)` keeps the watermark on the
+  short subset; watermark phrase is now stable per-mount (`useMemo`)
+  so it doesn't rotate visibly. Hero tagline + rest overlay still
+  use the full 60-entry pool.
+
+### wellness-collapsed-default
+- Wellness card was already `useState(false)` (collapsed) by default;
+  added localStorage persistence (`ironlog-wellness-open`) so a
+  user's chosen state survives refresh.
+
+### home-hub-singleline (avatar fills profile button)
+- Profile button's avatar image now fills the button corner-to-corner
+  (no padding, transparent background, overflow:hidden). Per @maaiz:
+  "profile avatar to fill the profile button or no box at all".
+
+### home-hub-singleline (tier number label on home)
+- Trainer + athlete tier chips on the home hero now carry a small
+  '· T{n}' suffix after the tier label so the rung is unambiguous
+  at a glance.
+
+### achievements-discoverability-progress
+- Achievements wall now surfaces at the TOP of the Progress dashboard
+  (was only buried in Settings → LIBRARY & SYSTEM). Same toggle
+  state shared between both surfaces. Per @maaiz: "cant find
+  milestones/achievements anywhere — they should be in progress tab".
+
+### friend-system-athletes — Slice 2 (UI)
+- FriendsCard component in Settings → SOCIAL: send request by
+  @username, accept/decline incoming, cancel sent, list accepted
+  with REMOVE, in-card search when friends count > 4.
+- Inline accept/decline for friend_request messages in conversation
+  thread (purple A29BFE accent so it's visually distinct from the
+  teal adoption_request).
+- friend_accepted Message type also rendered in-thread + auto-created
+  on accept. Conversation preview labels added: "Friend request" /
+  "Friend accepted".
+
+### push-notifications-requests
+- POST /api/friends → push to recipient.
+- PATCH /api/friends accept → push to sender.
+- POST /api/trainer/request → push to athlete (was previously missing).
+- PATCH /api/trainer/request accept → push to trainer (was previously missing).
+- All fire-and-forget so a missing VAPID env or no-subs case doesn't
+  block the API response. Per @maaiz: "make sure theres push
+  notifications for trainer requests and friend requests, also
+  friend request acceptance".
+
+### search-boxes-lists
+- Three new state vars (`conversationsFilter`, `clientsFilter`,
+  `groupsFilter`) hooked into the existing list iterators.
+- Search bar appears above the list when count > 4; case-insensitive
+  `includes()` filter against partner username / client username /
+  group name. Per @maaiz: "search box in messages and clients and
+  groups".
+
+### tier-number-display-inverted
+- Per @maaiz: "tiers should be numbers so 1 is top tier (best)".
+- DISPLAY-ONLY inversion via `displayTierNum(tierNum) = TIER_COUNT
+  - tierNum + 1`. Internal tierNum (1=lowest, 6=highest) unchanged
+  so all scoring, leaderboard sorts, promotion detection, avatar
+  unlock pipelines keep working.
+- Applied at: tier modal row labels (+ row list now reverse-rendered
+  so top tier sits at top), tier breakdown card ('TIER X OF 6'),
+  home chip tier-num suffix, global tier leaderboard rows, avatar
+  picker tile chips, Settings TIERS chips.
+
+### Planning captured (NO code)
+- `trainer-made-missions` — design for trainers authoring missions
+  visible to their clients (schema + endpoints + creation form +
+  athlete-side merging).
+- `dashboard-cards-rearrangeable` — drag-reorder for Progress
+  dashboard cards + KPI numbers at top by default.
+- `exercises-tab-all-exercises` — show every ever-logged exercise,
+  not just current-split exercises.
+- `leaderboards-rearrangeable` — drag-reorder for GROUPS and MY
+  CLIENTS lists with localStorage persistence.
+
+---
+
 ## QA pass · 2026-05-23 — Friend system slice 1 + home tier dot bar + abs mission v2 + rest-timer phrases + pro-tip 1h hide + gender lock (qa: friend-system-athletes, tier-ladder-dot-bar, mission-unlock-abs, workout-rest-motivational-phrases, pro-tip-hide-visibility, gender-achievements-differentiation, app-browser-icons-image-gen, qa-comments-deploy-precheck)
 
 Big pass — Slice 1 of the friend system landed alongside ~6 small UX

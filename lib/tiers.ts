@@ -62,6 +62,18 @@ export function getAthleteTiers(theme: string | null | undefined): AnimalTier[] 
   return ATHLETE_TIER_THEMES.vivid;
 }
 
+// Display-only inverted tier rank — per @maaiz: "tiers should be
+// numbers so 1 is top tier (best)". Internal `tierNum` stays as
+// (1 = lowest, 6 = highest) so existing scoring, promotion logic,
+// avatar unlock pipelines, and leaderboard sorts keep working. This
+// helper returns the number shown to the user (1 = top). Both
+// athlete and trainer ladders have 6 tiers so the math is fixed.
+// (qa: tier-number-display-inverted)
+export const TIER_COUNT = 6;
+export function displayTierNum(tierNum: number): number {
+  return TIER_COUNT - tierNum + 1;
+}
+
 // Backwards-compatible export — every existing call site that
 // imports `ATHLETE_TIERS` still works (gets the vivid theme).
 // Migrate call sites to `getAthleteTiers(profile.tierTheme)` as

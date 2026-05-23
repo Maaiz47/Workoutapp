@@ -3185,6 +3185,150 @@
         "If no new comments, proceed with the push as planned."
       ],
       "notes": "[2026-05-23] Process change per @maaiz: 'do a qa check to see if new comments before every deploy (i might add comments through the app feedback options while you're working, i still want you to pick them up and check with me to add them for next deploy)'. Captured in qa-state for traceability; persisted into CLAUDE.md so the next session also picks it up automatically. Pre-deploy QA-comment scan now part of the agent's deploy workflow."
+    },
+    {
+      "id": "wellness-collapsed-default",
+      "title": "Wellness card collapsed by default + persisted across sessions",
+      "area": "Wellness",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass wellness-collapsed-default",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard. Wellness card is collapsed (just the 🌱 WELLNESS header + ▼ chevron).",
+        "Tap header to expand. Tap again to collapse. Refresh — the last state persists (open stays open; closed stays closed)."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'wellness is always closed by default, make it collapsed'. Default `useState(false)` was already correct; added localStorage persistence (`ironlog-wellness-open`) so a user's chosen state survives refresh + navigation back to Progress. New `toggleOpen` callback writes the value on every toggle."
+    },
+    {
+      "id": "achievements-discoverability-progress",
+      "title": "Achievements wall surfaced on Progress dashboard",
+      "area": "Progress",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass achievements-discoverability-progress",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → Dashboard. Verify a 🏆 ACHIEVEMENTS (X/Y) collapsible card appears at the top, above Wellness.",
+        "Tap to expand — see the 2-column tile grid of every milestone (achieved coloured, locked greyed out).",
+        "Tap a tile — milestone detail modal opens (same modal Settings uses).",
+        "Go to Settings → Achievements card — verify the same expand state is shared (open in Progress = open in Settings)."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'cant find milestones/achievements anywhere — they should be in progress tab'. Surfaced the same Achievements wall (originally only in Settings/LIBRARY & SYSTEM section) at the top of the Progress dashboard. Same toggle state shared, same MilestoneInfoModal. Hidden in de-gamify mode. NOT a planning item for the larger achievements-v1 (62-strong) catalogue — that ships when the bigger system lands; this is just discoverability for the existing 22 milestones."
+    },
+    {
+      "id": "push-notifications-requests",
+      "title": "Push notifications fire for all request flows (friend + trainer)",
+      "area": "Notifications",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass push-notifications-requests",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "USER A: Settings → ALERTS → enable push. Same on USER B.",
+        "USER A → Settings → SOCIAL → add USER B by username. USER B receives a push: 'New friend request · A wants to be friends'.",
+        "USER B accepts. USER A receives a push: 'Friend request accepted · B accepted your friend request'.",
+        "TRAINER → search athlete, send adoption request. ATHLETE receives push: 'Trainer request · X wants to add you as their client'.",
+        "ATHLETE accepts. TRAINER receives push: 'Client accepted · Y accepted your coaching request'."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'make sure theres push notifications for trainer requests and friend requests, also friend request acceptance'. Hooked sendPushToUser into all four endpoints: POST /api/friends, PATCH /api/friends accept, POST /api/trainer/request, PATCH /api/trainer/request accept. All fire-and-forget so a missing VAPID env, no push subscription, or browser timeout doesn't block the API response. Push payload carries `url` so tapping the system notification routes to the right surface."
+    },
+    {
+      "id": "search-boxes-lists",
+      "title": "Search boxes on long lists (conversations / clients / groups)",
+      "area": "UI",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass search-boxes-lists",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "MESSAGES — with 5+ conversations, verify a 🔎 search bar appears above the list. Type a partial username; the list filters live. Clear — full list returns. With ≤ 4 conversations, search bar is hidden.",
+        "TRAINER HOME → MY CLIENTS — with 5+ clients, verify a 🔎 search bar appears inside the MY CLIENTS card. Filters by client username live. With ≤ 4 clients, hidden.",
+        "GROUPS HUB — with 5+ groups, verify a 🔎 search bar appears at the top of the GROUPS list. Filters by group name live. With ≤ 4 groups, hidden."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'search box in messages and clients and groups'. Three new state vars (conversationsFilter, clientsFilter, groupsFilter) wired into the existing list-iteration blocks. Filter is case-insensitive `includes()` against username / group name. Threshold of >4 hides the search bar when the list is short enough to scan visually — keeps the UI clean for users with few connections."
+    },
+    {
+      "id": "tier-number-display-inverted",
+      "title": "Tier numbers shown to user inverted so Tier 1 = top (Bear / Master)",
+      "area": "Tier",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass tier-number-display-inverted",
+      "lastTested": "2026-05-23",
+      "status": "regression-retest",
+      "steps": [
+        "Open tier modal. Verify the dot bar still goes left→right and the user's CURRENT tier is highlighted correctly.",
+        "Verify the row list inside the modal is now reversed — top row is Bear (Vivid) / Master (Simple) labelled '· TIER 1', then Gorilla/Diamond '· TIER 2', ... bottom row Kitten/Bronze '· TIER 6'.",
+        "Home chip — your athlete chip reads e.g. '🐱 KITTEN · T6' for a new user, '🐻 BEAR · T1' for a top-tier user. Trainer chip mirrors.",
+        "Global tier leaderboard — every athlete row shows 'T1' (Bear/Master), 'T2' (Gorilla/Diamond), etc. Sort order unchanged (Bear users still on top).",
+        "Avatar picker — locked tier-source avatars now show 'TIER 1' / 'TIER 2' etc. (inverted from before). The rung they're unlocked at is still the same numeric tier internally.",
+        "Settings → TIERS row — trainer chip reads 'SPOTTER · TRAINER TIER 6/6' (lowest), 'HALL OF FAME · TRAINER TIER 1/6' (top). Athlete mirrors.",
+        "Tier promotion toast still fires when a user GAINS a tier (internal tierNum unchanged) — just the displayed number is lower than before."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'tiers should be numbers so 1 is top tier (best)'. Implementation chose DISPLAY-ONLY inversion to keep the blast radius small — internal `tierNum` field (used by computeAthleteTier, computeTrainerTier, leaderboard sorts, avatar unlock pipelines, tier promotion detection, etc.) stays as (1=lowest, 6=highest). New helper `displayTierNum(tierNum) = TIER_COUNT - tierNum + 1` exported from lib/tiers.ts. Applied at every user-facing label site:\n- TierLadder modal row list: reverse render + inverted number (top row is now Bear/Master '· TIER 1').\n- Tier breakdown card in Progress dashboard: 'YOUR RANK · TIER X OF 6'.\n- Home chip tier-number suffix (just added in the previous pass).\n- Global tier leaderboard row: 'T{displayTierNum(t.tierNum)} · {label}'.\n- Avatar picker tile chip: 'TIER {displayTierNum(av.tier)}' on tier-source avatars.\n- Settings TIERS chips: '· TRAINER TIER 1/6' for Hall of Fame.\nInternal logic verified unchanged: leaderboards still sort correctly (descending by tier score), promotion toast still fires on real promotion (compares internal tierNum upward), localStorage tier-marker still works.\nKnown follow-up: 'TIER UP!' toast doesn't show the new number explicitly (just the tier label + emoji) so no copy change needed."
+    },
+    {
+      "id": "trainer-made-missions",
+      "title": "Trainers can author missions for their clients (planning)",
+      "area": "Challenges",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass trainer-made-missions",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "(Planning — NO code shipped.) Verify trainers see a '+ NEW MISSION' button in their Settings → TRAINING section.",
+        "Verify mission authoring form: title, body, metric type (body_fat_at_or_below | body_weight_at_or_below | total_volume_kg | total_sessions), target, optional duration, optional client scope.",
+        "Verify created missions appear in athletes' Progress dashboard MISSIONS section alongside the built-in catalogue.",
+        "Verify only the authoring trainer + their clients see the mission (not the entire app)."
+      ],
+      "notes": "[2026-05-23] Question from @maaiz: 'missions i guess get added as trainers make them as well?'. Answer: design needed before code. Current state: MISSIONS array in lib/challenges.ts is a hardcoded catalogue (only 'Unlock Your Abs' for now). To let trainers author missions:\n\nProposed model:\n- New `Mission` Prisma model { id, createdBy (userId of trainer), scope ('global' | 'my-clients' | 'specific'), title, body, icon, metric, target, durationDays?, setsProfileGoal, targetByGender, createdAt, updatedAt }.\n- New `MissionAssignment` if scope='specific' { missionId, clientId } so trainers can hand-pick clients per mission.\n- API: POST /api/trainer/missions (create), GET /api/missions (returns built-ins + missions visible to current user), PATCH /api/trainer/missions/:id (edit), DELETE.\n- Visibility: a mission is visible to user X if (a) it's built-in, OR (b) X is a client of the createdBy trainer AND scope ∈ {'my-clients', 'specific' with X in assignments}.\n- UI: Settings → TRAINING gets a '+ NEW MISSION' button (trainer-only). Mission authoring form similar to the existing challenge creator. Athletes see the merged catalogue in the existing MISSIONS section.\n\nSlices:\n1. Schema + endpoints + admin/trainer creation form.\n2. Athlete-side rendering (merge built-in catalogue with API-fetched trainer missions).\n3. Edit/delete UI + assignment picker for scope='specific'.\n\nGates: needs design call on whether mission-bonus quest score (planned future work) should accept trainer-authored missions, or only built-ins."
+    },
+    {
+      "id": "dashboard-cards-rearrangeable",
+      "title": "Progress dashboard cards rearrangeable + numbers prioritised by default (planning)",
+      "area": "Progress",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass dashboard-cards-rearrangeable",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "(Planning — NO code shipped.) Verify Progress → Dashboard now shows numerical KPIs (sessions, volume, PB count, streak) at the very top, ABOVE Achievements / Wellness / Volume Heatmap / Tier card etc.",
+        "Verify each card has a small grab handle (≡) for reordering via drag.",
+        "Verify the user's chosen card order persists across refresh (localStorage)."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'dashboard numbers at the top of the dashboard page default, but make it rearrangeable by user'. Current state: Dashboard cards render in a fixed order (Achievements → Challenges → Wellness → Volume Heatmap → Tier card → KPIs at the bottom).\n\nProposed:\n1. Extract each dashboard card into a registered component with an id ('achievements', 'wellness', 'volume-heatmap', 'tier-card', 'kpis', 'challenges', 'missions').\n2. Default order: ['kpis', 'achievements', 'tier-card', 'wellness', 'challenges', 'volume-heatmap'].\n3. Drag-to-reorder via @dnd-kit or similar lightweight lib. Each card gets a ≡ handle in its top-right.\n4. Order persisted to localStorage key `ironlog-dashboard-card-order` (per-user not needed — same browser/device = same person).\n5. 'Reset order' button at the bottom of the dashboard.\n\nGate: need to confirm whether KPIs at top should be a NEW compact-numbers card or move the existing KPI block higher. Currently KPI numbers live below Volume Heatmap in a 'Lifetime totals' block. @maaiz preferred them at top by default."
+    },
+    {
+      "id": "exercises-tab-all-exercises",
+      "title": "Exercises tab shows ALL exercises with data, not just current split (planning)",
+      "area": "Progress",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass exercises-tab-all-exercises",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "(Planning — NO code shipped.) Verify Progress → EXERCISES tab now lists every exercise the user has EVER logged (including ones no longer in their current plan).",
+        "Verify each row shows: exercise name, total sets, lifetime volume, PB weight × reps, days since last set, mini-chart of progression.",
+        "Verify search-as-you-type at the top filters the list.",
+        "Verify tapping a row opens the existing exercise-history modal."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'The exercises tab can show all exercises and their data for each, not just their current splits'. Current state: the EXERCISES tab iterates only exercises in `customPlan ?? WORKOUT_DATA[currentDay]`. Removed/swapped exercises from the user's split lose all visibility even though their history is still in the DB.\n\nProposed:\n1. Build the exercise list from `Object.values(history).flat().sets` (every key prefix) — covers ALL exercises ever logged.\n2. Per-row aggregate: total sets, lifetime volume, current PB, last-set date, optional 30d trend sparkline.\n3. Search input at the top filters by exercise name.\n4. Group by status: 'IN CURRENT PLAN' (top) vs 'ARCHIVED' (greyed below).\n\nSlices:\n1. Aggregate compute helper + list rendering (no archived grouping yet).\n2. Add status grouping + search filter.\n3. Sparkline + sort options (recency, volume, PB)."
+    },
+    {
+      "id": "leaderboards-rearrangeable",
+      "title": "Rearrangeable leaderboards (groups / clients) — combat clutter (planning)",
+      "area": "Social",
+      "introduced": "2026-05-23",
+      "introducedBy": "QA pass leaderboards-rearrangeable",
+      "lastTested": null,
+      "status": "untested",
+      "steps": [
+        "(Planning — NO code shipped.) Verify the GROUPS hub list has reorder handles (≡) per group row.",
+        "Verify drag-to-reorder works. Order persists across refresh.",
+        "Verify MY CLIENTS list has the same reorder + persistence for trainers managing many clients.",
+        "Verify a 'sort by' alternative (recent activity / alphabetical / your tier) in case the user prefers automatic ordering."
+      ],
+      "notes": "[2026-05-23] Per @maaiz: 'rearrangeable leaderboards because it can get cluttered if they have a lot of groups or clients'. Pairs with the dashboard-rearrangeable item — same drag-to-reorder pattern. Persistence to localStorage key per list type (`ironlog-groups-order`, `ironlog-clients-order`).\n\nSlices:\n1. GROUPS hub reorder + persistence.\n2. MY CLIENTS reorder + persistence.\n3. Alternative sort modes (recency / alpha / by tier) with a header pill picker."
     }
   ]
 }
