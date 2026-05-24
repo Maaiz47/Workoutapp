@@ -223,6 +223,12 @@ export type AthleteStatsForTier = {
   // / undefined means hasData=false for Balance.
   setsByMuscleGroup?: Record<string, number>;
 
+  // Lucky-drop / smart-pick lifetime bonus (UserProfile.tierScoreBonus).
+  // Added to the base headline at the end, capped at LUCKY_BONUS_CAP.
+  // Surfaced as a 'Lucky' pseudo sub-rank so the user can see where
+  // the bump came from. (qa: random-rare-rewards, suggestion-bonus)
+  tierScoreBonus?: number;
+
   // ── v3.5 inputs (qa: tier-scoring-v35) ──
   // Volume blend: lifetime + recent-90d. Caller passes 90d kg-reps so
   // long-history vets don't ride 5-year-old totals while inactive.
@@ -284,6 +290,13 @@ export const SUBRANK_WEIGHTS: Record<string, number> = {
 //     instead of the old 0 — avoids a worse new-user experience
 //     while still rewarding engagement. (qa: tier-scoring-v35)
 const SOFT_FLOOR_SCORE = 30;
+
+// Cap on the lucky-drop / smart-pick lifetime bonus that's additive
+// to the headline. Matches the MAX_LIFETIME_BONUS in lib/luckyDrops.ts
+// + the suggestion-bonus 20-point cap in /api/workout. Keeps the
+// bonus meaningful (5-20% of headline at most) without letting it
+// dominate. (qa: random-rare-rewards, suggestion-bonus)
+const LUCKY_BONUS_CAP = 20;
 
 // Map a declared/observed experience level to a Progression ramp
 // multiplier. Advanced lifters earn MORE Progression credit per
@@ -715,9 +728,31 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   // always counted (everyone has session data — even 0 sessions is
   // a signal).
   const counted = subRanks.filter(r => r.hasData);
-  const headlineScore = counted.length > 0
+  const baseHeadline = counted.length > 0
     ? Math.round(counted.reduce((sum, r) => sum + r.score, 0) / counted.length)
     : 0;
+
+  // Lucky-drop / Smart-pick bonus — additive on top of the base
+  // headline, capped at LUCKY_BONUS_CAP. v2 removed this because
+  // it was a 'silent injection' that broke single-source-of-truth.
+  // v3.5 brings it back AS A VISIBLE component: surfaced as its own
+  // 'Lucky' pseudo sub-rank so the user can see exactly how many
+  // points came from rare drops + smart-pick suggestions.
+  // (qa: random-rare-rewards, suggestion-bonus)
+  const luckyBonus = Math.max(0, Math.min(LUCKY_BONUS_CAP, Math.round(s.tierScoreBonus ?? 0)));
+  if (luckyBonus > 0) {
+    subRanks.push({
+      id: "lucky",
+      label: "Lucky",
+      icon: "🍀",
+      // Display as fraction of cap (out of 100 for sub-rank scale)
+      // so the breakdown surface can show the bar visually.
+      score: Math.round((luckyBonus / LUCKY_BONUS_CAP) * 100),
+      detail: `+${luckyBonus} lifetime · rare drops + smart-pick bonuses`,
+      hasData: true,
+    });
+  }
+  const headlineScore = Math.max(0, Math.min(100, baseHeadline + luckyBonus));
 
   // Resolve against the theme the caller asked for so the headline
   // tier carries the theme-correct label/icon. Sub-rank logic

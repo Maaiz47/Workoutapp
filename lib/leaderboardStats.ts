@@ -130,6 +130,9 @@ function buildCanonicalTier(s: {
   hydrationGoalDays?: number;
   sleepLoggedDays?: number;
   energyLoggedDays?: number;
+  // Lifetime lucky-drop / smart-pick bonus from UserProfile.
+  // (qa: random-rare-rewards, suggestion-bonus)
+  tierScoreBonus?: number;
 }): CanonicalTier {
   const breakdown = computeAthleteTier({
     totalSessions: s.totalSessions,
@@ -155,6 +158,7 @@ function buildCanonicalTier(s: {
     gender: s.gender,
     totalIntensityPointsLifetime: s.totalIntensityPointsLifetime,
     setsByMuscleGroup: s.setsByMuscleGroup,
+    tierScoreBonus: s.tierScoreBonus,
   });
   // tierScoreBonus is no longer blended into the canonical headline
   // (qa: tier-scoring-v2) — the lucky-drop reward was a silent
@@ -195,6 +199,9 @@ type ExtraStatsInputs = {
   hydrationGoalDays?: number;
   sleepLoggedDays?: number;
   energyLoggedDays?: number;
+  // Lifetime lucky-drop / smart-pick bonus from UserProfile.
+  // (qa: random-rare-rewards, suggestion-bonus)
+  tierScoreBonus?: number;
 };
 
 // `monthsOnApp` + `daysPerWeek` are passed by computeStatsForUsers
@@ -398,6 +405,7 @@ export function computeStatsFromLogs(
     hydrationGoalDays: extra.hydrationGoalDays,
     sleepLoggedDays: extra.sleepLoggedDays,
     energyLoggedDays: extra.energyLoggedDays,
+    tierScoreBonus: extra.tierScoreBonus,
   });
 
   void ninetyDaysAgo;
@@ -523,7 +531,9 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
     // picks the sex-calibrated curve. (qa: tier-scoring-v2)
     prisma.userProfile.findMany({
       where: { userId: { in: userIds } },
-      select: { userId: true, daysPerWeek: true, gender: true },
+      // tierScoreBonus is re-blended into the headline as a visible
+      // 'Lucky' sub-rank in v3.5 — pull it through. (qa: random-rare-rewards)
+      select: { userId: true, daysPerWeek: true, gender: true, tierScoreBonus: true },
     }),
     prisma.wellnessLog.findMany({
       where: { userId: { in: userIds }, date: { gte: wellnessCutoff } },
@@ -532,9 +542,11 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
   ]);
   const dpwByUser = new Map<string, number>();
   const genderByUser = new Map<string, string | null>();
+  const luckyBonusByUser = new Map<string, number>();
   for (const p of profiles) {
     dpwByUser.set(p.userId, p.daysPerWeek);
     genderByUser.set(p.userId, p.gender ?? null);
+    luckyBonusByUser.set(p.userId, (p as any).tierScoreBonus ?? 0);
   }
   const byUser = new Map<string, LogLike[]>();
   for (const log of allLogs) {
@@ -582,6 +594,7 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
         hydrationGoalDays: wellness?.hydrationGoalDays,
         sleepLoggedDays: wellness?.sleepLoggedDays,
         energyLoggedDays: wellness?.energyLoggedDays,
+        tierScoreBonus: luckyBonusByUser.get(userId) ?? 0,
       },
     );
     result.set(userId, { ...base, ...body });
