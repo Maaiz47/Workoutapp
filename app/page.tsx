@@ -9457,7 +9457,10 @@ function HomePage() {
             {/* Profile button — square, height-matches the tier card
                 via grid stretch. Capped at 92px so the trainer+athlete
                 two-row tier card doesn't blow the profile button into
-                eating half the row width. (qa: home-hub-premium-polish) */}
+                eating half the row width. v3.5 strip: no border, no
+                shadow box — avatar image floats with a soft white
+                glow to match the tier badge treatment.
+                (qa: home-tier-card-stripped) */}
             {(() => null)()}
             <button
               onClick={() => setView("profile")}
@@ -9469,11 +9472,10 @@ function HomePage() {
                 maxHeight: 92,
                 alignSelf: "center",
                 background: "transparent",
-                border: "1px solid rgba(255,255,255,0.10)",
+                border: "none",
                 borderRadius: 14, cursor: "pointer",
                 padding: 0,
-                boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 6px 22px -8px rgba(0,0,0,0.7)",
-                overflow: "hidden",
+                overflow: "visible",
                 display: "flex", alignItems: "stretch", justifyContent: "stretch",
                 flexShrink: 0,
               }}
@@ -9486,7 +9488,12 @@ function HomePage() {
                     src={src}
                     alt=""
                     onError={(e) => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }}
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    style={{
+                      width: "100%", height: "100%",
+                      objectFit: "cover", display: "block",
+                      borderRadius: 14,
+                      filter: "drop-shadow(0 0 10px rgba(255,255,255,0.25)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))",
+                    }}
                   />
                 );
               })()}
