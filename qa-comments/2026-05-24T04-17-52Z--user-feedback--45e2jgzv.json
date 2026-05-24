@@ -1,0 +1,10 @@
+{
+  "id": "cmpj9o7mg0000r43j45e2jgzv",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Messaging · view=messages] Testing if I get the system notification when you mark this bug fixed - qa link in notification not needed because you’re marking as fixed right",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T04:17:52.024Z"
+}
