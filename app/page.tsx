@@ -10174,7 +10174,7 @@ function HomePage() {
                 >×</button>
               </div>
               {tipModalOpen && (
-                <div onClick={() => setTipModalOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9000, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(8px)" }}>
+                <div onClick={() => setTipModalOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9600, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(8px)" }}>
                   <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, background: "#0a0a0f", borderTop: "1px solid rgba(78,205,196,0.3)", borderRadius: "18px 18px 0 0", padding: "20px 22px 28px", boxSizing: "border-box" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                       <div style={{ fontSize: 11, color: "#4ECDC4", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>💡 PRO TIP · {tip.category.toUpperCase()}</div>
@@ -10769,7 +10769,9 @@ function HomePage() {
             <button className="card-hover nav-btn" onClick={() => goTo("clientsHub")} title="Clients" style={{ flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: "rgba(168,85,247,0.05)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 12, color: "#a855f7", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box", position: "relative" }}>
               <span style={{ fontSize: 22, lineHeight: 1 }}>👥</span>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Clients</span>
-              {clients.length > 0 && <span style={{ position: "absolute", top: 4, right: 4, background: "rgba(168,85,247,0.2)", color: "#a855f7", borderRadius: 10, padding: "1px 6px", fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{clients.length}</span>}
+              {/* Client count badge removed from the home button — per
+                  @maaiz it's redundant since the Clients hub already
+                  shows the count prominently inside. (qa: home-clients-button-no-count) */}
             </button>
           )}
         </div>
@@ -12929,7 +12931,7 @@ function HomePage() {
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 3 }}>IRONLOG SYSTEM</div>
                 <div style={{ fontSize: 11, color: "rgba(162,155,254,0.85)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>
-                  {SYSTEM_NOTIFICATIONS.length} message{SYSTEM_NOTIFICATIONS.length === 1 ? "" : "s"} · app changes, admin notices
+                  {systemNotifUnread > 0 ? `${systemNotifUnread} unread · ` : ""}app changes, admin notices
                 </div>
               </div>
             </div>

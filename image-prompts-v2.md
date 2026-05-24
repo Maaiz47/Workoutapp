@@ -779,6 +779,40 @@ Total batch budget: ~125 KB compressed for all 5.
 
 ---
 
+## Batch 11 — Day-card hero backgrounds for the missing day types (4-6 images) NEW
+
+Flagged 2026-05-24 by @maaiz: 'Might be missing images for cardio days,
+hiit days, only body weight movement splits etc, add to image generation
+list'.
+
+The home grid renders each day-card with a background image keyed by
+some hash of the day's focus / title. Cardio + HIIT + bodyweight-only
+splits currently fall back to a generic image because there's no
+dedicated background for those flavours. List of needed images:
+
+- `day-cardio.jpg` — steady-state cardio hero (treadmill / bike /
+  rower close-up at speed, motion blur, golden-hour light)
+- `day-hiit.jpg` — HIIT / metcon hero (kettlebell swing or burpee
+  apex, athletic, aggressive)
+- `day-bw-only.jpg` — bodyweight-only hero (push-up or pull-up at
+  the top of the rep, no equipment in frame)
+- `day-mobility.jpg` — mobility / stretching hero (lunge stretch
+  pose on mat, calm, low contrast)
+- `day-recovery.jpg` — active recovery hero (walk on incline, sled
+  push at low pace, foam rolling)
+- `day-cardio-hiit.jpg` — combined cardio+HIIT hero (e.g.
+  airbike sprint silhouette) for hybrid days
+
+Style: match the existing day-card image set (dark moody, slightly
+desaturated, athlete in frame doing the move, dramatic lighting).
+~1024×768 each, JPG ≤ 80 KB.
+
+Wire-up: place in `/public/ai/day-<flavour>.jpg`, add to the
+day-card hero picker in `app/page.tsx` (search 'gradient' /
+'getDayHeroImage' to find the existing mapping).
+
+---
+
 ## After all batches land
 
 Total: **63 images** (53 if Batch 9 deferred). Breakdown:
