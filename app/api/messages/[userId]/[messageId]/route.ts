@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "../../../../lib/prisma";
+import { prisma } from "../../../../../lib/prisma";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
@@ -7,8 +7,14 @@ function json(data: object, status = 200) { return NextResponse.json(data, { sta
 // DELETE — soft-delete the sender's own DM message. Sets deletedAt
 // without removing the row so the recipient's polling cycle sees the
 // row become a 'Message deleted' placeholder. Only the original
-// sender can delete their message. (qa: message-soft-delete)
-export async function DELETE(req: NextRequest, { params }: { params: { messageId: string } }) {
+// sender can delete their message.
+//
+// Nested under [userId] so the route slug doesn't collide with the
+// conversation thread GET at /api/messages/[userId]/route.ts —
+// Next.js requires sibling dynamic segments use the same slug name.
+// Client passes both the partner userId (conversation context) and
+// the messageId being deleted. (qa: message-soft-delete)
+export async function DELETE(req: NextRequest, { params }: { params: { userId: string; messageId: string } }) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
 

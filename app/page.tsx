@@ -6756,8 +6756,13 @@ function HomePage() {
       : m
     ));
     setReactingToMsgId(null);
+    // Route is nested under the conversation partner's userId so the
+    // dynamic-segment slug doesn't collide with the thread GET. The
+    // activeConversation IS the partner ({id, username}).
+    const partnerId = activeConversation?.id;
+    if (!partnerId) return;
     try {
-      await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
+      await fetch(`/api/messages/${partnerId}/${messageId}`, { method: "DELETE" });
     } catch {}
   };
 
