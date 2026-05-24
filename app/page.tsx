@@ -6,7 +6,7 @@ import CountUp from "react-countup";
 import { createPortal } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
-import { EXERCISES, missingEquipmentFor, suggestSubstitutions } from "../lib/exercises";
+import { EXERCISES, missingEquipmentFor, suggestSubstitutions, inferEquipmentFromName } from "../lib/exercises";
 import { suggestDayTitle, suggestRoutineName } from "../lib/splitNaming";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
 import { MUSCLE_DETAIL, lookupMuscleDetail } from "../lib/muscleDetail";
@@ -15468,7 +15468,18 @@ function HomePage() {
 
               const renderEx = (ex: typeof sec.exercises[0], superCtx?: { group: typeof sec.exercises; idx: number }) => {
                 const normName = (n: string) => n.toLowerCase().replace(/[^a-z]/g, "").replace(/s$/, "");
-                const exLibData = (EXERCISES as any[]).find((e: any) => e.id === ex.id || normName(e.name) === normName(ex.name));
+                const exLibCatalog = (EXERCISES as any[]).find((e: any) => e.id === ex.id || normName(e.name) === normName(ex.name));
+                // Bundled workout-day exercises use short ids (a1, b1,
+                // ...) and free-form names that often don't match the
+                // EXERCISES catalog. When the catalog lookup misses or
+                // returns an entry without equipment, fall back to
+                // name-based inference so equipment-dependent UI
+                // (BW toggle, bar-weight helper, step size) still
+                // works. (qa: weight-input-convention-clarity)
+                const inferredEquipment = inferEquipmentFromName(ex.name);
+                const exLibData = exLibCatalog && Array.isArray(exLibCatalog.equipment) && exLibCatalog.equipment.length > 0
+                  ? exLibCatalog
+                  : (inferredEquipment.length > 0 ? { ...exLibCatalog, equipment: inferredEquipment } : exLibCatalog);
                 const BW_EQUIP = ["bodyweight", "pullup_bar", "dip_bar"];
                 const isBW = exLibData && Array.isArray(exLibData.equipment) && exLibData.equipment.length > 0
                   && exLibData.equipment.every((eq: string) => BW_EQUIP.includes(eq));
@@ -15517,10 +15528,13 @@ function HomePage() {
                 const isBarbellOrDB = isBarbell || isDumbbell;
                 // EZ curl bar is its own beast — shorter, curved, much
                 // lighter than a 20kg Olympic bar. Detect by exercise
-                // id substring so we can hint the right standard bar
-                // weight in the helper text.
-                // (qa: weight-input-bar-helper)
-                const isEzBar = ex.id === "ez-bar-curl" || ex.id.includes("ez-bar");
+                // id substring OR by inferred equipment tag (the
+                // workout-day "EZ-Bar Curl" has id 'b4'/etc., so the
+                // id check alone misses it). (qa: weight-input-bar-helper)
+                const isEzBar = ex.id === "ez-bar-curl"
+                  || ex.id.includes("ez-bar")
+                  || (Array.isArray(exLibData?.equipment) && exLibData.equipment.includes("ez-bar"))
+                  || /\bez[\s-]?(curl|bar)\b/i.test(ex.name);
                 const weightStep = isMachine ? 5 : isBarbellOrDB ? 2.5 : 1.25;
                 // Convention hint shown under the weight input so the
                 // user knows what the number represents. Per @maaiz:
@@ -16241,8 +16255,13 @@ function HomePage() {
                               cases that aren't strictly one kind.
                               (qa: weight-input-convention-clarity) */}
                           {!isBW && (() => {
-                            const lib = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
-                            const kind = loadingKindFor(lib?.equipment ?? []);
+                            // Use exLibData (which already applies the
+                            // name-based inference fallback above) so
+                            // workout-day exercises like "Flat Barbell
+                            // Bench Press" get correctly classified as
+                            // barbell → BW toggle hidden.
+                            // (qa: weight-input-convention-clarity)
+                            const kind = loadingKindFor(exLibData?.equipment ?? []);
                             if (kind === "barbell" || kind === "dumbbell" || kind === "machine") return null;
                             return (
                               <>
@@ -16331,11 +16350,18 @@ function HomePage() {
                                 // (common gym EZ-curl), everything else
                                 // uses the Olympic 20kg standard.
                                 // (qa: weight-input-convention-clarity)
-                                const lib = (EXERCISES as any[]).find((e: any) => e.id === ex.id);
-                                const kind = loadingKindFor(lib?.equipment ?? []);
+                                // Reuse exLibData (with name-based
+                                // equipment inference fallback) so
+                                // workout-day exercises classify
+                                // correctly. Also fall back to ex.name
+                                // for EZ detection since lib?.name may
+                                // be undefined for inferred-only entries.
+                                // (qa: weight-input-convention-clarity)
+                                const kind = loadingKindFor(exLibData?.equipment ?? []);
                                 if (kind !== "barbell") return null;
-                                const exNameLower = (lib?.name ?? "").toLowerCase();
-                                const isEZ = exNameLower.includes("ez bar") || exNameLower.includes("ez-bar") || exNameLower.includes("ez curl");
+                                const exNameLower = (exLibData?.name ?? ex.name ?? "").toLowerCase();
+                                const isEZ = exNameLower.includes("ez bar") || exNameLower.includes("ez-bar") || exNameLower.includes("ez curl")
+                                  || (Array.isArray(exLibData?.equipment) && exLibData.equipment.includes("ez-bar"));
                                 const barKg = isEZ ? 10 : 20;
                                 const barLabel = isEZ ? "EZ bar ≈ 10kg" : "Olympic bar = 20kg";
                                 const w = parseFloat(wInput);

@@ -221,29 +221,46 @@ export function inferEquipmentFromName(name: string): string[] {
   // we tag it so the bar-weight helper shows the right standard
   // (≈7-11kg vs the 20kg Olympic).
   if (/\bez[\s-]?(curl|bar)\b|\bez-?curl\b/.test(n)) return ["barbell", "ez-bar"];
-  // Smith machine / cable / fixed machine — all stack-loaded, no bar
-  // weight to worry about.
-  if (/\bsmith\b/.test(n)) return ["machine", "barbell"];
-  if (/\bcable\b|\bpulldown\b|\bpec[\s-]?deck\b|\bleg[\s-]?(press|curl|extension)\b|\bcable cross\b|\bseated row\b|\bmachine\b|\bhammer strength\b/.test(n)) {
-    return n.includes("cable") ? ["cable"] : ["machine"];
-  }
-  // Barbell — check AFTER ez-curl so "ez-curl bar" doesn't fall
-  // through to here. Also catches "deadlift", "squat" by themselves
-  // (assumed barbell unless tagged dumbbell/goblet/etc.).
-  const isDumbbell = /\bdumbbell\b|\bdb\b|\bkettlebell\b|\bkb\b|\bgoblet\b/.test(n);
-  if (isDumbbell) return ["dumbbell"];
+  // Smith machine — fixed barbell, plates load it but the bar is
+  // counterbalanced so the "include bar weight" question doesn't
+  // really apply. Tagging as machine wins (loadingKindFor → machine
+  // → no BW toggle, no bar helper).
+  if (/\bsmith\b/.test(n)) return ["machine"];
+  // T-Bar Row — landmine-style, plates on one end but the loading
+  // semantics behave like a machine for the user (no counterweight
+  // confusion). Tag as machine.
+  if (/\bt[\s-]?bar row\b|\bchest[\s-]?supported row\b|\blandmine\b/.test(n)) return ["machine"];
+  // Pec deck / fixed machines.
+  if (/\bpec[\s-]?deck\b|\bmachine fly\b|\bleg[\s-]?(press|curl|extension)\b|\browing machine\b|\bmachine\b|\bhammer strength\b/.test(n)) return ["machine"];
+  // Cable-based — pulldowns, rope attachments, face pulls, cable
+  // crossovers, pushdowns, cable curls/crunches.
+  if (/\bcable\b|\bpulldown\b|\bpull[\s-]?down\b|\bface pulls?\b|\brope\b|\bpushdown\b|\bcable cross\b|\bseated cable row\b|\bcrossover\b/.test(n)) return ["cable"];
+  // Dumbbell / DB / kettlebell — catch BEFORE the barbell branch so
+  // "incline DB curl" doesn't fall through.
+  if (/\bdumbbell\b|\bdb\b|\bkettlebell\b|\bkb\b|\bgoblet\b|\bhammer curls?\b|\blateral raise\b|\barnold press\b|\bfront raise\b/.test(n)) return ["dumbbell"];
+  // Explicit barbell — anything with "barbell" or "bar X" patterns.
   if (/\bbarbell\b|\bbar(?:bell)?\s+(?:bench|row|squat|press|curl|deadlift|shrug|hip thrust|good morning)/.test(n)) return ["barbell"];
-  // Bare lift names default to barbell (the gym standard) unless
-  // they've already been caught as dumbbell above. Bench press,
-  // squat, deadlift, overhead press, OHP, clean, snatch — all
-  // canonical barbell movements.
-  if (/\b(bench press|squat|deadlift|overhead press|ohp|clean|snatch|power clean|front squat|back squat|hip thrust|good morning|romanian deadlift|rdl|sumo deadlift)\b/.test(n)) {
-    // ...unless preceded by "dumbbell"/"goblet"/etc. already filtered above.
+  // Bare canonical-lift names default to barbell (the gym standard)
+  // unless caught above. Bench press, squat, deadlift, OHP, clean,
+  // snatch are all barbell movements by convention.
+  //
+  // CAREFUL: "split squat" and "bulgarian split squat" are NOT
+  // barbell-default — they're usually DB or bodyweight. Same for
+  // "goblet squat" / "air squat" / "wall squat" / "jump squat" /
+  // "pistol squat" — all non-barbell. Filter via a negative-lookbehind
+  // -ish guard by excluding lines with those qualifier words.
+  const squatLooksBarbell = /\bsquat\b/.test(n) && !/\bsplit\b|\bgoblet\b|\bair\b|\bwall\b|\bjump\b|\bpistol\b|\bsissy\b|\bcossack\b|\bskater\b/.test(n);
+  if (/\bbench press\b|\bdeadlift\b|\boverhead press\b|\bohp\b|\bclean\b|\bsnatch\b|\bpower clean\b|\bfront squat\b|\bback squat\b|\bhip thrust\b|\bgood morning\b|\bromanian deadlift\b|\brdl\b|\bsumo deadlift\b/.test(n) || squatLooksBarbell) {
     return ["barbell"];
   }
+  // Bulgarian split squats default to dumbbell (typical loading);
+  // pure split squats also lean DB. Bodyweight-named squats land in
+  // the bodyweight branch below.
+  if (/\bbulgarian split squat\b|\bsplit squat\b(?!.*barbell)/.test(n)) return ["dumbbell"];
   // Bodyweight movements — gated on the absence of bar/dumbbell
-  // markers (handled above).
-  if (/\bpull[\s-]?ups?\b|\bchin[\s-]?ups?\b|\bdips?\b|\bpush[\s-]?ups?\b|\bplank\b|\bhanging\b|\bscap\b|\bmuscle[\s-]?ups?\b|\bring rows?\b|\binverted row\b|\bair squat\b|\bglute bridge\b(?!.*barbell)|\bcalf raise\b(?!.*barbell|.*dumbbell|.*machine)/.test(n)) {
+  // markers (handled above). Add common ab moves so the BW toggle
+  // doesn't surface needlessly.
+  if (/\bpull[\s-]?ups?\b|\bchin[\s-]?ups?\b|\bdips?\b|\bpush[\s-]?ups?\b|\bplank\b|\bhanging\b|\bscap\b|\bmuscle[\s-]?ups?\b|\bring rows?\b|\binverted row\b|\bair squat\b|\bgoblet squat\b|\bjump squat\b|\bpistol squat\b|\bglute bridge\b(?!.*barbell)|\bcalf raise\b(?!.*barbell|.*dumbbell|.*machine)|\bcrunch(?:es)?\b(?!.*cable)|\bsit[\s-]?ups?\b|\bbicycle\b|\brussian twist\b|\bleg raise\b|\bmountain climber\b|\bburpee\b|\bjumping jack\b/.test(n)) {
     return ["bodyweight"];
   }
   return [];
