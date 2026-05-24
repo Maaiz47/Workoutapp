@@ -1,0 +1,10 @@
+{
+  "id": "cmpjpihph0002hgnivb6541lp",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "[🔄 RETEST · re:5fxamsnr] Works but also warn the points losses too in tier and leaderboard",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T11:41:19.014Z"
+}
