@@ -222,7 +222,115 @@ export type AthleteStatsForTier = {
   // skipped legs for 3 weeks weren't being warned). Optional — absent
   // / undefined means hasData=false for Balance.
   setsByMuscleGroup?: Record<string, number>;
+
+  // ── v3.5 inputs (qa: tier-scoring-v35) ──
+  // Volume blend: lifetime + recent-90d. Caller passes 90d kg-reps so
+  // long-history vets don't ride 5-year-old totals while inactive.
+  recentVolumeKg90d?: number;
+  // Last 12 weeks of distinct training days. Feeds the pure-adherence
+  // Consistency formula (sessionsLast12Weeks / (daysPerWeek × 12)).
+  sessionsLast12Weeks?: number;
+  // Latest BodyMetric date with a non-null weight reading. Drives the
+  // BodyComp freshness ramp — ≤7d full, 8-30d decay, >30d/never floor
+  // at 20 (nudges weekly weigh-in).
+  weightLastLogMs?: number | null;
+  // Self-declared experience level from onboarding (`UserProfile.
+  // fitnessLevel`). Seeds the Progression ramp multiplier. Beginner
+  // ×1.0, Intermediate ×1.15, Advanced ×1.30. Blended toward observed
+  // (e1RM/BW + sessions180d) as account tenure passes 12 weeks; fully
+  // observed past 24 weeks. Hidden from UI — no leaderboard column
+  // calls this out, no toast tells users they're being ramped.
+  fitnessLevel?: string | null;
+  // User goal (`UserProfile.goal`) — feeds BodyComp goal-aware
+  // maintenance band. "muscle"/"bulk" → ideal +1kg/90d; "cut"/"fat-
+  // loss" → ideal -2kg/90d; "maintain" → ideal 0kg/90d.
+  goal?: string | null;
+  // Account creation timestamp (ms). Drives the declared→observed
+  // experience-level blend window (12-24wk).
+  accountCreatedAtMs?: number;
 };
+
+// v3.5 sub-rank weights — per-dimension contribution to the headline
+// score (sum = 100). Previously every counted sub-rank averaged with
+// equal weight (~11% each), which let weakly-signalled dims like
+// Technique pull the same lever as Strength. v3.5 ranks the dims by
+// signal quality + user-facing importance: Strength leads at 20%,
+// Consistency at 16%, Volume/Progression each 12%, Mastery/Balance
+// each 10%, BodyComp 8%, Habits 7%, Technique 5%. Headline aggregates
+// as Σ(score_i × weight_i) / Σ(weight_i). (qa: tier-scoring-v35)
+export const SUBRANK_WEIGHTS: Record<string, number> = {
+  strength: 20,
+  consistency: 16,
+  volume: 12,
+  progression: 12,
+  mastery: 10,
+  balance: 10,
+  bodycomp: 8,
+  habits: 7,
+  technique: 5,
+};
+
+// Soft floor for sub-ranks with hasData=false. v3.5 changes the
+// aggregation rule: empty dims used to be EXCLUDED from the average
+// (so users who didn't log wellness weren't penalised — the dim
+// simply didn't count). Now empty dims contribute SOFT_FLOOR_SCORE
+// (30) at their full weight, so the headline reflects what the user
+// is leaving on the table. Two carve-outs:
+//   - BodyComp uses its own internal floor (20) keyed to weigh-in
+//     freshness — the goal is to nudge weekly logging, not just
+//     reward not-tracking.
+//   - The 30 floor is chosen so a brand-new user with NO data
+//     anywhere lands at exactly 30 (matches the old "Big Dawg" min)
+//     instead of the old 0 — avoids a worse new-user experience
+//     while still rewarding engagement. (qa: tier-scoring-v35)
+const SOFT_FLOOR_SCORE = 30;
+
+// Map a declared/observed experience level to a Progression ramp
+// multiplier. Advanced lifters earn MORE Progression credit per
+// %-per-week of volume growth — natural gain rates slow at higher
+// training ages, so the curve has to bend toward them or veterans
+// look like they're stagnating. Multipliers are hidden from UI:
+// no leaderboard column, no toast, no settings preview. Users
+// shouldn't be able to A/B their declared level for score.
+// (qa: tier-scoring-v35)
+function experienceLevelToMultiplier(level: string | null | undefined): number {
+  const l = (level ?? "").toLowerCase().trim();
+  if (l === "advanced" || l === "expert") return 1.30;
+  if (l === "intermediate") return 1.15;
+  return 1.0; // beginner / unknown / blank
+}
+
+// Infer the user's observed experience level from objective signals:
+// best e1RM ÷ bodyweight across qualified lifts AND 180-day session
+// volume. Used as the OBSERVED side of the Progression ramp blend —
+// the declared field gets blended toward this as account tenure
+// grows. Thresholds tuned conservatively: hitting Advanced requires
+// BOTH a 1.5× BW lift AND ≥60 sessions in 180d, so a few PRs alone
+// can't bump you. (qa: tier-scoring-v35)
+function inferObservedLevel(e1RMOverBW: number, sessions180d: number): string {
+  if (e1RMOverBW >= 1.5 && sessions180d >= 60) return "advanced";
+  if (e1RMOverBW >= 1.0 || sessions180d >= 30) return "intermediate";
+  return "beginner";
+}
+
+// Blend the declared and observed multipliers based on account
+// tenure (in weeks). 0-12 wks → 100% declared (new users get the
+// benefit of self-assessment). 12-24 wks → linear blend. 24+ wks
+// → 100% observed (we've seen enough to grade you). This is the
+// "adjusts with the user over time" mechanism @maaiz asked for —
+// claiming Advanced on day 1 helps initially, but the system
+// self-corrects toward measured reality within 6 months.
+// (qa: tier-scoring-v35)
+function blendExperienceMultiplier(
+  declaredMult: number,
+  observedMult: number,
+  accountTenureWeeks: number,
+): number {
+  if (accountTenureWeeks <= 12) return declaredMult;
+  if (accountTenureWeeks >= 24) return observedMult;
+  const t = (accountTenureWeeks - 12) / 12;
+  return declaredMult * (1 - t) + observedMult * t;
+}
 
 // Adherence curve — peaks at 100% of weekly target, drops gently
 // past it so overtraining doesn't print extra points. Built for
@@ -253,10 +361,29 @@ function adherenceScore(sessionsLast4Weeks: number, daysPerWeek: number): number
   return Math.max(0, Math.round(90 - excess * 100));
 }
 
+// Pure 3-month adherence — actual ÷ target sessions over the last 12
+// weeks. Unlike adherenceScore (4w, caps at 90 to leave headroom for
+// other dims when Consistency drove 60% of the headline), v3.5 makes
+// Consistency a single 16% dim so we cap at 100. The rolling 12w
+// window absorbs missed-week noise (illness, travel) without needing
+// a separate "deload exemption". Over-training drop mirrors the 4w
+// curve. (qa: tier-scoring-v35)
+function adherenceScore12w(sessionsLast12Weeks: number, daysPerWeek: number): number {
+  const target = Math.max(1, daysPerWeek) * 12;
+  if (sessionsLast12Weeks <= 0) return 0;
+  const ratio = sessionsLast12Weeks / target;
+  if (ratio <= 1.0) return Math.round(ratio * 100);
+  const excess = ratio - 1.0;
+  return Math.max(0, Math.round(100 - excess * 100));
+}
+
 // Strength sub-rank — measures BOTH whether the user is getting
 // stronger (rate) AND whether they're objectively strong (absolute).
-// Final score is max(rateScore, absoluteScore) so veterans plateaued
-// at elite numbers don't get punished for natural rate decay.
+// v3.5: blend is now 0.6×rate + 0.4×absolute (was max). The max
+// rule lets vets coast on absolute alone; the blend forces continued
+// effort on the rate side too. When only one signal is available
+// (no bodyweight, or no 90d history), the available signal carries
+// 100% of the score.
 //
 // Rate methodology (unchanged from v2/v3):
 //   1. Filter to exercises with ≥4 sets logged in the last 180 days.
@@ -269,7 +396,8 @@ function adherenceScore(sessionsLast4Weeks: number, daysPerWeek: number): number
 //   - 0.5× BW → 20, 1.0× → 40, 1.5× → 60, 2.0× → 80, 2.5× → 100.
 //   - Skipped if bodyweight unavailable.
 //
-// (qa: tier-scoring-calibration-v3, tier-strength-absolute-blend)
+// (qa: tier-scoring-calibration-v3, tier-strength-absolute-blend,
+// tier-scoring-v35)
 function strengthSubRank(
   recentByExercise: Record<string, RecentSet[]>,
   todayMs: number,
