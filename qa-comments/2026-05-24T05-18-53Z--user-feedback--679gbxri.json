@@ -1,0 +1,10 @@
+{
+  "id": "cmpjbup1z0000v4yl679gbxri",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=systemNotifs] System users don’t need to know exact language models and detailed changes - just a summary showing what was reported, what was addressed so they can check if it’s now all good",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T05:18:53.783Z"
+}
