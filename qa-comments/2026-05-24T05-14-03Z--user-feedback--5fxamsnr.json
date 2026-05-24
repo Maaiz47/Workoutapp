@@ -1,0 +1,10 @@
+{
+  "id": "cmpjbohf00000c9zb5fxamsnr",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=workout] No warning when skipping entering RPE the effort scale",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T05:14:03.948Z"
+}
