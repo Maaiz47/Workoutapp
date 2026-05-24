@@ -200,6 +200,55 @@ export function getExerciseById(id: string): Exercise | undefined {
   return EXERCISES.find(e => e.id === id);
 }
 
+// Infer equipment tags from an exercise's display name. Used as a
+// fallback when the bundled workout-day exercises (id "a1", "b1",
+// etc.) can't be resolved against the EXERCISES catalog by id or by
+// normalized-name match. Without this fallback, the workout logger
+// can't tell that "Flat Barbell Bench Press" is a barbell movement,
+// so it falls into the "unknown equipment" branch and shows the BW
+// (bodyweight) toggle — nonsense on a bench press. It also failed
+// to show the standard-bar-weight helper, leaving users guessing
+// whether their 45kg number includes the 20kg Olympic bar.
+//
+// Returns canonical Equipment-style strings consumable by
+// loadingKindFor() in lib/plates.ts. Empty array means "couldn't
+// infer" — caller should preserve whatever fallback behaviour they
+// had previously. (qa: weight-input-convention-clarity)
+export function inferEquipmentFromName(name: string): string[] {
+  if (!name) return [];
+  const n = name.toLowerCase();
+  // EZ-curl bar is technically a barbell variant (gets plates) but
+  // we tag it so the bar-weight helper shows the right standard
+  // (≈7-11kg vs the 20kg Olympic).
+  if (/\bez[\s-]?(curl|bar)\b|\bez-?curl\b/.test(n)) return ["barbell", "ez-bar"];
+  // Smith machine / cable / fixed machine — all stack-loaded, no bar
+  // weight to worry about.
+  if (/\bsmith\b/.test(n)) return ["machine", "barbell"];
+  if (/\bcable\b|\bpulldown\b|\bpec[\s-]?deck\b|\bleg[\s-]?(press|curl|extension)\b|\bcable cross\b|\bseated row\b|\bmachine\b|\bhammer strength\b/.test(n)) {
+    return n.includes("cable") ? ["cable"] : ["machine"];
+  }
+  // Barbell — check AFTER ez-curl so "ez-curl bar" doesn't fall
+  // through to here. Also catches "deadlift", "squat" by themselves
+  // (assumed barbell unless tagged dumbbell/goblet/etc.).
+  const isDumbbell = /\bdumbbell\b|\bdb\b|\bkettlebell\b|\bkb\b|\bgoblet\b/.test(n);
+  if (isDumbbell) return ["dumbbell"];
+  if (/\bbarbell\b|\bbar(?:bell)?\s+(?:bench|row|squat|press|curl|deadlift|shrug|hip thrust|good morning)/.test(n)) return ["barbell"];
+  // Bare lift names default to barbell (the gym standard) unless
+  // they've already been caught as dumbbell above. Bench press,
+  // squat, deadlift, overhead press, OHP, clean, snatch — all
+  // canonical barbell movements.
+  if (/\b(bench press|squat|deadlift|overhead press|ohp|clean|snatch|power clean|front squat|back squat|hip thrust|good morning|romanian deadlift|rdl|sumo deadlift)\b/.test(n)) {
+    // ...unless preceded by "dumbbell"/"goblet"/etc. already filtered above.
+    return ["barbell"];
+  }
+  // Bodyweight movements — gated on the absence of bar/dumbbell
+  // markers (handled above).
+  if (/\bpull[\s-]?ups?\b|\bchin[\s-]?ups?\b|\bdips?\b|\bpush[\s-]?ups?\b|\bplank\b|\bhanging\b|\bscap\b|\bmuscle[\s-]?ups?\b|\bring rows?\b|\binverted row\b|\bair squat\b|\bglute bridge\b(?!.*barbell)|\bcalf raise\b(?!.*barbell|.*dumbbell|.*machine)/.test(n)) {
+    return ["bodyweight"];
+  }
+  return [];
+}
+
 // Does the user have everything this exercise needs? Bodyweight items
 // never block — anyone with a body can do them. Returns the list of
 // missing equipment so the UI can tell the user what to grab.
