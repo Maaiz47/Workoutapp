@@ -1,0 +1,10 @@
+{
+  "id": "cmpjvjrkr0001ej12165g640t",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Progress · view=progress] Don’t show log a session today if they’ve already done a session for how to get more points tips",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T14:30:16.156Z"
+}
