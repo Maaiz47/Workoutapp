@@ -71,6 +71,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── Delete an entire day from the user's custom plan ──
+    // Used by the customise screen's per-day DELETE affordance. Soft
+    // safety: refuses to delete the LAST remaining day (would leave
+    // the user with an unusable empty plan). Per @munchy:
+    // 'When customizing splits no where to delete a full day session.'
+    // (qa: customise-delete-day)
+    if (body.action === "delete-day") {
+      const dayId = typeof body.dayId === "string" ? body.dayId : "";
+      if (!dayId) return json({ error: "dayId required" }, 400);
+      const plan = await prisma.workoutPlan.findUnique({
+        where: { userId: uid },
+        include: { days: { select: { id: true, dayIndex: true } } },
+      });
+      if (!plan) return json({ error: "No custom plan to delete from" }, 404);
+      const day = plan.days.find(d => d.id === dayId);
+      if (!day) return json({ error: "Day not found in your plan" }, 404);
+      if (plan.days.length <= 1) {
+        return json({ error: "Can't delete your only day — add a new one first, then delete this." }, 400);
+      }
+      await prisma.planDay.delete({ where: { id: dayId } });
+      // Re-pack dayIndex so the remaining days stay 0..N-1 (no gaps).
+      const remaining = await prisma.planDay.findMany({
+        where: { planId: plan.id },
+        orderBy: { dayIndex: "asc" },
+        select: { id: true },
+      });
+      await Promise.all(remaining.map((d, i) => prisma.planDay.update({ where: { id: d.id }, data: { dayIndex: i } })));
+      return json({ ok: true, deletedDayId: dayId });
+    }
+
     // ── Init from WORKOUT_DATA defaults (for existing users without a profile) ──
     if (body.action === "init") {
       const existing = await prisma.workoutPlan.findUnique({ where: { userId: uid } });

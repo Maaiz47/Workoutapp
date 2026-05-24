@@ -23,7 +23,7 @@ import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, syncWellnessFromServer, syncWellnessToServerOnce, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
-import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead } from "../lib/systemNotifications";
+import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead, fetchPatchNotifications, markPatchNotifsRead, PatchNotification } from "../lib/systemNotifications";
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState, resolveMissionTarget, resolveMissionBody } from "../lib/challenges";
 import { computeExerciseRecencies, recencyForExercise, recencyDotColor, ExerciseRecency } from "../lib/adaptiveRewards";
 import { findAvatar, AVATARS, Avatar } from "../lib/avatars";
@@ -5073,13 +5073,39 @@ function HomePage() {
 
   const [view, setView] = useState("home");
   // Unread count for the system-notifications pinned row in the
-  // messages inbox. Refreshed on every render of the inbox + when
-  // notifications get marked read. (qa: system-notifications-feed)
+  // messages inbox. Includes BUNDLED feed + dynamic per-user patch
+  // notifications (qa-comment-was-patched). Refreshed on every render
+  // of the inbox + when notifications get marked read.
+  // (qa: system-notifications-feed, qa-patch-notification)
   const [systemNotifUnread, setSystemNotifUnread] = useState(0);
+  const [patchNotifs, setPatchNotifs] = useState<PatchNotification[]>([]);
+  const [patchAcks, setPatchAcksState] = useState<Set<string>>(new Set());
   useEffect(() => {
-    if (view === "messages" || view === "home" || view === "systemNotifs") {
-      setSystemNotifUnread(systemNotifUnreadCount());
-    }
+    if (view !== "messages" && view !== "home" && view !== "systemNotifs") return;
+    setSystemNotifUnread(systemNotifUnreadCount());
+    // Pull dynamic patch notifications. Local-only ack set is read on
+    // mount; we keep a state copy so the row badge updates without
+    // a refetch when the user opens the feed.
+    try {
+      const raw = localStorage.getItem("ironlog-qa-patch-acks-v1");
+      const arr = raw ? JSON.parse(raw) : [];
+      setPatchAcksState(new Set(Array.isArray(arr) ? arr.filter((x: any): x is string => typeof x === "string") : []));
+    } catch {}
+    let cancelled = false;
+    fetchPatchNotifications().then(list => {
+      if (cancelled) return;
+      setPatchNotifs(list);
+      const acks = new Set<string>();
+      try {
+        const raw = localStorage.getItem("ironlog-qa-patch-acks-v1");
+        if (raw) JSON.parse(raw).forEach((x: string) => acks.add(x));
+      } catch {}
+      const unread = SYSTEM_NOTIFICATIONS.filter(n => {
+        try { return !((JSON.parse(localStorage.getItem("ironlog-system-notif-reads-v1") ?? "[]") as string[]).includes(n.id)); } catch { return true; }
+      }).length + list.filter(p => !acks.has(p.id)).length;
+      setSystemNotifUnread(unread);
+    });
+    return () => { cancelled = true; };
   }, [view]);
   const [activeDay, setActiveDay] = useState<WorkoutDay | null>(null);
   const [started, setStarted] = useState(false);
@@ -8592,6 +8618,31 @@ function HomePage() {
               <button onClick={() => { setCustomMultiMode(m => !m); setSuperSelection([]); }} style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${customMultiMode ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.1)"}`, background: customMultiMode ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.04)", color: customMultiMode ? "#FF6B6B" : "rgba(255,255,255,0.4)", fontSize: 10, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
                 {customMultiMode ? "CANCEL" : "SELECT"}
               </button>
+            )}
+            {/* Delete-day affordance — per @munchy: 'no where to delete
+                a full day session. Editing is the only option'. Hidden
+                while the exercise browser is open (would compete for
+                space) + when the user has only one day in their plan
+                (server refuses + the user can't end up with 0 days).
+                (qa: customise-delete-day) */}
+            {!showExBrowser && editingDay.id && (customPlan?.length ?? 0) > 1 && (
+              <button
+                onClick={async () => {
+                  if (!confirm(`Delete the entire "${editingDay.title}" day from your split? Sessions you've already logged on this day stay in your history.`)) return;
+                  try {
+                    const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete-day", dayId: editingDay.id }) });
+                    const data = await res.json();
+                    if (data.ok) {
+                      setCustomPlan(prev => prev ? prev.filter((d: any) => d.id !== editingDay.id) : prev);
+                      setEditingDay(null);
+                    } else if (data.error) {
+                      alert(data.error);
+                    }
+                  } catch (e: any) { alert(e?.message ?? "Failed"); }
+                }}
+                title="Delete this entire day from your custom split"
+                style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(255,107,107,0.3)", background: "rgba(255,107,107,0.08)", color: "#FF6B6B", fontSize: 10, cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}
+              >🗑 DELETE DAY</button>
             )}
           </div>
           <div style={{ padding: "0 20px" }}>
@@ -12782,19 +12833,45 @@ function HomePage() {
             No system messages yet.
           </div>
         )}
-        {[...SYSTEM_NOTIFICATIONS]
-          .sort((a, b) => a.publishedAt.localeCompare(b.publishedAt))
-          .map(n => {
-            const tint = n.severity === "warning" ? "#FF6B6B" : n.severity === "update" ? "#4ECDC4" : "#A29BFE";
-            const sevLabel = n.severity === "warning" ? "⚠ WARNING" : n.severity === "update" ? "✨ UPDATE" : "📢 INFO";
-            return (
-              <div key={n.id} style={{ alignSelf: "flex-start", maxWidth: "92%", background: `linear-gradient(135deg, ${tint}1f, ${tint}0a)`, border: `1px solid ${tint}55`, borderRadius: 14, padding: "14px 16px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: tint, fontFamily: "'Space Mono', monospace" }}>{sevLabel}</span>
-                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{n.publishedAt.slice(0, 10)}</span>
+        {[
+          ...SYSTEM_NOTIFICATIONS.map(n => ({ kind: "bundled" as const, n })),
+          ...patchNotifs.map(p => ({ kind: "patch" as const, p })),
+        ]
+          .sort((a, b) => {
+            const aTs = a.kind === "bundled" ? a.n.publishedAt : a.p.publishedAt;
+            const bTs = b.kind === "bundled" ? b.n.publishedAt : b.p.publishedAt;
+            return aTs.localeCompare(bTs);
+          })
+          .map(entry => {
+            if (entry.kind === "bundled") {
+              const n = entry.n;
+              const tint = n.severity === "warning" ? "#FF6B6B" : n.severity === "update" ? "#4ECDC4" : "#A29BFE";
+              const sevLabel = n.severity === "warning" ? "⚠ WARNING" : n.severity === "update" ? "✨ UPDATE" : "📢 INFO";
+              return (
+                <div key={`b:${n.id}`} style={{ alignSelf: "flex-start", maxWidth: "92%", background: `linear-gradient(135deg, ${tint}1f, ${tint}0a)`, border: `1px solid ${tint}55`, borderRadius: 14, padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: tint, fontFamily: "'Space Mono', monospace" }}>{sevLabel}</span>
+                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{n.publishedAt.slice(0, 10)}</span>
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.3 }}>{n.title}</div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{n.body}</div>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.3 }}>{n.title}</div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{n.body}</div>
+              );
+            }
+            // Patch notification — user's own QA comment was processed.
+            // Tint = teal (update) for ideas, gold for bug fixes.
+            // (qa: qa-patch-notification)
+            const p = entry.p;
+            const tint = p.isIdea ? "#4ECDC4" : "#FFD166";
+            return (
+              <div key={`p:${p.id}`} onClick={() => { try { window.location.href = "/qa"; } catch {} }} style={{ alignSelf: "flex-start", maxWidth: "92%", background: `linear-gradient(135deg, ${tint}1f, ${tint}0a)`, border: `1px solid ${tint}55`, borderRadius: 14, padding: "14px 16px", cursor: "pointer" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: tint, fontFamily: "'Space Mono', monospace" }}>{p.isIdea ? "✨ IDEA SHIPPED" : "🔧 BUG PATCHED"}</span>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{p.publishedAt.slice(0, 10)}</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.3 }}>{p.title}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{p.body}</div>
+                <div style={{ marginTop: 8, fontSize: 10, color: tint, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>→ TAP TO VIEW /qa</div>
               </div>
             );
           })}
@@ -12836,6 +12913,8 @@ function HomePage() {
             onClick={() => {
               setView("systemNotifs");
               markSystemNotifsRead("all");
+              markPatchNotifsRead("all", patchNotifs.map(p => p.id));
+              setPatchAcksState(prev => { const next = new Set(prev); for (const p of patchNotifs) next.add(p.id); return next; });
               setSystemNotifUnread(0);
             }}
             style={{
