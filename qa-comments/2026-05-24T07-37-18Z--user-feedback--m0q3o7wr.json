@@ -1,0 +1,10 @@
+{
+  "id": "cmpjgsool000c10etm0q3o7wr",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "[🔄 RETEST · re:w5vtngm9] I think this works but when it links to pending issues I think it’s not taking it to the exact step/comment/issue and only to the general thread",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T07:37:18.069Z"
+}
