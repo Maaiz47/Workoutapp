@@ -50,6 +50,10 @@ export async function GET(req: NextRequest) {
         logCount: r.client._count.workoutLogs,
         lastWorkout: r.client.workoutLogs[0] ?? null,
         clientSince: r.createdAt,
+        // Engagement type — 'individual' (1-on-1) or 'group'. Lets
+        // the trainer scan their roster by engagement model.
+        // (qa: trainer-client-engagement-type)
+        engagementType: (r as any).engagementType ?? "individual",
         tier: stats?.tier ?? null,
       };
     });

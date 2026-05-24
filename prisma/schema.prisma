@@ -103,6 +103,11 @@ model TrainerClient {
   trainerId String
   clientId  String   @unique
   createdAt DateTime @default(now())
+  // Engagement type — 'individual' for 1-on-1 coaching, 'group' for
+  // group-PT sessions. Default 'individual' so legacy rows behave
+  // unchanged. Trainers toggle this per-client from the Clients
+  // hub. (qa: trainer-client-engagement-type)
+  engagementType String @default("individual")
   trainer   User     @relation("TrainerClients", fields: [trainerId], references: [id], onDelete: Cascade)
   client    User     @relation("ClientOf",       fields: [clientId],  references: [id], onDelete: Cascade)
 

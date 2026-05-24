@@ -90,11 +90,52 @@ export async function POST(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
   try {
-    const user = await prisma.user.findUnique({ where: { id: uid }, select: { role: true } });
-    if (!user || user.role !== "trainer") return json({ error: "Trainers only" }, 403);
+    const user = await prisma.user.findUnique({ where: { id: uid }, select: { role: true, extraRoles: true } });
+    if (!user) return json({ error: "Not found" }, 404);
+    const roles = [user.role, ...((user as any).extraRoles ?? [])];
+    const isTrainer = roles.includes("trainer");
 
-    const { name, privacy } = await req.json();
+    const { name, privacy, memberIds } = await req.json();
     if (!name?.trim()) return json({ error: "Name required" }, 400);
+
+    // Validate memberIds (if provided) — only accept users the
+    // creator has an established relationship with:
+    //   • Trainer creator + accepted TrainerClient → direct-add as
+    //     a member (group-PT pattern).
+    //   • Accepted Friendship in either direction → direct-add.
+    // Anyone else is silently dropped from the member list — they'd
+    // need to be added via the existing invite flow.
+    // (qa: groups-multi-select-create)
+    const requestedIds: string[] = Array.isArray(memberIds) ? memberIds.filter((x: any) => typeof x === "string" && x !== uid) : [];
+    let validMemberIds: string[] = [];
+    if (requestedIds.length > 0) {
+      const [trainerLinks, friendships] = await Promise.all([
+        isTrainer
+          ? prisma.trainerClient.findMany({ where: { trainerId: uid, clientId: { in: requestedIds } }, select: { clientId: true } })
+          : Promise.resolve([] as { clientId: string }[]),
+        prisma.friendship.findMany({
+          where: {
+            status: "accepted",
+            OR: [
+              { userAId: uid, userBId: { in: requestedIds } },
+              { userBId: uid, userAId: { in: requestedIds } },
+            ],
+          },
+          select: { userAId: true, userBId: true },
+        }),
+      ]);
+      const ok = new Set<string>();
+      for (const t of trainerLinks) ok.add(t.clientId);
+      for (const f of friendships) ok.add(f.userAId === uid ? f.userBId : f.userAId);
+      validMemberIds = requestedIds.filter(id => ok.has(id));
+    }
+
+    // Gating: trainers can always create. Non-trainers can create
+    // when seeding the group with at least one friend (avoids ghost
+    // single-user groups from non-power users).
+    if (!isTrainer && validMemberIds.length === 0) {
+      return json({ error: "Trainers can create empty groups; everyone else needs to pick at least one friend to start." }, 403);
+    }
 
     const group = await prisma.leaderboardGroup.create({
       data: {
@@ -102,13 +143,19 @@ export async function POST(req: NextRequest) {
         createdBy: uid,
         privacy: privacy ?? "private",
         members: {
-          create: { userId: uid, role: "trainer", includeInRank: false }
+          create: [
+            { userId: uid, role: isTrainer ? "trainer" : "member", includeInRank: !isTrainer },
+            ...validMemberIds.map(mId => ({ userId: mId, role: "member", includeInRank: true })),
+          ],
         }
       },
-      include: { members: true, invites: true }
+      include: {
+        members: { include: { user: { select: { id: true, username: true, profile: { select: { avatarId: true } } } } } },
+        invites: true,
+      },
     });
 
-    return json({ group }, 201);
+    return json({ group, addedMemberCount: validMemberIds.length, droppedCount: requestedIds.length - validMemberIds.length }, 201);
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);
   }

@@ -84,6 +84,36 @@ export async function GET(req: NextRequest, { params }: { params: { clientId: st
 // link is severed. Either side can re-adopt later via the normal
 // trainer-request flow. Naming per @maaiz: 'adopting and disowning'.
 // (qa: trainer-disown-client)
+// PATCH — update the engagement type on the trainer-client link.
+// Only 'individual' or 'group' accepted. Trainer-only.
+// (qa: trainer-client-engagement-type)
+export async function PATCH(req: NextRequest, { params }: { params: { clientId: string } }) {
+  const uid = req.cookies.get(COOKIE)?.value;
+  if (!uid) return json({ error: "Unauthorized" }, 401);
+
+  try {
+    const rel = await prisma.trainerClient.findFirst({
+      where: { trainerId: uid, clientId: params.clientId },
+    });
+    if (!rel) return json({ error: "Not your client" }, 403);
+
+    const body = await req.json().catch(() => ({}));
+    const engagementType: string | undefined = body?.engagementType;
+    if (engagementType !== "individual" && engagementType !== "group") {
+      return json({ error: "engagementType must be 'individual' or 'group'" }, 400);
+    }
+
+    await (prisma.trainerClient as any).update({
+      where: { id: rel.id },
+      data: { engagementType },
+    });
+
+    return json({ ok: true, engagementType });
+  } catch (e: any) {
+    return json({ error: e?.message ?? "Failed" }, 500);
+  }
+}
+
 export async function DELETE(req: NextRequest, { params }: { params: { clientId: string } }) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);

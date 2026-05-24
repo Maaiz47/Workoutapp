@@ -1251,6 +1251,10 @@ function FriendsCard({
   const [busy, setBusy] = useState<string | null>(null); // friendship id being mutated
   const [status, setStatus] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [filter, setFilter] = useState(""); // search inside friend list
+  // Multi-select state for creating a group from friends.
+  // (qa: groups-multi-select-create)
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -1387,16 +1391,43 @@ function FriendsCard({
       {/* Accepted friends */}
       {accepted.length > 0 && (
         <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 6, flexWrap: "wrap" }}>
             <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.45)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>FRIENDS ({accepted.length})</div>
-            {accepted.length > 4 && (
-              <input
-                value={filter}
-                onChange={e => setFilter(e.target.value)}
-                placeholder="search…"
-                style={{ padding: "4px 8px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#fff", fontSize: 11, width: 100, fontFamily: "'DM Sans', sans-serif", outline: "none" }}
-              />
-            )}
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <button onClick={() => { setSelectMode(m => !m); setSelectedFriends(new Set()); }} style={{ padding: "3px 9px", borderRadius: 12, fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer", background: selectMode ? "rgba(255,107,107,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${selectMode ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.08)"}`, color: selectMode ? "#FF6B6B" : "rgba(255,255,255,0.5)" }}>{selectMode ? "CANCEL" : "✓ SELECT"}</button>
+              {selectMode && (
+                <button
+                  disabled={selectedFriends.size === 0}
+                  onClick={async () => {
+                    const name = prompt(`Group name for these ${selectedFriends.size} friend${selectedFriends.size === 1 ? "" : "s"}?`, "");
+                    if (!name?.trim()) return;
+                    try {
+                      const res = await fetch("/api/leaderboard/groups", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: name.trim(), privacy: "private", memberIds: Array.from(selectedFriends) }),
+                      });
+                      const data = await res.json();
+                      if (data.group) {
+                        alert(`Created group "${data.group.name}" with ${data.addedMemberCount + 1} member${data.addedMemberCount === 0 ? "" : "s"} (incl. you).`);
+                        setSelectMode(false); setSelectedFriends(new Set());
+                      } else if (data.error) {
+                        alert(data.error);
+                      }
+                    } catch (e: any) { alert(e?.message ?? "Failed"); }
+                  }}
+                  style={{ padding: "3px 10px", borderRadius: 12, fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: selectedFriends.size > 0 ? "pointer" : "default", background: selectedFriends.size > 0 ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${selectedFriends.size > 0 ? "rgba(78,205,196,0.5)" : "rgba(255,255,255,0.08)"}`, color: selectedFriends.size > 0 ? "#4ECDC4" : "rgba(255,255,255,0.2)" }}
+                >+ GROUP{selectedFriends.size > 0 ? ` · ${selectedFriends.size}` : ""}</button>
+              )}
+              {accepted.length > 4 && (
+                <input
+                  value={filter}
+                  onChange={e => setFilter(e.target.value)}
+                  placeholder="search…"
+                  style={{ padding: "4px 8px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#fff", fontSize: 11, width: 100, fontFamily: "'DM Sans', sans-serif", outline: "none" }}
+                />
+              )}
+            </div>
           </div>
           {filteredAccepted.map(f => {
             // Trainer-only discreet 'add as client' shortcut. Hidden
@@ -1414,8 +1445,12 @@ function FriendsCard({
               try { await onAddAsClient(f.friend.id, f.friend.username); } catch {}
               setBusy(null);
             };
+            const isFriendSelected = selectedFriends.has(f.friend.id);
             return (
-              <div key={f.id} style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              <div key={f.id} onClick={() => { if (selectMode) setSelectedFriends(prev => { const next = new Set(prev); if (next.has(f.friend.id)) next.delete(f.friend.id); else next.add(f.friend.id); return next; }); }} style={{ padding: "10px 12px", background: isFriendSelected ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.02)", border: `1px solid ${isFriendSelected ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, marginBottom: 6, display: "flex", alignItems: "center", gap: 8, cursor: selectMode ? "pointer" : "default" }}>
+                {selectMode && (
+                  <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isFriendSelected ? "#4ECDC4" : "rgba(255,255,255,0.2)"}`, background: isFriendSelected ? "#4ECDC4" : "transparent", color: "#000", fontSize: 11, fontWeight: 800, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>{isFriendSelected ? "✓" : ""}</div>
+                )}
                 <span style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{f.friend.username}</span>
                 {isTrainer && alreadyClient && (
                   <span title="Already your client" style={{ fontSize: 9, color: "#a855f7", letterSpacing: 1, fontFamily: "'Space Mono', monospace", padding: "2px 6px", background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.22)", borderRadius: 4 }}>CLIENT</span>
@@ -5430,6 +5465,15 @@ function HomePage() {
   const [groupsFilter, setGroupsFilter] = useState("");
   const [respondingRequest, setRespondingRequest] = useState<string | null>(null);
   const [clients, setClients] = useState<any[]>([]);
+  // Multi-select state for creating a group from clients / friends.
+  // selectionMode toggles checkboxes on; selected IDs accumulate
+  // until the user taps CREATE GROUP (which prompts a name and
+  // calls POST /api/leaderboard/groups with memberIds).
+  // (qa: groups-multi-select-create)
+  const [clientsSelectionMode, setClientsSelectionMode] = useState(false);
+  const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
+  const [friendsSelectionMode, setFriendsSelectionMode] = useState(false);
+  const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(new Set());
   // Trainer's full multi-dim TierBreakdown — fetched from
   // /api/trainer/me/tier on mount when the user is a trainer. Null
   // until loaded (or for athletes). Replaces the legacy single-dim
@@ -11767,18 +11811,80 @@ function HomePage() {
                     style={{ width: "100%", padding: "8px 12px", marginBottom: 8, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, color: "#fff", fontSize: 12, fontFamily: "'DM Sans', sans-serif", outline: "none", boxSizing: "border-box" }}
                   />
                 )}
+                {/* Action bar — multi-select toggle (group creation
+                    affordance) + CREATE GROUP when N selected.
+                    (qa: groups-multi-select-create) */}
+                {clients.length > 0 && (
+                  <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
+                    <button onClick={() => { setClientsSelectionMode(m => !m); setSelectedClientIds(new Set()); }} style={{ padding: "5px 11px", borderRadius: 14, fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer", background: clientsSelectionMode ? "rgba(255,107,107,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${clientsSelectionMode ? "rgba(255,107,107,0.4)" : "rgba(255,255,255,0.1)"}`, color: clientsSelectionMode ? "#FF6B6B" : "rgba(255,255,255,0.5)" }}>
+                      {clientsSelectionMode ? "CANCEL" : "✓ SELECT"}
+                    </button>
+                    {clientsSelectionMode && (
+                      <button
+                        disabled={selectedClientIds.size === 0}
+                        onClick={async () => {
+                          if (selectedClientIds.size === 0) return;
+                          const name = prompt(`Group name for these ${selectedClientIds.size} client${selectedClientIds.size === 1 ? "" : "s"}?`, "");
+                          if (!name?.trim()) return;
+                          try {
+                            const res = await fetch("/api/leaderboard/groups", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ name: name.trim(), privacy: "private", memberIds: Array.from(selectedClientIds) }),
+                            });
+                            const data = await res.json();
+                            if (data.group) {
+                              setLbGroups(prev => [data.group, ...prev]);
+                              alert(`Created group "${data.group.name}" with ${selectedClientIds.size + 1} member${selectedClientIds.size === 0 ? "" : "s"} (incl. you).`);
+                              setClientsSelectionMode(false);
+                              setSelectedClientIds(new Set());
+                            } else if (data.error) {
+                              alert(data.error);
+                            }
+                          } catch (e: any) {
+                            alert(e?.message ?? "Failed");
+                          }
+                        }}
+                        style={{ padding: "5px 12px", borderRadius: 14, fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: selectedClientIds.size > 0 ? "pointer" : "default", background: selectedClientIds.size > 0 ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${selectedClientIds.size > 0 ? "rgba(78,205,196,0.5)" : "rgba(255,255,255,0.08)"}`, color: selectedClientIds.size > 0 ? "#4ECDC4" : "rgba(255,255,255,0.2)" }}
+                      >+ CREATE GROUP{selectedClientIds.size > 0 ? ` · ${selectedClientIds.size}` : ""}</button>
+                    )}
+                  </div>
+                )}
                 {clients.filter(c => !clientsFilter || c.username.toLowerCase().includes(clientsFilter.toLowerCase())).map((c: any) => {
                   const isExpanded = expandedClientId === c.id;
                   const tier = c.tier;
+                  const engagement = c.engagementType ?? "individual";
+                  const isGroupPT = engagement === "group";
+                  const isSelected = selectedClientIds.has(c.id);
                   return (
-                  <div key={c.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, marginBottom: 8, overflow: "hidden" }}>
+                  <div key={c.id} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.5)" : "rgba(255,255,255,0.07)"}`, borderRadius: 14, marginBottom: 8, overflow: "hidden" }}>
                     <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                      <div onClick={() => openClientDetail(c)} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, cursor: "pointer" }}>
+                      {clientsSelectionMode && (
+                        <button onClick={() => setSelectedClientIds(prev => { const next = new Set(prev); if (next.has(c.id)) next.delete(c.id); else next.add(c.id); return next; })} style={{ width: 24, height: 24, borderRadius: "50%", border: `2px solid ${isSelected ? "#4ECDC4" : "rgba(255,255,255,0.2)"}`, background: isSelected ? "#4ECDC4" : "transparent", color: "#000", fontSize: 12, fontWeight: 800, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>{isSelected ? "✓" : ""}</button>
+                      )}
+                      <div onClick={() => clientsSelectionMode ? setSelectedClientIds(prev => { const next = new Set(prev); if (next.has(c.id)) next.delete(c.id); else next.add(c.id); return next; }) : openClientDetail(c)} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, cursor: "pointer" }}>
                         <UserAvatarChip avatarId={c.avatarId} username={c.username} size={32} />
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{c.username}</span>
                             {tier && <TierGlyph src={tier.iconPath} emoji={tier.icon} size={16} />}
+                            {/* Engagement type chip — tap (when not in
+                                multi-select) toggles individual ↔ group.
+                                Persists via PATCH /api/trainer/clients/[id].
+                                (qa: trainer-client-engagement-type) */}
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (clientsSelectionMode) return;
+                                const next = isGroupPT ? "individual" : "group";
+                                setClients(prev => prev.map(x => x.id === c.id ? { ...x, engagementType: next } : x));
+                                try {
+                                  await fetch(`/api/trainer/clients/${c.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ engagementType: next }) });
+                                } catch {}
+                              }}
+                              title={`Currently ${isGroupPT ? "group PT" : "1-on-1"}. Tap to switch.`}
+                              style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", padding: "2px 6px", borderRadius: 4, background: isGroupPT ? "rgba(168,85,247,0.12)" : "rgba(78,205,196,0.10)", border: `1px solid ${isGroupPT ? "rgba(168,85,247,0.4)" : "rgba(78,205,196,0.32)"}`, color: isGroupPT ? "#a855f7" : "#4ECDC4", cursor: "pointer" }}
+                            >{isGroupPT ? "👥 GROUP PT" : "👤 1-ON-1"}</button>
                           </div>
                           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace" }}>
                             {tier ? `${tier.label.toUpperCase()} · ${tier.score}/100 · ` : ""}{c.logCount} session{c.logCount !== 1 ? "s" : ""}
@@ -11786,7 +11892,9 @@ function HomePage() {
                           </div>
                         </div>
                       </div>
-                      <button onClick={() => setExpandedClientId(isExpanded ? null : c.id)} aria-label="Toggle sub-rank breakdown" style={{ background: isExpanded ? "rgba(240,192,64,0.16)" : "rgba(255,255,255,0.05)", border: `1px solid ${isExpanded ? "rgba(240,192,64,0.4)" : "rgba(255,255,255,0.1)"}`, borderRadius: 8, color: isExpanded ? "#f0c040" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, padding: "4px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{isExpanded ? "▲" : "▼"}</button>
+                      {!clientsSelectionMode && (
+                        <button onClick={() => setExpandedClientId(isExpanded ? null : c.id)} aria-label="Toggle sub-rank breakdown" style={{ background: isExpanded ? "rgba(240,192,64,0.16)" : "rgba(255,255,255,0.05)", border: `1px solid ${isExpanded ? "rgba(240,192,64,0.4)" : "rgba(255,255,255,0.1)"}`, borderRadius: 8, color: isExpanded ? "#f0c040" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, padding: "4px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{isExpanded ? "▲" : "▼"}</button>
+                      )}
                     </div>
                     {isExpanded && tier?.subRanks && (
                       <div className="fade-in" style={{ padding: "0 16px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
