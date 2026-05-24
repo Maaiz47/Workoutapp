@@ -1,0 +1,10 @@
+{
+  "id": "cmpjbpt5g00021etdxsaj88a0",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "[🔄 RETEST · re:0748athh] Working but add a warning when going too fast before timer is done (athletes should enter the set as soon as possible after finishing it)",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T05:15:05.813Z"
+}
