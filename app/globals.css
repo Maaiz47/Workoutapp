@@ -179,6 +179,32 @@ input[type="number"] { -moz-appearance: textfield; }
 }
 .rest-timer-idle { animation: restTimerIdle 4s ease-in-out infinite; transform-style: preserve-3d; }
 
+/* ── Rest chip pulse (header REST · 23s) ──────────────────────────────── */
+/* Soft breathing pulse so the rest-active chip in the session header
+   reads as live even when the user has dismissed the fullscreen
+   overlay. (qa: workout-rest-skipped-counter) */
+@keyframes restChipPulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(255,209,102,0.35), 0 0 4px rgba(255,209,102,0.5) inset; transform: scale(1); }
+  50%      { box-shadow: 0 0 22px rgba(255,209,102,0.7), 0 0 6px rgba(255,209,102,0.7) inset;  transform: scale(1.04); }
+}
+.rest-chip-pulse { animation: restChipPulse 1.6s ease-in-out infinite; }
+
+/* Slim progress strip pinned to the very top of the viewport that
+   shrinks as rest ticks down — passive indicator that's hard to
+   miss even if the user isn't looking at the header.
+   (qa: workout-rest-skipped-counter) */
+.rest-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #FFD166, #ff8c42);
+  z-index: 9000;
+  box-shadow: 0 1px 6px rgba(255,209,102,0.6);
+  transition: width 0.25s linear;
+  pointer-events: none;
+}
+
 /* ── Session header depth ─────────────────────────────────────────────── */
 /* Soft inset bottom-shadow on the session header so it visually
    "floats" above the exercise list, suggesting layering.

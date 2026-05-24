@@ -15452,6 +15452,15 @@ function HomePage() {
           <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginTop: 10 }}>{activeDay.title}</div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 300 }}>{activeDay.focus}</div>
         </div>
+        {/* Top-edge rest progress strip — pinned to the viewport so the
+            user always knows a rest is ticking even if they've dismissed
+            the fullscreen overlay AND scrolled past the session header.
+            Shrinks left-to-right as time elapses. Hidden when no rest
+            is running OR the fullscreen overlay is still up.
+            (qa: workout-rest-skipped-counter) */}
+        {rest.running && rest.screenDismissed && rest.seconds > 0 && rest.total > 0 && (
+          <div className="rest-strip" style={{ width: `${Math.max(2, (rest.seconds / rest.total) * 100)}%` }} />
+        )}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>{timer.fmt}</div>
           {/* Discreet rest countdown — only when the user dismissed
@@ -15465,11 +15474,12 @@ function HomePage() {
             <button
               onClick={() => rest.dismissScreen(false)}
               type="button"
-              style={{ background: "rgba(255,209,102,0.10)", border: "1px solid rgba(255,209,102,0.32)", borderRadius: 6, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6, color: "#FFD166", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+              className="rest-chip-pulse"
+              style={{ background: "rgba(255,209,102,0.22)", border: "1.5px solid rgba(255,209,102,0.65)", borderRadius: 8, padding: "6px 12px", display: "flex", alignItems: "center", gap: 8, color: "#FFD166", cursor: "pointer", fontFamily: "'Space Mono', monospace", boxShadow: "0 0 14px rgba(255,209,102,0.35), 0 0 4px rgba(255,209,102,0.5) inset" }}
               title="Tap to re-open the rest timer overlay"
             >
-              <span style={{ fontSize: 9, letterSpacing: 2, fontWeight: 700, opacity: 0.7 }}>REST</span>
-              <span style={{ fontSize: 13, letterSpacing: 1.5, fontWeight: 700 }}>{rest.seconds}s</span>
+              <span style={{ fontSize: 10, letterSpacing: 2, fontWeight: 800 }}>REST</span>
+              <span style={{ fontSize: 18, letterSpacing: 1, fontWeight: 800 }}>{rest.seconds}s</span>
             </button>
           ) : (
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>SESSION</div>
