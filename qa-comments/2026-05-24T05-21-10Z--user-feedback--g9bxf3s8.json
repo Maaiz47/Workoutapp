@@ -1,0 +1,10 @@
+{
+  "id": "cmpjbxmpz0000spqxg9bxf3s8",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=systemNotifs] After I update a log from your patches to test, it goes away but when I open the quick notes again it comes back so I’m not sure if it even logged my submissions",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T05:21:10.726Z"
+}
