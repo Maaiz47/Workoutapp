@@ -264,9 +264,11 @@ function useCountdown() {
 
   // Hide the rest overlay without killing the timer. Counter keeps
   // ticking so other surfaces (LOG SET button, etc.) can show "still
-  // resting · 12s" badges. (qa: workout-rest-skipped-counter)
-  const dismissScreen = useCallback(() => {
-    setScreenDismissed(true);
+  // resting · 12s" badges. Pass `false` to re-open the overlay
+  // (used by the discreet REST chip in the session header — tap to
+  // bring the fullscreen view back). (qa: workout-rest-skipped-counter)
+  const dismissScreen = useCallback((dismissed: boolean = true) => {
+    setScreenDismissed(dismissed);
   }, []);
 
   // Handle coming back from background — check if timer expired while away
@@ -15445,7 +15447,26 @@ function HomePage() {
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>{timer.fmt}</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>SESSION</div>
+          {/* Discreet rest countdown — only when the user dismissed
+              the fullscreen rest overlay but the timer is still
+              ticking. Sits to the right of the session clock so the
+              user always knows how long until their next set is due
+              without having to re-open the overlay. Tap re-opens the
+              fullscreen view in case they want the big timer back.
+              (qa: workout-rest-skipped-counter) */}
+          {rest.running && rest.screenDismissed && rest.seconds > 0 ? (
+            <button
+              onClick={() => rest.dismissScreen(false)}
+              type="button"
+              style={{ background: "rgba(255,209,102,0.10)", border: "1px solid rgba(255,209,102,0.32)", borderRadius: 6, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6, color: "#FFD166", cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+              title="Tap to re-open the rest timer overlay"
+            >
+              <span style={{ fontSize: 9, letterSpacing: 2, fontWeight: 700, opacity: 0.7 }}>REST</span>
+              <span style={{ fontSize: 13, letterSpacing: 1.5, fontWeight: 700 }}>{rest.seconds}s</span>
+            </button>
+          ) : (
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>SESSION</div>
+          )}
         </div>
 
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", textAlign: "center", padding: "10px 20px 2px", fontFamily: "'DM Sans', sans-serif", fontStyle: "italic" }}>Tap an exercise to log a set</div>
