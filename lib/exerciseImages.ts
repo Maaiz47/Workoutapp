@@ -72,6 +72,10 @@ const BROKEN_DB_MAPPINGS = new Set<string>([
   // Frames don't show hanging leg raise — wrong action depicted.
   // Flagged by @maaiz 2026-05-24.
   "Hanging_Leg_Raise",
+  // Frames show a side-lying mat stretch, not a standing quad stretch
+  // (which should be a single-leg balance pulling heel to glute).
+  // Flagged by @maaiz 2026-05-24.
+  "Quad_Stretch",
 ]);
 
 export function getExerciseImageUrls(exerciseId: string, exerciseName?: string): [string, string] | null {
