@@ -278,6 +278,12 @@ model Message {
   delivered  Boolean           @default(false)
   read       Boolean           @default(false)
   createdAt  DateTime          @default(now())
+  // Soft-delete: set when the sender deletes their own message.
+  // Server-side fetches still return the row (so other clients see
+  // it disappear consistently) but the body is replaced with a
+  // 'Message deleted' placeholder before being shipped to the UI.
+  // (qa: message-soft-delete)
+  deletedAt  DateTime?
   from       User              @relation("SentMessages",     fields: [fromId], references: [id], onDelete: Cascade)
   to         User              @relation("ReceivedMessages", fields: [toId],   references: [id], onDelete: Cascade)
   proposal   PlanProposal?     @relation(fields: [proposalId], references: [id])
@@ -319,6 +325,11 @@ model GroupMessage {
   // unlocked an achievement. Add more types as system hooks come in.
   type      String           @default("text")
   createdAt DateTime         @default(now())
+  // Soft-delete: same semantics as Message.deletedAt — sender can
+  // delete their own; group members see a 'Message deleted'
+  // placeholder. System messages (fromId=null) can't be deleted.
+  // (qa: message-soft-delete)
+  deletedAt DateTime?
   group     LeaderboardGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   from      User?            @relation("SentGroupMessages", fields: [fromId], references: [id], onDelete: SetNull)
 

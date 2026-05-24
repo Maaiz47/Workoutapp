@@ -28,15 +28,23 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     });
 
     return json({
-      messages: messages.map(m => ({
-        id: m.id,
-        fromId: m.fromId,
-        fromUsername: m.from?.username ?? null,
-        fromAvatarId: (m.from as any)?.profile?.avatarId ?? null,
-        body: m.body,
-        type: m.type,
-        createdAt: m.createdAt.toISOString(),
-      })),
+      messages: messages.map(m => {
+        // Soft-deleted messages keep their row + author info but ship
+        // an empty body + deleted:true so the UI renders the placeholder
+        // bubble. Sender + timestamp still visible so members see who
+        // sent the (now-deleted) message. (qa: message-soft-delete)
+        const deleted = !!(m as any).deletedAt;
+        return {
+          id: m.id,
+          fromId: m.fromId,
+          fromUsername: m.from?.username ?? null,
+          fromAvatarId: (m.from as any)?.profile?.avatarId ?? null,
+          body: deleted ? "" : m.body,
+          type: m.type,
+          createdAt: m.createdAt.toISOString(),
+          deleted,
+        };
+      }),
     });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);

@@ -43,7 +43,24 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
       select: { lastSeenAt: true },
     });
 
-    return json({ messages, partnerLastSeen: partner?.lastSeenAt ?? null });
+    // Sanitize soft-deleted messages — keep the row so clients see
+    // the delete consistently, but replace the body + strip the
+    // reply-to body/reactions/proposal so nothing leaks. The client
+    // checks `deleted: true` to render the placeholder bubble.
+    // (qa: message-soft-delete)
+    const sanitized = messages.map((m: any) => {
+      if (!m.deletedAt) return m;
+      return {
+        ...m,
+        body: "",
+        proposal: null,
+        replyTo: null,
+        reactions: [],
+        deleted: true,
+      };
+    });
+
+    return json({ messages: sanitized, partnerLastSeen: partner?.lastSeenAt ?? null });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);
   }
