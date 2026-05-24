@@ -1,0 +1,10 @@
+{
+  "id": "cmpjddc2d0004dmbzw5vtngm9",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=systemNotifs] Ohhh it’s old system messages with qa links not opening the old comment, we can make those links resolve away in the chat log after it is fixed",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T06:01:23.027Z"
+}
