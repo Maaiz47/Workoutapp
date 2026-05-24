@@ -1,0 +1,10 @@
+{
+  "id": "cmpjwi7uk00061414pwn4xs03",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Messaging · view=conversation] Profile avatar to show next to chat bubbles in chat and in message logs with tier badges\nTier badges also to show with username and profile avatar at rhe top in Charlie\nOnline status indicator and last active show at both chat log top and in message logs",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T14:57:03.548Z"
+}
