@@ -1,0 +1,10 @@
+{
+  "id": "cmpjp92za0004pa6p510srodo",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=systemNotifs] The links in message go to as full and highlight the random notes section, just doesn’t let me action the previous feedback to passed or add comments or failure",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T11:34:00.023Z"
+}
