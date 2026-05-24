@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { createPortal } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
@@ -291,6 +294,46 @@ function useCountdown() {
   }, [finish]);
 
   return { seconds, running, total, start, stop, screenDismissed, dismissScreen, cycleId };
+}
+
+// Press-and-hold draggable wrapper. Activates after ~500ms of touch
+// press to keep regular taps tap-able. Used by the customise screen
+// and the in-session exercise list so users can reorder cards via
+// long-press + drag. (qa: workout-exercise-reorder)
+function SortableExerciseItem({
+  id,
+  children,
+  disabled,
+}: {
+  id: string;
+  children: (params: { isDragging: boolean; dragListeners: any; dragAttributes: any }) => React.ReactNode;
+  disabled?: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    // Lift visual when grabbed.
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.85 : 1,
+    boxShadow: isDragging ? "0 8px 28px -8px rgba(0,0,0,0.7), 0 0 0 2px rgba(255,209,102,0.6)" : undefined,
+    touchAction: disabled ? undefined : "manipulation",
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ isDragging, dragListeners: listeners, dragAttributes: attributes })}
+    </div>
+  );
+}
+
+// Touch + pointer sensors tuned for press-and-hold reorder. 500ms
+// delay means a regular tap doesn't accidentally start a drag.
+// tolerance allows tiny finger jitter during the press window.
+function useReorderSensors() {
+  return useSensors(
+    useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
 }
 
 function useTimer() {
@@ -5570,6 +5613,10 @@ function HomePage() {
 
   const rest = useCountdown();
   const timer = useTimer();
+  // Press-and-hold drag sensors for reordering exercises in both the
+  // customise editor and during a live session.
+  // (qa: workout-exercise-reorder)
+  const reorderSensors = useReorderSensors();
   const safeBot = "calc(80px + env(safe-area-inset-bottom, 0px))";
   const [phraseIdx, setPhraseIdx] = useState(() => Math.floor(Math.random() * PHRASES.length));
   const [phraseVisible, setPhraseVisible] = useState(true);
@@ -8451,15 +8498,36 @@ function HomePage() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>💪 MAIN</span>
               <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{exs.length} EXERCISES</span>
+              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginLeft: "auto" }}>HOLD TO REORDER</span>
             </div>
 
+            <DndContext
+              sensors={reorderSensors}
+              collisionDetection={closestCenter}
+              onDragEnd={(e: DragEndEvent) => {
+                const { active, over } = e;
+                if (!over || active.id === over.id) return;
+                const list: any[] = exs;
+                const oldIdx = list.findIndex((x: any, i: number) => (x.exerciseId ?? x.id ?? String(i)) === active.id);
+                const newIdx = list.findIndex((x: any, i: number) => (x.exerciseId ?? x.id ?? String(i)) === over.id);
+                if (oldIdx < 0 || newIdx < 0) return;
+                const updated = arrayMove(list, oldIdx, newIdx);
+                saveDay(editingDay, updated);
+              }}
+            >
+              <SortableContext
+                items={exs.map((x: any, i: number) => x.exerciseId ?? x.id ?? String(i))}
+                strategy={verticalListSortingStrategy}
+              >
             {exs.map((ex: any, i: number) => {
               const exKey = ex.exerciseId ?? ex.id ?? String(i);
               const isSel = superSelection.includes(exKey);
               const inGroup = !!ex.groupId;
               const isDropSet = ex.rest === 0;
               return (
-              <div key={ex.id ?? i} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${isSel ? "rgba(255,107,107,0.4)" : inGroup ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 8 }}>
+              <SortableExerciseItem key={ex.id ?? i} id={exKey} disabled={customMultiMode}>
+              {({ isDragging, dragListeners, dragAttributes }) => (
+              <div {...dragListeners} {...dragAttributes} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${isDragging ? "rgba(255,209,102,0.6)" : isSel ? "rgba(255,107,107,0.4)" : inGroup ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   {customMultiMode && (
                     <button onClick={() => setSuperSelection(s => s.includes(exKey) ? s.filter(id => id !== exKey) : [...s, exKey])} style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isSel ? "#FF6B6B" : "rgba(255,255,255,0.18)"}`, background: isSel ? "#FF6B6B" : "transparent", flexShrink: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", transition: "all 0.15s" }}>{isSel ? "✓" : ""}</button>
@@ -8540,8 +8608,12 @@ function HomePage() {
                   </div>
                 )}
               </div>
+              )}
+              </SortableExerciseItem>
               );
             })}
+              </SortableContext>
+            </DndContext>
 
             {/* Multi-select action bar */}
             {customMultiMode && (
@@ -16658,31 +16730,75 @@ function HomePage() {
                 );
               };
 
-              return items.map((item, itemIdx) => {
-                if (item.kind === "single") {
-                  const prevItem = itemIdx > 0 ? items[itemIdx - 1] : null;
-                  const isFirstHiit = item.ex.note === "HIIT circuit" && (!prevItem || prevItem.kind !== "single" || prevItem.ex.note !== "HIIT circuit");
-                  if (!isFirstHiit) return renderEx(item.ex);
-                  return (
-                    <div key={item.ex.id}>
-                      <div style={{ padding: "14px 20px 6px", display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ flex: 1, height: 1, background: "rgba(255,140,66,0.2)" }} />
-                        <span style={{ fontSize: 9, letterSpacing: 3, color: "#FF8C42", fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT CIRCUIT</span>
-                        <div style={{ flex: 1, height: 1, background: "rgba(255,140,66,0.2)" }} />
-                      </div>
-                      {renderEx(item.ex)}
-                    </div>
-                  );
-                }
-                return (
-                  <div key={item.groupId} style={{ borderLeft: "2px solid rgba(255,230,109,0.2)", marginLeft: 12 }}>
-                    <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 9, letterSpacing: 3, color: "#FFE66D", fontWeight: 700, fontFamily: "'Space Mono', monospace", opacity: 0.7 }}>⟳ SUPERSET</span>
-                    </div>
-                    {item.group.map((ex, idx) => renderEx(ex, { group: item.group, idx }))}
-                  </div>
-                );
-              });
+              return (
+                <DndContext
+                  sensors={reorderSensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(e: DragEndEvent) => {
+                    const { active, over } = e;
+                    if (!over || active.id === over.id) return;
+                    const idOf = (it: ExItem) => it.kind === "single" ? it.ex.id : it.groupId;
+                    const oldIdx = items.findIndex(it => idOf(it) === active.id);
+                    const newIdx = items.findIndex(it => idOf(it) === over.id);
+                    if (oldIdx < 0 || newIdx < 0) return;
+                    const reordered = arrayMove(items, oldIdx, newIdx);
+                    // Flatten items back to a flat exercises array,
+                    // preserving superset internal order so groups stay
+                    // coherent when moved as a block.
+                    // (qa: workout-exercise-reorder)
+                    const flat: any[] = [];
+                    for (const it of reordered) {
+                      if (it.kind === "single") flat.push(it.ex);
+                      else flat.push(...it.group);
+                    }
+                    setActiveDay(d => !d ? d : ({
+                      ...d,
+                      sections: d.sections.map((s, sIdx) => sIdx !== si ? s : { ...s, exercises: flat as any }),
+                    }));
+                  }}
+                >
+                  <SortableContext
+                    items={items.map(it => it.kind === "single" ? it.ex.id : it.groupId)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {items.map((item, itemIdx) => {
+                      const itemId = item.kind === "single" ? item.ex.id : item.groupId;
+                      if (item.kind === "single") {
+                        const prevItem = itemIdx > 0 ? items[itemIdx - 1] : null;
+                        const isFirstHiit = item.ex.note === "HIIT circuit" && (!prevItem || prevItem.kind !== "single" || prevItem.ex.note !== "HIIT circuit");
+                        return (
+                          <SortableExerciseItem key={itemId} id={itemId}>
+                            {({ dragListeners, dragAttributes }) => (
+                              <div {...dragListeners} {...dragAttributes}>
+                                {isFirstHiit && (
+                                  <div style={{ padding: "14px 20px 6px", display: "flex", alignItems: "center", gap: 8 }}>
+                                    <div style={{ flex: 1, height: 1, background: "rgba(255,140,66,0.2)" }} />
+                                    <span style={{ fontSize: 9, letterSpacing: 3, color: "#FF8C42", fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>⚡ HIIT CIRCUIT</span>
+                                    <div style={{ flex: 1, height: 1, background: "rgba(255,140,66,0.2)" }} />
+                                  </div>
+                                )}
+                                {renderEx(item.ex)}
+                              </div>
+                            )}
+                          </SortableExerciseItem>
+                        );
+                      }
+                      return (
+                        <SortableExerciseItem key={itemId} id={itemId}>
+                          {({ dragListeners, dragAttributes }) => (
+                            <div {...dragListeners} {...dragAttributes} style={{ borderLeft: "2px solid rgba(255,230,109,0.2)", marginLeft: 12 }}>
+                              <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 9, letterSpacing: 3, color: "#FFE66D", fontWeight: 700, fontFamily: "'Space Mono', monospace", opacity: 0.7 }}>⟳ SUPERSET</span>
+                              </div>
+                              {item.group.map((ex, idx) => renderEx(ex, { group: item.group, idx }))}
+                            </div>
+                          )}
+                        </SortableExerciseItem>
+                      );
+                    })}
+                  </SortableContext>
+                </DndContext>
+              );
             })()}
           </div>
         ))}
