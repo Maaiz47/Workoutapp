@@ -16035,8 +16035,15 @@ function HomePage() {
                         BOTH single-set and multi-set items — explicit
                         two-button affordance replaces the old hidden
                         cycle (qa: workout-warmup-skip,
-                        workout-warmup-mark-each-set). */}
-                    {isExp && !trackable && (() => {
+                        workout-warmup-mark-each-set).
+                        Hidden once wuDone — the set chips above
+                        already show the done/skip state, and keeping
+                        the input prompts visible after completion was
+                        confusing ("why is it asking me to DONE/SKIP
+                        when I already did?"). Users can still re-edit
+                        by tapping the set chips above.
+                        (qa: workout-warmup-mark-each-set) */}
+                    {isExp && !trackable && !wuDone && (() => {
                       return (
                         <div className="fade-in" style={{ padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
