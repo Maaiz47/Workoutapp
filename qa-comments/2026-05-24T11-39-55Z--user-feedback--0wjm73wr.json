@@ -1,0 +1,10 @@
+{
+  "id": "cmpjpgpch0001hgni0wjm73wr",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "[🔄 RETEST · re:8rba0u6v] Yes still opens systems notifications at the top but need to just see latest first at bottom like normal chats",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T11:39:55.596Z"
+}
