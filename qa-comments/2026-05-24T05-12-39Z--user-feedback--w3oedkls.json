@@ -1,0 +1,10 @@
+{
+  "id": "cmpjbmo740000a3oew3oedkls",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Messaging · view=messages] Add unread message count to home page message button",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T05:12:39.425Z"
+}
