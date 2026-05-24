@@ -16291,21 +16291,38 @@ function HomePage() {
                                   assistance (BW - help). Step size adapts to equipment:
                                   barbell+dumbbell 2.5kg, machine 5kg, default 1.25kg.
                                   (qa: workout-equipment-aware-input) */}
-                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 6, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
-                                <span>
-                                  {assistedBW ? "ASSISTANCE (kg)" : activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}
-                                  {weightConvention ? <span style={{ marginLeft: 6, color: "rgba(162,155,254,0.7)", textTransform: "none", letterSpacing: 0.5 }}>· {weightConvention}</span> : null}
+                              {/* Two-line label layout. Row 1 keeps
+                                  the canonical WEIGHT (kg) on the left
+                                  and the equipment-aware step on the
+                                  right; row 2 carries the convention
+                                  hint + BAR? helper. Previously all
+                                  four pieces fought for ~180px of
+                                  width (WEIGHT + REPS columns are
+                                  side-by-side) and wrapped mid-phrase.
+                                  whiteSpace:nowrap on each piece
+                                  prevents in-word breaks; flexWrap on
+                                  row 2 lets the BAR button drop below
+                                  the hint on very narrow phones.
+                                  (qa: weight-input-convention-clarity) */}
+                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 4, fontWeight: 500, display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6 }}>
+                                <span style={{ whiteSpace: "nowrap" }}>{assistedBW ? "ASSISTANCE (kg)" : activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}</span>
+                                <span style={{ color: "rgba(255,255,255,0.25)", whiteSpace: "nowrap" }}>±{weightStep}{isMachine ? " · pin" : isBarbellOrDB ? " · plate" : ""}</span>
+                              </div>
+                              {(weightConvention || ((isBarbell || isEzBar) && !activeBW)) && (
+                                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 10, letterSpacing: 1, fontWeight: 500 }}>
+                                  {weightConvention && (
+                                    <span style={{ color: "rgba(162,155,254,0.7)", textTransform: "none", letterSpacing: 0.5, whiteSpace: "nowrap" }}>· {weightConvention}</span>
+                                  )}
                                   {(isBarbell || isEzBar) && !activeBW && (
                                     <button
                                       type="button"
                                       onClick={() => setBarGuideOpen(o => !o)}
                                       title="Standard bar weights — tap to expand"
-                                      style={{ marginLeft: 6, padding: "1px 6px", background: barGuideOpen ? "rgba(255,209,102,0.18)" : "rgba(255,209,102,0.08)", border: "1px solid rgba(255,209,102,0.3)", borderRadius: 4, color: "#FFD166", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", textTransform: "uppercase" }}
+                                      style={{ padding: "1px 6px", background: barGuideOpen ? "rgba(255,209,102,0.18)" : "rgba(255,209,102,0.08)", border: "1px solid rgba(255,209,102,0.3)", borderRadius: 4, color: "#FFD166", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", textTransform: "uppercase", whiteSpace: "nowrap" }}
                                     >📏 BAR{barGuideOpen ? " ▴" : "?"}</button>
                                   )}
-                                </span>
-                                <span style={{ color: "rgba(255,255,255,0.25)" }}>±{weightStep}{isMachine ? " · pin" : isBarbellOrDB ? " · plate" : ""}</span>
-                              </div>
+                                </div>
+                              )}
                               {/* Standard bar weights reference. Shown
                                   only on barbell / EZ-curl exercises when
                                   the user taps 📏 BAR?. Helps users who
