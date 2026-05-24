@@ -307,7 +307,7 @@ function SortableExerciseItem({
   disabled,
 }: {
   id: string;
-  children: (params: { isDragging: boolean; dragListeners: any; dragAttributes: any }) => React.ReactNode;
+  children: (params: { isDragging: boolean; dragListeners: any; dragAttributes: any; dragHandleStyle: React.CSSProperties }) => React.ReactNode;
   disabled?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
@@ -318,26 +318,29 @@ function SortableExerciseItem({
     zIndex: isDragging ? 50 : undefined,
     opacity: isDragging ? 0.85 : 1,
     boxShadow: isDragging ? "0 8px 28px -8px rgba(0,0,0,0.7), 0 0 0 2px rgba(255,209,102,0.6)" : undefined,
-    // touch-action:none — dnd-kit's recommendation for sortable items.
-    // Without it, iOS Safari's scroll gesture interception fires
-    // before the 350ms activation timer and the drag never activates.
-    // 'none' tells the browser "JS handles all touches on this
-    // element" — scroll still works by touching the section header
-    // or gaps between items. The 350ms delay means quick taps fall
-    // through to onClick handlers inside the card (expand row, etc.)
-    // unmodified. (qa: workout-exercise-reorder — iOS scroll race fix)
-    touchAction: disabled ? undefined : "none",
-    // Suppress iOS Safari's long-press callout (copy/share menu) +
-    // text selection during press-hold so the drag activates cleanly
-    // instead of fighting the OS gesture.
+    // NB: NO touch-action on this wrapper — would break scroll on
+    // every exercise card. The drag listeners are now bound to a
+    // dedicated ≡ handle button per card (caller-provided via the
+    // render-prop), and `touch-action: none` is applied only to that
+    // handle. Quick taps + finger-scroll-from-card both work as
+    // expected; only the handle is gesture-locked.
+    // (qa: workout-exercise-reorder — handle-only drag affordance)
+    position: isDragging ? "relative" : undefined,
     WebkitTouchCallout: "none" as any,
+  };
+
+  // Style snippet for the drag-handle button rendered by callers.
+  // Exposed so every call site gets the same iOS-safe handle.
+  const handleStyle: React.CSSProperties = {
+    touchAction: "none",
     WebkitUserSelect: "none" as any,
     userSelect: "none" as any,
     WebkitTapHighlightColor: "transparent" as any,
+    cursor: "grab",
   };
   return (
     <div ref={setNodeRef} style={style}>
-      {children({ isDragging, dragListeners: listeners, dragAttributes: attributes })}
+      {children({ isDragging, dragListeners: listeners, dragAttributes: attributes, dragHandleStyle: handleStyle })}
     </div>
   );
 }
@@ -7669,32 +7672,49 @@ function HomePage() {
 
   // Tier-promotion toast. Compares the user's CURRENT headline tierNum
   // to the last-observed value stored in localStorage; if higher, fires
-  // a one-off celebratory toast. Wins are persisted per-user (key
+  // a one-off celebratory modal. Wins are persisted per-user (key
   // includes userId) so logging in as a different account doesn't
   // re-trigger the prior account's promotion. (qa: tier-promotion-toast)
+  //
+  // Bug history (2026-05-24): the effect used to also write a "quiet
+  // demotion" value when currentTier < lastObserved. Combined with
+  // the transient initial render — where myAthleteBreakdown computes
+  // a Kitten (tierNum=1) before `history` finishes loading — this
+  // overwrote the saved high tier with 1, then the real value re-
+  // promoted and fired the toast on EVERY app reopen. Fix: skip the
+  // effect entirely until history has loaded with real data, and
+  // never write a LOWER value to localStorage. lastObserved is now
+  // monotonically increasing — legitimate demotions don't re-fire
+  // promotion toasts when re-climbing past prior peaks, but that's
+  // the lesser evil vs the every-reopen spam.
   const [tierPromoToast, setTierPromoToast] = useState<{ tier: AnimalTier } | null>(null);
   useEffect(() => {
     if (!user || !myAthleteBreakdown) return;
+    // Guard against transient initial-load values. Wait for history
+    // to actually contain logged sessions before trusting the tier
+    // observation as real.
+    const hasRealHistory = Object.keys(history).some(k => Array.isArray(history[k]) && history[k].length > 0);
+    if (!hasRealHistory) return;
     const key = `ironlog.lastObservedTier.${user.id}`;
     const currentTier = myAthleteBreakdown.headline.tierNum;
     let lastObserved = 0;
     try { lastObserved = parseInt(localStorage.getItem(key) ?? "0", 10) || 0; } catch {}
     if (lastObserved === 0) {
-      // First observation — write quietly without firing the toast.
+      // First observation with real history — write quietly without
+      // firing the toast.
       try { localStorage.setItem(key, String(currentTier)); } catch {}
       return;
     }
     if (currentTier > lastObserved) {
       setTierPromoToast({ tier: myAthleteBreakdown.headline });
       try { localStorage.setItem(key, String(currentTier)); } catch {}
-      // Auto-dismiss after 4s; users can also tap to close.
-      const t = setTimeout(() => setTierPromoToast(null), 4000);
+      // Auto-dismiss after 6s (bumped from 4s — bigger celebration
+      // deserves more on-screen time). Users can tap to dismiss early.
+      const t = setTimeout(() => setTierPromoToast(null), 6000);
       return () => clearTimeout(t);
-    } else if (currentTier < lastObserved) {
-      // Quiet demotion — keep the marker in sync but don't toast.
-      try { localStorage.setItem(key, String(currentTier)); } catch {}
     }
-  }, [user, myAthleteBreakdown]);
+    // No 'quiet demotion' write — see header comment for why.
+  }, [user, myAthleteBreakdown, history]);
 
   // Balanced-fortnight celebration — counterpart to the Balance
   // sub-rank's neglect penalty. Fires a one-shot toast when the user
@@ -8600,8 +8620,14 @@ function HomePage() {
               const isDropSet = ex.rest === 0;
               return (
               <SortableExerciseItem key={ex.id ?? i} id={exKey} disabled={customMultiMode}>
-              {({ isDragging, dragListeners, dragAttributes }) => (
-              <div {...dragListeners} {...dragAttributes} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${isDragging ? "rgba(255,209,102,0.6)" : isSel ? "rgba(255,107,107,0.4)" : inGroup ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 8 }}>
+              {({ isDragging, dragListeners, dragAttributes, dragHandleStyle }) => (
+              <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${isDragging ? "rgba(255,209,102,0.6)" : isSel ? "rgba(255,107,107,0.4)" : inGroup ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 8, position: "relative" }}>
+                {/* Drag handle — touch-action:none on this element only
+                    so scroll on the rest of the card still works on
+                    iOS. (qa: workout-exercise-reorder) */}
+                {!customMultiMode && (
+                  <div {...dragListeners} {...dragAttributes} style={{ ...dragHandleStyle, position: "absolute", top: 8, right: 8, padding: "4px 8px", color: "rgba(255,255,255,0.35)", fontSize: 16, lineHeight: 1, borderRadius: 6, background: "rgba(255,255,255,0.03)" }} title="Drag to reorder">≡</div>
+                )}
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   {customMultiMode && (
                     <button onClick={() => setSuperSelection(s => s.includes(exKey) ? s.filter(id => id !== exKey) : [...s, exKey])} style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isSel ? "#FF6B6B" : "rgba(255,255,255,0.18)"}`, background: isSel ? "#FF6B6B" : "transparent", flexShrink: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", transition: "all 0.15s" }}>{isSel ? "✓" : ""}</button>
@@ -15892,6 +15918,16 @@ function HomePage() {
                   || ex.id.includes("ez-bar")
                   || (Array.isArray(exLibData?.equipment) && exLibData.equipment.includes("ez-bar"))
                   || /\bez[\s-]?(curl|bar)\b/i.test(ex.name);
+                // Plate-loaded machine — uses olympic plates loaded
+                // onto both sides (leg press, T-bar row, hack squat,
+                // belt squat, plate-loaded variants). Convention =
+                // sum of plates across both sides, NO bar weight.
+                // Differs from stack-pin machines where the number on
+                // the pin IS the resistance. (qa: weight-input-convention-clarity
+                // — @maaiz: 'Add a hint to machines like leg press where
+                // there could be plates involved, add both side plates
+                // total. Obviously no bar weight on these')
+                const isPlateMachine = isMachine && /\bleg press\b|\bt[\s-]?bar row\b|\bhack squat\b|\bbelt squat\b|\bplate[\s-]?loaded\b|\blandmine\b/i.test(ex.name);
                 const weightStep = isMachine ? 5 : isBarbellOrDB ? 2.5 : 1.25;
                 // Convention hint shown under the weight input so the
                 // user knows what the number represents. Per @maaiz:
@@ -15926,6 +15962,7 @@ function HomePage() {
                   ? conventionFromExplicit
                   : isBarbell ? "total on bar (incl. bar)"
                   : isDumbbell ? "per dumbbell"
+                  : isPlateMachine ? "both sides plate total · no bar"
                   : equipList.includes("machine") ? "stack pin"
                   : equipList.includes("cable") ? "stack pin"
                   : null;
@@ -16671,7 +16708,7 @@ function HomePage() {
                                   📏 BAR? helper sits inline. Convention hint
                                   + bar guide both reachable through the BAR?
                                   expander. (qa: weight-input-convention-clarity) */}
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, fontWeight: 500, minHeight: 18 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, fontWeight: 500, minHeight: 18, flexWrap: "wrap" }}>
                                 <span style={{ whiteSpace: "nowrap" }}>{assistedBW ? "ASSISTANCE (kg)" : activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}</span>
                                 {(isBarbell || isEzBar) && !activeBW && (
                                   <button
@@ -16680,6 +16717,14 @@ function HomePage() {
                                     title={`Standard bar weights — tap to expand${weightConvention ? `\nConvention: ${weightConvention}` : ""}`}
                                     style={{ padding: "1px 6px", background: barGuideOpen ? "rgba(255,209,102,0.18)" : "rgba(255,209,102,0.08)", border: "1px solid rgba(255,209,102,0.3)", borderRadius: 4, color: "#FFD166", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", textTransform: "uppercase", whiteSpace: "nowrap" }}
                                   >📏 BAR{barGuideOpen ? " ▴" : "?"}</button>
+                                )}
+                                {/* Plate-loaded machine hint (leg press, T-bar
+                                    row, hack squat, etc.) — both sides plate
+                                    total, NO bar. Inline chip so the convention
+                                    is obvious before the user enters a number.
+                                    (qa: weight-input-convention-clarity) */}
+                                {isPlateMachine && !activeBW && (
+                                  <span title="Enter the sum of plates on BOTH sides. These machines have no bar to add — just plate weight." style={{ padding: "1px 6px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.35)", borderRadius: 4, color: "#4ECDC4", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", textTransform: "uppercase", whiteSpace: "nowrap" }}>⚖ BOTH SIDES · NO BAR</span>
                                 )}
                               </div>
                               {/* Standard bar weights reference. Shown
@@ -17010,8 +17055,8 @@ function HomePage() {
                         const isFirstHiit = item.ex.note === "HIIT circuit" && (!prevItem || prevItem.kind !== "single" || prevItem.ex.note !== "HIIT circuit");
                         return (
                           <SortableExerciseItem key={itemId} id={itemId}>
-                            {({ dragListeners, dragAttributes }) => (
-                              <div {...dragListeners} {...dragAttributes}>
+                            {({ dragListeners, dragAttributes, dragHandleStyle }) => (
+                              <div style={{ position: "relative" }}>
                                 {isFirstHiit && (
                                   <div style={{ padding: "14px 20px 6px", display: "flex", alignItems: "center", gap: 8 }}>
                                     <div style={{ flex: 1, height: 1, background: "rgba(255,140,66,0.2)" }} />
@@ -17020,6 +17065,10 @@ function HomePage() {
                                   </div>
                                 )}
                                 {renderEx(item.ex)}
+                                {/* Drag handle — only this element is touch-action:none
+                                    so scroll on the card itself still works.
+                                    (qa: workout-exercise-reorder) */}
+                                <div {...dragListeners} {...dragAttributes} style={{ ...dragHandleStyle, position: "absolute", top: 14, right: 6, padding: "6px 8px", color: "rgba(255,255,255,0.3)", fontSize: 16, lineHeight: 1, borderRadius: 6, background: "rgba(255,255,255,0.03)" }} title="Drag to reorder">≡</div>
                               </div>
                             )}
                           </SortableExerciseItem>
@@ -17027,10 +17076,11 @@ function HomePage() {
                       }
                       return (
                         <SortableExerciseItem key={itemId} id={itemId}>
-                          {({ dragListeners, dragAttributes }) => (
-                            <div {...dragListeners} {...dragAttributes} style={{ borderLeft: "2px solid rgba(255,230,109,0.2)", marginLeft: 12 }}>
+                          {({ dragListeners, dragAttributes, dragHandleStyle }) => (
+                            <div style={{ borderLeft: "2px solid rgba(255,230,109,0.2)", marginLeft: 12, position: "relative" }}>
                               <div style={{ padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: 6 }}>
                                 <span style={{ fontSize: 9, letterSpacing: 3, color: "#FFE66D", fontWeight: 700, fontFamily: "'Space Mono', monospace", opacity: 0.7 }}>⟳ SUPERSET</span>
+                                <div {...dragListeners} {...dragAttributes} style={{ ...dragHandleStyle, marginLeft: "auto", padding: "4px 8px", color: "rgba(255,230,109,0.55)", fontSize: 14, lineHeight: 1, borderRadius: 6, background: "rgba(255,230,109,0.06)" }} title="Drag to reorder superset">≡</div>
                               </div>
                               {item.group.map((ex, idx) => renderEx(ex, { group: item.group, idx }))}
                             </div>
