@@ -2,6 +2,20 @@
 
 ---
 
+## QA pass · 2026-05-24 — 4 comments processed (qa: system-notifs-swipe-back, system-notifs-scroll-bottom, qa-deep-link-to-comment, qa-pending-retests-list, workout-rest-skipped-counter)
+
+### Addressed
+- **system-notifs-swipe-back**: 'Unable to swipe out of system messages' — added 'systemNotifs' to swipeBackViews + back-target chain (→ /messages). (@maaiz)
+- **system-notifs-scroll-bottom**: System feed view auto-scrolls to the latest message on mount + re-scrolls when patch notifs load (chat-conventions). (@maaiz)
+- **qa-deep-link-to-comment**: Patch-notification bubbles + the YOUR PATCHES TO RETEST list now deep-link to `/qa?focus=<itemId>#comment-<commentId>`. /qa expands the item, scrolls to the specific comment, flashes a gold drop-shadow. <div id='comment-{id}'> markers on both compact + full thread renders. (@maaiz)
+- **qa-pending-retests-list**: Retest list rows expanded inline: YOU SAID (original note snippet) + FIX (processed summary snippet) + 3 status chips (WORKS NOW / NEEDS RETEST / STILL BROKEN) + optional textarea + SUBMIT RETEST. Submit posts via /api/qa/comment and drops the row from local state. Secondary ↗ button still opens the full /qa dashboard. (@maaiz)
+- **workout-rest-skipped-counter**: Rest countdown suffix on the LOG SET button no longer gated on rest.screenDismissed — shows whenever rest.running && seconds > 0. Fullscreen overlay covers the button during fullscreen so no double-display; after dismiss the suffix is reliably visible. (@maaiz relaying @munchy)
+
+### Items with no action needed (status flips only)
+- None.
+
+---
+
 ## QA pass · 2026-05-24 — 9 comments processed (qa: profile-identity-premium, qa-pending-retests-list, system-notifications-feed, home-clients-button-no-count, pro-tip-overlay-zindex, image-prompts-v2, qa-patch-notification, customise-delete-day, workout-effort-recommended-chip)
 
 Processed 9 comments from @maaiz (7) + @munchy (2).

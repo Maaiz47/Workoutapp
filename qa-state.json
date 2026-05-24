@@ -1,6 +1,50 @@
 {
   "items": [
     {
+      "id": "system-notifs-swipe-back",
+      "title": "Swipe right pops out of the IRONLOG SYSTEM feed back to Messages",
+      "area": "Messages",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass system-notifs-swipe-back",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open Messages → tap the 📢 IRONLOG SYSTEM row.",
+        "From inside the feed, perform an iOS edge-swipe right.",
+        "Verify the view pops back to /messages (not stuck)."
+      ],
+      "notes": "[2026-05-24] Shipped: added 'systemNotifs' to swipeBackViews set + back-target chain."
+    },
+    {
+      "id": "system-notifs-scroll-bottom",
+      "title": "System feed lands scrolled to the newest message",
+      "area": "Messages",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass system-notifs-scroll-bottom",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open Messages → 📢 IRONLOG SYSTEM.",
+        "Verify the feed is scrolled to the BOTTOM (newest message in view) rather than the top."
+      ],
+      "notes": "[2026-05-24] Shipped: ref on the scroll container sets scrollTop = scrollHeight on mount + when patchNotifs load."
+    },
+    {
+      "id": "qa-deep-link-to-comment",
+      "title": "Patch links open the exact comment thread, not just the QA page",
+      "area": "QA",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass qa-deep-link-to-comment",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "From the IRONLOG SYSTEM feed, tap a patch-notification bubble (🔧 BUG PATCHED / ✨ IDEA SHIPPED).",
+        "Verify /qa opens with the relevant item expanded and the specific comment scrolled into view + briefly flashing.",
+        "From the Quick Note FAB → YOUR PATCHES TO RETEST → tap the ↗ shortcut on a row. Verify the same focused deep-link behaviour."
+      ],
+      "notes": "[2026-05-24] Shipped: bubble + retest-list onClick now set ?focus=<itemId>#comment-<commentId>. /qa effect expands the item (clicks toggle if collapsed) then flashes the comment node by id."
+    },
+    {
       "id": "workout-effort-recommended-chip",
       "title": "Recommended RPE chip glows so the user can pick faster between sets",
       "area": "Workout",
