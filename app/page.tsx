@@ -5412,7 +5412,12 @@ function HomePage() {
   // Groups view, back to "groupsHub". Defaults to "groupsHub" for
   // safety. (qa: group-chat-back-nav)
   const [groupChatPrevView, setGroupChatPrevView] = useState<"messages" | "groupsHub" | "home">("groupsHub");
-  const [groupChatMessages, setGroupChatMessages] = useState<Array<{ id: string; fromId: string | null; fromUsername: string | null; fromAvatarId: string | null; body: string; type: string; createdAt: string }>>([]);
+  const [groupChatMessages, setGroupChatMessages] = useState<Array<{ id: string; fromId: string | null; fromUsername: string | null; fromAvatarId: string | null; body: string; type: string; createdAt: string; deleted?: boolean }>>([]);
+  // Active long-press target in group chat — drives the delete
+  // affordance overlay for sender-owned bubbles only.
+  // (qa: message-soft-delete)
+  const [groupChatLongPressId, setGroupChatLongPressId] = useState<string | null>(null);
+  const groupChatLongPressTimer = useRef<NodeJS.Timeout | null>(null);
   const [groupChatInput, setGroupChatInput] = useState("");
   const [groupChatSending, setGroupChatSending] = useState(false);
   const [groupChatLoading, setGroupChatLoading] = useState(false);
@@ -11404,6 +11409,17 @@ function HomePage() {
       } catch {}
       setGroupChatSending(false);
     };
+    // Soft-delete a group message the user sent. Optimistic local
+    // flip so the bubble becomes a placeholder immediately; other
+    // members see it on their next poll. (qa: message-soft-delete)
+    const deleteGroupMessage = async (msgId: string) => {
+      if (!confirm("Delete this message for everyone in the group? This can't be undone.")) return;
+      setGroupChatMessages(prev => prev.map(m => m.id === msgId ? { ...m, deleted: true, body: "" } : m));
+      setGroupChatLongPressId(null);
+      try {
+        await fetch(`/api/leaderboard/groups/${grpId}/messages/${msgId}`, { method: "DELETE" });
+      } catch {}
+    };
     const group = lbGroups.find((g: any) => g.id === grpId);
     const sortedMembers = group ? [...(group.members ?? [])]
       .filter((m: any) => m.includeInRank !== false)
@@ -11481,16 +11497,72 @@ function HomePage() {
                 </div>
               );
             }
+            // Long-press handlers — only OWN, non-deleted, non-system
+            // bubbles arm a delete affordance. 500ms timer mirrors the
+            // DM bubble's long-press behaviour. Touch-move > 8px
+            // cancels. (qa: message-soft-delete)
+            const armLongPress = (e: React.TouchEvent) => {
+              if (!isMine || msg.deleted) return;
+              const el = e.currentTarget as HTMLElement;
+              el.dataset.sx = String(e.touches[0].clientX);
+              el.dataset.sy = String(e.touches[0].clientY);
+              if (groupChatLongPressTimer.current) clearTimeout(groupChatLongPressTimer.current);
+              groupChatLongPressTimer.current = setTimeout(() => setGroupChatLongPressId(msg.id), 500);
+            };
+            const cancelLongPress = () => {
+              if (groupChatLongPressTimer.current) { clearTimeout(groupChatLongPressTimer.current); groupChatLongPressTimer.current = null; }
+            };
+            const moveCancel = (e: React.TouchEvent) => {
+              const el = e.currentTarget as HTMLElement;
+              const dx = e.touches[0].clientX - Number(el.dataset.sx);
+              const dy = e.touches[0].clientY - Number(el.dataset.sy);
+              if (Math.abs(dx) > 8 || Math.abs(dy) > 8) cancelLongPress();
+            };
             return (
-              <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", maxWidth: "82%" }}>
+              <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", maxWidth: "85%", position: "relative" }}>
+                {/* Author chip — bigger avatar on incoming messages
+                    so user identity reads cleanly across the chat log.
+                    Bump 18 → 32 per @maaiz 'show it off'.
+                    (qa: group-chat-bigger-avatars) */}
                 {!isMine && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 3, paddingLeft: 2 }}>
-                    <UserAvatarChip avatarId={msg.fromAvatarId} username={msg.fromUsername} size={18} />
-                    <span>@{msg.fromUsername ?? "—"}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, paddingLeft: 2 }}>
+                    <UserAvatarChip avatarId={msg.fromAvatarId} username={msg.fromUsername} size={32} />
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", fontWeight: 600 }}>@{msg.fromUsername ?? "—"}</span>
                   </div>
                 )}
-                <div style={{ padding: "10px 14px", background: isMine ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.05)", border: isMine ? "none" : "1px solid rgba(255,255,255,0.08)", borderRadius: 14, color: "#fff", fontSize: 13.5, lineHeight: 1.45, wordBreak: "break-word" }}>
-                  {msg.body}
+                {/* Delete affordance — shown only when isMine AND
+                    long-press registered. Tap deletes (with confirm);
+                    tap outside cancels. (qa: message-soft-delete) */}
+                <AnimatePresence>
+                  {isMine && !msg.deleted && groupChatLongPressId === msg.id && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.85, y: 6 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.85, y: 6 }}
+                      transition={{ duration: 0.15 }}
+                      style={{ position: "absolute", bottom: "calc(100% + 4px)", right: 0, zIndex: 20, background: "rgba(30,30,38,0.97)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: "4px 6px", display: "flex", gap: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}
+                    >
+                      <button onClick={() => deleteGroupMessage(msg.id)} title="Delete this message for everyone in the group" style={{ background: "rgba(255,107,107,0.15)", border: "1px solid rgba(255,107,107,0.45)", borderRadius: 10, padding: "4px 10px", fontSize: 13, cursor: "pointer", color: "#FF6B6B", fontWeight: 700 }}>🗑 DELETE</button>
+                      <button onClick={() => setGroupChatLongPressId(null)} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "4px 10px", fontSize: 11, cursor: "pointer", color: "rgba(255,255,255,0.6)" }}>CANCEL</button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <div
+                  onTouchStart={armLongPress}
+                  onTouchMove={moveCancel}
+                  onTouchEnd={cancelLongPress}
+                  onTouchCancel={cancelLongPress}
+                  style={{
+                    padding: "10px 14px",
+                    background: msg.deleted ? "rgba(255,255,255,0.025)" : isMine ? "linear-gradient(135deg, #FF6B6B, #ee5a24)" : "rgba(255,255,255,0.05)",
+                    border: msg.deleted ? "1px dashed rgba(255,255,255,0.15)" : isMine ? "none" : "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 14,
+                    color: msg.deleted ? "rgba(255,255,255,0.45)" : "#fff",
+                    fontSize: 13.5, lineHeight: 1.45, wordBreak: "break-word",
+                    fontStyle: msg.deleted ? "italic" : undefined,
+                  }}
+                >
+                  {msg.deleted ? "🗑 Message deleted" : msg.body}
                 </div>
               </div>
             );
