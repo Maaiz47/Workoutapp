@@ -1,0 +1,10 @@
+{
+  "id": "cmpj723dz0002tk53tq3080f3",
+  "itemId": "user-feedback",
+  "tester": "munchy",
+  "userId": "cmp4cetem0003pskp274fe7ul",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=customise] When customizing the exercises dragging to reorder exercises doesn’t  work. Probably due to scroll issues",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T03:04:40.867Z"
+}
