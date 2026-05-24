@@ -1,0 +1,10 @@
+{
+  "id": "cmpjb45bl0002zfgqaojajeq0",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=systemNotifs] The qa links open the qa page generally, not straight to the particular user feedback item\nShow short summary of the feedback in the your patches to retest, on click open a text box to add another comment and mark as pass or retest after patch again",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T04:58:15.150Z"
+}
