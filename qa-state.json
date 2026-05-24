@@ -1,6 +1,101 @@
 {
   "items": [
     {
+      "id": "user-log-audit-allaa",
+      "title": "Admin can audit + per-set correct miscoded workout-log weights (notation shifts, accidental LBs)",
+      "area": "Admin",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass user-log-audit-allaa",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "POST /api/admin/audit-user-logs with x-admin-key + body { username: 'alla', mode: 'audit', barKg: 15, ezBarKg: 10 }.",
+        "Verify response groups every barbell / ez-bar / cable / machine set the user has logged, chronological per exercise, with per-set 'category' tag and 'proposals' array (one-side-plates+bar / both-sides+bar / leave-as-is for bars; lb-to-kg / leave-as-is for cable/machine).",
+        "Pick the right proposal per set, build a corrections array [{logId, key, newWeight, reason}].",
+        "POST /api/admin/audit-user-logs with mode: 'apply', corrections: [...]. Verify it returns touchedLogs + appliedSets + audit log of before/after.",
+        "Re-run audit mode — confirm the corrected sets now read in 'ok' category."
+      ],
+      "notes": "[2026-05-24] Shipped: new admin endpoint splits audit (read-only, returns proposals) from apply (takes explicit corrections). Default home-bar 15kg / EZ-bar 10kg per alla'a setup."
+    },
+    {
+      "id": "wellness-sync-v1",
+      "title": "Wellness trackers (hydration / sleep / energy) sync to the server so leaderboard Habits matches the dashboard",
+      "area": "Wellness",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass wellness-sync-v1",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Log hydration / sleep / energy on phone A.",
+        "Open the app on phone B (same account) — verify the values appear after the WellnessCard mounts (server reconciliation fires).",
+        "On a fresh device with no localStorage: open WellnessCard — verify it pulls last 30d from /api/wellness and displays today's values.",
+        "Check that any user appearing on a leaderboard now has Habits scored against their actual logged wellness (no longer hardcoded 0)."
+      ],
+      "notes": "[2026-05-24] Shipped: WellnessLog model (userId, date @db.Date, glasses, sleepHours, energy, @@unique[userId,date]). /api/wellness GET (last 30d) + POST (single or batch upsert, max 60 entries) with input clamping. lib/wellness.ts: pushWellnessToServer fire-and-forget on every write, syncWellnessFromServer on mount, syncWellnessToServerOnce one-time batch upload of localStorage history. computeStatsForUsers in lib/leaderboardStats.ts now batch-fetches WellnessLog (last 14d) and aggregates per-user counts. Soreness + injuries stay localStorage-only."
+    },
+    {
+      "id": "weight-input-convention-clarity",
+      "title": "Workout-day barbell exercises classify correctly — BW toggle hidden + bar helper visible + clean label layout",
+      "area": "Workout",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass weight-input-convention-clarity",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Start any session with Flat Barbell Bench Press (or Barbell Back Squat, RDL, Bent-Over Row, EZ-Bar Curl, etc.). Tap an exercise to expand it.",
+        "Verify the BW (bodyweight) toggle does NOT appear above the WEIGHT input.",
+        "Verify the 📏 BAR? helper appears next to the WEIGHT label and the '· total on bar (incl. bar)' convention hint shows.",
+        "Tap 📏 BAR? — verify standard bar weights expand (Olympic 20kg / Women's 15kg / Standard ~10kg / Smith / Trap, or EZ-bar 7/11kg variants).",
+        "Verify the label layout doesn't wrap mid-phrase — 'WEIGHT (kg)' + '±2.5 · plate' fit on row 1; convention hint + BAR? button sit on row 2."
+      ],
+      "notes": "[2026-05-24] Shipped: inferEquipmentFromName in lib/exercises.ts as fallback when EXERCISES catalog lookup misses (workout-day ids a1/b1/... never matched by name). Covers barbell + ez-bar + dumbbell + cable + machine + bodyweight, with squat-qualifier guards (split/bulgarian/goblet/air/wall don't fall through to barbell). Wired through both loadingKindFor call sites + isEzBar detection. WEIGHT label split into 2 lines so the four pieces no longer collide in the ~180px column."
+    },
+    {
+      "id": "weekly-recap-top-exercise-name",
+      "title": "Weekly digest TOP EXERCISE shows readable exercise name, not raw slot id",
+      "area": "Home",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass weekly-recap-top-exercise-name",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Wait for the weekly recap modal to appear (Sunday onwards once per week).",
+        "Verify the TOP EXERCISE tile shows the exercise's readable name (e.g. 'Flat Barbell Bench Press') NOT a raw id like 'a1' or 'b1'."
+      ],
+      "notes": "[2026-05-24] Shipped: buildWeeklyRecap now resolves exerciseId → name via session.dayData (custom plans) with WORKOUT_DATA fallback (bundled splits). Stores name alongside volume in perEx so the output is clean."
+    },
+    {
+      "id": "home-tier-card-stripped",
+      "title": "Home tier card + profile button have no chrome — badge floats with glow, text uses shadow for readability",
+      "area": "Home",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass home-tier-card-stripped",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open the home screen.",
+        "Verify the profile button (top-left) has NO border, NO box-shadow card, NO inner highlight — just the avatar image with a soft white glow.",
+        "Verify the tier card (right side) has NO outer gold gradient/border. Each tier row (Strategist + Big Dawg for hybrids; just athlete for athletes) shows: glowing badge + tier name + T-number + progress dot bar, no row backgrounds.",
+        "Verify text stays readable over the bright-flame portion of the hero image (text-shadow visible)."
+      ],
+      "notes": "[2026-05-24] Shipped: outer button background → transparent, border + boxShadow removed; per-row background + border + padding stripped. Badge gets filter:drop-shadow(0 0 10px tierColor) for glow. Text labels get textShadow for readability."
+    },
+    {
+      "id": "tier-scoring-v35",
+      "title": "Tier scoring v3.5 — per-dim weighted average + soft-floor (work-in-progress; scaffolding shipped)",
+      "area": "Tiers",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass tier-scoring-v35 (slice 1/N)",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open the tier modal — verify it still renders cleanly (no breakage from the scaffolding changes).",
+        "Open Settings → Tier theme — verify both Vivid and Simple themes still resolve correctly.",
+        "Verify leaderboard tier values still appear (no NaN / undefined)."
+      ],
+      "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 — next slice wires the new weights + per-dim rewrites + stats batch additions together."
+    },
+    {
       "id": "trainer-client-subranks",
       "title": "Trainers can see each client's full sub-rank breakdown from the Clients hub + Group standings",
       "area": "Trainer",

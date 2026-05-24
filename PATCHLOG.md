@@ -2,6 +2,48 @@
 
 ---
 
+## Feat · 2026-05-24 — Wellness sync, tier v3.5 scaffolding, UI polish bundle (qa: wellness-sync-v1, tier-scoring-v35, home-tier-card-stripped, weekly-recap-top-exercise-name, weight-input-convention-clarity, workout-warmup-mark-each-set, workout-rest-skipped-counter, user-log-audit-allaa)
+
+Big multi-slice deploy. Eleven commits land together — none of them shipped on their own previously.
+
+### Wellness sync v1 (qa: wellness-sync-v1)
+- New `WellnessLog` model (`userId`, `date @db.Date`, `glasses`, `sleepHours`, `energy`, unique on `[userId, date]`).
+- `/api/wellness` route: GET last 30d, POST single-or-batch (max 60) with input clamping.
+- `lib/wellness.ts`: `pushWellnessToServer` fire-and-forget on every write, `syncWellnessFromServer` on WellnessCard mount, `syncWellnessToServerOnce` one-time batch migration of localStorage history.
+- `lib/leaderboardStats.ts`: `computeStatsForUsers` now batch-fetches WellnessLog for last 14d and threads per-user `hydrationGoalDays / sleepLoggedDays / energyLoggedDays` into the tier compute. Hardcoded zeros gone — Habits sub-rank on leaderboards now matches the user's dashboard.
+- Soreness + injuries stay localStorage-only (not tier inputs).
+
+### Tier scoring v3.5 — scaffolding (qa: tier-scoring-v35)
+Slice 1/N of the per-dim weighted-average rework. Lands the foundation without changing live scoring:
+- `SUBRANK_WEIGHTS` const: Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100.
+- `SOFT_FLOOR_SCORE = 30` for the upcoming hasData=false aggregation.
+- `experienceLevelToMultiplier` + `inferObservedLevel` + `blendExperienceMultiplier` helpers for the Progression ramp (declared seed → blends to observed e1RM/BW + tenure over 12-24wk).
+- `adherenceScore12w` helper for the upcoming pure-3mo Consistency formula.
+- New optional inputs on `AthleteStatsForTier` (all backward-compat).
+
+### Workout-log barbell-classification fix (qa: weight-input-convention-clarity)
+- Added `inferEquipmentFromName` to `lib/exercises.ts` — name-based equipment fallback when the EXERCISES catalog lookup misses (workout-day ids `a1`/`b1`/... never matched). Covers barbell + ez-bar + dumbbell + cable + machine + bodyweight, with squat-qualifier guards.
+- Wired into `app/page.tsx` workout logger: BW toggle now correctly HIDES on every barbell movement; 📏 BAR helper APPEARS; convention hint visible; `isEzBar` detection checks equipment array + name regex.
+- WEIGHT label split into 2 rows (label + step on row 1; convention hint + BAR? on row 2) so the four pieces no longer collide in the ~180px column.
+
+### Home strip + weekly recap polish
+- **Tier card chrome stripped** (qa: home-tier-card-stripped): outer button background + border + blur + boxShadow removed; per-row background + border + padding stripped. Each tier badge gets a `drop-shadow` glow keyed to the tier color; text labels get a heavy textShadow for readability over the hero image.
+- **Profile button chrome stripped** (qa: home-tier-card-stripped): same treatment — border + boxShadow removed; avatar floats with soft white glow + ambient shadow.
+- **Weekly recap top-exercise name resolved** (qa: weekly-recap-top-exercise-name): `buildWeeklyRecap` was emitting raw slot ids ('a1'). Now resolves via `session.dayData` (custom plans) with WORKOUT_DATA fallback (bundled splits).
+
+### Session-UX fixes
+- **Warm-up DONE/SKIP panel hidden once `wuDone`** (qa: workout-warmup-mark-each-set): the input prompts kept rendering even after all sets were marked done, leaving "1/1 DONE" alongside fresh DONE/SKIP buttons — confusing. Gated on `!wuDone`. Set chips above remain for re-edits.
+- **Discreet REST chip in session header** (qa: workout-rest-skipped-counter): when the user dismisses the fullscreen rest overlay, a small gold "REST · 23s" chip replaces the SESSION label in the header so they always see the countdown. Tap re-opens the overlay (`useCountdown.dismissScreen` now accepts a boolean).
+
+### Admin: per-set log-correction endpoint (qa: user-log-audit-allaa)
+- New `POST /api/admin/audit-user-logs` (admin-secret gated):
+  - `mode='audit'` (default, read-only): returns every barbell/ez-bar/cable/machine set the user has logged, grouped by exercise, with per-set proposals (one-side+bar / both-sides+bar / leave-as-is for bars; lb-to-kg / leave-as-is for cable/machine). Heuristic 'category' is a sort hint, admin picks per row.
+  - `mode='apply'`: takes an explicit `corrections: [{logId, key, newWeight, reason}]` array (max 500) and writes them with an audit log.
+- Defaults `barKg=15` (home bar) / `ezBarKg=10` for the alla'a use case; overridable per call.
+- Built for users whose history has mixed weight notations + accidental LBs entries that the bulk `migrate-bar-weights` formula can't disentangle.
+
+---
+
 ## Feat · 2026-05-23 — Trainer client sub-ranks visible on the Clients hub + Group standings (qa: trainer-client-subranks)
 
 Per @maaiz: "Maybe subranks of each client is a very useful thing for trainers to be able to see, perhaps this can be part of the client and group leaderboards".
