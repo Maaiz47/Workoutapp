@@ -1,0 +1,10 @@
+{
+  "id": "cmpj89g6o0000ygemxe00twpg",
+  "itemId": "user-feedback",
+  "tester": "munchy",
+  "userId": "cmp4cetem0003pskp274fe7ul",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=customise] When customizing splits no where to delete a full day session. Editing is the only option.",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T03:38:23.662Z"
+}
