@@ -1,0 +1,10 @@
+{
+  "id": "cmpjw6pok0005i77pxxrp92bh",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Progress · view=progress] Photo storage isn’t confirmed for body photos",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T14:48:06.789Z"
+}
