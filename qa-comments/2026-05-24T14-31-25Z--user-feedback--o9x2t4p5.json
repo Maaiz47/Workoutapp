@@ -1,0 +1,10 @@
+{
+  "id": "cmpjvl9am0000wgoco9x2t4p5",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Progress · view=progress] PB list in progresssion is not closed by default, and does not show every PB for every exercise done",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T14:31:25.774Z"
+}
