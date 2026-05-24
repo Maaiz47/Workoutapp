@@ -2,6 +2,26 @@
 
 ---
 
+## QA pass · 2026-05-24 — 11 comments processed (qa: home-messages-unread-count, qa-patch-notif-clickzone, qa-patch-summary-user-friendly, system-notifs-scroll-bottom, system-notifs-unread-highlight, qa-retest-persistence, qa-inline-retest-in-dashboard, workout-effort-skip-warning, workout-rest-too-fast-warning, workout-rest-skipped-counter)
+
+All 11 from @maaiz.
+
+### Addressed
+- **home-messages-unread-count**: Home Messages button badge now combines DM + group + system unread.
+- **qa-patch-notif-clickzone**: Patch bubbles no longer tap-through the whole div; only the new '→ VIEW IN /qa' footer button navigates.
+- **qa-patch-summary-user-friendly**: `simplifyForUser()` server-side filter strips (qa: …) tags, commit shas, before-after arrows, technical parenthesised asides; truncates to 2 sentences / 200 chars.
+- **system-notifs-scroll-bottom + system-notifs-unread-highlight**: Feed scroll rebuilt — on open scroll first unread to top + highlight unread bubbles (NEW tag + brighter border/glow), else silent bottom-land.
+- **qa-retest-persistence**: New localStorage `ironlog-qa-retests-responded-v1` ack set. Submitting a retest persists the ack; row stays gone across reopens.
+- **qa-inline-retest-in-dashboard**: `/qa` ItemCard now shows an inline `🔄 POST RETEST` expander for the current tester's own processed comments. Same chips + textarea + SUBMIT UX as the FAB list.
+- **workout-effort-skip-warning**: handleLog confirms before recording a set when no RPE chip is selected.
+- **workout-rest-too-fast-warning**: handleLog confirms when rest timer still has > 5s left ("athletes should rest the full duration before the next set").
+- **workout-rest-skipped-counter** (retest passing): rest-timer suffix on LOG SET verified working after dropping the screenDismissed gate.
+
+### Items with no action needed (status flips only)
+- None — every item touched code or got a marked-passing retest.
+
+---
+
 ## QA pass · 2026-05-24 — 4 comments processed (qa: system-notifs-swipe-back, system-notifs-scroll-bottom, qa-deep-link-to-comment, qa-pending-retests-list, workout-rest-skipped-counter)
 
 ### Addressed

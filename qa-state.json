@@ -1,6 +1,130 @@
 {
   "items": [
     {
+      "id": "home-messages-unread-count",
+      "title": "Home Messages button badge combines DM + group + system unread",
+      "area": "UI",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass home-messages-unread-count",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "On home, verify the 💬 Messages button shows a count badge when there's ANY unread (DM, group, or system patch).",
+        "Open Messages, read everything, return home. Verify the badge disappears."
+      ],
+      "notes": "[2026-05-24] Shipped: inline computed combinedUnread = unreadCount + groupUnread + systemNotifUnread."
+    },
+    {
+      "id": "qa-patch-notif-clickzone",
+      "title": "Patch-notification bubbles only navigate via the explicit '→ VIEW IN /qa' button",
+      "area": "QA",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass qa-patch-notif-clickzone",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open IRONLOG SYSTEM feed. Tap somewhere on a patch bubble body (not the footer button).",
+        "Verify nothing happens — no navigation.",
+        "Tap the '→ VIEW IN /qa' footer button. Verify /qa opens focused on the item + comment."
+      ],
+      "notes": "[2026-05-24] Shipped: onClick removed from outer div; navigation moved to footer button."
+    },
+    {
+      "id": "qa-patch-summary-user-friendly",
+      "title": "Patch-notification summaries strip developer noise (commit shas, qa tags, before/after numbers)",
+      "area": "QA",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass qa-patch-summary-user-friendly",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open IRONLOG SYSTEM feed.",
+        "Verify each patch bubble body shows plain-English what-was-addressed text — no (qa: …) tags, no commit shas, no 'z-index 9000 → 9600' technical numbers, no parenthesised technical asides.",
+        "Body should be ~2 sentences / 200 chars max."
+      ],
+      "notes": "[2026-05-24] Shipped: simplifyForUser() in /api/qa/comments/mine/route.ts pre-processes the summary before sending."
+    },
+    {
+      "id": "system-notifs-unread-highlight",
+      "title": "Unread system notifications highlighted with NEW tag + brighter border/glow",
+      "area": "Messages",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass system-notifs-unread-highlight",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "While unread notifications exist, open IRONLOG SYSTEM. Verify each unread bubble has a 'NEW' suffix on its severity label + a brighter border + outer glow.",
+        "Return to /messages (the tap-the-row action marks all read).",
+        "Re-open IRONLOG SYSTEM. Verify the previously-unread bubbles now have the standard (dimmer) border, no NEW tag."
+      ],
+      "notes": "[2026-05-24] Shipped: each entry carries entry.unread; data-unread-idx + boxShadow + NEW tag conditional."
+    },
+    {
+      "id": "qa-retest-persistence",
+      "title": "After submitting a retest, the row stays gone across reopens",
+      "area": "QA",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass qa-retest-persistence",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open Quick Note FAB → YOUR PATCHES TO RETEST. Pick a row, expand, choose a status, optionally type a note, tap SUBMIT RETEST.",
+        "Verify the row disappears.",
+        "Close the FAB, reopen. Verify the same row does NOT come back."
+      ],
+      "notes": "[2026-05-24] Shipped: markRetestResponded persists comment id in ironlog-qa-retests-responded-v1; fetchPatchNotifications filters them out."
+    },
+    {
+      "id": "qa-inline-retest-in-dashboard",
+      "title": "/qa shows an inline retest form for the current tester's own processed comments",
+      "area": "QA",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass qa-inline-retest-in-dashboard",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open /qa via deep-link to one of your own processed comments (e.g. from the patch-notification bubble's '→ VIEW IN /qa' button).",
+        "Verify a '🔄 POST RETEST' button sits below your comment body.",
+        "Tap it. Verify the chip + textarea + SUBMIT form expands (same UX as the FAB list).",
+        "Submit. Verify a new comment is posted in the thread and the form disappears.",
+        "Reload /qa. Verify the POST RETEST button is gone for that comment (acked)."
+      ],
+      "notes": "[2026-05-24] Shipped: InlineRetestForm component in app/qa/page.tsx; gated on c.processed && c.tester === currentTester && !alreadyAcked."
+    },
+    {
+      "id": "workout-effort-skip-warning",
+      "title": "Confirm dialog when logging a set without an RPE chip selected",
+      "area": "Workout",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass workout-effort-skip-warning",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Start a workout. Enter weight + reps but DON'T tap any EFFORT chip. Tap LOG SET.",
+        "Verify a confirm dialog appears: '⚠ No effort tagged. Tagging effort (RPE) earns Intensity Points and helps the system recommend better weights. Log without RPE anyway?'.",
+        "Tap Cancel → set is NOT logged. Tap OK → set is logged without RPE.",
+        "On subsequent sets in same session where the user has 'don't ask again' option (if set), confirm doesn't appear."
+      ],
+      "notes": "[2026-05-24] Shipped: handleLog confirm() gated on effortInput == null && !effortPromptDisabled."
+    },
+    {
+      "id": "workout-rest-too-fast-warning",
+      "title": "Confirm when logging a set before the rest timer finishes",
+      "area": "Workout",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass workout-rest-too-fast-warning",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Log set 1. Rest timer starts (e.g. 70s).",
+        "Tap LOG SET on set 2 while rest still has > 5s left.",
+        "Verify a confirm dialog appears: '⏱ Rest timer still has Ns left. Athletes should rest the full duration before the next set — log anyway?'.",
+        "Tap Cancel → set is NOT logged. Tap OK → set is logged.",
+        "Wait until rest has ≤ 5s. Log set — confirm should NOT appear."
+      ],
+      "notes": "[2026-05-24] Shipped: handleLog confirm() gated on rest.running && rest.seconds > 5."
+    },
+    {
       "id": "system-notifs-swipe-back",
       "title": "Swipe right pops out of the IRONLOG SYSTEM feed back to Messages",
       "area": "Messages",
