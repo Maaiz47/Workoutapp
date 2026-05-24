@@ -110,8 +110,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "reorder-exercises",
     icon: "↕",
-    title: "Press + hold to reorder exercises",
-    body: "Long-press any exercise card (about half a second) to pick it up, then drag to a new position — works in active sessions AND on the Customise screen. Supersets move as a block; same-day order auto-saves to your session + plan.",
+    title: "Drag the ≡ handle to reorder exercises",
+    body: "Each exercise card has a small ≡ grip handle on the right. Press and hold the handle for half a second to pick the card up, then drag to a new position — works in active sessions AND on the Customise screen. Supersets move as a block; same-day order auto-saves to your session + plan. (The handle keeps scroll working on the rest of the card.)",
     where: "Active session · Customise routine",
   },
   {

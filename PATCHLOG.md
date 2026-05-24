@@ -2,6 +2,44 @@
 
 ---
 
+## Feat · 2026-05-24 — Bundle 2 — drag-handle reorder, plate-machine hint, tier-promo bug + bigger modal, clearer add-exercise labels, routine-to-group sharing, trainer badge on athlete board + coached filter, engagement-type tagging, multi-select group creation (qa: workout-exercise-reorder, weight-input-convention-clarity, tier-promotion-toast, workout-in-session-exercise-add, routine-share-to-group, global-leaderboard-trainer-badge, global-leaderboard-coached-filter, trainer-client-engagement-type, groups-multi-select-create)
+
+Second bundle of the day. 7 commits land together.
+
+### Drag-handle reorder + plate-machine hint + tier-promo bug + bigger modal (qa: workout-exercise-reorder, weight-input-convention-clarity, tier-promotion-toast)
+- Reorder via long-press anywhere on card broke scroll on iOS. Switched to a ≡ drag handle on the right of each card (touch-action:none scoped to the handle); rest of the card retains scroll.
+- Tier promotion toast was firing on every app reopen — the "quiet demotion" branch was overwriting localStorage with a transient Kitten value during initial load. Dropped that write; lastObserved is now monotonically increasing per user; effect also guards on hasRealHistory.
+- Tier-up celebration replaced with a full-screen centered modal: 120px glowing badge, 32px label, "★ TIER UP ★" header. 6s auto-dismiss.
+- Plate-loaded machine hint: new `⚖ BOTH SIDES · NO BAR` chip on the WEIGHT label for Leg Press, T-bar Row, Hack Squat, etc. Inline so the convention is visible before entering a number.
+
+### Clearer add-exercise labels (qa: workout-in-session-exercise-add)
+- `+ SESSION` → `+ JUST TODAY`. `+ ROUTINE` → `+ ADD TO SPLIT`. Big save button: `+ JUST TODAY (THIS SESSION ONLY)` / `+ ADD TO SPLIT (PERMANENTLY)`. Helper-text paragraphs updated.
+
+### Share routines to groups (qa: routine-share-to-group)
+- `POST /api/routines/[id]/share` accepts `toGroupId` as alternative to `toUsername`. Bulk-copies the routine to every other group member. Same 7-day per-recipient dedupe.
+- Routine share modal: new "SHARE TO A GROUP" section with one button per group (showing member count). One tap → confirm → fires.
+
+### Trainer-tier badge on athlete board + coached filter (qa: global-leaderboard-trainer-badge, global-leaderboard-coached-filter)
+- Athlete leaderboard rows now render the trainer's trainer-tier badge alongside their athlete tier when the user is also a trainer. One batched stats call covers athletes + trainers + roster clients.
+- New SOLO ONLY / WITH TRAINER chip filter — `?coached=solo|with-trainer|all`. Each row also tagged `hasTrainer:boolean`; ALL view shows a tiny `COACHED` chip on coached rows.
+
+### Engagement-type tagging on My Clients (qa: trainer-client-engagement-type)
+- `TrainerClient.engagementType String @default("individual")`. PATCH endpoint toggles between 'individual' and 'group'.
+- Inline chip on each Clients-hub row — `👤 1-ON-1` (teal) or `👥 GROUP PT` (purple). Tap to toggle.
+
+### Multi-select group creation from clients + friends (qa: groups-multi-select-create)
+- `POST /api/leaderboard/groups` now accepts `memberIds: string[]`. Server validates each ID is either an accepted TrainerClient of the creator OR an accepted Friendship — anyone else is silently dropped. Non-trainers must seed with ≥1 friend (no ghost groups).
+- Clients-hub UI: `✓ SELECT` toggle → row checkboxes → `+ CREATE GROUP · N` button with name prompt.
+- FriendsCard UI: same `✓ SELECT` + `+ GROUP · N` pattern. Works from home card + friends hub.
+
+### DM-delete route depth fix (qa: message-soft-delete)
+- Vercel build failed because `/api/messages/[messageId]/route.ts` collided with `/api/messages/[userId]/route.ts` (Next.js rejects sibling dynamic segments with different slug names). Moved to `/api/messages/[userId]/[messageId]/route.ts`; client now passes both segments via activeConversation.id.
+
+### Customise-reorder feedback marked processed
+- @munchy reported customise drag-reorder not working mid-deploy. Already addressed by the iOS hardening in bundle 1 (commit 055ae34 → 60751d3 added the handle). Comment marked processed.
+
+---
+
 ## Feat · 2026-05-24 — Messaging soft-delete, system notifications, Fresh Legs IP, form-preview audit, reorder iOS hardening, lucky-drop wire-up (qa: message-soft-delete, system-notifications-feed, tier-ip-fresh-legs-and-cap, form-preview-images-wrong, workout-exercise-reorder, weight-input-convention-clarity, random-rare-rewards, group-chat-bigger-avatars)
 
 Big multi-feature bundle. 10 commits land together.

@@ -1,6 +1,87 @@
 {
   "items": [
     {
+      "id": "groups-multi-select-create",
+      "title": "Multi-select clients OR friends to create a leaderboard group in one tap",
+      "area": "Groups",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass groups-multi-select-create",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "As a trainer, open the Clients hub. Tap '✓ SELECT' — verify a circular checkbox appears on each client row.",
+        "Tap 3 clients. Verify '+ CREATE GROUP · 3' becomes active.",
+        "Tap CREATE GROUP. Type a name, confirm. Verify a new group appears with you + the 3 clients as members.",
+        "Open the FriendsCard (home or friends hub). Tap '✓ SELECT', pick 2 friends, tap '+ GROUP · 2'. Verify the group is created with you + the 2 friends.",
+        "Edge case: as a non-trainer, try CREATE GROUP without selecting any friends — verify the server refuses with 'Trainers can create empty groups; everyone else needs to pick at least one friend to start.'",
+        "Edge case: pass a non-friend, non-client ID via direct API call — verify the server silently drops it from memberIds (response includes droppedCount)."
+      ],
+      "notes": "[2026-05-24] Shipped: POST /api/leaderboard/groups extended with memberIds validation. UI 'SELECT' toggles on Clients hub + FriendsCard."
+    },
+    {
+      "id": "trainer-client-engagement-type",
+      "title": "Trainers can tag clients as 1-on-1 or group PT for at-a-glance scanning",
+      "area": "Trainer",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass trainer-client-engagement-type",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open the Clients hub. Verify each client row shows either '👤 1-ON-1' (teal) or '👥 GROUP PT' (purple) as a chip next to their tier.",
+        "Tap the chip. Verify it flips to the other state and persists on reload.",
+        "New clients adopted post-deploy default to '1-ON-1'."
+      ],
+      "notes": "[2026-05-24] Shipped: TrainerClient.engagementType schema column + PATCH endpoint + UI chip toggle."
+    },
+    {
+      "id": "global-leaderboard-trainer-badge",
+      "title": "Trainer-tier badge renders alongside athlete tier on the Athletes leaderboard",
+      "area": "Leaderboard",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass global-leaderboard-trainer-badge",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open Ranks → 🏆 ATHLETES.",
+        "Find a row for a user who is also a trainer (e.g. yourself if applicable). Verify their row shows TWO tier badges — athlete first, then the trainer-ladder badge (e.g. Strategist/Pro/Master) with a coloured glow.",
+        "Verify the tier subtitle reads e.g. 'T3 · Big Dawg · 🤝 Strategist'."
+      ],
+      "notes": "[2026-05-24] Shipped: server computes trainer tier for trainer-athletes in one batched pass; row payload includes trainerTier + hasTrainer. Client renders the secondary TierGlyph with the trainer-color drop-shadow."
+    },
+    {
+      "id": "global-leaderboard-coached-filter",
+      "title": "Athletes leaderboard — SOLO ONLY / WITH TRAINER sub-filter",
+      "area": "Leaderboard",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass global-leaderboard-coached-filter",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open Ranks → 🏆 ATHLETES. Verify a sub-filter row appears below the lens picker: ALL / SOLO ONLY / WITH TRAINER.",
+        "Tap SOLO ONLY — verify only athletes without an adopted trainer appear.",
+        "Tap WITH TRAINER — verify only coached athletes appear. Each row should have an 'r.hasTrainer === true' indicator implicit in the filter.",
+        "ALL view: rows with hasTrainer:true (but not trainers themselves) show a tiny purple 'COACHED' chip."
+      ],
+      "notes": "[2026-05-24] Shipped: ?coached=solo|with-trainer|all query param. UI chip row, athletes tab only."
+    },
+    {
+      "id": "routine-share-to-group",
+      "title": "Share a saved routine to every member of a group in one tap",
+      "area": "Routines",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass routine-share-to-group",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "As a Power User, open Settings → Saved Routines, tap ↗ on any routine.",
+        "Verify a 'SHARE TO A GROUP' section appears above the username input listing each group you're a member of with its member count.",
+        "Tap one. Confirm the confirm dialog 'Share \"<routine>\" to all N other members of <group>?'.",
+        "Verify the result chip reads e.g. 'Sent to 4 · 1 already had it'.",
+        "Each other member should see the routine in their Saved Routines list (shared by your username)."
+      ],
+      "notes": "[2026-05-24] Shipped: POST /api/routines/[id]/share accepts toGroupId. Group path validates sender membership, bulk-copies with per-recipient 7d dedupe. UI section listing user's groups."
+    },
+    {
       "id": "tier-ip-fresh-legs-and-cap",
       "title": "Fresh Legs +5 IP bonus + weekly target-cap (recovery beats farming)",
       "area": "Tiers",
