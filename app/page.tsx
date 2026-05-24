@@ -15837,7 +15837,7 @@ function HomePage() {
                                     exercises: s.exercises.map(x => x.id !== ex.id ? x : { ...x, dropSet: !dsActive, dropSets: 0 })
                                   }))
                                 }));
-                              }} title={dsActive ? "Drop set mode is ON for this exercise — tap to turn off. Each set will run as a chain: go to failure, drop the weight, again, until you tap DONE." : "Make this a drop set exercise — go to failure, drop the weight, again, until you're done. No rest between drops."} style={{ background: dsActive ? "rgba(255,230,109,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${dsActive ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: dsActive ? "#FFE66D" : "rgba(255,255,255,0.35)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
+                              }} title={dsActive ? "Drop set mode is ON for this exercise — tap to turn off. Each set will run as a chain: go to failure, drop the weight, again, until you tap DONE." : "Make this a drop set exercise — go to failure, drop the weight, again, until you're done. No rest between drops."} style={{ background: dsActive ? "rgba(255,230,109,0.16)" : "rgba(255,230,109,0.08)", border: `1px solid ${dsActive ? "rgba(255,230,109,0.45)" : "rgba(255,230,109,0.25)"}`, borderRadius: 6, color: "#FFE66D", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>
                                 {dsActive ? "🔻 DROP SET" : "+ DROP SET"}
                               </button>
                             );
