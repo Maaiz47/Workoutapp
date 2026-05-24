@@ -47,6 +47,7 @@ model User {
   trainerProposals  PlanProposal[]   @relation("TrainerProposals")
   clientProposals   PlanProposal[]   @relation("ClientProposals")
   bodyMetrics       BodyMetric[]
+  wellnessLogs      WellnessLog[]
   savedRoutines     SavedRoutine[]
   lastSeenAt        DateTime?
   customExercises   CustomExercise[]
@@ -365,6 +366,37 @@ model BodyMetric {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// One row per (user, day) holding the wellness trackers that feed the
+// Habits sub-rank in tier compute. Previously these lived only in
+// localStorage, which meant server-side leaderboard compute couldn't
+// see them — every user's Habits was hardcoded to 0 on the
+// leaderboard. Syncing to the DB closes the gap so the leaderboard
+// tier matches the dashboard tier. (qa: wellness-sync-v1)
+model WellnessLog {
+  id          String   @id @default(cuid())
+  userId      String
+  // Day-precision date in the user's local timezone, stored at UTC
+  // midnight (client sends YYYY-MM-DD, server parses). The compound
+  // unique on (userId, date) makes inserts upsertable.
+  date        DateTime @db.Date
+  // Hydration: number of glasses logged that day. Target is 8;
+  // tier compute counts "days where glasses ≥ target" as the
+  // adherence signal.
+  glasses     Int?
+  // Sleep hours (decimal). Tier compute counts days with a
+  // non-null reading; v3.5 will add a ≥4h floor to prevent
+  // "0 hours" gaming.
+  sleepHours  Float?
+  // Energy level 1-5. Same logged-vs-null gate as sleep.
+  energy      Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
 }
 
 model WorkoutLog {
