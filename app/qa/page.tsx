@@ -1610,6 +1610,20 @@ export default function QAPage() {
                   cursor: "pointer", whiteSpace: "nowrap",
                 }}
               >📤 OPEN IN BROWSER</button>
+              <a
+                href="/qa/form-previews"
+                title="Scroll the full library of form-preview animations and flag any that don't match the exercise name."
+                style={{
+                  padding: "6px 12px",
+                  background: "rgba(255,209,102,0.08)",
+                  border: "1px solid rgba(255,209,102,0.3)",
+                  borderRadius: 999,
+                  color: "#FFD166", fontSize: 10, fontWeight: 700, letterSpacing: 1.5,
+                  fontFamily: "'Space Mono', monospace",
+                  cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none",
+                  display: "inline-flex", alignItems: "center",
+                }}
+              >🖼 FORM PREVIEW AUDIT</a>
               <button
                 onClick={() => setShowMascot(true)}
                 title="Re-play the Doppo intro splash with your current leaderboard stats"
