@@ -1,0 +1,10 @@
+{
+  "id": "cmpjb5gr700008papptaahqon",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=systemNotifs] In system logs after old messages are read, always show last message in the chat so scrolled to the bottom",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T04:59:16.625Z"
+}
