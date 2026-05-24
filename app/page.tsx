@@ -4757,6 +4757,9 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
   // trainer / your own clients). (qa: client-leaderboard-relocation)
   const [kind, setKind] = useState<"athlete" | "trainer" | "myClients">("athlete");
   const [lens, setLens] = useState<"top" | "band" | "around">("top");
+  // Sub-filter for the ATHLETES tab — solo vs coached vs both.
+  // (qa: global-leaderboard-coached-filter)
+  const [coached, setCoached] = useState<"all" | "solo" | "with-trainer">("all");
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<{ totalParticipants: number; viewerRank: number | null; viewerTierNum: number | null } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -4767,7 +4770,8 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
     // its own fetch — skip the global endpoint call here.
     if (kind === "myClients") { setLoading(false); return; }
     setLoading(true);
-    fetch(`/api/leaderboard/global?kind=${kind}&lens=${lens}`)
+    const coachedParam = kind === "athlete" ? `&coached=${coached}` : "";
+    fetch(`/api/leaderboard/global?kind=${kind}&lens=${lens}${coachedParam}`)
       .then(r => r.json())
       .then(data => {
         if (cancelled) return;
@@ -4777,7 +4781,7 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [kind, lens]);
+  }, [kind, lens, coached]);
 
   const tiers = kind === "athlete" ? getAthleteTiers(tierTheme) : TRAINER_TIERS_NEW;
   const tierByNum = (n: number) => tiers.find(t => t.tierNum === n) ?? tiers[0];
@@ -4810,7 +4814,7 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
       ) : (
       <>
       {/* Lens picker */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
         {([{ id: "top", label: "TOP 100" }, { id: "band", label: "YOUR TIER" }, { id: "around", label: "AROUND YOU" }] as const).map(l => {
           const active = lens === l.id;
           return (
@@ -4818,6 +4822,19 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
           );
         })}
       </div>
+      {/* Coached sub-filter — athletes board only. Splits the
+          population by whether the athlete has an adopted trainer.
+          (qa: global-leaderboard-coached-filter) */}
+      {kind === "athlete" && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+          {([{ id: "all", label: "ALL" }, { id: "solo", label: "SOLO ONLY" }, { id: "with-trainer", label: "WITH TRAINER" }] as const).map(c => {
+            const active = coached === c.id;
+            return (
+              <button key={c.id} onClick={() => setCoached(c.id as any)} style={{ padding: "4px 10px", borderRadius: 14, fontSize: 9, fontFamily: "'Space Mono', monospace", letterSpacing: 1, fontWeight: 700, cursor: "pointer", background: active ? "rgba(162,155,254,0.18)" : "rgba(255,255,255,0.02)", border: `1px solid ${active ? "rgba(162,155,254,0.45)" : "rgba(255,255,255,0.06)"}`, color: active ? "#a29bfe" : "rgba(255,255,255,0.35)" }}>{c.label}</button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Meta */}
       {meta && (
@@ -4845,9 +4862,24 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
                 <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                   <UserAvatarChip avatarId={r.anonymous ? null : r.avatarId} username={r.anonymous ? null : r.username} size={24} role={kind === "trainer" ? "trainer" : null} />
                   <TierGlyph src={tier.iconPath} emoji={tier.icon} size={24} />
+                  {/* Trainer-tier badge — shown for athletes who also
+                      coach. Sits inline with the athlete tier so the
+                      dual-role identity reads at a glance.
+                      (qa: global-leaderboard-trainer-badge) */}
+                  {kind === "athlete" && r.trainerTier && (
+                    <TierGlyph src={r.trainerTier.iconPath} emoji={r.trainerTier.icon} size={20} style={{ marginLeft: -2, filter: `drop-shadow(0 0 4px ${r.trainerTier.color}66)` }} />
+                  )}
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : displayName}</div>
-                    <div style={{ fontSize: 10, color: tier.color, marginTop: 1 }}>T{displayTierNum(tier.tierNum)} · {tier.label}</div>
+                    <div style={{ fontSize: 10, color: tier.color, marginTop: 1, display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                      <span>T{displayTierNum(tier.tierNum)} · {tier.label}</span>
+                      {kind === "athlete" && r.trainerTier && (
+                        <span style={{ color: r.trainerTier.color, fontSize: 9, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· 🤝 {r.trainerTier.label}</span>
+                      )}
+                      {kind === "athlete" && r.hasTrainer && coached === "all" && (
+                        <span style={{ fontSize: 8, color: "rgba(162,155,254,0.75)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, background: "rgba(162,155,254,0.1)", border: "1px solid rgba(162,155,254,0.25)", borderRadius: 3, padding: "0 4px" }}>COACHED</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div style={{ textAlign: "right", fontSize: 13, fontWeight: 700, color: "#f0c040", fontFamily: "'Space Mono', monospace" }}>{r.score}</div>

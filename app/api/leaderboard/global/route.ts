@@ -40,6 +40,12 @@ export async function GET(req: NextRequest) {
 
   const kind = (req.nextUrl.searchParams.get("kind") || "athlete") as "athlete" | "trainer";
   const lens = (req.nextUrl.searchParams.get("lens") || "top") as "top" | "band" | "around";
+  // Athletes-board sub-filter:
+  //   'all'           — every qualified athlete (default)
+  //   'solo'          — only athletes who don't have an adopted trainer
+  //   'with-trainer'  — only athletes who have an adopted trainer
+  // Trainer board ignores this. (qa: global-leaderboard-coached-filter)
+  const coached = (req.nextUrl.searchParams.get("coached") || "all") as "all" | "solo" | "with-trainer";
   const defaultLimits: Record<typeof lens, number> = { top: 100, band: 50, around: 11 } as any;
   const limit = Math.max(1, Math.min(200, parseInt(req.nextUrl.searchParams.get("limit") || "") || defaultLimits[lens]));
 
@@ -47,14 +53,14 @@ export async function GET(req: NextRequest) {
     if (kind === "trainer") {
       return await trainerBoard(uid, lens, limit);
     }
-    return await athleteBoard(uid, lens, limit);
+    return await athleteBoard(uid, lens, limit, coached);
   } catch (e: any) {
     console.error("global leaderboard error:", e);
     return json({ error: e?.message ?? "Failed" }, 500);
   }
 }
 
-async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", limit: number) {
+async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", limit: number, coached: "all" | "solo" | "with-trainer") {
   // Pull every user who has logged at least MIN_SESSIONS sessions.
   // Counting via _count keeps this cheap — no joins into the sets
   // JSON payloads.
@@ -65,11 +71,16 @@ async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", 
   const showTestUsers = await getAppConfigBool(CONFIG_KEY_SHOW_TEST_USERS, false);
   const baseWhere: any = { workoutLogs: { some: {} } };
   if (!showTestUsers) baseWhere.isTestUser = false;
+  // role + extraRoles needed so we can compute + attach the trainer
+  // tier badge alongside the athlete tier for users who coach.
+  // (qa: global-leaderboard-trainer-badge)
   const candidates: any[] = await (prisma.user as any).findMany({
     where: baseWhere,
     select: {
       id: true,
       username: true,
+      role: true,
+      extraRoles: true,
       profile: { select: { hideFromGlobalLeaderboard: true, avatarId: true } },
       _count: { select: { workoutLogs: true } },
     },
@@ -79,8 +90,75 @@ async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", 
     return json({ rows: [], meta: { totalParticipants: 0, viewerRank: null, viewerTierNum: null } });
   }
 
-  const statsByUser = await computeStatsForUsers(qualifiedIds);
-  type Row = { rank: number; userId: string; username: string; avatarId: string | null; anonymous: boolean; tierNum: number; tierIconPath?: string; tierEmoji?: string; score: number; totalSessions: number; streak: number; prCount: number; };
+  // Identify trainers among qualified athletes (for the trainer-tier
+  // badge) and pull all TrainerClient links so we can both compute
+  // trainer tiers AND know which athletes have an adopted coach (for
+  // the coached/solo filter).
+  const trainerCandidateIds = candidates
+    .filter((c: any) => qualifiedIds.includes(c.id) && (c.role === "trainer" || (c.extraRoles ?? []).includes("trainer")))
+    .map((c: any) => c.id);
+
+  const links = await prisma.trainerClient.findMany({
+    where: {
+      OR: [
+        ...(trainerCandidateIds.length ? [{ trainerId: { in: trainerCandidateIds } }] : []),
+        { clientId: { in: qualifiedIds } },
+      ],
+    },
+    select: { trainerId: true, clientId: true },
+  });
+  const rosterByTrainer = new Map<string, string[]>();
+  const coachedClientIds = new Set<string>();
+  for (const l of links) {
+    if (!rosterByTrainer.has(l.trainerId)) rosterByTrainer.set(l.trainerId, []);
+    rosterByTrainer.get(l.trainerId)!.push(l.clientId);
+    if (qualifiedIds.includes(l.clientId)) coachedClientIds.add(l.clientId);
+  }
+
+  // One batched stats call covering qualified athletes + every
+  // trainer + every roster client (some overlap is fine — Set dedupes).
+  const statsIds = new Set<string>(qualifiedIds);
+  for (const tid of trainerCandidateIds) statsIds.add(tid);
+  for (const l of links) statsIds.add(l.clientId);
+  const statsByUser = await computeStatsForUsers(Array.from(statsIds));
+
+  // Compute trainer tier per trainer once — looked up per row.
+  const thirtyDaysAgoMs = Date.now() - 30 * 86400000;
+  const trainerTierByUser = new Map<string, { tierNum: number; label: string; icon: string; iconPath?: string; color: string }>();
+  for (const tid of trainerCandidateIds) {
+    const roster = rosterByTrainer.get(tid) ?? [];
+    let clientsWithRecentPR = 0;
+    let clientsWithActiveStreak = 0;
+    let totalClientPRs = 0;
+    let totalClientVolumeKg = 0;
+    for (const cid of roster) {
+      const s = statsByUser.get(cid);
+      if (!s) continue;
+      totalClientPRs += s.prCount ?? 0;
+      totalClientVolumeKg += s.totalVolume ?? 0;
+      const last = s.lastSession ? new Date(s.lastSession).getTime() : 0;
+      if ((s.prCount ?? 0) > 0 && last >= thirtyDaysAgoMs) clientsWithRecentPR++;
+      if ((s.streak ?? 0) >= 7) clientsWithActiveStreak++;
+    }
+    const selfAthleteScore = statsByUser.get(tid)?.tier?.score ?? 0;
+    const breakdown = computeTrainerTier({
+      rosterCount: roster.length,
+      clientsWithRecentPR,
+      clientsWithActiveStreak,
+      totalClientPRs,
+      totalClientVolumeKg,
+      selfAthleteScore,
+    });
+    trainerTierByUser.set(tid, {
+      tierNum: breakdown.headline.tierNum,
+      label: breakdown.headline.label,
+      icon: breakdown.headline.icon,
+      iconPath: breakdown.headline.iconPath,
+      color: breakdown.headline.color,
+    });
+  }
+
+  type Row = { rank: number; userId: string; username: string; avatarId: string | null; anonymous: boolean; tierNum: number; tierIconPath?: string; tierEmoji?: string; score: number; totalSessions: number; streak: number; prCount: number; trainerTier: { tierNum: number; label: string; icon: string; iconPath?: string; color: string } | null; hasTrainer: boolean; };
 
   const allRows: Row[] = candidates
     .filter((c: any) => qualifiedIds.includes(c.id))
@@ -102,7 +180,14 @@ async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", 
         totalSessions: s?.totalSessions ?? 0,
         streak: s?.streak ?? 0,
         prCount: s?.prCount ?? 0,
+        trainerTier: trainerTierByUser.get(c.id) ?? null,
+        hasTrainer: coachedClientIds.has(c.id),
       };
+    })
+    .filter((r: Row) => {
+      if (coached === "solo") return !r.hasTrainer;
+      if (coached === "with-trainer") return r.hasTrainer;
+      return true;
     })
     .sort((a, b) => b.score - a.score || b.totalSessions - a.totalSessions);
   allRows.forEach((r, i) => { r.rank = i + 1; });
