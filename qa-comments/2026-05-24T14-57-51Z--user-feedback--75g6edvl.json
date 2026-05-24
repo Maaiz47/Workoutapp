@@ -1,0 +1,10 @@
+{
+  "id": "cmpjwj8x20000o22d75g6edvl",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · UI · view=home] Push notification working for friend requests received?",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T14:57:51.590Z"
+}
