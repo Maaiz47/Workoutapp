@@ -1,0 +1,10 @@
+{
+  "id": "cmpjgvtba0004y40cx7l8846w",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "[🔄 RETEST · re:pgkfi3bi] Low priority should just be lowest as it will get attended by admin and updated after bigger issues",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T07:39:44.035Z"
+}
