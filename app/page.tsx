@@ -9496,21 +9496,22 @@ function HomePage() {
                 top chip strip now reads as a clean
                 [Profile | Tier-far-right] pair. (qa: home-hub-premium-polish) */}
 
-            {/* Tier card — opens the tier modal. Premium glass + inner
-                gold accent. Inner pills are presentational divs.
-                (qa: home-hub-premium-polish) */}
+            {/* Tier card — opens the tier modal. v3.5 strip: no button
+                chrome, no per-row box. Just glowing badge + name + T-num
+                + progress bar against the hero. Text uses a heavy
+                shadow so it stays readable on the bright-flame
+                portion of the hero image. (qa: home-tier-card-stripped) */}
             <button
               onClick={() => setTierModalOpen(true)}
               title="How tiers work — tap to see both ladders"
               style={{
                 minWidth: 0, minHeight: 60,
-                background: "linear-gradient(180deg, rgba(240,192,64,0.04), rgba(10,10,18,0.6))",
-                backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-                border: "1px solid rgba(240,192,64,0.18)",
-                borderRadius: 14, cursor: "pointer", textAlign: "left",
-                padding: "8px 10px",
-                boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 6px 22px -8px rgba(0,0,0,0.7)",
-                display: "flex", flexDirection: "column", justifyContent: "center", gap: 5,
+                background: "transparent",
+                border: "none",
+                borderRadius: 0,
+                cursor: "pointer", textAlign: "left",
+                padding: 0,
+                display: "flex", flexDirection: "column", justifyContent: "center", gap: 12,
                 fontFamily: "'Space Mono', monospace",
               }}
             >
@@ -9521,12 +9522,12 @@ function HomePage() {
                 const remaining = next ? Math.max(0, next.min - clients.length) : 0;
                 const tierNum = displayTierNum(tIdx + 1);
                 return (
-                  <div style={{ padding: "5px 7px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                    <TierGlyph src={t.iconPath} emoji={t.emoji} size={36} style={{ flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <TierGlyph src={t.iconPath} emoji={t.emoji} size={40} style={{ flexShrink: 0, filter: `drop-shadow(0 0 10px ${t.color}) drop-shadow(0 0 4px ${t.color})` }} />
+                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{t.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{tierNum}</span></span>
-                        <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : t.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: t.color, letterSpacing: 0.5, whiteSpace: "nowrap", textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)" }}>{t.label.toUpperCase()}<span style={{ marginLeft: 6, fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.65)", letterSpacing: 1 }}>· T{tierNum}</span></span>
+                        <span style={{ fontSize: 9, color: next ? "rgba(255,255,255,0.75)" : t.color, letterSpacing: 0.5, whiteSpace: "nowrap", textShadow: "0 1px 4px rgba(0,0,0,0.95)" }}>
                           {next ? `+${remaining} → ${next.label.toUpperCase()} T${displayTierNum(tIdx + 2)}` : "★ TOP"}
                         </span>
                       </div>
@@ -9551,12 +9552,12 @@ function HomePage() {
                 const next = themedTiers[hIdx + 1];
                 const remaining = next ? Math.max(0, next.min - score) : 0;
                 return (
-                  <div style={{ padding: "5px 7px", background: h.bg, border: `1px solid ${h.border}`, borderRadius: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                    <TierGlyph src={h.iconPath} emoji={h.icon} size={36} style={{ flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <TierGlyph src={h.iconPath} emoji={h.icon} size={40} style={{ flexShrink: 0, filter: `drop-shadow(0 0 10px ${h.color}) drop-shadow(0 0 4px ${h.color})` }} />
+                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h.label.toUpperCase()}<span style={{ marginLeft: 4, fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.45)", letterSpacing: 1 }}>· T{displayTierNum(h.tierNum)}</span></span>
-                        <span style={{ fontSize: 8, color: next ? "rgba(255,255,255,0.55)" : h.color, letterSpacing: 0.5, whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: h.color, letterSpacing: 0.5, whiteSpace: "nowrap", textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)" }}>{h.label.toUpperCase()}<span style={{ marginLeft: 6, fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.65)", letterSpacing: 1 }}>· T{displayTierNum(h.tierNum)}</span></span>
+                        <span style={{ fontSize: 9, color: next ? "rgba(255,255,255,0.75)" : h.color, letterSpacing: 0.5, whiteSpace: "nowrap", textShadow: "0 1px 4px rgba(0,0,0,0.95)" }}>
                           {next ? `+${remaining} → ${next.label.toUpperCase()} T${displayTierNum(next.tierNum)}` : "★ TOP"}
                         </span>
                       </div>
