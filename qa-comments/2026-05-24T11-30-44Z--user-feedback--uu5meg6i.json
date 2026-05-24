@@ -1,0 +1,10 @@
+{
+  "id": "cmpjp4w9m0000829xuu5meg6i",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "[🔄 RETEST · re:pf5y98hv] I think the quick note with quick retest on comments is working the way I want it to now, but I can’t read the full user feedback from your patches to retest because it’s not all shown",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T11:30:44.695Z"
+}
