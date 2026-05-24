@@ -16519,29 +16519,54 @@ function HomePage() {
                           </div>
 
                           <div style={{ display: "flex", gap: 4 }}>
-                            {EFFORT_SCALE.map(meta => {
-                              const active = effortInput === meta.value;
-                              // Faint band-tint when inactive so the gradient is visible.
-                              const idleBg = `${meta.color}1a`;
-                              const idleBorder = `${meta.color}44`;
-                              return (
-                                <button
-                                  key={meta.value}
-                                  onClick={() => setEffortInput(active ? null : meta.value)}
-                                  title={`${meta.value}: ${meta.rpe} · ${meta.rir}`}
-                                  style={{
-                                    flex: 1, minWidth: 0, padding: "8px 0",
-                                    background: active ? meta.color : idleBg,
-                                    border: `1px solid ${active ? meta.color : idleBorder}`,
-                                    borderRadius: 6,
-                                    color: active ? "#000" : meta.color,
-                                    fontSize: 12, fontWeight: 700,
-                                    fontFamily: "'Space Mono', monospace",
-                                    cursor: "pointer",
-                                  }}
-                                >{meta.value}</button>
-                              );
-                            })}
+                            {(() => {
+                              // Compute the chip to RECOMMEND for this set:
+                              // most recent RPE from this exercise this
+                              // session, else last session's best. Mirrors
+                              // the suggestion shown in the after-log
+                              // prompt — surfacing it BEFORE logging
+                              // lets the user pick faster without
+                              // thinking. Glowing underline marks the
+                              // chip; tapping any chip works as before.
+                              // (qa: workout-effort-recommended-chip)
+                              let recRpe: number | null = null;
+                              if (ns) {
+                                for (let i = ns - 1; i >= 1; i--) {
+                                  const v: any = log[`${ex.id}-${i}`];
+                                  if (v && typeof v.rpe === "number") { recRpe = v.rpe; break; }
+                                }
+                                if (recRpe == null) {
+                                  const prevBest = lastSessionBest(ex.id);
+                                  if (typeof prevBest.rpe === "number") recRpe = prevBest.rpe;
+                                }
+                              }
+                              return EFFORT_SCALE.map(meta => {
+                                const active = effortInput === meta.value;
+                                const recommended = !active && recRpe === meta.value;
+                                // Faint band-tint when inactive so the gradient is visible.
+                                const idleBg = `${meta.color}1a`;
+                                const idleBorder = `${meta.color}44`;
+                                return (
+                                  <button
+                                    key={meta.value}
+                                    onClick={() => setEffortInput(active ? null : meta.value)}
+                                    title={`${meta.value}: ${meta.rpe} · ${meta.rir}${recommended ? " · recommended (last logged for this exercise)" : ""}`}
+                                    style={{
+                                      flex: 1, minWidth: 0, padding: "8px 0",
+                                      background: active ? meta.color : idleBg,
+                                      border: `1px solid ${active ? meta.color : idleBorder}`,
+                                      borderBottom: recommended ? `3px solid ${meta.color}` : (active ? `1px solid ${meta.color}` : `1px solid ${idleBorder}`),
+                                      borderRadius: 6,
+                                      color: active ? "#000" : meta.color,
+                                      fontSize: 12, fontWeight: 700,
+                                      fontFamily: "'Space Mono', monospace",
+                                      cursor: "pointer",
+                                      boxShadow: recommended ? `0 4px 10px -2px ${meta.color}, 0 0 6px ${meta.color}66` : undefined,
+                                    }}
+                                  >{meta.value}</button>
+                                );
+                              });
+                            })()}
                           </div>
 
                           {/* Plain-English helper line that stays
