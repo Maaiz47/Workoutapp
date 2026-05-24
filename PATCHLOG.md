@@ -2,7 +2,7 @@
 
 ---
 
-## Feat · 2026-05-24 — Bundle 2 — drag-handle reorder, plate-machine hint, tier-promo bug + bigger modal, clearer add-exercise labels, routine-to-group sharing, trainer badge on athlete board + coached filter, engagement-type tagging, multi-select group creation (qa: workout-exercise-reorder, weight-input-convention-clarity, tier-promotion-toast, workout-in-session-exercise-add, routine-share-to-group, global-leaderboard-trainer-badge, global-leaderboard-coached-filter, trainer-client-engagement-type, groups-multi-select-create)
+## Feat · 2026-05-24 — Bundle 2 — drag-handle reorder, plate-machine hint, tier-promo bug + bigger modal, clearer add-exercise labels, routine-to-group sharing, trainer badge on athlete board + coached filter, engagement-type tagging, multi-select group creation, delete-day, patch-notifications (qa: workout-exercise-reorder, weight-input-convention-clarity, tier-promotion-toast, workout-in-session-exercise-add, routine-share-to-group, global-leaderboard-trainer-badge, global-leaderboard-coached-filter, trainer-client-engagement-type, groups-multi-select-create, customise-delete-day, qa-patch-notification)
 
 Second bundle of the day. 7 commits land together.
 
@@ -37,6 +37,12 @@ Second bundle of the day. 7 commits land together.
 
 ### Customise-reorder feedback marked processed
 - @munchy reported customise drag-reorder not working mid-deploy. Already addressed by the iOS hardening in bundle 1 (commit 055ae34 → 60751d3 added the handle). Comment marked processed.
+
+### Delete-day in customise (qa: customise-delete-day)
+- Per @munchy: 'When customizing splits no where to delete a full day session.' New POST /api/plan { action: 'delete-day' } that removes the PlanDay row + re-packs dayIndex. UI '🗑 DELETE DAY' button in the day-editor header, hidden when only one day remains.
+
+### Patch-notification feed (qa: qa-patch-notification)
+- Per @maaiz: when a user-submitted bug or idea gets marked processed, they see a system-notification card with the fix summary + a tap-through to /qa. Server endpoint GET /api/qa/comments/mine merges DB + qa-processed.json manifest. Client renders them inline in the IRONLOG SYSTEM feed (gold for bug fixes, teal for idea ships). Per-user ack tracked in localStorage so each notification only shows once.
 
 ---
 

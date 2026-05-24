@@ -1,6 +1,41 @@
 {
   "items": [
     {
+      "id": "qa-patch-notification",
+      "title": "Users get a system notification when their reported bug / idea ships",
+      "area": "QA",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass qa-patch-notification",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Log a bug (or idea) via the feedback tab. Note the comment id.",
+        "Wait for the next processing pass to mark it processed (DB column OR qa-processed.json entry).",
+        "Reopen the app. Verify the 📢 IRONLOG SYSTEM row in Messages has an incremented unread badge.",
+        "Tap it. Verify a new patch-notification bubble appears (🔧 BUG PATCHED gold, or ✨ IDEA SHIPPED teal) with the fix summary + 'TAP TO VIEW /qa' link.",
+        "Tap the bubble → verify navigation to /qa.",
+        "Reload — verify the same notification doesn't fire again (ack persists in localStorage)."
+      ],
+      "notes": "[2026-05-24] Shipped: GET /api/qa/comments/mine returns the user's QAComments annotated with processed status (DB + file-manifest merged). lib/systemNotifications.ts has fetchPatchNotifications + markPatchNotifsRead + combinedSystemNotifUnreadCount. View interleaves bundled + patch notifications chronologically."
+    },
+    {
+      "id": "customise-delete-day",
+      "title": "Delete an entire day from a custom split",
+      "area": "Customise",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass customise-delete-day",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open Customise → tap any day in your split → enter edit mode.",
+        "Verify a '🗑 DELETE DAY' button appears in the header (red).",
+        "Tap it. Verify a confirm dialog mentions 'Sessions you've already logged on this day stay in your history.'",
+        "Confirm. Verify the day disappears from the customise grid and you're returned to the customise overview.",
+        "Edge case: try this with a 1-day plan. The button should be hidden + the server should also refuse if called via API."
+      ],
+      "notes": "[2026-05-24] Shipped: POST /api/plan { action: 'delete-day', dayId } — deletes PlanDay + re-packs dayIndex. UI button hidden when plan has ≤1 day."
+    },
+    {
       "id": "groups-multi-select-create",
       "title": "Multi-select clients OR friends to create a leaderboard group in one tap",
       "area": "Groups",
