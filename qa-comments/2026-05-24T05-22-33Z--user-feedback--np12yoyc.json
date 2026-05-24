@@ -1,0 +1,10 @@
+{
+  "id": "cmpjbzedp00043f4gnp12yoyc",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=systemNotifs] Check system notification chat works like normal other chats showing latest message first at the bottom of the convo, only when it’s a new unread message it can start from earlier and show the unread messages highlighted, leaving the chat and coming back just is at the very bottom without highlight now",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T05:22:33.202Z"
+}
