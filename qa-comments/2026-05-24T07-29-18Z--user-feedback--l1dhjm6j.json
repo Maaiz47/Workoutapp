@@ -1,0 +1,10 @@
+{
+  "id": "cmpjgieeo0000inuul1dhjm6j",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Messaging · view=messages] Push notifications working for trainer requests? Message log on trainer aside need to show pending until accepted and get a notification of acceptance\nSame way for friend requests and clients\nClients should automatically be friends when adopted, and only revoke client ship not unfriend",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T07:29:18.193Z"
+}
