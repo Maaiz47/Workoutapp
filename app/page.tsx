@@ -10354,7 +10354,60 @@ function HomePage() {
                         </div>
                       </>
                     ) : null}
-                    <div style={{ display: "flex", gap: 8, marginTop: userHasRole(user, "trainer") && clients.length > 0 ? 8 : 0 }}>
+                    {/* Group share — for every leaderboard group the
+                        user is a member of, surface a SHARE TO GROUP
+                        button. Single tap copies the routine to every
+                        OTHER member of that group. Same per-recipient
+                        dedupe as the username path so re-sends don't
+                        duplicate. (qa: routine-share-to-group) */}
+                    {lbGroups.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>SHARE TO A GROUP</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+                          {lbGroups.map((g: any) => {
+                            const otherCount = Math.max(0, (g.memberCount ?? 1) - 1);
+                            return (
+                              <button
+                                key={g.id}
+                                onClick={async () => {
+                                  if (otherCount === 0) { setShareResult("Group has no other members yet"); return; }
+                                  if (!confirm(`Share "${r.name}" to all ${otherCount} other ${otherCount === 1 ? "member" : "members"} of "${g.name}"?`)) return;
+                                  setSharingLoading(true); setShareResult(null);
+                                  try {
+                                    const res = await fetch(`/api/routines/${r.id}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toGroupId: g.id }) });
+                                    const data = await res.json();
+                                    if (data.ok) {
+                                      const bits: string[] = [];
+                                      if (data.sent > 0) bits.push(`Sent to ${data.sent}`);
+                                      if (data.deduped > 0) bits.push(`${data.deduped} already had it`);
+                                      if (data.failed > 0) bits.push(`${data.failed} failed`);
+                                      setShareResult(bits.length ? bits.join(" · ") : "No new shares");
+                                      if (!data.failed) setTimeout(() => { setSharingRoutineId(null); setShareResult(null); }, 2500);
+                                    } else {
+                                      setShareResult(data.error || "Failed");
+                                    }
+                                  } catch (e: any) {
+                                    setShareResult(e?.message || "Failed");
+                                  }
+                                  setSharingLoading(false);
+                                }}
+                                disabled={sharingLoading}
+                                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", background: "rgba(255,209,102,0.06)", border: "1px solid rgba(255,209,102,0.22)", borderRadius: 8, color: "#FFD166", fontSize: 12, fontWeight: 700, letterSpacing: 1, cursor: sharingLoading ? "default" : "pointer", fontFamily: "'Space Mono', monospace", opacity: sharingLoading ? 0.5 : 1 }}
+                              >
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🏝️ {g.name}</span>
+                                <span style={{ fontSize: 10, color: "rgba(255,209,102,0.7)", whiteSpace: "nowrap" }}>{otherCount === 0 ? "— empty" : `→ ${otherCount} ${otherCount === 1 ? "member" : "members"}`}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
+                          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+                          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>OR BY USERNAME</span>
+                          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+                        </div>
+                      </>
+                    )}
+                    <div style={{ display: "flex", gap: 8, marginTop: userHasRole(user, "trainer") && clients.length > 0 && lbGroups.length === 0 ? 8 : 0 }}>
                       <input
                         value={shareUsername}
                         onChange={e => { setShareUsername(e.target.value); setShareResult(null); }}
