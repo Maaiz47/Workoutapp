@@ -5989,9 +5989,16 @@ function HomePage() {
   // We stash scrollY in a ref because React fires the previous cleanup BEFORE the new
   // effect body, which clears body.style.top before the unlock branch can read it —
   // that's what was causing the page to snap to the top after every rest period.
+  //
+  // IMPORTANT: only lock when the FULLSCREEN rest overlay is actually showing —
+  // `rest.running` alone stays true after `screenDismissed`, which would freeze the
+  // session page underneath the discreet REST chip and prevent the user from
+  // scrolling between exercises. Tying the lock to the overlay's visibility lets
+  // dismissing the overlay also free up scroll.
+  // (qa: workout-rest-skipped-counter — scroll-lock regression)
   const scrollLockY = useRef(0);
   useEffect(() => {
-    const locked = rest.running || showCompleteAnim;
+    const locked = (rest.running && !rest.screenDismissed) || showCompleteAnim;
     if (locked) {
       scrollLockY.current = window.scrollY;
       document.body.style.position = "fixed";
@@ -6016,7 +6023,7 @@ function HomePage() {
       document.body.style.width = "";
       document.body.style.overflowY = "";
     };
-  }, [rest.running, showCompleteAnim]);
+  }, [rest.running, rest.screenDismissed, showCompleteAnim]);
 
   // Keep currentViewRef in sync so SW message handler always sees latest view
   useEffect(() => { currentViewRef.current = view; }, [view]);
