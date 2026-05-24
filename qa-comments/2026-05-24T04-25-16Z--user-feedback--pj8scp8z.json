@@ -1,0 +1,10 @@
+{
+  "id": "cmpj9xqak0000tzb7pj8scp8z",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · UI · view=home] The home page buttons float even on top of the pro tip overlay so can’t see the pro tip",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T04:25:16.124Z"
+}
