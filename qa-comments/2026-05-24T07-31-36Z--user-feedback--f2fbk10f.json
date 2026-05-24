@@ -1,0 +1,10 @@
+{
+  "id": "cmpjgld2q000460s8f2fbk10f",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · UI · view=home] Suggested prior reports show up as I type but when I click then I should be able to attend it, like say pass or fail and add comments not be directed to full qa to a general thread where I can’t even address the comment",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T07:31:36.434Z"
+}
