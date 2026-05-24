@@ -1,0 +1,10 @@
+{
+  "id": "cmpjbvu9900017ikzl96qesly",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🔄 RETEST · re:ptaahqon] Doesn’t seem to be working for system messages, normal messages work as expected",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T05:19:47.178Z"
+}
