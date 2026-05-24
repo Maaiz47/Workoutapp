@@ -124,6 +124,12 @@ function buildCanonicalTier(s: {
   gender?: string | null;
   totalIntensityPointsLifetime?: number;
   setsByMuscleGroup?: Record<string, number>;
+  // Wellness counts from WellnessLog (last 14d). Were hardcoded 0s
+  // until wellness-sync-v1 — now read from DB so the leaderboard
+  // Habits score matches the dashboard. (qa: wellness-sync-v1)
+  hydrationGoalDays?: number;
+  sleepLoggedDays?: number;
+  energyLoggedDays?: number;
 }): CanonicalTier {
   const breakdown = computeAthleteTier({
     totalSessions: s.totalSessions,
@@ -133,9 +139,9 @@ function buildCanonicalTier(s: {
     distinctExercises: s.distinctExercises,
     recentDistinctExercises: s.recentDistinctExercises,
     monthsOnApp: s.monthsOnApp,
-    hydrationGoalDays: 0,
-    sleepLoggedDays: 0,
-    energyLoggedDays: 0,
+    hydrationGoalDays: s.hydrationGoalDays ?? 0,
+    sleepLoggedDays: s.sleepLoggedDays ?? 0,
+    energyLoggedDays: s.energyLoggedDays ?? 0,
     sessionsLast4Weeks: s.sessionsLast4Weeks ?? 0,
     daysPerWeek: s.daysPerWeek ?? 4,
     sessions180d: s.sessions180d,
@@ -184,6 +190,11 @@ type ExtraStatsInputs = {
   weightChange90dKg?: number | null;
   bfChange90dPct?: number | null;
   gender?: string | null;
+  // Wellness counts pre-aggregated from WellnessLog for the last
+  // 14 days. (qa: wellness-sync-v1)
+  hydrationGoalDays?: number;
+  sleepLoggedDays?: number;
+  energyLoggedDays?: number;
 };
 
 // `monthsOnApp` + `daysPerWeek` are passed by computeStatsForUsers
@@ -384,6 +395,9 @@ export function computeStatsFromLogs(
     gender: extra.gender,
     totalIntensityPointsLifetime: totalIntensityPoints,
     setsByMuscleGroup,
+    hydrationGoalDays: extra.hydrationGoalDays,
+    sleepLoggedDays: extra.sleepLoggedDays,
+    energyLoggedDays: extra.energyLoggedDays,
   });
 
   void ninetyDaysAgo;
@@ -484,7 +498,11 @@ function computeBodyStats(metrics: MetricLike[]): {
  */
 export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: string): Promise<Map<string, LeaderboardMemberStats>> {
   if (userIds.length === 0) return new Map();
-  const [allLogs, allMetrics, users, profiles] = await Promise.all([
+  // Wellness window: last 14 days. The HABITS sub-rank counts
+  // adherence in this window so the query matches exactly.
+  // (qa: wellness-sync-v1)
+  const wellnessCutoff = new Date(Date.now() - 14 * 86400000);
+  const [allLogs, allMetrics, users, profiles, wellnessLogs] = await Promise.all([
     prisma.workoutLog.findMany({
       where: groupWorkoutId
         ? { userId: { in: userIds }, groupWorkoutId }
@@ -507,6 +525,10 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
       where: { userId: { in: userIds } },
       select: { userId: true, daysPerWeek: true, gender: true },
     }),
+    prisma.wellnessLog.findMany({
+      where: { userId: { in: userIds }, date: { gte: wellnessCutoff } },
+      select: { userId: true, glasses: true, sleepHours: true, energy: true },
+    }),
   ]);
   const dpwByUser = new Map<string, number>();
   const genderByUser = new Map<string, string | null>();
@@ -526,6 +548,18 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
     arr.push({ date: m.date, weightKg: m.weightKg, bodyFatPct: m.bodyFatPct });
     metricsByUser.set(m.userId, arr);
   }
+  // Aggregate wellness rows into per-user counts that match the
+  // Habits sub-rank's expected shape: hydrationGoalDays (days where
+  // glasses ≥ HYDRATION_TARGET=8), sleepLoggedDays (any sleepHours
+  // entry), energyLoggedDays (any energy entry).
+  const wellnessByUser = new Map<string, { hydrationGoalDays: number; sleepLoggedDays: number; energyLoggedDays: number }>();
+  for (const w of wellnessLogs) {
+    const cur = wellnessByUser.get(w.userId) ?? { hydrationGoalDays: 0, sleepLoggedDays: 0, energyLoggedDays: 0 };
+    if (typeof w.glasses === "number" && w.glasses >= 8) cur.hydrationGoalDays++;
+    if (typeof w.sleepHours === "number") cur.sleepLoggedDays++;
+    if (typeof w.energy === "number") cur.energyLoggedDays++;
+    wellnessByUser.set(w.userId, cur);
+  }
   const createdAtByUser = new Map<string, Date>();
   for (const u of users) createdAtByUser.set(u.id, u.createdAt);
   const result = new Map<string, LeaderboardMemberStats>();
@@ -533,6 +567,7 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
     const createdAt = createdAtByUser.get(userId);
     const monthsOnApp = createdAt ? (Date.now() - +createdAt) / (30 * 86400000) : 0;
     const body = computeBodyStats(metricsByUser.get(userId) ?? []);
+    const wellness = wellnessByUser.get(userId);
     const base = computeStatsFromLogs(
       byUser.get(userId) ?? [],
       monthsOnApp,
@@ -544,6 +579,9 @@ export async function computeStatsForUsers(userIds: string[], groupWorkoutId?: s
         weightChange90dKg: body.weightChange90dKg,
         bfChange90dPct: body.bfChange90dPct,
         gender: genderByUser.get(userId) ?? null,
+        hydrationGoalDays: wellness?.hydrationGoalDays,
+        sleepLoggedDays: wellness?.sleepLoggedDays,
+        energyLoggedDays: wellness?.energyLoggedDays,
       },
     );
     result.set(userId, { ...base, ...body });

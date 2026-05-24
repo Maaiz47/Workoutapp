@@ -19,7 +19,7 @@ import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
-import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
+import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, syncWellnessFromServer, syncWellnessToServerOnce, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState, resolveMissionTarget, resolveMissionBody } from "../lib/challenges";
 import { computeExerciseRecencies, recencyForExercise, recencyDotColor, ExerciseRecency } from "../lib/adaptiveRewards";
 import { findAvatar, AVATARS, Avatar } from "../lib/avatars";
@@ -809,6 +809,23 @@ function WellnessCard() {
     setSleep(readSleepToday());
     setSoreness(readSorenessToday());
     setInjuries(readInjuries());
+    // Server reconciliation: pull the last 30d of WellnessLog and
+    // merge into localStorage so cross-device + leaderboard data
+    // stay consistent, then push any local-only history up once
+    // (idempotent — guarded by an ironlog-wellness-synced-v1 flag).
+    // Fire-and-forget; the local reads above already populated the
+    // UI so this is purely background reconciliation.
+    // (qa: wellness-sync-v1)
+    (async () => {
+      try {
+        await syncWellnessFromServer();
+        // Re-read after merge so today's values reflect any server
+        // delta from another device.
+        setHydra(readHydrationToday());
+        setSleep(readSleepToday());
+      } catch {}
+      try { await syncWellnessToServerOnce(); } catch {}
+    })();
   }, []);
 
   const bumpHydra = (d: number) => {
