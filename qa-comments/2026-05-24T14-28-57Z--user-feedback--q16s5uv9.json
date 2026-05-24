@@ -1,0 +1,10 @@
+{
+  "id": "cmpjvi3630000ej12q16s5uv9",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Progress · view=progress] Strength subrank says log greater than 4 sets of an exercise to unlock? Not sure what that means and I have done more than 4 sets of exercises",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T14:28:57.867Z"
+}
