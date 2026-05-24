@@ -128,6 +128,71 @@ function buildClassifier(idToName: Record<string, string>) {
   };
 }
 
+// IP debug mode — dumps per-session intensityPoints (stored on
+// WorkoutLog) PLUS a walk of the set blobs to count supersets,
+// dropsets, and per-set RPE bonus that the leaderboard compute adds
+// on read. Used to investigate IP discrepancies between users who
+// trained together. (qa: ip-debug-investigation)
+async function ipDebugForUser(username: string) {
+  const user = await prisma.user.findFirst({
+    where: { username: { equals: username, mode: "insensitive" } },
+    select: { id: true, username: true },
+  });
+  if (!user) return { error: `No user @${username}` };
+  const logs = await prisma.workoutLog.findMany({
+    where: { userId: user.id },
+    select: { id: true, date: true, dayId: true, sets: true, intensityPoints: true },
+    orderBy: { date: "asc" },
+  });
+  let totalStoredIP = 0;
+  let totalRpeBonusIP = 0;
+  const sessions = logs.map(log => {
+    const sets = (log.sets ?? {}) as Record<string, any>;
+    // Walk the set keys to detect drop-set chains and RPE bonus.
+    // Set key shape: `<exId>-<setIdx>` (regular) or
+    // `<exId>-<setIdx>-d<n>` (drop chain). Supersets aren't visible
+    // in the sets blob — they're a property of the day definition
+    // (groupId / groupType on exercise) so we count by exerciseId
+    // appearing under multiple groupIds. Simpler: report just what
+    // we can see from sets.
+    let dropSetCount = 0;
+    let rpeBonus = 0;
+    let setsWithRpe = 0;
+    let totalSets = 0;
+    let skippedSets = 0;
+    for (const k in sets) {
+      const v = sets[k];
+      if (!v || typeof v !== "object") continue;
+      totalSets++;
+      if ((v as any).skipped) { skippedSets++; continue; }
+      const rpe = typeof (v as any).rpe === "number" ? (v as any).rpe : null;
+      if (rpe != null) {
+        setsWithRpe++;
+        rpeBonus += Math.max(0, rpe - 7);
+      }
+      if (/-d\d+$/.test(k)) dropSetCount++;
+    }
+    totalStoredIP += log.intensityPoints ?? 0;
+    totalRpeBonusIP += rpeBonus;
+    return {
+      date: log.date.toISOString().slice(0, 10),
+      dayId: log.dayId,
+      storedIP: log.intensityPoints ?? 0,
+      rpeBonusOnRead: rpeBonus,
+      effectiveIP: (log.intensityPoints ?? 0) + rpeBonus,
+      totalSets, skippedSets, setsWithRpe, dropSetCount,
+    };
+  });
+  return {
+    user: { id: user.id, username: user.username },
+    totalLogs: logs.length,
+    totalStoredIP,
+    totalRpeBonusIP,
+    totalEffectiveIP: totalStoredIP + totalRpeBonusIP,
+    sessions,
+  };
+}
+
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) return json({ error: "Unauthorized" }, 401);
 
@@ -135,6 +200,15 @@ export async function POST(req: NextRequest) {
   const mode: string = (body.mode ?? "audit").toString();
   const barKg: number = typeof body.barKg === "number" ? body.barKg : 15;
   const ezBarKg: number = typeof body.ezBarKg === "number" ? body.ezBarKg : 10;
+
+  // ── IP DEBUG ─────────────────────────────────────────────────────
+  if (mode === "ip-debug") {
+    const usernames: string[] = Array.isArray(body.usernames) ? body.usernames : [body.username].filter(Boolean);
+    if (usernames.length === 0) return json({ error: "usernames or username required" }, 400);
+    const results = [];
+    for (const u of usernames) results.push(await ipDebugForUser(u));
+    return json({ mode: "ip-debug", results });
+  }
 
   // ── APPLY ────────────────────────────────────────────────────────
   if (mode === "apply") {
