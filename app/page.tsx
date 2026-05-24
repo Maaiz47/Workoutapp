@@ -23,6 +23,7 @@ import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, syncWellnessFromServer, syncWellnessToServerOnce, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
+import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead } from "../lib/systemNotifications";
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState, resolveMissionTarget, resolveMissionBody } from "../lib/challenges";
 import { computeExerciseRecencies, recencyForExercise, recencyDotColor, ExerciseRecency } from "../lib/adaptiveRewards";
 import { findAvatar, AVATARS, Avatar } from "../lib/avatars";
@@ -4984,6 +4985,15 @@ function HomePage() {
   const [newConfirmInput, setNewConfirmInput] = useState("");
 
   const [view, setView] = useState("home");
+  // Unread count for the system-notifications pinned row in the
+  // messages inbox. Refreshed on every render of the inbox + when
+  // notifications get marked read. (qa: system-notifications-feed)
+  const [systemNotifUnread, setSystemNotifUnread] = useState(0);
+  useEffect(() => {
+    if (view === "messages" || view === "home" || view === "systemNotifs") {
+      setSystemNotifUnread(systemNotifUnreadCount());
+    }
+  }, [view]);
   const [activeDay, setActiveDay] = useState<WorkoutDay | null>(null);
   const [started, setStarted] = useState(false);
   const [log, setLog] = useState<Record<string, { weight: number; reps: number; skipped?: boolean; rpe?: number; note?: string }>>({});
@@ -12423,6 +12433,51 @@ function HomePage() {
 
 
   // ─── MESSAGES LIST ──────────────────────────────────────────────────
+  // System notifications log — chat-style read-only feed of admin /
+  // app-change messages bundled from lib/systemNotifications.ts.
+  // Rendered like a real chat thread with each notification as a
+  // bubble. (qa: system-notifications-feed)
+  if (view === "systemNotifs") return (
+    <div key="systemNotifs" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+        <button onClick={() => setView("messages")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 20, lineHeight: 1 }}>📢</span>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>IRONLOG SYSTEM</div>
+            <div style={{ fontSize: 9, color: "rgba(162,155,254,0.7)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>OFFICIAL · READ-ONLY</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {SYSTEM_NOTIFICATIONS.length === 0 && (
+          <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
+            No system messages yet.
+          </div>
+        )}
+        {[...SYSTEM_NOTIFICATIONS]
+          .sort((a, b) => a.publishedAt.localeCompare(b.publishedAt))
+          .map(n => {
+            const tint = n.severity === "warning" ? "#FF6B6B" : n.severity === "update" ? "#4ECDC4" : "#A29BFE";
+            const sevLabel = n.severity === "warning" ? "⚠ WARNING" : n.severity === "update" ? "✨ UPDATE" : "📢 INFO";
+            return (
+              <div key={n.id} style={{ alignSelf: "flex-start", maxWidth: "92%", background: `linear-gradient(135deg, ${tint}1f, ${tint}0a)`, border: `1px solid ${tint}55`, borderRadius: 14, padding: "14px 16px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: tint, fontFamily: "'Space Mono', monospace" }}>{sevLabel}</span>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{n.publishedAt.slice(0, 10)}</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.3 }}>{n.title}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{n.body}</div>
+              </div>
+            );
+          })}
+        <div style={{ textAlign: "center", padding: "16px 0 0", fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>
+          END OF FEED · MORE WHEN WE SHIP UPDATES
+        </div>
+      </div>
+    </div>
+  );
+
   if (view === "messages") return (
     <div key="messages" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
       <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
@@ -12442,6 +12497,41 @@ function HomePage() {
         </div>
       )}
       <div style={{ padding: "0 20px" }}>
+        {/* Pinned System Notifications row — always at the very top
+            of the inbox so app-change announcements + anti-cheat
+            warnings + general admin notices are surfaced immediately.
+            Tapping opens the chat-style log at /systemNotifs and
+            marks every notification as read.
+            (qa: system-notifications-feed) */}
+        {SYSTEM_NOTIFICATIONS.length > 0 && (
+          <div
+            className="card-hover"
+            onClick={() => {
+              setView("systemNotifs");
+              markSystemNotifsRead("all");
+              setSystemNotifUnread(0);
+            }}
+            style={{
+              background: "linear-gradient(135deg, rgba(162,155,254,0.10), rgba(162,155,254,0.04))",
+              border: `1px solid ${systemNotifUnread > 0 ? "rgba(162,155,254,0.5)" : "rgba(162,155,254,0.22)"}`,
+              borderRadius: 14, padding: "16px", marginBottom: 10, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>📢</div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 3 }}>IRONLOG SYSTEM</div>
+                <div style={{ fontSize: 11, color: "rgba(162,155,254,0.85)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>
+                  {SYSTEM_NOTIFICATIONS.length} message{SYSTEM_NOTIFICATIONS.length === 1 ? "" : "s"} · app changes, admin notices
+                </div>
+              </div>
+            </div>
+            {systemNotifUnread > 0 && (
+              <span style={{ background: "#A29BFE", color: "#000", borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{systemNotifUnread}</span>
+            )}
+          </div>
+        )}
         {/* Unified inbox: DMs + group threads merged + sorted by latest
             activity. Each row tagged so the user can distinguish at a
             glance. Group rows show the "premium banner" gold-accent
