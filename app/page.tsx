@@ -317,7 +317,15 @@ function SortableExerciseItem({
     zIndex: isDragging ? 50 : undefined,
     opacity: isDragging ? 0.85 : 1,
     boxShadow: isDragging ? "0 8px 28px -8px rgba(0,0,0,0.7), 0 0 0 2px rgba(255,209,102,0.6)" : undefined,
+    // touchAction:manipulation lets the OS know we'll handle taps;
+    // disables double-tap-zoom but keeps single-tap responsive.
     touchAction: disabled ? undefined : "manipulation",
+    // Suppress iOS Safari's long-press callout (copy/share menu) +
+    // text selection during press-hold so the drag activates cleanly
+    // instead of fighting the OS gesture. (qa: workout-exercise-reorder)
+    WebkitTouchCallout: "none" as any,
+    WebkitUserSelect: "none" as any,
+    userSelect: "none" as any,
   };
   return (
     <div ref={setNodeRef} style={style}>
