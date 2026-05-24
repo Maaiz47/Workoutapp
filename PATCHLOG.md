@@ -9,7 +9,7 @@ All 11 from @maaiz.
 ### Addressed
 - **home-messages-unread-count**: Home Messages button badge now combines DM + group + system unread.
 - **qa-patch-notif-clickzone**: Patch bubbles no longer tap-through the whole div; only the new '→ VIEW IN /qa' footer button navigates.
-- **qa-patch-summary-user-friendly**: `simplifyForUser()` server-side filter strips (qa: …) tags, commit shas, before-after arrows, technical parenthesised asides; truncates to 2 sentences / 200 chars.
+- **qa-patch-summary-user-friendly**: `simplifyForUser()` server-side filter strips internal qa-tag annotations, commit shas, before-after arrows, technical parenthesised asides; truncates to 2 sentences / 200 chars.
 - **system-notifs-scroll-bottom + system-notifs-unread-highlight**: Feed scroll rebuilt — on open scroll first unread to top + highlight unread bubbles (NEW tag + brighter border/glow), else silent bottom-land.
 - **qa-retest-persistence**: New localStorage `ironlog-qa-retests-responded-v1` ack set. Submitting a retest persists the ack; row stays gone across reopens.
 - **qa-inline-retest-in-dashboard**: `/qa` ItemCard now shows an inline `🔄 POST RETEST` expander for the current tester's own processed comments. Same chips + textarea + SUBMIT UX as the FAB list.

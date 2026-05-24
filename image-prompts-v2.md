@@ -813,6 +813,31 @@ day-card hero picker in `app/page.tsx` (search 'gradient' /
 
 ---
 
+## Batch 12 — Big Dawg (T3) tier-icon refresh NEW
+
+Flagged 2026-05-24 by @maaiz: 'Change the tier unlocked images for
+athlete big dawg tier, they are too wolf like and less like muscle
+packed big dawg vibes'.
+
+Replace `/public/tier-icons/vivid/big-dawg.png`. Current art reads
+as a lean wolf — too gracile / canid-mythic. Wants something that
+reads as a STOCKY, MUSCLE-PACKED bulldog / pitbull / mastiff —
+literal "big dawg" energy.
+
+- `/public/tier-icons/vivid/big-dawg.png` — front-facing 3D bust,
+  transparent background. Subject: a bulldog or pitbull, broad
+  jaw, thick neck + chest, alert gaze, slight intimidation. Muscle
+  definition visible on the shoulders/forearms. Same crest+frame
+  treatment as the other vivid tier icons (lion, gorilla, bear)
+  so the ladder reads as a coherent set.
+- ~512×512, PNG, transparent. Target ≤ 35 KB after compression
+  (same envelope as the existing tier icons).
+
+Wire-up: drop the new PNG over the existing path. No code change
+needed — `iconPath` already points there.
+
+---
+
 ## After all batches land
 
 Total: **63 images** (53 if Batch 9 deferred). Breakdown:
