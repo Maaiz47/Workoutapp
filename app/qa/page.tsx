@@ -958,7 +958,7 @@ function ItemCard({
                         {stepComments.length > 0 ? (
                           <div style={{ marginBottom: 10 }}>
                             {stepComments.sort((a, b) => +new Date(a.ts) - +new Date(b.ts)).map(c => (
-                              <div key={c.id} style={{
+                              <div key={c.id} id={`comment-${c.id}`} style={{
                                 background: c.processed ? "rgba(76,175,80,0.04)" : "rgba(255,255,255,0.025)",
                                 border: `1px solid ${c.processed ? "rgba(76,175,80,0.2)" : "rgba(255,255,255,0.05)"}`,
                                 borderRadius: 6, padding: "6px 8px", marginBottom: 4,
@@ -1072,7 +1072,7 @@ function ItemCard({
                 fontFamily: "'Space Mono', monospace", marginBottom: 8,
               }}>ITEM-LEVEL THREAD · {itemComments.filter(c => c.stepIndex == null).length}</div>
               {itemComments.filter(c => c.stepIndex == null).map(c => (
-                <div key={c.id} style={{
+                <div key={c.id} id={`comment-${c.id}`} style={{
                   background: c.processed ? "rgba(76,175,80,0.04)" : "rgba(255,255,255,0.025)",
                   border: `1px solid ${c.processed ? "rgba(76,175,80,0.15)" : "rgba(255,255,255,0.06)"}`,
                   borderRadius: 10, padding: "10px 12px", marginBottom: 6,
@@ -1389,23 +1389,55 @@ export default function QAPage() {
     try { localStorage.setItem(LS_TESTER, tester); } catch {}
   }, [tester]);
 
-  // ── Auto-scroll + flash to ?focus=<itemId> ───────────────────────────────
-  // The quick-feedback FAB's 'YOUR PATCHES TO RETEST' list deep-links into
-  // this dashboard via /qa?focus=<itemId>. Scroll the matching item card
-  // into view + briefly flash its border so the user knows where they
-  // landed. (qa: qa-pending-retests-list)
+  // ── Auto-scroll + flash to ?focus=<itemId>#comment-<commentId> ──────────
+  // Deep-link entry from the quick-feedback FAB's 'YOUR PATCHES TO RETEST'
+  // list AND from the patch-notification bubbles in /messages. We:
+  //   1. Find the item (?focus=<itemId>) — open it if collapsed.
+  //   2. If #comment-<id> is present, scroll to that specific comment +
+  //      flash it. Otherwise scroll to the item card.
+  // Per @maaiz: 'qa links open the qa page generally, not straight to the
+  // particular user feedback item'. (qa: qa-deep-link-to-comment)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const focusId = new URLSearchParams(window.location.search).get("focus");
-    if (!focusId) return;
-    // Wait one tick so the list has rendered.
+    const hash = window.location.hash.replace(/^#/, "");
+    const commentId = hash.startsWith("comment-") ? hash.slice("comment-".length) : null;
+    if (!focusId && !commentId) return;
+    // Wait one tick so the list has rendered. Slightly longer for the
+    // comment case since the item card likely needs to expand first to
+    // make the comment node mountable.
     const t = setTimeout(() => {
-      const el = document.getElementById(`qa-item-${focusId}`);
-      if (!el) return;
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-      el.style.boxShadow = "0 0 0 2px rgba(255,209,102,0.7), 0 0 24px rgba(255,209,102,0.4)";
-      el.style.transition = "box-shadow 0.6s ease";
-      setTimeout(() => { el.style.boxShadow = ""; }, 2400);
+      const flash = (el: HTMLElement) => {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.style.boxShadow = "0 0 0 2px rgba(255,209,102,0.85), 0 0 24px rgba(255,209,102,0.55)";
+        el.style.transition = "box-shadow 0.6s ease";
+        setTimeout(() => { el.style.boxShadow = ""; }, 2800);
+      };
+      // Open the item first so its thread is mounted, then attempt the
+      // comment lookup.
+      if (focusId) {
+        const itemEl = document.getElementById(`qa-item-${focusId}`);
+        if (itemEl) {
+          // Find the inner toggle button + click it open if currently
+          // collapsed (it stores no aria-expanded — heuristic: if the
+          // first child button's last span shows ▼, expand it).
+          const toggleBtn = itemEl.querySelector("button") as HTMLButtonElement | null;
+          const indicator = toggleBtn?.querySelector("span:last-child");
+          if (toggleBtn && indicator?.textContent?.includes("▼")) toggleBtn.click();
+        }
+      }
+      // Give the expanded thread one more tick to mount before scrolling
+      // to the comment.
+      setTimeout(() => {
+        if (commentId) {
+          const cmtEl = document.getElementById(`comment-${commentId}`) as HTMLElement | null;
+          if (cmtEl) { flash(cmtEl); return; }
+        }
+        if (focusId) {
+          const itemEl = document.getElementById(`qa-item-${focusId}`) as HTMLElement | null;
+          if (itemEl) flash(itemEl);
+        }
+      }, 120);
     }, 250);
     return () => clearTimeout(t);
   }, []);

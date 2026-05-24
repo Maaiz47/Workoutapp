@@ -3633,7 +3633,19 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
   const [myRetests, setMyRetests] = useState<Array<{ id: string; itemId: string; processedSummary: string | null; note: string; ts: string }>>([]);
   const [retestsExpanded, setRetestsExpanded] = useState(false);
   const [retestSearch, setRetestSearch] = useState("");
+  // Inline retest action state: which row's mini-form is open, and
+  // the draft text + chosen status before submit.
+  // (qa: qa-pending-retests-list — inline retest form)
+  const [retestActiveId, setRetestActiveId] = useState<string | null>(null);
+  const [retestDraft, setRetestDraft] = useState<{ status: "passing" | "failing" | "regression-retest" | null; note: string }>({ status: null, note: "" });
+  const [retestBusy, setRetestBusy] = useState(false);
   const [qaIframeFocus, setQaIframeFocus] = useState<string | null>(null);
+  // Comment-level deep link — appended as #comment-<id> in the QA
+  // iframe URL so /qa scrolls + flashes the specific comment thread
+  // within the focused item. Lets users land directly on their own
+  // reported issue rather than the umbrella user-feedback item.
+  // (qa: qa-deep-link-to-comment)
+  const [qaIframeComment, setQaIframeComment] = useState<string | null>(null);
 
   // Lazy-fetch the user's processed comments when the FAB opens — keeps
   // the initial render cheap, refreshes each time so newly-shipped
@@ -3887,23 +3899,86 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
                         style={{ width: "100%", boxSizing: "border-box", padding: "6px 10px", marginBottom: 6, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,209,102,0.18)", borderRadius: 6, color: "#fff", fontSize: 11, fontFamily: "'DM Sans', sans-serif", outline: "none" }}
                       />
                     )}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 180, overflowY: "auto" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 280, overflowY: "auto" }}>
                       {myRetests
                         .filter(r => {
                           if (!retestSearch.trim()) return true;
                           const q = retestSearch.toLowerCase();
                           return r.itemId.toLowerCase().includes(q) || (r.processedSummary ?? "").toLowerCase().includes(q) || r.note.toLowerCase().includes(q);
                         })
-                        .map(r => (
-                          <button
-                            key={r.id}
-                            onClick={() => { setOpen(false); setQaIframeFocus(r.itemId); setQaOverlayOpen(true); }}
-                            style={{ textAlign: "left", padding: "8px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, color: "#fff", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}
-                          >
-                            <div style={{ fontSize: 9, fontWeight: 700, color: "#FFD166", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 2 }}>{r.itemId.toUpperCase()}</div>
-                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>{r.processedSummary ? (r.processedSummary.length > 100 ? r.processedSummary.slice(0, 100) + "…" : r.processedSummary) : "Marked patched. Retest and report back."}</div>
-                          </button>
-                        ))}
+                        .map(r => {
+                          const isActive = retestActiveId === r.id;
+                          // Strip the leading "[🐞 BUG · area · view=foo]" tag
+                          // from the original note so the user sees just
+                          // the meat of what they reported. Falls back to
+                          // the raw note if no tag found.
+                          const rawNote = r.note.replace(/^\[[^\]]+\]\s*/, "").trim();
+                          const noteSnippet = rawNote.length > 90 ? rawNote.slice(0, 90) + "…" : rawNote;
+                          const summarySnippet = r.processedSummary ? (r.processedSummary.length > 120 ? r.processedSummary.slice(0, 120) + "…" : r.processedSummary) : "Marked patched. Retest and report back.";
+                          return (
+                            <div key={r.id} style={{ background: isActive ? "rgba(255,209,102,0.10)" : "rgba(255,255,255,0.03)", border: `1px solid ${isActive ? "rgba(255,209,102,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 8, padding: "8px 10px" }}>
+                              <button
+                                onClick={() => { setRetestActiveId(prev => prev === r.id ? null : r.id); setRetestDraft({ status: null, note: "" }); }}
+                                style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", color: "#fff", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", padding: 0 }}
+                              >
+                                <div style={{ fontSize: 9, fontWeight: 700, color: "#FFD166", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 2 }}>{r.itemId.toUpperCase()}</div>
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", lineHeight: 1.4, marginBottom: 4 }}><strong style={{ color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>YOU SAID:</strong> {noteSnippet}</div>
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}><strong style={{ color: "#4ECDC4", fontWeight: 700 }}>FIX:</strong> {summarySnippet}</div>
+                              </button>
+                              {isActive && (
+                                <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed rgba(255,209,102,0.25)" }}>
+                                  <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+                                    {([
+                                      { id: "passing", label: "✓ WORKS NOW", color: "#2ecc71", bg: "rgba(46,204,113,0.12)" },
+                                      { id: "regression-retest", label: "⟲ NEEDS RETEST", color: "#FFD166", bg: "rgba(255,209,102,0.12)" },
+                                      { id: "failing", label: "✗ STILL BROKEN", color: "#FF6B6B", bg: "rgba(255,107,107,0.12)" },
+                                    ] as const).map(opt => {
+                                      const sel = retestDraft.status === opt.id;
+                                      return (
+                                        <button key={opt.id} onClick={() => setRetestDraft(d => ({ ...d, status: opt.id }))} style={{ flex: 1, padding: "5px 4px", background: sel ? opt.bg : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? opt.color : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: sel ? opt.color : "rgba(255,255,255,0.5)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{opt.label}</button>
+                                      );
+                                    })}
+                                  </div>
+                                  <textarea
+                                    value={retestDraft.note}
+                                    onChange={e => setRetestDraft(d => ({ ...d, note: e.target.value }))}
+                                    placeholder="Optional — note what you saw on retest…"
+                                    rows={2}
+                                    style={{ width: "100%", boxSizing: "border-box", background: "rgba(0,0,0,0.3)", color: "#fff", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "6px 8px", fontSize: 11, fontFamily: "'DM Sans', sans-serif", resize: "vertical", outline: "none", marginBottom: 6 }}
+                                  />
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button
+                                      disabled={!retestDraft.status || retestBusy}
+                                      onClick={async () => {
+                                        if (!retestDraft.status) return;
+                                        setRetestBusy(true);
+                                        try {
+                                          await fetch("/api/qa/comment", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                              itemId: r.itemId,
+                                              tester: username,
+                                              status: retestDraft.status,
+                                              note: `[🔄 RETEST · re:${r.id.slice(-8)}] ${retestDraft.note.trim() || (retestDraft.status === "passing" ? "Verified working." : retestDraft.status === "regression-retest" ? "Needs another look." : "Still broken on retest.")}`,
+                                            }),
+                                          });
+                                          // Drop the row from the local list — done with it.
+                                          setMyRetests(prev => prev.filter(x => x.id !== r.id));
+                                          setRetestActiveId(null);
+                                          setRetestDraft({ status: null, note: "" });
+                                        } catch {}
+                                        setRetestBusy(false);
+                                      }}
+                                      style={{ flex: 1, padding: "8px", background: retestDraft.status && !retestBusy ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: retestDraft.status && !retestBusy ? "#000" : "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: retestDraft.status && !retestBusy ? "pointer" : "default" }}
+                                    >{retestBusy ? "SENDING…" : "SUBMIT RETEST"}</button>
+                                    <button onClick={() => { setOpen(false); setQaIframeFocus(r.itemId); setQaIframeComment(r.id); setQaOverlayOpen(true); }} title="Open in full QA dashboard" style={{ padding: "8px 10px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 6, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>↗</button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       {myRetests.filter(r => {
                         if (!retestSearch.trim()) return true;
                         const q = retestSearch.toLowerCase();
@@ -3922,7 +3997,7 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
                 view. (qa: user — "overlay into full qa via
                 floating button") */}
             <button
-              onClick={() => { setOpen(false); setQaIframeFocus(null); setQaOverlayOpen(true); }}
+              onClick={() => { setOpen(false); setQaIframeFocus(null); setQaIframeComment(null); setQaOverlayOpen(true); }}
               style={{
                 width: "100%", marginTop: 8, padding: "10px 12px",
                 background: "rgba(255,107,107,0.08)",
@@ -3976,7 +4051,7 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
             >×</button>
           </div>
           <iframe
-            src={qaIframeFocus ? `/qa?focus=${encodeURIComponent(qaIframeFocus)}` : "/qa"}
+            src={qaIframeFocus ? `/qa?focus=${encodeURIComponent(qaIframeFocus)}${qaIframeComment ? `#comment-${qaIframeComment}` : ""}` : "/qa"}
             title="QA dashboard"
             style={{
               flex: 1, width: "100%", border: "none", background: "#0a0a0a",
@@ -5896,7 +5971,7 @@ function HomePage() {
   const changeTheme = (t: "iron"|"mono"|"vivid") => { setAppTheme(t); localStorage.setItem("ironlog-theme", t); };
   const changeAccent = (c: string) => { setAccentColor(c); localStorage.setItem("ironlog-accent", c); };
 
-  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "globalLeaderboard", "groupsHub", "groupChat", "clientsHub", "friendsHub", "avatarPicker"]);
+  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "globalLeaderboard", "groupsHub", "groupChat", "clientsHub", "friendsHub", "avatarPicker", "systemNotifs"]);
   useSwipeBack(() => {
     if (view === "conversation") { setView("messages"); setActiveConversation(null); }
     else if (view === "messages") setView("home");
@@ -5910,6 +5985,7 @@ function HomePage() {
     else if (view === "groupChat") setView(groupChatPrevView);
     else if (view === "workout" && started) setView("home"); // leave but keep session alive
     else if (view === "avatarPicker") setView("profile"); // avatar picker → back to Settings → Profile
+    else if (view === "systemNotifs") setView("messages"); // system feed lives under Messages
   }, swipeBackViews.has(view));
 
   // On mount: check browser permission; if already granted, re-register subscription
@@ -12907,7 +12983,12 @@ function HomePage() {
           </div>
         </div>
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {/* Scroll-to-bottom on open so the latest message is always
+          in view, like a real chat. (qa: system-notifs-scroll-bottom) */}
+      <div
+        ref={(el) => { if (el && patchNotifs !== null) el.scrollTop = el.scrollHeight; }}
+        style={{ flex: 1, overflowY: "auto", padding: "12px 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}
+      >
         {SYSTEM_NOTIFICATIONS.length === 0 && (
           <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
             No system messages yet.
@@ -12944,7 +13025,7 @@ function HomePage() {
             const p = entry.p;
             const tint = p.isIdea ? "#4ECDC4" : "#FFD166";
             return (
-              <div key={`p:${p.id}`} onClick={() => { try { window.location.href = "/qa"; } catch {} }} style={{ alignSelf: "flex-start", maxWidth: "92%", background: `linear-gradient(135deg, ${tint}1f, ${tint}0a)`, border: `1px solid ${tint}55`, borderRadius: 14, padding: "14px 16px", cursor: "pointer" }}>
+              <div key={`p:${p.id}`} onClick={() => { try { window.location.href = `/qa?focus=${encodeURIComponent(p.itemId)}#comment-${p.id}`; } catch {} }} style={{ alignSelf: "flex-start", maxWidth: "92%", background: `linear-gradient(135deg, ${tint}1f, ${tint}0a)`, border: `1px solid ${tint}55`, borderRadius: 14, padding: "14px 16px", cursor: "pointer" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
                   <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: tint, fontFamily: "'Space Mono', monospace" }}>{p.isIdea ? "✨ IDEA SHIPPED" : "🔧 BUG PATCHED"}</span>
                   <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{p.publishedAt.slice(0, 10)}</span>
@@ -16438,7 +16519,15 @@ function HomePage() {
                 // the LOG SET button so the user is aware they're inside
                 // the planned rest window. Doesn't block the tap — it's
                 // just an FYI. (qa: workout-rest-skipped-counter)
-                const restCounterSuffix = rest.running && rest.seconds > 0 && rest.screenDismissed ? ` · REST ${rest.seconds}s` : "";
+                // Show rest countdown on LOG SET whenever a rest is
+                // ticking — dropped the screenDismissed gate per @munchy:
+                // 'some rest timers weren't showing in the next set
+                // button after skipping'. The fullscreen overlay covers
+                // the button anyway, so showing the suffix doesn't
+                // conflict during fullscreen; once dismissed, the button
+                // is visible with the live countdown.
+                // (qa: workout-rest-skipped-counter)
+                const restCounterSuffix = rest.running && rest.seconds > 0 ? ` · REST ${rest.seconds}s` : "";
                 const logBtnLabel = (superCtx && !isLastInSuper ? `LOG SET ${ns} → NEXT` : `LOG SET ${ns}`) + restCounterSuffix;
 
                 return (
