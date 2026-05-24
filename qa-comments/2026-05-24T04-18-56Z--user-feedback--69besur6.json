@@ -1,0 +1,10 @@
+{
+  "id": "cmpj9plq400007rha69besur6",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Messaging · view=messages] Checking if system notification sent regarding this report includes a qa link to a retest of changing avatar, pretend it just got patched",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T04:18:56.956Z"
+}
