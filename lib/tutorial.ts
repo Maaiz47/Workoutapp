@@ -27,7 +27,14 @@ export type TutorialStep = {
 //   · Floating bottom hub + sticky Settings ⇄ Profile toggle
 //   · Bodyweight + warmup/cooldown milestones with premium bonus avatars
 //   · Monthly challenges now a rotating library (3 random / month)
-export const TUTORIAL_VERSION = "v6";
+// v7 bump (2026-05-24): introduces several substantial UI/scoring
+// changes worth re-showing to existing users:
+//   · Press-and-hold to reorder exercises (session + customise)
+//   · Long-press to delete your own messages (DMs + group chat)
+//   · Pinned 📢 IRONLOG SYSTEM feed in the Messages inbox
+//   · Fresh Legs IP bonus + recovery cap (deters IP farming)
+//   · Visible 'Lucky' sub-rank surfaces lifetime drop bonus
+export const TUTORIAL_VERSION = "v7";
 export const TUTORIAL_STORAGE_KEY = `ironlog-tutorial-seen-${TUTORIAL_VERSION}`;
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -90,8 +97,36 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "tier-sub-ranks",
     icon: "🏅",
     title: "How your tier is scored",
-    body: "8 sub-ranks feed the headline: Consistency · Strength (rate × absolute) · Progression · Volume · Mastery · Technique (NEW) · Body Comp · Habits. Sub-ranks you don't have data for are skipped so empty dims don't drag your headline. Veterans no longer regress — strength absolute (e1RM ÷ bodyweight) prevents that.",
+    body: "9 sub-ranks feed the headline: Consistency · Strength (rate × absolute) · Progression · Volume · Mastery · Technique · Balance · Body Comp · Habits — plus a 🍀 Lucky sub-rank when you've earned rare drops or smart-pick bonuses. Sub-ranks you don't have data for are skipped so empty dims don't drag your headline. Veterans don't regress — strength absolute (e1RM ÷ bodyweight) prevents that.",
     where: "Progress → tap your tier chip",
+  },
+  {
+    id: "ip-fresh-legs",
+    icon: "✨",
+    title: "Fresh Legs bonus · Recovery cap",
+    body: "Train hard, rest, train hard. The first session after a full rest day earns a +5 IP 'FRESH LEGS' bonus. Past your weekly target (daysPerWeek + 1) extra sessions earn 0 IP that week — recovery beats farming. Set your weekly target in onboarding or update it from Settings.",
+    where: "Active session · Settings → APP PREFERENCES → target days/week",
+  },
+  {
+    id: "reorder-exercises",
+    icon: "↕",
+    title: "Press + hold to reorder exercises",
+    body: "Long-press any exercise card (about half a second) to pick it up, then drag to a new position — works in active sessions AND on the Customise screen. Supersets move as a block; same-day order auto-saves to your session + plan.",
+    where: "Active session · Customise routine",
+  },
+  {
+    id: "message-delete",
+    icon: "🗑",
+    title: "Delete your own messages",
+    body: "Long-press your own bubble (in a DM or group chat) and tap 🗑 DELETE — the message becomes 'Message deleted' for everyone, instantly. You can only delete your own; system messages can't be deleted. Reactions, replies and quoted text are stripped from deleted bubbles.",
+    where: "Messages → any conversation · Group chat",
+  },
+  {
+    id: "system-feed",
+    icon: "📢",
+    title: "IRONLOG SYSTEM messages",
+    body: "A pinned 📢 IRONLOG SYSTEM row sits at the top of your Messages inbox with app changes, warnings, and admin notices. Read-only feed, severity-tinted. Updates land here whenever we ship.",
+    where: "Messages inbox → top pinned row",
   },
   {
     id: "dashboard-layout",
