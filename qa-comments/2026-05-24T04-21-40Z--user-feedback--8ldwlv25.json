@@ -1,0 +1,10 @@
+{
+  "id": "cmpj9t3lj00003klc8ldwlv25",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "untested",
+  "note": "[💡 IDEA · Messaging · view=messages] Maybe we don’t need a message count on the system notifications chat bar, just unread count\nPush notification for patch notes they submitted if not already, summarise to 1 message if multiple patches\nQuick link to their pending retest items in quick note overlay so they can quickly go to the issue page, test and report back via a search from a list of their pending retests",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T04:21:40.088Z"
+}
