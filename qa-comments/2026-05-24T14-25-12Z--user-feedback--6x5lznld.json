@@ -1,0 +1,10 @@
+{
+  "id": "cmpjvd9cc0005jyd46x5lznld",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Progress · view=progress] Is the habits sub rank only checking for recordings of the stat? It should be more focused on if they hit the right amount of hydration for themselves and bonus points for consistently entering the data even if it’s low hydration",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T14:25:12.589Z"
+}
