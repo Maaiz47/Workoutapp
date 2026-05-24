@@ -2,6 +2,29 @@
 
 ---
 
+## QA pass · 2026-05-24 — 9 comments processed (qa: profile-identity-premium, qa-pending-retests-list, system-notifications-feed, home-clients-button-no-count, pro-tip-overlay-zindex, image-prompts-v2, qa-patch-notification, customise-delete-day, workout-effort-recommended-chip)
+
+Processed 9 comments from @maaiz (7) + @munchy (2).
+
+### Addressed
+- **profile-identity-premium**: IDENTITY card redesigned. Multi-stop gradient, glowing avatar (80px, ring + 24px glow), bigger username (22px / 800), decorative corner glow. Power-user variant (any trainer) swaps to gold treatment + '⚡ POWER USER' chip + iridescent halo. (@maaiz)
+- **system-notifications-feed**: IRONLOG SYSTEM inbox row no longer shows the always-on 'N messages' count; instead shows '${X} unread · ' prefix only when there's unread. (@maaiz)
+- **home-clients-button-no-count**: Removed the count badge from the home Clients button (already shown in the Clients hub modal). (@maaiz)
+- **pro-tip-overlay-zindex**: Pro Tip modal z-index bumped 9000 → 9600 so the feedback tab (z-9500) + bottom hub no longer float on top of it. (@maaiz bug)
+- **qa-pending-retests-list**: NEW collapsible 'YOUR PATCHES TO RETEST · N' section inside the Quick Note FAB. Lazy-loads from /api/qa/comments/mine, supports search, taps open the /qa iframe overlay focused on the item — /qa scrolls + flashes the matching `<div id="qa-item-{itemId}">` to land the user where they need to be. (@maaiz idea, partial fulfilment of the multi-part note)
+- **image-prompts-v2**: Added Batch 11 spec to /image-prompts-v2.md — 6 missing day-card hero images (cardio / HIIT / bodyweight-only / mobility / recovery / hybrid). Generation pending. (@maaiz idea)
+- **customise-delete-day**: Already shipped in bundle 2 (commit d513247) — POST /api/plan {action:'delete-day'} + '🗑 DELETE DAY' button. Comment marked processed. (@munchy)
+- **workout-effort-recommended-chip**: Already shipped (commit 2d60555) — recommended RPE chip glows. The 'IP cheating' allegation was investigated and found to be an RPE-tagging frequency gap, not cheating. Comment marked processed with that summary. (@munchy)
+- **qa-patch-notification** (test reports x2): both marked processed so @maaiz can verify the patch-notification feed lights up on his phone after the deploy.
+
+### Partially addressed
+- **system-notifications-feed** (multi-part @maaiz idea): the 3rd sub-ask (3) shipped in full as qa-pending-retests-list. The 2nd sub-ask (browser-level push notifications, summarised into one per user) is **deferred** — requires a deploy-hook + per-user notify cursor. In-app patch-notification bubbles in the IRONLOG SYSTEM feed already cover the surfacing need; will revisit if @maaiz wants the OS-level prompt next pass.
+
+### Items with no action needed (status flips only)
+- None — every comment got a concrete change or a 'already shipped' link.
+
+---
+
 ## Feat · 2026-05-24 — Bundle 2 — drag-handle reorder, plate-machine hint, tier-promo bug + bigger modal, clearer add-exercise labels, routine-to-group sharing, trainer badge on athlete board + coached filter, engagement-type tagging, multi-select group creation, delete-day, patch-notifications (qa: workout-exercise-reorder, weight-input-convention-clarity, tier-promotion-toast, workout-in-session-exercise-add, routine-share-to-group, global-leaderboard-trainer-badge, global-leaderboard-coached-filter, trainer-client-engagement-type, groups-multi-select-create, customise-delete-day, qa-patch-notification)
 
 Second bundle of the day. 7 commits land together.

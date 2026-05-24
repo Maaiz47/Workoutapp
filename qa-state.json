@@ -1,6 +1,102 @@
 {
   "items": [
     {
+      "id": "workout-effort-recommended-chip",
+      "title": "Recommended RPE chip glows so the user can pick faster between sets",
+      "area": "Workout",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass workout-effort-recommended-chip",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open a tracked exercise, hit LOG SET on set 1 with an RPE picked (e.g. RPE 8).",
+        "Move to set 2. Verify the EFFORT chip row shows chip '8' with a 3px bottom border + drop-shadow glow in the chip's color.",
+        "Verify the tooltip on the chip reads 'recommended (last logged for this exercise)'.",
+        "Skip logging RPE on set 2. Move to set 3. Verify the suggestion still reads RPE 8 (most recent for this exercise).",
+        "Verify any other chip works as before (tap to select)."
+      ],
+      "notes": "[2026-05-24] Shipped (commit 2d60555): suggestedRpe computed inline at chip render. Falls back to lastSessionBest if no current-session RPE."
+    },
+    {
+      "id": "profile-identity-premium",
+      "title": "Profile IDENTITY card reads modern + 3D + premium; power users get gold treatment",
+      "area": "UI",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass profile-identity-premium",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open Profile (home → avatar). Verify the IDENTITY card has a multi-stop gradient background (teal→red for standard users, gold→red for trainers).",
+        "Verify the avatar is 80px with a coloured ring + 24px outer glow (red for standard, gold for trainers).",
+        "Verify the username displays large (22px, weight 800) with a subtle text-shadow.",
+        "For trainer accounts: verify a '⚡ POWER USER' chip appears top-right of the card.",
+        "Verify a soft decorative glow blob fills the top-right corner (purely visual depth)."
+      ],
+      "notes": "[2026-05-24] Shipped: gradient background + corner glow + power-user halo + larger avatar/username typography."
+    },
+    {
+      "id": "qa-pending-retests-list",
+      "title": "Quick Note FAB shows the user's pending retest items with deep links to /qa",
+      "area": "QA",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass qa-pending-retests-list",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "File a bug, wait for it to be marked processed.",
+        "Tap the floating ‹ feedback tab. Verify '🔄 YOUR PATCHES TO RETEST · N' appears above the SEND NOTE button (only when N > 0).",
+        "Expand the section. Verify each entry shows the QA item id + a snippet of the processed summary.",
+        "If N > 4, verify a search box appears that filters by item id / summary / original note.",
+        "Tap a row. Verify the /qa iframe overlay opens and auto-scrolls to the item (with a brief gold drop-shadow flash on the matching item card)."
+      ],
+      "notes": "[2026-05-24] Shipped: lazy-fetches /api/qa/comments/mine on FAB open. /qa supports ?focus=<itemId> param for deep-link scroll + flash."
+    },
+    {
+      "id": "home-clients-button-no-count",
+      "title": "Home Clients button has no count badge (count lives in the Clients hub)",
+      "area": "UI",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass home-clients-button-no-count",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "As a trainer with ≥1 client, open the home screen.",
+        "Verify the 'Clients' button in the bottom hub shows no purple count badge.",
+        "Tap Clients → verify the count is still visible inside the hub header."
+      ],
+      "notes": "[2026-05-24] Shipped: count badge removed from the home button JSX."
+    },
+    {
+      "id": "pro-tip-overlay-zindex",
+      "title": "Pro Tip modal sits above floating UI (feedback tab + bottom hub)",
+      "area": "UI",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass pro-tip-overlay-zindex",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open the daily Pro Tip modal from the home screen (tap the PRO TIP card).",
+        "Verify the modal backdrop covers BOTH the floating ‹ feedback tab AND the bottom hub icons.",
+        "Verify nothing from the home page floats on top of the modal."
+      ],
+      "notes": "[2026-05-24] Shipped: z-index 9000 → 9600 on the Pro Tip modal (feedback tab is 9500)."
+    },
+    {
+      "id": "image-prompts-v2",
+      "title": "image-prompts-v2.md tracks the missing day-card backgrounds (Batch 11)",
+      "area": "Docs",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass image-prompts-v2",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open /image-prompts-v2.md.",
+        "Verify Batch 11 section lists 6 day-card backgrounds (cardio / HIIT / bw-only / mobility / recovery / hybrid).",
+        "Generation step is per-image: image gen + place under /public/ai/day-<flavour>.jpg + wire into the day-card hero picker in app/page.tsx."
+      ],
+      "notes": "[2026-05-24] Spec only. Image generation pending."
+    },
+    {
       "id": "qa-patch-notification",
       "title": "Users get a system notification when their reported bug / idea ships",
       "area": "QA",
