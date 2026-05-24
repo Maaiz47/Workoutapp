@@ -16570,28 +16570,23 @@ function HomePage() {
                                   row 2 lets the BAR button drop below
                                   the hint on very narrow phones.
                                   (qa: weight-input-convention-clarity) */}
-                              {/* Row 1: just the WEIGHT (kg) label. The
-                                  ±step indicator used to sit right-aligned
-                                  here, but right next to the REPS DONE
-                                  header of the column beside, it read as
-                                  one phrase ('±5 · pin REPS DONE'). Moved
-                                  to row 2 below where it sits with the
-                                  convention hint and can't collide with
-                                  the REPS column.
-                                  (qa: weight-input-convention-clarity) */}
-                              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, marginBottom: 4, fontWeight: 500 }}>
+                              {/* Single-row label so the LEFT column header
+                                  matches the RIGHT column's 'REPS DONE' line
+                                  height — earlier 2-row layout left WEIGHT
+                                  3 lines tall while REPS stayed at 1, which
+                                  read as misalignment across the columns.
+                                  ±step indicator is gone (the +/− buttons
+                                  speak for themselves on increment size).
+                                  📏 BAR? helper sits inline. Convention hint
+                                  + bar guide both reachable through the BAR?
+                                  expander. (qa: weight-input-convention-clarity) */}
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, fontWeight: 500, minHeight: 18 }}>
                                 <span style={{ whiteSpace: "nowrap" }}>{assistedBW ? "ASSISTANCE (kg)" : activeBW ? "ADDED WEIGHT (kg)" : "WEIGHT (kg)"}</span>
-                              </div>
-                              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 10, letterSpacing: 1, fontWeight: 500 }}>
-                                <span style={{ color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap", fontFamily: "'Space Mono', monospace" }}>±{weightStep}{isMachine ? " · pin" : isBarbellOrDB ? " · plate" : ""}</span>
-                                {weightConvention && (
-                                  <span style={{ color: "rgba(162,155,254,0.7)", textTransform: "none", letterSpacing: 0.5, whiteSpace: "nowrap" }}>· {weightConvention}</span>
-                                )}
                                 {(isBarbell || isEzBar) && !activeBW && (
                                   <button
                                     type="button"
                                     onClick={() => setBarGuideOpen(o => !o)}
-                                    title="Standard bar weights — tap to expand"
+                                    title={`Standard bar weights — tap to expand${weightConvention ? `\nConvention: ${weightConvention}` : ""}`}
                                     style={{ padding: "1px 6px", background: barGuideOpen ? "rgba(255,209,102,0.18)" : "rgba(255,209,102,0.08)", border: "1px solid rgba(255,209,102,0.3)", borderRadius: 4, color: "#FFD166", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace", textTransform: "uppercase", whiteSpace: "nowrap" }}
                                   >📏 BAR{barGuideOpen ? " ▴" : "?"}</button>
                                 )}
