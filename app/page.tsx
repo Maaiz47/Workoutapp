@@ -13664,23 +13664,51 @@ function HomePage() {
               Tier badges are tappable to open the same TierInfoModal as
               the welcome card so users have one consistent surface for
               "what does Coach mean / what other tiers exist?". */}
-          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, padding: "20px", marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 3, marginBottom: 12 }}>IDENTITY</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, marginBottom: 14 }}>
+          {/* IDENTITY card — premium redesign per @maaiz:
+              'profile modal UI looks amateur. Can you clean it up
+              and make it look modern, 3d, premium but even more so
+              if the user is a power user (athlete and trainer).'
+              Power-user variant (isTrainer = athlete AND trainer)
+              swaps the gradient + border + glow to gold/iridescent;
+              standard users get a teal/red dual-stop gradient.
+              (qa: profile-identity-premium) */}
+          <div style={{
+            position: "relative",
+            background: isTrainer
+              ? "linear-gradient(135deg, rgba(240,192,64,0.18) 0%, rgba(255,107,107,0.10) 60%, rgba(10,10,18,0.6) 100%)"
+              : "linear-gradient(135deg, rgba(78,205,196,0.10) 0%, rgba(255,107,107,0.06) 60%, rgba(10,10,18,0.5) 100%)",
+            border: `1px solid ${isTrainer ? "rgba(240,192,64,0.45)" : "rgba(255,255,255,0.08)"}`,
+            borderRadius: 18,
+            padding: "22px 18px 20px",
+            marginBottom: 12,
+            overflow: "hidden",
+            boxShadow: isTrainer
+              ? "0 16px 48px -16px rgba(240,192,64,0.45), 0 1px 0 rgba(255,255,255,0.08) inset, 0 0 0 1px rgba(240,192,64,0.18) inset"
+              : "0 12px 32px -16px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.05) inset",
+          }}>
+            {/* Decorative top-right corner glow — purely visual depth */}
+            <div aria-hidden style={{ position: "absolute", top: -60, right: -60, width: 160, height: 160, borderRadius: "50%", background: isTrainer ? "radial-gradient(circle, rgba(240,192,64,0.35) 0%, transparent 70%)" : "radial-gradient(circle, rgba(78,205,196,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+            {isTrainer && (
+              <div style={{ position: "absolute", top: 12, right: 14, fontSize: 9, fontWeight: 800, letterSpacing: 2, color: "#f0c040", background: "rgba(240,192,64,0.18)", border: "1px solid rgba(240,192,64,0.55)", borderRadius: 4, padding: "3px 8px", fontFamily: "'Space Mono', monospace", boxShadow: "0 0 12px rgba(240,192,64,0.45)" }}>⚡ POWER USER</div>
+            )}
+            <div style={{ fontSize: 10, color: isTrainer ? "rgba(240,192,64,0.7)" : "rgba(255,255,255,0.4)", letterSpacing: 3, marginBottom: 16, fontFamily: "'Space Mono', monospace", fontWeight: 700, position: "relative" }}>IDENTITY</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, minWidth: 0, marginBottom: 16, position: "relative" }}>
               {(() => {
                 const selectedId = currentAvatarId;
                 const av = selectedId ? findAvatar(selectedId) : null;
                 const src = av ? `/avatars/${av.id}.png` : "/ai/avatar-default.png";
+                const ringColor = isTrainer ? "rgba(240,192,64,0.7)" : "rgba(255,107,107,0.45)";
+                const glowColor = isTrainer ? "rgba(240,192,64,0.45)" : "rgba(255,107,107,0.30)";
                 return (
                   <button onClick={() => setView("avatarPicker")} title="Change avatar" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", position: "relative" }}>
-                    <img src={src} alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: "0 0 0 1px rgba(255,107,107,0.3), 0 6px 18px rgba(255,107,107,0.18)" }} onError={(e) => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
-                    <span style={{ position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: "50%", background: "#4ECDC4", border: "2px solid #0a0a0c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#000", fontWeight: 800 }}>✎</span>
+                    <img src={src} alt="" style={{ width: 80, height: 80, borderRadius: "50%", flexShrink: 0, objectFit: "cover", boxShadow: `0 0 0 2px ${ringColor}, 0 0 24px ${glowColor}, 0 10px 28px rgba(0,0,0,0.4)` }} onError={(e) => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
+                    <span style={{ position: "absolute", bottom: -2, right: -2, width: 24, height: 24, borderRadius: "50%", background: "#4ECDC4", border: "2px solid #0a0a0c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#000", fontWeight: 800 }}>✎</span>
                   </button>
                 );
               })()}
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>@{user.username}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: 0.3, lineHeight: 1.1, textShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>@{user.username}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 6 }}>
                   {(() => {
                     // Compute a human-friendly join duration from
                     // User.createdAt. Was hardcoded to "Member since
