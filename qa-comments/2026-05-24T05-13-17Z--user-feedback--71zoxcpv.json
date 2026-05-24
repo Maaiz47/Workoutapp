@@ -1,0 +1,10 @@
+{
+  "id": "cmpjbnhf50000r1yz71zoxcpv",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=systemNotifs] System notification whole button is tap to click, only the link part inside the message needs to be clickable",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T05:13:17.295Z"
+}
