@@ -1,5 +1,9 @@
 {
   "processedIds": {
+    "cmpj723dz0002tk53tq3080f3": {
+      "ts": "2026-05-24T03:30:00Z",
+      "summary": "@munchy: 'When customizing the exercises dragging to reorder exercises doesn't work. Probably due to scroll issues'. Addressed by the queued iOS hardening — touch-action:'none' on SortableExerciseItem (was 'manipulation' which loses the touch race to scroll on iOS Safari), 500ms→350ms activation delay (beats iOS context menu at ~550ms), tolerance 5px→10px (iOS touch jitter). Munchy diagnosis was correct — scroll was winning the gesture race. (qa: workout-exercise-reorder)"
+    },
     "cmphqronw0008frouiah11umr": {
       "ts": "2026-05-23T03:00:00Z",
       "summary": "@maaiz: 'want to place new exercise added during session at wanted order, before cooldowns especially'. handleAdd now splices the BONUS section before the first cooldown (detected by section.type === 'cooldown' or name starting with COOL). Legacy data where BONUS sits after cooldown auto-corrects on next add. (qa: workout-in-session-exercise-add)"
