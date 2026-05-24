@@ -23,7 +23,7 @@ import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, syncWellnessFromServer, syncWellnessToServerOnce, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
-import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead, fetchPatchNotifications, markPatchNotifsRead, PatchNotification } from "../lib/systemNotifications";
+import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead, fetchPatchNotifications, markPatchNotifsRead, markRetestResponded, PatchNotification } from "../lib/systemNotifications";
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState, resolveMissionTarget, resolveMissionBody } from "../lib/challenges";
 import { computeExerciseRecencies, recencyForExercise, recencyDotColor, ExerciseRecency } from "../lib/adaptiveRewards";
 import { findAvatar, AVATARS, Avatar } from "../lib/avatars";
@@ -3963,7 +3963,10 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
                                               note: `[🔄 RETEST · re:${r.id.slice(-8)}] ${retestDraft.note.trim() || (retestDraft.status === "passing" ? "Verified working." : retestDraft.status === "regression-retest" ? "Needs another look." : "Still broken on retest.")}`,
                                             }),
                                           });
-                                          // Drop the row from the local list — done with it.
+                                          // Drop the row from the local list AND persist the
+                                          // ack so re-fetches don't bring it back.
+                                          // (qa: qa-retest-persistence)
+                                          markRetestResponded(r.id);
                                           setMyRetests(prev => prev.filter(x => x.id !== r.id));
                                           setRetestActiveId(null);
                                           setRetestDraft({ status: null, note: "" });
@@ -10875,11 +10878,26 @@ function HomePage() {
           (qa: home-hub-singleline, home-hub-floating) */}
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, padding: "12px 20px calc(12px + env(safe-area-inset-bottom, 0px))", background: "rgba(10,10,18,0.78)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: "1px solid rgba(255,255,255,0.06)", zIndex: 60 }}>
         <div style={{ display: "flex", flexWrap: "nowrap", gap: 6, justifyContent: "center", maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
-          <button className="card-hover nav-btn" onClick={() => goTo("messages")} title="Messages" style={{ position: "relative", flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: unreadCount > 0 ? "rgba(78,205,196,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${unreadCount > 0 ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, color: unreadCount > 0 ? "#4ECDC4" : "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box" }}>
-            <span style={{ fontSize: 22, lineHeight: 1 }}>💬</span>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Messages</span>
-            {unreadCount > 0 && <span style={{ position: "absolute", top: 4, right: 4, background: "#4ECDC4", color: "#000", borderRadius: 10, padding: "1px 6px", fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{unreadCount}</span>}
-          </button>
+          {(() => {
+            // Combined unread count for the home Messages button —
+            // DMs + group chats with new messages since last-seen +
+            // system patch notifications + bundled system feed unreads.
+            // Per @maaiz: 'Add unread message count to home page message
+            // button'. (qa: home-messages-unread-count)
+            let groupUnread = 0;
+            for (const g of (groupConversations as any[])) {
+              const seenAt = lastSeenGroupAt[g.groupId] ?? "0";
+              if (g.latestMessage && g.latestMessage.createdAt > seenAt && g.latestMessage.fromId !== user?.id) groupUnread++;
+            }
+            const combinedUnread = unreadCount + groupUnread + systemNotifUnread;
+            return (
+              <button className="card-hover nav-btn" onClick={() => goTo("messages")} title="Messages" style={{ position: "relative", flex: "1 1 0", minWidth: 0, padding: "12px 6px", background: combinedUnread > 0 ? "rgba(78,205,196,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${combinedUnread > 0 ? "rgba(78,205,196,0.25)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, color: combinedUnread > 0 ? "#4ECDC4" : "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box" }}>
+                <span style={{ fontSize: 22, lineHeight: 1 }}>💬</span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>Messages</span>
+                {combinedUnread > 0 && <span style={{ position: "absolute", top: 4, right: 4, background: "#4ECDC4", color: "#000", borderRadius: 10, padding: "1px 6px", fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{combinedUnread}</span>}
+              </button>
+            );
+          })()}
           {/* Progress button moved back to the bottom hub per @maaiz:
               the top chip strip is now reserved for Profile + Tier
               (far-right). Progress sits between Messages and Ranks here
@@ -12983,63 +13001,95 @@ function HomePage() {
           </div>
         </div>
       </div>
-      {/* Scroll-to-bottom on open so the latest message is always
-          in view, like a real chat. (qa: system-notifs-scroll-bottom) */}
-      <div
-        ref={(el) => { if (el && patchNotifs !== null) el.scrollTop = el.scrollHeight; }}
-        style={{ flex: 1, overflowY: "auto", padding: "12px 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}
-      >
-        {SYSTEM_NOTIFICATIONS.length === 0 && (
-          <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
-            No system messages yet.
-          </div>
-        )}
-        {[
-          ...SYSTEM_NOTIFICATIONS.map(n => ({ kind: "bundled" as const, n })),
-          ...patchNotifs.map(p => ({ kind: "patch" as const, p })),
-        ]
-          .sort((a, b) => {
-            const aTs = a.kind === "bundled" ? a.n.publishedAt : a.p.publishedAt;
-            const bTs = b.kind === "bundled" ? b.n.publishedAt : b.p.publishedAt;
-            return aTs.localeCompare(bTs);
-          })
-          .map(entry => {
-            if (entry.kind === "bundled") {
-              const n = entry.n;
-              const tint = n.severity === "warning" ? "#FF6B6B" : n.severity === "update" ? "#4ECDC4" : "#A29BFE";
-              const sevLabel = n.severity === "warning" ? "⚠ WARNING" : n.severity === "update" ? "✨ UPDATE" : "📢 INFO";
-              return (
-                <div key={`b:${n.id}`} style={{ alignSelf: "flex-start", maxWidth: "92%", background: `linear-gradient(135deg, ${tint}1f, ${tint}0a)`, border: `1px solid ${tint}55`, borderRadius: 14, padding: "14px 16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: tint, fontFamily: "'Space Mono', monospace" }}>{sevLabel}</span>
-                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{n.publishedAt.slice(0, 10)}</span>
+      {(() => {
+        // Read bundled-feed ack set so we can highlight unread
+        // bundled notifications similar to patch ones.
+        let bundledRead = new Set<string>();
+        try {
+          const raw = (typeof window !== "undefined") ? localStorage.getItem("ironlog-system-notif-reads-v1") : null;
+          if (raw) bundledRead = new Set(JSON.parse(raw));
+        } catch {}
+        const entries = [
+          ...SYSTEM_NOTIFICATIONS.map(n => ({ kind: "bundled" as const, n, unread: !bundledRead.has(n.id) })),
+          ...patchNotifs.map(p => ({ kind: "patch" as const, p, unread: !patchAcks.has(p.id) })),
+        ].sort((a, b) => {
+          const aTs = a.kind === "bundled" ? a.n.publishedAt : a.p.publishedAt;
+          const bTs = b.kind === "bundled" ? b.n.publishedAt : b.p.publishedAt;
+          return aTs.localeCompare(bTs);
+        });
+        const firstUnreadIdx = entries.findIndex(e => e.unread);
+        const hasUnread = firstUnreadIdx >= 0;
+        return (
+          <div
+            ref={(el) => {
+              if (!el) return;
+              // Real chat scroll: on open, if any unread → scroll the
+              // first unread to the top of the viewport + highlight it;
+              // otherwise just land at the bottom (newest message).
+              // Per @maaiz: 'show latest message first at the bottom
+              // of the convo, only when it's a new unread message it
+              // can start from earlier and show the unread messages
+              // highlighted'. (qa: system-notifs-scroll-bottom,
+              // system-notifs-unread-highlight)
+              requestAnimationFrame(() => {
+                if (hasUnread) {
+                  const target = el.querySelector(`[data-unread-idx='${firstUnreadIdx}']`) as HTMLElement | null;
+                  if (target) target.scrollIntoView({ block: "start" });
+                } else {
+                  el.scrollTop = el.scrollHeight;
+                }
+              });
+            }}
+            style={{ flex: 1, overflowY: "auto", padding: "12px 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}
+          >
+            {entries.length === 0 && (
+              <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
+                No system messages yet.
+              </div>
+            )}
+            {entries.map((entry, idx) => {
+              if (entry.kind === "bundled") {
+                const n = entry.n;
+                const tint = n.severity === "warning" ? "#FF6B6B" : n.severity === "update" ? "#4ECDC4" : "#A29BFE";
+                const sevLabel = n.severity === "warning" ? "⚠ WARNING" : n.severity === "update" ? "✨ UPDATE" : "📢 INFO";
+                return (
+                  <div key={`b:${n.id}`} data-unread-idx={entry.unread ? idx : undefined} style={{ alignSelf: "flex-start", maxWidth: "92%", background: `linear-gradient(135deg, ${tint}1f, ${tint}0a)`, border: `1px solid ${entry.unread ? tint : tint + "55"}`, borderRadius: 14, padding: "14px 16px", boxShadow: entry.unread ? `0 0 0 1px ${tint}66, 0 0 16px ${tint}44` : undefined }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: tint, fontFamily: "'Space Mono', monospace" }}>{sevLabel}{entry.unread ? " · NEW" : ""}</span>
+                      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{n.publishedAt.slice(0, 10)}</span>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.3 }}>{n.title}</div>
+                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{n.body}</div>
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.3 }}>{n.title}</div>
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{n.body}</div>
-                </div>
-              );
-            }
+                );
+              }
             // Patch notification — user's own QA comment was processed.
             // Tint = teal (update) for ideas, gold for bug fixes.
             // (qa: qa-patch-notification)
             const p = entry.p;
             const tint = p.isIdea ? "#4ECDC4" : "#FFD166";
             return (
-              <div key={`p:${p.id}`} onClick={() => { try { window.location.href = `/qa?focus=${encodeURIComponent(p.itemId)}#comment-${p.id}`; } catch {} }} style={{ alignSelf: "flex-start", maxWidth: "92%", background: `linear-gradient(135deg, ${tint}1f, ${tint}0a)`, border: `1px solid ${tint}55`, borderRadius: 14, padding: "14px 16px", cursor: "pointer" }}>
+              <div key={`p:${p.id}`} data-unread-idx={entry.unread ? idx : undefined} style={{ alignSelf: "flex-start", maxWidth: "92%", background: `linear-gradient(135deg, ${tint}1f, ${tint}0a)`, border: `1px solid ${entry.unread ? tint : tint + "55"}`, borderRadius: 14, padding: "14px 16px", boxShadow: entry.unread ? `0 0 0 1px ${tint}66, 0 0 16px ${tint}44` : undefined }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: tint, fontFamily: "'Space Mono', monospace" }}>{p.isIdea ? "✨ IDEA SHIPPED" : "🔧 BUG PATCHED"}</span>
+                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: tint, fontFamily: "'Space Mono', monospace" }}>{p.isIdea ? "✨ IDEA SHIPPED" : "🔧 BUG PATCHED"}{entry.unread ? " · NEW" : ""}</span>
                   <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{p.publishedAt.slice(0, 10)}</span>
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.3 }}>{p.title}</div>
                 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{p.body}</div>
-                <div style={{ marginTop: 8, fontSize: 10, color: tint, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>→ TAP TO VIEW /qa</div>
+                <button
+                  onClick={() => { try { window.location.href = `/qa?focus=${encodeURIComponent(p.itemId)}#comment-${p.id}`; } catch {} }}
+                  style={{ marginTop: 10, padding: "6px 10px", background: `${tint}22`, border: `1px solid ${tint}66`, borderRadius: 6, color: tint, fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, cursor: "pointer", display: "inline-block" }}
+                  title="Open the QA dashboard focused on your report"
+                >→ VIEW IN /qa</button>
               </div>
             );
           })}
-        <div style={{ textAlign: "center", padding: "16px 0 0", fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>
-          END OF FEED · MORE WHEN WE SHIP UPDATES
-        </div>
-      </div>
+            <div style={{ textAlign: "center", padding: "16px 0 0", fontSize: 10, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>
+              END OF FEED · MORE WHEN WE SHIP UPDATES
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 
@@ -16446,6 +16496,19 @@ function HomePage() {
                   : null;
                 const handleLog = () => {
                   if (!ns) return;
+                  // Pre-log warnings — gentle confirms before recording the
+                  // set. (qa: workout-effort-skip-warning, workout-rest-too-fast-warning)
+                  // (a) No effort tagged — tagging earns IP + improves
+                  //     recommendations. Suppress when the user has
+                  //     'don't ask again' on for this session.
+                  if (effortInput == null && !effortPromptDisabled) {
+                    if (!confirm("⚠ No effort tagged. Tagging effort (RPE) earns Intensity Points and helps the system recommend better weights. Log without RPE anyway?")) return;
+                  }
+                  // (b) Rest timer still running — discourages rushing
+                  //     through the prescribed rest period.
+                  if (rest.running && rest.seconds > 5) {
+                    if (!confirm(`⏱ Rest timer still has ${rest.seconds}s left. Athletes should rest the full duration before the next set — log anyway?`)) return;
+                  }
                   const logOpts = { rpe: effortInput, note: null, assistance: assistanceKg > 0 ? assistanceKg : null };
                   // If the user logged the set WITHOUT picking an effort
                   // chip, fire a small backfill prompt so they don't lose

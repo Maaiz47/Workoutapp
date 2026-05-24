@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import MascotSplash from "./MascotSplash";
 import { CONTRIBUTORS, totalContributions, kindLabel, Contributor, Contribution } from "@/lib/contributions";
+import { markRetestResponded, readRetestRespondedIds } from "@/lib/systemNotifications";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -767,6 +768,82 @@ function ContributorsLeaderboard() {
 
 // ─── Item card with thread + draft ────────────────────────────────────────────
 
+// Inline retest action for the user's own processed comments. Three
+// status chips + textarea + SUBMIT. Same UX as the FAB retest list.
+// (qa: qa-inline-retest-in-dashboard)
+function InlineRetestForm({ itemId, commentId, tester, onSubmitted }: {
+  itemId: string;
+  commentId: string;
+  tester: string;
+  onSubmitted: (newComment: Comment) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<"passing" | "failing" | "regression-retest" | null>(null);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        style={{ marginTop: 8, padding: "4px 10px", background: "rgba(255,209,102,0.08)", border: "1px dashed rgba(255,209,102,0.35)", borderRadius: 6, color: "#FFD166", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+      >🔄 POST RETEST</button>
+    );
+  }
+  return (
+    <div style={{ marginTop: 8, padding: 8, background: "rgba(255,209,102,0.06)", border: "1px solid rgba(255,209,102,0.22)", borderRadius: 8 }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+        {([
+          { id: "passing", label: "✓ WORKS NOW", color: "#2ecc71", bg: "rgba(46,204,113,0.12)" },
+          { id: "regression-retest", label: "⟲ NEEDS RETEST", color: "#FFD166", bg: "rgba(255,209,102,0.12)" },
+          { id: "failing", label: "✗ STILL BROKEN", color: "#FF6B6B", bg: "rgba(255,107,107,0.12)" },
+        ] as const).map(opt => {
+          const sel = status === opt.id;
+          return (
+            <button key={opt.id} onClick={() => setStatus(opt.id)} style={{ flex: 1, padding: "5px 4px", background: sel ? opt.bg : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? opt.color : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: sel ? opt.color : "rgba(255,255,255,0.5)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{opt.label}</button>
+          );
+        })}
+      </div>
+      <textarea
+        value={note}
+        onChange={e => setNote(e.target.value)}
+        placeholder="Optional — note what you saw on retest…"
+        rows={2}
+        style={{ width: "100%", boxSizing: "border-box", background: "rgba(0,0,0,0.3)", color: "#fff", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "6px 8px", fontSize: 11, fontFamily: "'DM Sans', sans-serif", resize: "vertical", outline: "none", marginBottom: 6 }}
+      />
+      <div style={{ display: "flex", gap: 6 }}>
+        <button
+          disabled={!status || busy}
+          onClick={async () => {
+            if (!status) return;
+            setBusy(true);
+            try {
+              const res = await fetch("/api/qa/comment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  itemId,
+                  tester: tester.trim() || "anon",
+                  status,
+                  note: `[🔄 RETEST · re:${commentId.slice(-8)}] ${note.trim() || (status === "passing" ? "Verified working." : status === "regression-retest" ? "Needs another look." : "Still broken on retest.")}`,
+                }),
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data?.comment) onSubmitted(data.comment as Comment);
+                setOpen(false); setStatus(null); setNote("");
+              }
+            } catch {}
+            setBusy(false);
+          }}
+          style={{ flex: 1, padding: "7px", background: status && !busy ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: status && !busy ? "#000" : "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: status && !busy ? "pointer" : "default" }}
+        >{busy ? "SENDING…" : "SUBMIT RETEST"}</button>
+        <button onClick={() => { setOpen(false); setStatus(null); setNote(""); }} style={{ padding: "7px 10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>CANCEL</button>
+      </div>
+    </div>
+  );
+}
+
 function ItemCard({
   item,
   comments,
@@ -1108,6 +1185,19 @@ function ItemCard({
                     fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5,
                     whiteSpace: "pre-wrap", wordBreak: "break-word",
                   }}>{c.note}</div>
+                  {/* Inline retest form — only for the current tester's own
+                      processed comments. Mirrors the FAB's YOUR PATCHES TO
+                      RETEST inline form so the deep-link UX matches.
+                      Hidden once the user has acked the retest locally.
+                      (qa: qa-inline-retest-in-dashboard) */}
+                  {c.processed && c.tester === tester && !readRetestRespondedIds().has(c.id) && (
+                    <InlineRetestForm
+                      itemId={item.id}
+                      commentId={c.id}
+                      tester={tester}
+                      onSubmitted={(newComment) => { markRetestResponded(c.id); onSaved(newComment); }}
+                    />
+                  )}
                   {c.screenshotUrl && (
                     <a href={c.screenshotUrl} target="_blank" rel="noopener noreferrer" style={{
                       display: "inline-block", marginTop: 8,

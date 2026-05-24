@@ -132,16 +132,46 @@ export function markPatchNotifsRead(ids: string[] | "all", allDynamicIds?: strin
   } catch {}
 }
 
+// Local ack set for "I already responded to this patch's retest
+// prompt" — keyed by the original comment id. Once the user submits
+// a retest comment via the FAB list, the row is hidden permanently
+// even after re-fetch (which still returns processed=true).
+// (qa: qa-retest-persistence)
+const RETEST_RESPONDED_KEY = "ironlog-qa-retests-responded-v1";
+
+export function readRetestRespondedIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(RETEST_RESPONDED_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function markRetestResponded(commentId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const set = readRetestRespondedIds();
+    set.add(commentId);
+    localStorage.setItem(RETEST_RESPONDED_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
+}
+
 // Fetch the user's own processed QA comments and turn each into a
 // PatchNotification card. Returns [] if not authed or none processed.
+// Filters out comments the user has already retested (via local ack).
 export async function fetchPatchNotifications(): Promise<PatchNotification[]> {
   try {
     const r = await fetch("/api/qa/comments/mine", { credentials: "same-origin" });
     if (!r.ok) return [];
     const data = await r.json();
     const list: CommentMine[] = data?.comments ?? [];
+    const responded = readRetestRespondedIds();
     return list
-      .filter(c => c.processed && c.processedAt)
+      .filter(c => c.processed && c.processedAt && !responded.has(c.id))
       .map(c => {
         // Note bodies are tagged by the client with a prefix like
         // "[🐞 BUG · area · view=foo]" or "[💡 IDEA · ...]". Detect
