@@ -1,0 +1,10 @@
+{
+  "id": "cmpjvemcu0006wsi1mnhxt14z",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Progress · view=progress] Technique subrank says super sets for drop sets for IP, but we also get IP from the RPE per set? Make it make sense well",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T14:26:16.110Z"
+}
