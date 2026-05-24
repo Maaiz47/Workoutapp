@@ -6,6 +6,7 @@
 import { prisma } from "./prisma";
 import { computeAthleteTier, ATHLETE_TIERS, AnimalTier, RecentSet } from "./tiers";
 import { EXERCISES, type MuscleGroup } from "./exercises";
+import { FRESH_LEGS_BONUS, isoDay, isoWeekStartMs, weeklyTargetCap } from "./freshLegs";
 
 // Build an exerciseId → primaryMuscles map once at module load. Both
 // computeStatsForUsers and the client mirror in app/page.tsx use this
@@ -266,11 +267,17 @@ export function computeStatsFromLogs(
   const setsByMuscleGroup: Record<string, number> = {};
   const fourteenDaysAgo = Date.now() - 14 * 86400000;
   let totalVolume = 0;
-  let rpeBonusIP = 0;
-  for (const log of logs) {
+  // Per-log RPE bonus map so we can gate the bonus through the
+  // weekly cap in the post-walk pass (qa: tier-ip-fresh-legs-and-cap).
+  // Each log earns its own RPE bonus; the cap zeroes it for sessions
+  // past the weekly target.
+  const rpeBonusByLog = new Map<number, number>(); // key: log index in `logs`
+  for (let logIdx = 0; logIdx < logs.length; logIdx++) {
+    const log = logs[logIdx];
     const ms = log.date.getTime();
     const isRecent = ms >= oneEightyDaysAgo;
     const sets = (log.sets ?? {}) as Record<string, { weight?: number; reps?: number; skipped?: boolean; rpe?: number } | null>;
+    let logRpe = 0;
     for (const [k, v] of Object.entries(sets)) {
       if (!v || v.skipped) continue;
       const w = v.weight ?? 0;
@@ -280,7 +287,7 @@ export function computeStatsFromLogs(
       // IP bonus: max(0, RPE - 7) per set. RPE 8 = +1, RPE 9 = +2,
       // RPE 10 = +3. Genuinely hard sets earn intensity credit.
       // (qa: tier-scoring-v2 — IP RPE expansion)
-      if (rpe != null) rpeBonusIP += Math.max(0, rpe - 7);
+      if (rpe != null) logRpe += Math.max(0, rpe - 7);
       const parts = k.split("-");
       const last = parts[parts.length - 1];
       const isDropSet = /^d\d+$/.test(last) && parts.length >= 3;
@@ -328,6 +335,7 @@ export function computeStatsFromLogs(
         volumeByWeek.set(weekStartMs, (volumeByWeek.get(weekStartMs) ?? 0) + w * r);
       }
     }
+    rpeBonusByLog.set(logIdx, logRpe);
   }
   const weeklyVolumes = Array.from(volumeByWeek.entries())
     .map(([weekStartMs, volumeKg]) => ({ weekStartMs, volumeKg }))
@@ -376,8 +384,42 @@ export function computeStatsFromLogs(
 
   // Total intensity: base awards (supersets/drop sets stored on the
   // log) + per-set RPE bonus computed above.
-  const storedIP = logs.reduce((sum, l) => sum + (l.intensityPoints ?? 0), 0);
-  const totalIntensityPoints = storedIP + rpeBonusIP;
+  // Read-time IP walk: groups sessions by ISO week, tracks distinct
+  // training days per week, applies the Fresh Legs bonus + weekly
+  // target-cap consistently with save-time logic. Sessions past the
+  // (daysPerWeek + 1) distinct-day cap earn 0 IP this week — both
+  // stored and RPE bonus zeroed — so historical scores match the
+  // cap users will see on new sessions. (qa: tier-ip-fresh-legs-and-cap)
+  const cap = weeklyTargetCap(daysPerWeek);
+  const sortedIdx = logs.map((_, i) => i).sort((a, b) => logs[a].date.getTime() - logs[b].date.getTime());
+  const weekDaysByWeek = new Map<number, Set<string>>();
+  const allTrainingDays = new Set<string>();
+  let totalIntensityPoints = 0;
+  for (const idx of sortedIdx) {
+    const log = logs[idx];
+    const day = isoDay(log.date);
+    const weekKey = isoWeekStartMs(log.date);
+    let weekDays = weekDaysByWeek.get(weekKey);
+    if (!weekDays) { weekDays = new Set(); weekDaysByWeek.set(weekKey, weekDays); }
+    const isNewDayThisWeek = !weekDays.has(day);
+    const wouldExceedCap = isNewDayThisWeek && weekDays.size + 1 > cap;
+    weekDays.add(day);
+
+    // Fresh Legs — only first session of a day, only if prior day
+    // had no logged session. allTrainingDays is the chronological
+    // record of every day trained up to (but not including) this
+    // session, so we check yesterday against it.
+    const yesterday = isoDay(new Date(log.date.getTime() - 86400000));
+    const isFirstSessionOfDay = !allTrainingDays.has(day);
+    const isFresh = isFirstSessionOfDay && !allTrainingDays.has(yesterday);
+    allTrainingDays.add(day);
+
+    if (wouldExceedCap) continue; // 0 IP for over-cap sessions
+    const stored = log.intensityPoints ?? 0;
+    const rpe = rpeBonusByLog.get(idx) ?? 0;
+    const fresh = isFresh ? FRESH_LEGS_BONUS : 0;
+    totalIntensityPoints += stored + rpe + fresh;
+  }
   const prCount = Object.keys(prs).length;
   const distinctExercises = distinctEx.size;
   const recentDistinctExercises = recentDistinctEx.size;

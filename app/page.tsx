@@ -6993,6 +6993,20 @@ function HomePage() {
         if (saveResult.ok && saveResult.data?.luckyDrop) {
           setPendingLuckyDrop(saveResult.data.luckyDrop);
         }
+        // Fresh Legs feedback — server tells us if the bonus fired
+        // for this save. Toast surfaces it so the recovery-rewards
+        // mechanic is discoverable. Weekly-cap notice fires when the
+        // session earned 0 IP because it pushed past daysPerWeek+1.
+        // (qa: tier-ip-fresh-legs-and-cap)
+        if (saveResult.ok && saveResult.data?.freshLegsBonus > 0) {
+          setIpToast({ msg: `+${saveResult.data.freshLegsBonus} IP · FRESH LEGS BONUS`, icon: "✨" });
+          if (ipToastTimer.current) clearTimeout(ipToastTimer.current);
+          ipToastTimer.current = setTimeout(() => setIpToast(null), 3000);
+        } else if (saveResult.ok && saveResult.data?.weeklyCapApplied) {
+          setIpToast({ msg: `RECOVERY CAP · 0 IP this session (rest more)`, icon: "🛌" });
+          if (ipToastTimer.current) clearTimeout(ipToastTimer.current);
+          ipToastTimer.current = setTimeout(() => setIpToast(null), 3500);
+        }
         // Suggested-workout bonus celebration — quieter than lucky
         // drop (deterministic reward, not surprise) but still
         // surfaces so the user knows the carrot worked.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { rollLuckyDrop } from "../../../lib/luckyDrops";
+import { FRESH_LEGS_BONUS, isoDay, isoWeekStartMs, exceedsWeeklyCap, weeklyTargetCap } from "../../../lib/freshLegs";
 
 // Re-link any workout logs whose dayId no longer exists in the user's current
 // plan. Happens after a saved-routine restore (which deletes + recreates the
@@ -118,6 +119,33 @@ export async function POST(req: NextRequest) {
     const { dayId, duration, sets, intensityPoints, groupWorkoutId, wasSuggested } = await req.json();
     if (!dayId || !sets) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
+    // Fresh Legs + weekly target-cap evaluation. We only need the
+    // user's training day footprint for the last 8 days: previous
+    // calendar day (Fresh Legs) + the current ISO week (cap). Single
+    // narrow query keeps this cheap on hot path. (qa: tier-ip-fresh-legs-and-cap)
+    const now = new Date();
+    const recentLogs = await prisma.workoutLog.findMany({
+      where: { userId: uid, date: { gte: new Date(now.getTime() - 8 * 86400000) } },
+      select: { date: true },
+    });
+    const profileForIp = await prisma.userProfile.findUnique({
+      where: { userId: uid },
+      select: { daysPerWeek: true },
+    });
+    const dpw = profileForIp?.daysPerWeek ?? 4;
+    const todayIso = isoDay(now);
+    const yesterdayIso = isoDay(new Date(now.getTime() - 86400000));
+    const weekStartMs = isoWeekStartMs(now);
+    const priorIsoDays = new Set(recentLogs.map(l => isoDay(l.date)));
+    const thisWeekIsoDays = new Set(
+      recentLogs.filter(l => l.date.getTime() >= weekStartMs && isoDay(l.date) !== todayIso).map(l => isoDay(l.date))
+    );
+    const freshLegs = !priorIsoDays.has(yesterdayIso);
+    const overCap = exceedsWeeklyCap(now, thisWeekIsoDays, dpw);
+    const baseIp = typeof intensityPoints === "number" ? intensityPoints : 0;
+    const freshLegsBonus = freshLegs && !overCap ? FRESH_LEGS_BONUS : 0;
+    const finalIp = overCap ? 0 : baseIp + freshLegsBonus;
+
     // If a groupWorkoutId was supplied, validate the user actually has
     // an activated subscription to it — otherwise drop the tag so a
     // client can't game the filtered leaderboard.
@@ -131,7 +159,7 @@ export async function POST(req: NextRequest) {
     }
 
     const log = await prisma.workoutLog.create({
-      data: { userId: uid, dayId, duration: duration || "00:00:00", sets, intensityPoints: typeof intensityPoints === 'number' ? intensityPoints : 0, ...(tagId ? { groupWorkoutId: tagId } : {}) },
+      data: { userId: uid, dayId, duration: duration || "00:00:00", sets, intensityPoints: finalIp, ...(tagId ? { groupWorkoutId: tagId } : {}) },
     });
 
     // Suggested-workout bonus — +1 to tierScoreBonus when the user
@@ -197,7 +225,15 @@ export async function POST(req: NextRequest) {
       console.error("Lucky drop roll failed:", e);
     }
 
-    return NextResponse.json({ success: true, id: log.id, luckyDrop: drop, suggestionBonus: suggestionBonusAwarded });
+    return NextResponse.json({
+      success: true,
+      id: log.id,
+      luckyDrop: drop,
+      suggestionBonus: suggestionBonusAwarded,
+      freshLegsBonus,
+      weeklyCapApplied: overCap,
+      weeklyCap: weeklyTargetCap(dpw),
+    });
   } catch (e) {
     console.error("Workout POST error:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
