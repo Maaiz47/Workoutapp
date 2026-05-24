@@ -4014,12 +4014,29 @@ function HomeGlobals({
         </div>
       )}
       {tierPromoToast && (
-        <div onClick={onTierPromoDismiss} style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", zIndex: 9200, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(12px)", border: `1px solid ${tierPromoToast.tier.color}`, borderRadius: 16, padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", boxShadow: `0 8px 32px ${tierPromoToast.tier.color}44` }}>
-          <TierGlyph src={tierPromoToast.tier.iconPath} emoji={tierPromoToast.tier.icon} size={36} />
-          <div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>TIER UP!</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: tierPromoToast.tier.color }}>{tierPromoToast.tier.label} <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.45)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>· T{displayTierNum(tierPromoToast.tier.tierNum)}</span></div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginTop: 2 }}>tap to dismiss</div>
+        <div
+          onClick={onTierPromoDismiss}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(10px)", cursor: "pointer" }}
+        >
+          <div
+            style={{
+              maxWidth: 380, width: "100%",
+              background: `linear-gradient(135deg, ${tierPromoToast.tier.color}33, rgba(0,0,0,0.5))`,
+              border: `2px solid ${tierPromoToast.tier.color}`,
+              borderRadius: 22, padding: "36px 28px 28px", textAlign: "center",
+              boxShadow: `0 24px 60px ${tierPromoToast.tier.color}55, 0 0 0 1px ${tierPromoToast.tier.color}22 inset`,
+            }}
+          >
+            <TierGlyph
+              src={tierPromoToast.tier.iconPath}
+              emoji={tierPromoToast.tier.icon}
+              size={120}
+              style={{ filter: `drop-shadow(0 8px 32px ${tierPromoToast.tier.color}99)`, marginBottom: 16 }}
+            />
+            <div style={{ fontSize: 12, color: tierPromoToast.tier.color, letterSpacing: 5, fontWeight: 800, fontFamily: "'Space Mono', monospace", marginBottom: 10 }}>★ TIER UP ★</div>
+            <div style={{ fontSize: 32, fontWeight: 900, color: "#fff", lineHeight: 1.1, marginBottom: 6 }}>{tierPromoToast.tier.label}</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: "'Space Mono', monospace", letterSpacing: 2, marginBottom: 22 }}>· TIER {displayTierNum(tierPromoToast.tier.tierNum)} ·</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>TAP TO CONTINUE</div>
           </div>
         </div>
       )}
@@ -17332,7 +17349,7 @@ function HomePage() {
                       }
                       setShowAddInWorkout(false);
                     }} style={{ width: "100%", padding: "15px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
-                      {aiWPermanent ? "ADD & SAVE TO PLAN" : "ADD FOR THIS SESSION"}
+                      {aiWPermanent ? "+ ADD TO SPLIT (PERMANENTLY)" : "+ JUST TODAY (THIS SESSION ONLY)"}
                     </button>
                   </div>
                 ) : null}
@@ -17551,7 +17568,7 @@ function HomePage() {
                     a session-only pairing or a permanent routine edit. */}
                 {isSuperMode && (
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, marginBottom: 12, padding: "10px 12px", background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 8, fontFamily: "'DM Sans', sans-serif" }}>
-                    Tap <strong>+ SESSION</strong> to pair them for this workout only, or <strong>+ ROUTINE</strong> to save the pair to your routine so it appears in every future session of this day. Exercises already in today&apos;s session show a <span style={{ color: "#4ECDC4" }}>✓ IN SESSION</span> badge but can still be paired.
+                    Tap <strong>+ JUST TODAY</strong> to pair them for this workout only, or <strong>+ ADD TO SPLIT</strong> to save the pair to your routine so it appears in every future session of this day. Exercises already in today&apos;s session show a <span style={{ color: "#4ECDC4" }}>✓ IN SESSION</span> badge but can still be paired.
                   </div>
                 )}
                 {/* Superset mode: recommended partners at the top. */}
@@ -17571,8 +17588,8 @@ function HomePage() {
                             {alreadyIn && <span style={{ fontSize: 9, color: "#4ECDC4", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 4, padding: "2px 6px", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>✓ IN SESSION</span>}
                           </div>
                           <div style={{ display: "flex", gap: 6 }}>
-                            <button onClick={() => handlePair(libEx, false)} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ SESSION</button>
-                            <button onClick={() => handlePair(libEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ROUTINE</button>
+                            <button onClick={() => handlePair(libEx, false)} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ JUST TODAY</button>
+                            <button onClick={() => handlePair(libEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ADD TO SPLIT</button>
                           </div>
                         </div>
                       );
@@ -17583,7 +17600,7 @@ function HomePage() {
                 {/* Add-mode suggestions (unchanged behaviour for the non-superset path). */}
                 {!isSuperMode && (
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, marginBottom: 12, padding: "10px 12px", background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 8, fontFamily: "'DM Sans', sans-serif" }}>
-                    Tap <strong>+ SESSION</strong> to add for this workout only, or <strong>+ ROUTINE</strong> to save it to your routine so it appears in every future session of this day.
+                    Tap <strong>+ JUST TODAY</strong> to add for this workout only, or <strong>+ ADD TO SPLIT</strong> to save it to your routine so it appears in every future session of this day.
                   </div>
                 )}
                 {!isSuperMode && !searchLower && sessionExSuggestions.length > 0 && (
@@ -17598,8 +17615,8 @@ function HomePage() {
                             {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
                           </div>
                           <div style={{ display: "flex", gap: 6 }}>
-                            <button onClick={() => handleAdd(libEx, false)} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ SESSION</button>
-                            <button onClick={() => handleAdd(libEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ROUTINE</button>
+                            <button onClick={() => handleAdd(libEx, false)} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ JUST TODAY</button>
+                            <button onClick={() => handleAdd(libEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ADD TO SPLIT</button>
                           </div>
                         </div>
                       );
