@@ -1,0 +1,10 @@
+{
+  "id": "cmpjaz00y0002cdbhojd9bh1y",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=systemNotifs] Unable to swipe out of system messages",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T04:54:15.011Z"
+}
