@@ -1,0 +1,10 @@
+{
+  "id": "cmpjb6ow50000m6oc0748athh",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=groupChat] Munchy mentioned in the chat that some rest timers weren’t showing in the next set button after skipping the rest timer main overlay\nCan you check",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T05:00:13.827Z"
+}
