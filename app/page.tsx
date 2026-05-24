@@ -317,15 +317,22 @@ function SortableExerciseItem({
     zIndex: isDragging ? 50 : undefined,
     opacity: isDragging ? 0.85 : 1,
     boxShadow: isDragging ? "0 8px 28px -8px rgba(0,0,0,0.7), 0 0 0 2px rgba(255,209,102,0.6)" : undefined,
-    // touchAction:manipulation lets the OS know we'll handle taps;
-    // disables double-tap-zoom but keeps single-tap responsive.
-    touchAction: disabled ? undefined : "manipulation",
+    // touch-action:none — dnd-kit's recommendation for sortable items.
+    // Without it, iOS Safari's scroll gesture interception fires
+    // before the 350ms activation timer and the drag never activates.
+    // 'none' tells the browser "JS handles all touches on this
+    // element" — scroll still works by touching the section header
+    // or gaps between items. The 350ms delay means quick taps fall
+    // through to onClick handlers inside the card (expand row, etc.)
+    // unmodified. (qa: workout-exercise-reorder — iOS scroll race fix)
+    touchAction: disabled ? undefined : "none",
     // Suppress iOS Safari's long-press callout (copy/share menu) +
     // text selection during press-hold so the drag activates cleanly
-    // instead of fighting the OS gesture. (qa: workout-exercise-reorder)
+    // instead of fighting the OS gesture.
     WebkitTouchCallout: "none" as any,
     WebkitUserSelect: "none" as any,
     userSelect: "none" as any,
+    WebkitTapHighlightColor: "transparent" as any,
   };
   return (
     <div ref={setNodeRef} style={style}>
@@ -334,13 +341,21 @@ function SortableExerciseItem({
   );
 }
 
-// Touch + pointer sensors tuned for press-and-hold reorder. 500ms
-// delay means a regular tap doesn't accidentally start a drag.
-// tolerance allows tiny finger jitter during the press window.
+// Touch + pointer sensors tuned for press-and-hold reorder.
+//
+// Tuning notes (qa: workout-exercise-reorder):
+// - 350ms delay (was 500ms) — iOS Safari fires its own long-press
+//   context menu at ~550ms, so the dnd-kit timer needs to win that
+//   race. 350ms is short enough to consistently beat iOS's gesture
+//   recognizer but long enough that a normal tap or short scroll
+//   gesture doesn't accidentally activate a drag.
+// - Tolerance bumped 5 → 10 — iOS touchpoints jitter by a few px
+//   during the press window even with a stationary finger. The
+//   lower tolerance was cancelling drags before they could activate.
 function useReorderSensors() {
   return useSensors(
-    useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 5 } }),
-    useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 350, tolerance: 10 } }),
+    useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 10 } }),
   );
 }
 
@@ -6714,6 +6729,23 @@ function HomePage() {
     }).catch(() => {});
   };
 
+  // Soft-delete a DM message the user sent. Optimistically marks it
+  // as deleted locally so the bubble flips to a placeholder
+  // immediately, then fires the server delete; recipient's polling
+  // cycle picks up the placeholder on its next refresh.
+  // (qa: message-soft-delete)
+  const deleteMessage = async (messageId: string) => {
+    if (!confirm("Delete this message for everyone? This can't be undone.")) return;
+    setConversationMessages(prev => prev.map(m => m.id === messageId
+      ? { ...m, deleted: true, body: "", reactions: [], replyTo: null, proposal: null }
+      : m
+    ));
+    setReactingToMsgId(null);
+    try {
+      await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
+    } catch {}
+  };
+
   const openCustomise = async () => {
     setEditingDay(null);
     if (!customPlan) {
@@ -12679,7 +12711,7 @@ function HomePage() {
                   (qa: chat-no-emoji) */}
               {/* Emoji picker — shown on long-press */}
               <AnimatePresence>
-              {reactingToMsgId === msg.id && (
+              {reactingToMsgId === msg.id && !msg.deleted && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.85, y: 6 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -12690,26 +12722,52 @@ function HomePage() {
                   {QUICK_EMOJIS.map(em => (
                     <button key={em} onClick={() => toggleReaction(msg.id, em)} style={{ background: reactionGroups[em]?.iMine ? "rgba(78,205,196,0.18)" : "none", border: "none", borderRadius: 16, padding: "4px 5px", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>{em}</button>
                   ))}
+                  {/* Sender-only delete affordance — sits at the end of
+                      the picker so it's never the accidental first tap.
+                      Closes picker + fires soft-delete on the server.
+                      (qa: message-soft-delete) */}
+                  {isMine && (
+                    <button
+                      onClick={() => deleteMessage(msg.id)}
+                      title="Delete this message for everyone"
+                      style={{ background: "rgba(255,107,107,0.12)", border: "1px solid rgba(255,107,107,0.35)", borderRadius: 16, padding: "4px 10px", fontSize: 14, cursor: "pointer", lineHeight: 1, color: "#FF6B6B", marginLeft: 4 }}
+                    >🗑</button>
+                  )}
                 </motion.div>
               )}
               </AnimatePresence>
               <div
-                onTouchStart={onTouchStart}
-                onTouchMove={onTouchMove}
-                onTouchEnd={onTouchEnd}
-                style={{ background: isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)", border: `1px solid ${isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "10px 14px", willChange: "transform" }}
+                onTouchStart={msg.deleted ? undefined : onTouchStart}
+                onTouchMove={msg.deleted ? undefined : onTouchMove}
+                onTouchEnd={msg.deleted ? undefined : onTouchEnd}
+                style={{
+                  background: msg.deleted ? "rgba(255,255,255,0.025)" : isMine ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.06)",
+                  border: `1px dashed ${msg.deleted ? "rgba(255,255,255,0.12)" : "transparent"}`,
+                  borderColor: msg.deleted ? "rgba(255,255,255,0.12)" : isMine ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.08)",
+                  borderStyle: msg.deleted ? "dashed" : "solid",
+                  borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                  padding: "10px 14px",
+                  willChange: "transform",
+                  fontStyle: msg.deleted ? "italic" : undefined,
+                }}
               >
-                {/* Quoted reply preview */}
-                {msg.replyTo && (
-                  <div style={{ borderLeft: "3px solid rgba(78,205,196,0.5)", paddingLeft: 8, marginBottom: 6, opacity: 0.7 }}>
-                    <div style={{ fontSize: 10, color: "#4ECDC4", fontWeight: 600, marginBottom: 2 }}>@{msg.replyTo.from.username}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>{msg.replyTo.body}</div>
-                  </div>
+                {msg.deleted ? (
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.4 }}>🗑 Message deleted</div>
+                ) : (
+                  <>
+                    {/* Quoted reply preview */}
+                    {msg.replyTo && (
+                      <div style={{ borderLeft: "3px solid rgba(78,205,196,0.5)", paddingLeft: 8, marginBottom: 6, opacity: 0.7 }}>
+                        <div style={{ fontSize: 10, color: "#4ECDC4", fontWeight: 600, marginBottom: 2 }}>@{msg.replyTo.from.username}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>{msg.replyTo.body}</div>
+                      </div>
+                    )}
+                    <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.4 }}>{renderBody(msg.body)}</div>
+                  </>
                 )}
-                <div style={{ fontSize: 14, color: "#fff", lineHeight: 1.4 }}>{renderBody(msg.body)}</div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "flex", alignItems: "center", justifyContent: isMine ? "flex-end" : "flex-start", gap: 4 }}>
                   <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                  {isMine && (
+                  {isMine && !msg.deleted && (
                     <span style={{ color: tickColor, fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center" }}>
                       {msg.read || msg.delivered ? <span style={{ letterSpacing: -3, paddingRight: 3 }}>✓✓</span> : <span>✓</span>}
                     </span>
