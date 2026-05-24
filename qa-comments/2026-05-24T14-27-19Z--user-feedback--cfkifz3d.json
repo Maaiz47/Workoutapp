@@ -1,0 +1,10 @@
+{
+  "id": "cmpjvfz4c0000vm9scfkifz3d",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Progress · view=progress] Not sure how the mastery subrank is being calculated from tier card, and is it really working right? Maaiz has 80 mastery but he’s probably not done many different exercises just 1 routine and not for that long yet",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T14:27:19.309Z"
+}
