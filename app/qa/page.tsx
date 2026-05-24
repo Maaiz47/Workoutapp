@@ -858,7 +858,7 @@ function ItemCard({
   };
 
   return (
-    <div style={{
+    <div id={`qa-item-${item.id}`} style={{
       background: "rgba(255,255,255,0.03)",
       border: "1px solid rgba(255,255,255,0.07)",
       borderRadius: 12, marginBottom: 8, overflow: "hidden",
@@ -1388,6 +1388,27 @@ export default function QAPage() {
   useEffect(() => {
     try { localStorage.setItem(LS_TESTER, tester); } catch {}
   }, [tester]);
+
+  // ── Auto-scroll + flash to ?focus=<itemId> ───────────────────────────────
+  // The quick-feedback FAB's 'YOUR PATCHES TO RETEST' list deep-links into
+  // this dashboard via /qa?focus=<itemId>. Scroll the matching item card
+  // into view + briefly flash its border so the user knows where they
+  // landed. (qa: qa-pending-retests-list)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const focusId = new URLSearchParams(window.location.search).get("focus");
+    if (!focusId) return;
+    // Wait one tick so the list has rendered.
+    const t = setTimeout(() => {
+      const el = document.getElementById(`qa-item-${focusId}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.style.boxShadow = "0 0 0 2px rgba(255,209,102,0.7), 0 0 24px rgba(255,209,102,0.4)";
+      el.style.transition = "box-shadow 0.6s ease";
+      setTimeout(() => { el.style.boxShadow = ""; }, 2400);
+    }, 250);
+    return () => clearTimeout(t);
+  }, []);
 
   // ── Persist drafts (debounced) ────────────────────────────────────────────
   useEffect(() => {

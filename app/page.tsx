@@ -3627,6 +3627,30 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
   // without losing their place. (qa: user request — "overlay into
   // full qa via floating button")
   const [qaOverlayOpen, setQaOverlayOpen] = useState(false);
+  // Per @maaiz idea: list of the user's pending retest items so they
+  // can jump straight to the QA item from this overlay. Fetched
+  // lazily when the FAB opens. (qa: qa-pending-retests-list)
+  const [myRetests, setMyRetests] = useState<Array<{ id: string; itemId: string; processedSummary: string | null; note: string; ts: string }>>([]);
+  const [retestsExpanded, setRetestsExpanded] = useState(false);
+  const [retestSearch, setRetestSearch] = useState("");
+  const [qaIframeFocus, setQaIframeFocus] = useState<string | null>(null);
+
+  // Lazy-fetch the user's processed comments when the FAB opens — keeps
+  // the initial render cheap, refreshes each time so newly-shipped
+  // patches show up. (qa: qa-pending-retests-list)
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch("/api/qa/comments/mine", { credentials: "same-origin" })
+      .then(r => r.ok ? r.json() : { comments: [] })
+      .then(data => {
+        if (cancelled) return;
+        const list = (data?.comments ?? []).filter((c: any) => c.processed);
+        setMyRetests(list);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [open]);
 
   useEffect(() => {
     try { if (sessionStorage.getItem("ironlog-fab-hidden") === "1") setHiddenForSession(true); } catch {}
@@ -3838,13 +3862,67 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
               >{busy ? "SENDING…" : !status ? "PICK A CHIP" : "SEND NOTE"}</button>
             </div>
 
+            {/* Your patches to retest — only when there's ≥1.
+                Searchable list of the user's processed QA comments.
+                Tap any → opens /qa overlay focused on that item so
+                the user can quickly retest + report back without
+                hunting through the dashboard.
+                (qa: qa-pending-retests-list) */}
+            {myRetests.length > 0 && (
+              <div style={{ marginTop: 10, padding: 10, background: "rgba(255,209,102,0.06)", border: "1px solid rgba(255,209,102,0.22)", borderRadius: 10 }}>
+                <button
+                  onClick={() => setRetestsExpanded(e => !e)}
+                  style={{ width: "100%", padding: "4px 0", background: "transparent", border: "none", color: "#FFD166", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                >
+                  <span>🔄 YOUR PATCHES TO RETEST · {myRetests.length}</span>
+                  <span style={{ opacity: 0.6 }}>{retestsExpanded ? "▲" : "▼"}</span>
+                </button>
+                {retestsExpanded && (
+                  <div style={{ marginTop: 8 }}>
+                    {myRetests.length > 4 && (
+                      <input
+                        value={retestSearch}
+                        onChange={e => setRetestSearch(e.target.value)}
+                        placeholder="🔎 search by item or summary…"
+                        style={{ width: "100%", boxSizing: "border-box", padding: "6px 10px", marginBottom: 6, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,209,102,0.18)", borderRadius: 6, color: "#fff", fontSize: 11, fontFamily: "'DM Sans', sans-serif", outline: "none" }}
+                      />
+                    )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 180, overflowY: "auto" }}>
+                      {myRetests
+                        .filter(r => {
+                          if (!retestSearch.trim()) return true;
+                          const q = retestSearch.toLowerCase();
+                          return r.itemId.toLowerCase().includes(q) || (r.processedSummary ?? "").toLowerCase().includes(q) || r.note.toLowerCase().includes(q);
+                        })
+                        .map(r => (
+                          <button
+                            key={r.id}
+                            onClick={() => { setOpen(false); setQaIframeFocus(r.itemId); setQaOverlayOpen(true); }}
+                            style={{ textAlign: "left", padding: "8px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 8, color: "#fff", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}
+                          >
+                            <div style={{ fontSize: 9, fontWeight: 700, color: "#FFD166", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 2 }}>{r.itemId.toUpperCase()}</div>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>{r.processedSummary ? (r.processedSummary.length > 100 ? r.processedSummary.slice(0, 100) + "…" : r.processedSummary) : "Marked patched. Retest and report back."}</div>
+                          </button>
+                        ))}
+                      {myRetests.filter(r => {
+                        if (!retestSearch.trim()) return true;
+                        const q = retestSearch.toLowerCase();
+                        return r.itemId.toLowerCase().includes(q) || (r.processedSummary ?? "").toLowerCase().includes(q) || r.note.toLowerCase().includes(q);
+                      }).length === 0 && (
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", padding: 8, textAlign: "center" }}>No matches.</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Inline open-full-QA action so the tester can browse
                 the backlog without losing their place in the app.
                 Opens the /qa page in an iframe overlay above this
                 view. (qa: user — "overlay into full qa via
                 floating button") */}
             <button
-              onClick={() => { setOpen(false); setQaOverlayOpen(true); }}
+              onClick={() => { setOpen(false); setQaIframeFocus(null); setQaOverlayOpen(true); }}
               style={{
                 width: "100%", marginTop: 8, padding: "10px 12px",
                 background: "rgba(255,107,107,0.08)",
@@ -3898,7 +3976,7 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
             >×</button>
           </div>
           <iframe
-            src="/qa"
+            src={qaIframeFocus ? `/qa?focus=${encodeURIComponent(qaIframeFocus)}` : "/qa"}
             title="QA dashboard"
             style={{
               flex: 1, width: "100%", border: "none", background: "#0a0a0a",
