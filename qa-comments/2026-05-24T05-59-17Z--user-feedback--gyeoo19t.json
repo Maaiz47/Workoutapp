@@ -1,0 +1,10 @@
+{
+  "id": "cmpjdamtm00053xzsgyeoo19t",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "[🔄 RETEST · re:op67itkd] Because of the doppo overlay I think the first time going to a qa link from system message doesn’t show a selected issue but it does the second time tryin",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T05:59:17.000Z"
+}
