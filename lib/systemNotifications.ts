@@ -99,12 +99,19 @@ export type PatchNotification = {
 export type CommentMine = {
   id: string;
   itemId: string;
+  itemPriority?: "critical" | "high" | "medium" | "low";
   status: string;
   note: string;
   ts: string;
   processed: boolean;
   processedAt: string | null;
   processedSummary: string | null;
+  // Server flag — true if the user has already filed a retest comment
+  // referencing this one (whether via FAB list or /qa directly). When
+  // true the patch link "resolves away" from the system feed so the
+  // user isn't nagged about something they already actioned.
+  // (qa: qa-resolve-away-old-links)
+  retested?: boolean;
 };
 
 function readPatchAcks(): Set<string> {
@@ -171,7 +178,11 @@ export async function fetchPatchNotifications(): Promise<PatchNotification[]> {
     const list: CommentMine[] = data?.comments ?? [];
     const responded = readRetestRespondedIds();
     return list
-      .filter(c => c.processed && c.processedAt && !responded.has(c.id))
+      // `retested` is server-side detection (matches any RETEST comment
+      // in the user's history) — the local `responded` set is a
+      // sub-set (FAB-list retests only). Filter on either.
+      // (qa: qa-resolve-away-old-links)
+      .filter(c => c.processed && c.processedAt && !responded.has(c.id) && !c.retested)
       .map(c => {
         // Note bodies are tagged by the client with a prefix like
         // "[🐞 BUG · area · view=foo]" or "[💡 IDEA · ...]". Detect

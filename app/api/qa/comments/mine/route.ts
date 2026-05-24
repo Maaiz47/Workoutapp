@@ -80,6 +80,34 @@ export async function GET(req: NextRequest) {
 
     const manifest = await readProcessedManifest();
 
+    // Load qa-state.json so we can attach the item's priority to each
+    // comment for client-side sort. (qa: qa-retest-list-priority-sort)
+    let itemPriority: Record<string, string> = {};
+    try {
+      const p = path.join(process.cwd(), "qa-state.json");
+      const raw = await fs.readFile(p, "utf-8");
+      const parsed = JSON.parse(raw);
+      const items = parsed?.items;
+      if (Array.isArray(items)) {
+        for (const it of items) {
+          if (it?.id && typeof it.priority === "string") itemPriority[it.id] = it.priority;
+        }
+      }
+    } catch {}
+
+    // Build a set of "comment ids the user has already retested" by
+     // scanning their own RETEST-tagged comments — the note format is
+     // `[🔄 RETEST · re:XXXXXXXX] …` where XXXXXXXX is the last 8 chars
+     // of the original processed comment id. Server-side detection
+     // means /qa-direct retests (not just FAB-list ones) also
+     // resolve away the patch link.
+     // (qa: qa-resolve-away-old-links)
+    const retestedShortIds = new Set<string>();
+    for (const c of comments) {
+      const m = typeof c.note === "string" ? c.note.match(/\[🔄\s*RETEST\s*·\s*re:([a-z0-9]{4,})\]/i) : null;
+      if (m && m[1]) retestedShortIds.add(m[1].toLowerCase());
+    }
+
     const annotated = comments.map((c: any) => {
       const fileEntry = manifest[c.id];
       const processed = c.processed === true || !!fileEntry;
@@ -93,9 +121,11 @@ export async function GET(req: NextRequest) {
       const processedSummary = rawSummary ? simplifyForUser(rawSummary) : null;
       const processedAt = c.processedAt ? c.processedAt.toISOString() : (fileEntry?.ts ?? null);
       const processedSha = c.processedSha ?? fileEntry?.sha ?? null;
+      const retested = retestedShortIds.has(c.id.slice(-8).toLowerCase());
       return {
         id: c.id,
         itemId: c.itemId,
+        itemPriority: itemPriority[c.itemId] ?? "medium",
         stepIndex: c.stepIndex,
         status: c.status,
         note: c.note,
@@ -104,6 +134,7 @@ export async function GET(req: NextRequest) {
         processedAt,
         processedSha,
         processedSummary,
+        retested,
       };
     });
 

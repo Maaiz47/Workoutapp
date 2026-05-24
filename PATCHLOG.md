@@ -2,6 +2,22 @@
 
 ---
 
+## QA pass · 2026-05-24 — 9 comments processed (qa: system-notifs-scroll-bottom, system-notifs-unread-highlight, qa-deep-link-mascot-race, qa-retest-list-priority-sort, qa-resolve-away-old-links, qa-duplicate-detection, qa-retest-persistence)
+
+All 9 from @maaiz.
+
+### Addressed
+- **system-notifs-scroll-bottom + system-notifs-unread-highlight** (re-fix; was failing two passes in a row): root cause was the inbox row marking-as-read on tap, which left the systemNotifs view with an empty unread set so the scroll-to-first-unread + highlight had nothing to grab. Snapshot pattern: take the unread set on view-mount, only commit ack on unmount. Snapshot is extended (not replaced) as patchNotifs lazy-load so newly-arrived unreads still highlight. Scroll logic moved from a one-shot ref-callback to a useEffect with deps on [view, snapshot, patchNotifs] so it re-fires after async fetch resolves.
+- **qa-deep-link-mascot-race**: '/qa first-tap from system message doesn't show selected issue, second tap does'. The focus useEffect in app/qa/page.tsx now gates on (!loading && !showMascot) and depends on both, so it re-fires once the splash dismisses + items mount.
+- **qa-retest-list-priority-sort**: 'Sort your patches to retest by priority which should be visibly identifiable'. /api/qa/comments/mine joins qa-state.json to attach itemPriority to each comment; FAB sort wrapper orders critical → high → medium → low (then recency); each row gets a 3px coloured left border + CRIT/HIGH/MED/LOW chip next to the item id.
+- **qa-resolve-away-old-links**: 'Old system messages with qa links not opening the old comment, we can make those links resolve away in the chat log after it is fixed'. Server-side detection: /api/qa/comments/mine scans the user's own RETEST-tagged comments (note matches `[🔄 RETEST · re:XXXX]`) and excludes the matching original from the response. Now resolves away regardless of whether retest was filed via FAB list or /qa directly (was previously only FAB-list).
+- **qa-duplicate-detection** (slice 1/N): 'These random quick notes qa submissions will be checked for relevance to existing reported issues and test areas and marked as a recommend for history and reduce duplicates right?'. New endpoint /api/qa/comments/similar does keyword-overlap dedup against the user's own last 100 comments (stop-word filter, ≥25% Jaccard threshold, top 3). FAB debounces text + shows a SIMILAR TO N OF YOUR PRIOR REPORTS purple card below the textarea; tapping a row opens the /qa overlay focused on that comment so the user can skip the submit if duplicate. Cross-user dedup is the next slice.
+
+### Items with no action needed (status flips only)
+- **qa-retest-persistence**: two PASSING retests of g9bxf3s8 from @maaiz — FAB list persistence verified working. Item stays passing.
+
+---
+
 ## QA pass · 2026-05-24 — 11 comments processed (qa: home-messages-unread-count, qa-patch-notif-clickzone, qa-patch-summary-user-friendly, system-notifs-scroll-bottom, system-notifs-unread-highlight, qa-retest-persistence, qa-inline-retest-in-dashboard, workout-effort-skip-warning, workout-rest-too-fast-warning, workout-rest-skipped-counter)
 
 All 11 from @maaiz.

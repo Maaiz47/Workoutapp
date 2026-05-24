@@ -1487,8 +1487,14 @@ export default function QAPage() {
   //      flash it. Otherwise scroll to the item card.
   // Per @maaiz: 'qa links open the qa page generally, not straight to the
   // particular user feedback item'. (qa: qa-deep-link-to-comment)
+  //
+  // Re-runs when MascotSplash dismisses — the splash overlays items on
+  // first session load + delays mount, which would otherwise leave the
+  // focus effect firing against an empty DOM (the 'second time tap
+  // works' bug @maaiz reported). (qa: qa-deep-link-mascot-race)
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (loading || showMascot) return; // wait for items + splash to clear
     const focusId = new URLSearchParams(window.location.search).get("focus");
     const hash = window.location.hash.replace(/^#/, "");
     const commentId = hash.startsWith("comment-") ? hash.slice("comment-".length) : null;
@@ -1530,7 +1536,7 @@ export default function QAPage() {
       }, 120);
     }, 250);
     return () => clearTimeout(t);
-  }, []);
+  }, [loading, showMascot]);
 
   // ── Persist drafts (debounced) ────────────────────────────────────────────
   useEffect(() => {

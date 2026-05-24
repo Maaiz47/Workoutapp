@@ -3630,7 +3630,7 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
   // Per @maaiz idea: list of the user's pending retest items so they
   // can jump straight to the QA item from this overlay. Fetched
   // lazily when the FAB opens. (qa: qa-pending-retests-list)
-  const [myRetests, setMyRetests] = useState<Array<{ id: string; itemId: string; processedSummary: string | null; note: string; ts: string }>>([]);
+  const [myRetests, setMyRetests] = useState<Array<{ id: string; itemId: string; itemPriority?: "critical" | "high" | "medium" | "low"; processedSummary: string | null; note: string; ts: string }>>([]);
   const [retestsExpanded, setRetestsExpanded] = useState(false);
   const [retestSearch, setRetestSearch] = useState("");
   // Inline retest action state: which row's mini-form is open, and
@@ -3646,6 +3646,27 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
   // reported issue rather than the umbrella user-feedback item.
   // (qa: qa-deep-link-to-comment)
   const [qaIframeComment, setQaIframeComment] = useState<string | null>(null);
+
+  // Slice-1 duplicate detection — debounced lookup against the user's
+  // own prior reports. Per @maaiz: 'These random quick notes qa
+  // submissions will be checked for relevance to existing reported
+  // issues and test areas and marked as a recommend for history and
+  // reduce duplicates right?'. Cross-user dedup is a future slice;
+  // showing 'you said this before on X' is the headline today.
+  // (qa: qa-duplicate-detection)
+  const [similar, setSimilar] = useState<Array<{ id: string; itemId: string; ts: string; note: string; score: number }>>([]);
+  useEffect(() => {
+    if (!open || text.trim().length < 15) { setSimilar([]); return; }
+    const handle = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/qa/comments/similar?q=${encodeURIComponent(text.trim())}`, { credentials: "same-origin" });
+        if (!r.ok) return;
+        const data = await r.json();
+        setSimilar(data?.matches ?? []);
+      } catch {}
+    }, 450);
+    return () => clearTimeout(handle);
+  }, [open, text]);
 
   // Lazy-fetch the user's processed comments when the FAB opens — keeps
   // the initial render cheap, refreshes each time so newly-shipped
@@ -3843,6 +3864,31 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
               }}
             />
 
+            {/* Similar-reports hint — surfaces overlapping notes from
+                the user's own history so they can skip the submit if
+                they already raised this. (qa: qa-duplicate-detection) */}
+            {similar.length > 0 && (
+              <div style={{ background: "rgba(162,155,254,0.08)", border: "1px solid rgba(162,155,254,0.25)", borderRadius: 10, padding: "8px 10px", marginBottom: 10 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#A29BFE", fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>
+                  💡 SIMILAR TO {similar.length} OF YOUR PRIOR REPORT{similar.length === 1 ? "" : "S"}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {similar.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => { setOpen(false); setQaIframeFocus(m.itemId); setQaIframeComment(m.id); setQaOverlayOpen(true); }}
+                      style={{ textAlign: "left", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "6px 8px", color: "rgba(255,255,255,0.78)", fontSize: 11, lineHeight: 1.35, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      <div style={{ fontSize: 9, color: "#FFD166", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginBottom: 2 }}>
+                        {m.itemId.toUpperCase()} · {m.ts.slice(0, 10)} · {Math.round(m.score * 100)}% match
+                      </div>
+                      {m.note.length > 110 ? m.note.slice(0, 110) + "…" : m.note}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={hideForSession}
@@ -3900,7 +3946,20 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
                       />
                     )}
                     <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 280, overflowY: "auto" }}>
-                      {myRetests
+                      {/* Sort by priority (critical → low) then recency,
+                          per @maaiz: 'Sort your patches to retest by
+                          priority which should be visibly identifiable'.
+                          (qa: qa-retest-list-priority-sort) */}
+                      {(() => {
+                        const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+                        const sorted = [...myRetests].sort((a, b) => {
+                          const ap = PRIORITY_ORDER[a.itemPriority ?? "medium"] ?? 2;
+                          const bp = PRIORITY_ORDER[b.itemPriority ?? "medium"] ?? 2;
+                          if (ap !== bp) return ap - bp;
+                          return b.ts.localeCompare(a.ts);
+                        });
+                        return sorted;
+                      })()
                         .filter(r => {
                           if (!retestSearch.trim()) return true;
                           const q = retestSearch.toLowerCase();
@@ -3915,13 +3974,24 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
                           const rawNote = r.note.replace(/^\[[^\]]+\]\s*/, "").trim();
                           const noteSnippet = rawNote.length > 90 ? rawNote.slice(0, 90) + "…" : rawNote;
                           const summarySnippet = r.processedSummary ? (r.processedSummary.length > 120 ? r.processedSummary.slice(0, 120) + "…" : r.processedSummary) : "Marked patched. Retest and report back.";
+                          const priority = r.itemPriority ?? "medium";
+                          const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
+                            critical: { label: "CRIT", color: "#FF6B6B", bg: "rgba(255,107,107,0.18)" },
+                            high:     { label: "HIGH", color: "#FFD166", bg: "rgba(255,209,102,0.16)" },
+                            medium:   { label: "MED",  color: "#A29BFE", bg: "rgba(162,155,254,0.14)" },
+                            low:      { label: "LOW",  color: "rgba(255,255,255,0.4)", bg: "rgba(255,255,255,0.05)" },
+                          };
+                          const pmeta = PRIORITY_META[priority];
                           return (
-                            <div key={r.id} style={{ background: isActive ? "rgba(255,209,102,0.10)" : "rgba(255,255,255,0.03)", border: `1px solid ${isActive ? "rgba(255,209,102,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 8, padding: "8px 10px" }}>
+                            <div key={r.id} style={{ background: isActive ? "rgba(255,209,102,0.10)" : "rgba(255,255,255,0.03)", border: `1px solid ${isActive ? "rgba(255,209,102,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 8, padding: "8px 10px", borderLeft: `3px solid ${pmeta.color}` }}>
                               <button
                                 onClick={() => { setRetestActiveId(prev => prev === r.id ? null : r.id); setRetestDraft({ status: null, note: "" }); }}
                                 style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", color: "#fff", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", padding: 0 }}
                               >
-                                <div style={{ fontSize: 9, fontWeight: 700, color: "#FFD166", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", marginBottom: 2 }}>{r.itemId.toUpperCase()}</div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                                  <div style={{ fontSize: 9, fontWeight: 700, color: "#FFD166", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>{r.itemId.toUpperCase()}</div>
+                                  <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", color: pmeta.color, background: pmeta.bg, padding: "1px 5px", borderRadius: 3, border: `1px solid ${pmeta.color}55` }}>{pmeta.label}</span>
+                                </div>
                                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", lineHeight: 1.4, marginBottom: 4 }}><strong style={{ color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>YOU SAID:</strong> {noteSnippet}</div>
                                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}><strong style={{ color: "#4ECDC4", fontWeight: 700 }}>FIX:</strong> {summarySnippet}</div>
                               </button>
@@ -5236,6 +5306,77 @@ function HomePage() {
   const [systemNotifUnread, setSystemNotifUnread] = useState(0);
   const [patchNotifs, setPatchNotifs] = useState<PatchNotification[]>([]);
   const [patchAcks, setPatchAcksState] = useState<Set<string>>(new Set());
+  // Snapshot of which notifications were unread WHEN the system feed
+  // view was opened. Survives the in-view mark-read so the scroll +
+  // highlight UX reads correctly. Cleared (and the underlying acks
+  // written) when the view unmounts.
+  // (qa: system-notifs-scroll-bottom, system-notifs-unread-highlight)
+  const [systemViewSnapshot, setSystemViewSnapshot] = useState<{ bundled: Set<string>; patch: Set<string> } | null>(null);
+  const systemFeedScrollRef = useRef<HTMLDivElement | null>(null);
+  // Re-run the scroll-to-first-unread / bottom-land logic whenever
+  // the view opens, the snapshot lands, or patchNotifs lazy-loads
+  // after view-open. The ref callback alone only fires on mount, so
+  // a fetch that resolves after open never re-scrolled — leaving the
+  // user at an arbitrary spot. (qa: system-notifs-scroll-bottom)
+  useEffect(() => {
+    if (view !== "systemNotifs") return;
+    const el = systemFeedScrollRef.current;
+    if (!el) return;
+    const bundledUnread = systemViewSnapshot?.bundled ?? new Set<string>();
+    const patchUnread = systemViewSnapshot?.patch ?? new Set<string>();
+    const entries = [
+      ...SYSTEM_NOTIFICATIONS.map(n => ({ ts: n.publishedAt, unread: bundledUnread.has(n.id) })),
+      ...patchNotifs.map(p => ({ ts: p.publishedAt, unread: patchUnread.has(p.id) })),
+    ].sort((a, b) => a.ts.localeCompare(b.ts));
+    const firstUnreadIdx = entries.findIndex(e => e.unread);
+    requestAnimationFrame(() => {
+      if (firstUnreadIdx >= 0) {
+        const target = el.querySelector(`[data-unread-idx='${firstUnreadIdx}']`) as HTMLElement | null;
+        if (target) target.scrollIntoView({ block: "start" });
+      } else {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+  }, [view, systemViewSnapshot, patchNotifs]);
+  // Snapshot unread state when entering systemNotifs view (so the
+  // first-unread scroll + highlight render correctly), then mark
+  // them read when leaving so the next visit knows about it.
+  useEffect(() => {
+    if (view !== "systemNotifs") {
+      // On leaving the view, commit the snapshotted-unread set as
+      // 'read' in storage + state so the inbox badge clears.
+      if (systemViewSnapshot) {
+        markSystemNotifsRead(Array.from(systemViewSnapshot.bundled));
+        markPatchNotifsRead(Array.from(systemViewSnapshot.patch));
+        setPatchAcksState(prev => { const next = new Set(prev); Array.from(systemViewSnapshot.patch).forEach(id => next.add(id)); return next; });
+        setSystemViewSnapshot(null);
+        setSystemNotifUnread(0);
+      }
+      return;
+    }
+    // Take or extend the snapshot. Bundled set is captured once on
+    // open. Patch set is captured on open AND extended as patchNotifs
+    // lazy-load (the fetch races view-open), so newly-arrived unread
+    // patches still highlight + are counted by scroll-to-first-unread.
+    // Without this extension, opening the view before the fetch
+    // resolves left patchUnread empty → no highlight, no scroll.
+    let bundledRead = new Set<string>();
+    try {
+      const raw = localStorage.getItem("ironlog-system-notif-reads-v1");
+      if (raw) bundledRead = new Set(JSON.parse(raw));
+    } catch {}
+    const bundledUnread = new Set(SYSTEM_NOTIFICATIONS.filter(n => !bundledRead.has(n.id)).map(n => n.id));
+    const patchUnread = new Set(patchNotifs.filter(p => !patchAcks.has(p.id)).map(p => p.id));
+    setSystemViewSnapshot(prev => {
+      if (!prev) return { bundled: bundledUnread, patch: patchUnread };
+      // Extend (never shrink) the patch snapshot. Bundled set is
+      // already finalised on first capture.
+      const next = new Set(prev.patch);
+      Array.from(patchUnread).forEach(id => next.add(id));
+      return { bundled: prev.bundled, patch: next };
+    });
+  }, [view, patchNotifs, patchAcks]);
+
   useEffect(() => {
     if (view !== "messages" && view !== "home" && view !== "systemNotifs") return;
     setSystemNotifUnread(systemNotifUnreadCount());
@@ -13002,44 +13143,29 @@ function HomePage() {
         </div>
       </div>
       {(() => {
-        // Read bundled-feed ack set so we can highlight unread
-        // bundled notifications similar to patch ones.
-        let bundledRead = new Set<string>();
-        try {
-          const raw = (typeof window !== "undefined") ? localStorage.getItem("ironlog-system-notif-reads-v1") : null;
-          if (raw) bundledRead = new Set(JSON.parse(raw));
-        } catch {}
+        // Use the snapshot taken when this view opened — NOT the live
+        // ack state, which the cleanup effect will write to once the
+        // user leaves. This is what makes 'first unread → scroll +
+        // highlight' actually fire on re-entry.
+        const bundledUnreadIds = systemViewSnapshot?.bundled ?? new Set<string>();
+        const patchUnreadIds = systemViewSnapshot?.patch ?? new Set<string>();
         const entries = [
-          ...SYSTEM_NOTIFICATIONS.map(n => ({ kind: "bundled" as const, n, unread: !bundledRead.has(n.id) })),
-          ...patchNotifs.map(p => ({ kind: "patch" as const, p, unread: !patchAcks.has(p.id) })),
+          ...SYSTEM_NOTIFICATIONS.map(n => ({ kind: "bundled" as const, n, unread: bundledUnreadIds.has(n.id) })),
+          ...patchNotifs.map(p => ({ kind: "patch" as const, p, unread: patchUnreadIds.has(p.id) })),
         ].sort((a, b) => {
           const aTs = a.kind === "bundled" ? a.n.publishedAt : a.p.publishedAt;
           const bTs = b.kind === "bundled" ? b.n.publishedAt : b.p.publishedAt;
           return aTs.localeCompare(bTs);
         });
-        const firstUnreadIdx = entries.findIndex(e => e.unread);
-        const hasUnread = firstUnreadIdx >= 0;
         return (
           <div
-            ref={(el) => {
-              if (!el) return;
-              // Real chat scroll: on open, if any unread → scroll the
-              // first unread to the top of the viewport + highlight it;
-              // otherwise just land at the bottom (newest message).
-              // Per @maaiz: 'show latest message first at the bottom
-              // of the convo, only when it's a new unread message it
-              // can start from earlier and show the unread messages
-              // highlighted'. (qa: system-notifs-scroll-bottom,
-              // system-notifs-unread-highlight)
-              requestAnimationFrame(() => {
-                if (hasUnread) {
-                  const target = el.querySelector(`[data-unread-idx='${firstUnreadIdx}']`) as HTMLElement | null;
-                  if (target) target.scrollIntoView({ block: "start" });
-                } else {
-                  el.scrollTop = el.scrollHeight;
-                }
-              });
-            }}
+            // Real chat scroll: see the matching useEffect at the
+            // top of HomePage — it runs the scroll on open AND on
+            // patchNotifs lazy-load so the first-unread-or-bottom
+            // landing is correct even when the fetch races
+            // view-open. (qa: system-notifs-scroll-bottom,
+            // system-notifs-unread-highlight)
+            ref={systemFeedScrollRef}
             style={{ flex: 1, overflowY: "auto", padding: "12px 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}
           >
             {entries.length === 0 && (
@@ -13122,11 +13248,14 @@ function HomePage() {
           <div
             className="card-hover"
             onClick={() => {
+              // Just navigate — DON'T mark-as-read here. The view itself
+              // snapshots the unread set on mount and only marks read
+              // on unmount. Marking immediately meant the view rendered
+              // with an empty unread set → fallback bottom-land →
+              // user never saw the scroll-to-first-unread + highlight.
+              // (qa: system-notifs-scroll-bottom,
+              //  system-notifs-unread-highlight — root-cause fix)
               setView("systemNotifs");
-              markSystemNotifsRead("all");
-              markPatchNotifsRead("all", patchNotifs.map(p => p.id));
-              setPatchAcksState(prev => { const next = new Set(prev); for (const p of patchNotifs) next.add(p.id); return next; });
-              setSystemNotifUnread(0);
             }}
             style={{
               background: "linear-gradient(135deg, rgba(162,155,254,0.10), rgba(162,155,254,0.04))",
