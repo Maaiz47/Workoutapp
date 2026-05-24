@@ -1,0 +1,10 @@
+{
+  "id": "cmpjp9qkq000210aj6y0hdjgm",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "[🔄 RETEST · re:m0q3o7wr] I reported this on random, it should catch the duplicate feedback about same issue",
+  "screenshotUrl": null,
+  "ts": "2026-05-24T11:34:30.599Z"
+}
