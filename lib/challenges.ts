@@ -340,6 +340,8 @@ export function toggleOptIn(challengeId: string): boolean {
 // Lightweight client-side recap shown on the first home-open after Sunday
 // midnight. Stored in localStorage as the ISO of the last recap week.
 
+import { WORKOUT_DATA } from "./workouts";
+
 const RECAP_KEY = "ironlog-recap-week-v1";
 
 export type WeeklyRecap = {
@@ -352,12 +354,27 @@ export type WeeklyRecap = {
 export function buildWeeklyRecap(history: Record<string, any[]>): WeeklyRecap {
   const weekAgo = new Date(Date.now() - 7 * 86400000);
   let sessions = 0, totalVolume = 0, prCount = 0;
-  const perEx: Record<string, number> = {};
+  const perEx: Record<string, { name: string; volume: number }> = {};
   for (const dayId in history) {
+    const fallbackDay = WORKOUT_DATA.find(d => d.id === dayId);
     for (const session of history[dayId]) {
       const d = new Date(session.date);
       if (isNaN(+d) || d < weekAgo) continue;
       sessions += 1;
+      // Build an exerciseId → name lookup from this session's day
+      // config. Custom plans embed the full day in `session.dayData`;
+      // bundled splits fall back to WORKOUT_DATA. Without this the
+      // recap showed raw slot codes ("a1", "b1") instead of names
+      // like "Flat Barbell Bench Press". (qa: weekly-recap-top-exercise-name)
+      const dayConfig: any = session.dayData ?? fallbackDay;
+      const nameByExId: Record<string, string> = {};
+      if (dayConfig?.sections) {
+        for (const section of dayConfig.sections) {
+          for (const ex of section.exercises ?? []) {
+            if (ex?.id && ex?.name) nameByExId[ex.id] = ex.name;
+          }
+        }
+      }
       const sets = (session.sets ?? {}) as Record<string, any>;
       for (const k in sets) {
         const v = sets[k];
@@ -365,19 +382,22 @@ export function buildWeeklyRecap(history: Record<string, any[]>): WeeklyRecap {
         const exKey = k.replace(/-\d+(-d\d+)?$/, "");
         const vol = (v.weight ?? 0) * (v.reps ?? 0);
         totalVolume += vol;
-        perEx[exKey] = (perEx[exKey] ?? 0) + vol;
+        const resolvedName = nameByExId[exKey] ?? perEx[exKey]?.name ?? exKey;
+        if (!perEx[exKey]) perEx[exKey] = { name: resolvedName, volume: 0 };
+        else if (perEx[exKey].name === exKey && resolvedName !== exKey) perEx[exKey].name = resolvedName;
+        perEx[exKey].volume += vol;
       }
     }
   }
   // For PR count we'd need historical comparison — for the recap we
   // approximate by counting exercises that had positive volume this week.
   prCount = Object.keys(perEx).length;
-  const top = Object.entries(perEx).sort(([, a], [, b]) => b - a)[0];
+  const top = Object.entries(perEx).sort(([, a], [, b]) => b.volume - a.volume)[0];
   return {
     sessions,
     totalVolumeKg: totalVolume,
     prCount,
-    topExercise: top ? { name: top[0], volume: top[1] } : null,
+    topExercise: top ? { name: top[1].name, volume: top[1].volume } : null,
   };
 }
 
