@@ -301,6 +301,50 @@
     "cmpjddc2d0004dmbzw5vtngm9": {
       "ts": "2026-05-24T06:30:00Z",
       "summary": "@maaiz: 'Old system messages with qa links not opening the old comment, we can make those links resolve away in the chat log after it is fixed'. /api/qa/comments/mine now scans the users own retest comments (note matches [🔄 RETEST · re:XXXX]) and excludes the matching original from the response. fetchPatchNotifications also filters on the server retested flag, so patches resolve away from the feed once retested via either FAB list or /qa directly. (qa: qa-resolve-away-old-links)"
+    },
+    "cmpjgieeo0000inuul1dhjm6j": {
+      "ts": "2026-05-24T08:00:00Z",
+      "summary": "@maaiz multi-part: 'Push notifications working for trainer requests? Message log on trainer aside need to show pending until accepted and get a notification of acceptance. Same way for friend requests and clients. Clients should automatically be friends when adopted, and only revoke client ship not unfriend'. Shipped: (1) /api/messages/[userId] joins TrainerRequest + Friendship status onto each request-typed message so chat bubbles show PENDING / ACCEPTED / DECLINED chips on both sender + receiver side. (2) PATCH /api/trainer/request now drops in-app adoption_accepted / adoption_declined messages so the trainer aside reflects the outcome without depending on push delivery. (3) Trainer-request accept also upserts a Friendship (status=accepted) so clients are auto-friends. (4) DELETE /api/trainer/clients/[clientId] was already friendship-preserving - confirmed in the qa-state item. Push notifications already exist (sendPushToUser) - not a new feature; they fire for both directions. (qa: trainer-request-pending-state, trainer-client-auto-friend)"
+    },
+    "cmpjgj5ti0002wuk4mx48ewue": {
+      "ts": "2026-05-24T08:00:00Z",
+      "summary": "@maaiz: 'Message system pull down to refresh'. Shipped: usePullToRefresh hook (touch listeners, 64px threshold, 0.5 resistance, 110 max pull) + PullToRefreshIndicator (teal spinner). Wired to messages inbox, DM thread, and group chat - each pull-down refetches the respective endpoint. (qa: messages-pull-to-refresh)"
+    },
+    "cmpjgld2q000460s8f2fbk10f": {
+      "ts": "2026-05-24T08:00:00Z",
+      "summary": "@maaiz: 'Suggested prior reports should be able to attend it, pass or fail and add comments not be directed to full qa to a general thread where I cannot even address the comment'. Shipped: each duplicate-suggestion row now expands inline with ALSO PASSES / I HAVE THIS TOO / ADD CONTEXT chips + textarea + SUBMIT ATTEND button. Submitting posts an [ATTEND re:XXXX TAG] comment to that exact report without leaving the FAB. Arrow button still routes to full /qa dashboard. (qa: qa-duplicate-detection)"
+    },
+    "cmpjgnpr50002h0hrnwsiwhfd": {
+      "ts": "2026-05-24T08:00:00Z",
+      "summary": "@maaiz retest of euglpf2n: 'What I meant was to check if the issue reported is already reported and awaiting patch'. Pivoted duplicate-detection from user-only scan to cross-user scan (last 400 comments). Status pill on each suggestion shows OPEN / PATCHED / RETEST / TRACKED so user can see if it's already awaiting patch. (qa: qa-duplicate-detection)"
+    },
+    "cmpjgsool000c10etm0q3o7wr": {
+      "ts": "2026-05-24T08:00:00Z",
+      "summary": "@maaiz retest of w5vtngm9: 'When it links to pending issues I think it is not taking it to the exact step/comment/issue and only to the general thread'. Confirmed the iframe URL is /qa?focus=ITEM#comment-COMMENT and the /qa focus useEffect (now mascot-gated) does scroll + flash the specific comment. Pre-mascot-gate fix masked this. (qa: qa-deep-link-mascot-race)"
+    },
+    "cmpjgtn3b000d10etq3j0h7z4": {
+      "ts": "2026-05-24T08:00:00Z",
+      "summary": "@maaiz retest of 8c14gfgl: 'I cannot tell what this is at all'. Card now reads POSSIBLE DUPLICATES (replaces SIMILAR TO N OF YOUR PRIOR REPORTS) with status pill, submitter, % match, snippet, and inline pass/fail/comment form. (qa: qa-duplicate-detection)"
+    },
+    "cmpjgtv8z0003h0hryczbq7i7": {
+      "ts": "2026-05-24T08:00:00Z",
+      "summary": "@maaiz retest of gyeoo19t: 'Needs another look'. Mascot-gate fix shipped previous pass; this pass adds matching state to /qa focus useEffect so first-tap deep-link works. (qa: qa-deep-link-mascot-race)"
+    },
+    "cmpjgus7g0004h0hrsv8cyzny": {
+      "ts": "2026-05-24T08:00:00Z",
+      "summary": "@maaiz retest of bs3p8be1: 'Seems working but everything is just med priority which it could just be'. Confirmed - most items default to medium priority in qa-state.json. Priority sort + chip both work; current distribution reflects how reports were filed. PASSING. (qa: qa-retest-list-priority-sort)"
+    },
+    "cmpjgvtba0004y40cx7l8846w": {
+      "ts": "2026-05-24T08:00:00Z",
+      "summary": "@maaiz retest of pgkfi3bi: 'Low priority should just be lowest as it will get attended by admin and updated after bigger issues'. Confirmed - sort order is critical, high, medium, low; low priority items go to the bottom. The original pgkfi3bi (big-dawg tier wolf images) stays deferred to image-prompts-v2 batch 8. (qa: qa-retest-list-priority-sort)"
+    },
+    "cmpjgwjti000e10etpf5y98hv": {
+      "ts": "2026-05-24T08:00:00Z",
+      "summary": "@maaiz retest of op67itkd: 'Not sure if I am explaining the gist of it right'. Addressed by the duplicate-detection slice 2 pivot - cross-user scan covers the case where a different user already filed the same bug and you want to acknowledge rather than file a dupe. (qa: qa-duplicate-detection)"
+    },
+    "cmpjgxdcg000f10etsq9jzsv7": {
+      "ts": "2026-05-24T08:00:00Z",
+      "summary": "@maaiz retest of g9bxf3s8: 'The your patches to retest list decreases as I submit but if I reopen it I think it is all back'. Fixed: FAB list now filters its initial load on BOTH readRetestRespondedIds (in-session) AND the server retested flag. Was previously filtering on neither so reopening re-fetched all processed comments without checking either ack. (qa: qa-retest-list-persistence-fix)"
     }
   }
 }

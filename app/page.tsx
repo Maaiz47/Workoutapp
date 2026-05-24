@@ -23,7 +23,7 @@ import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, syncWellnessFromServer, syncWellnessToServerOnce, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
-import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead, fetchPatchNotifications, markPatchNotifsRead, markRetestResponded, PatchNotification } from "../lib/systemNotifications";
+import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead, fetchPatchNotifications, markPatchNotifsRead, markRetestResponded, readRetestRespondedIds, PatchNotification } from "../lib/systemNotifications";
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState, resolveMissionTarget, resolveMissionBody } from "../lib/challenges";
 import { computeExerciseRecencies, recencyForExercise, recencyDotColor, ExerciseRecency } from "../lib/adaptiveRewards";
 import { findAvatar, AVATARS, Avatar } from "../lib/avatars";
@@ -3614,6 +3614,109 @@ function isFabEnabled(): boolean {
   } catch { return true; }
 }
 
+// Native-feeling pull-to-refresh hook for message lists/threads.
+// Per @maaiz: 'Message system pull down to refresh'.
+// Attach by passing a container ref (for views with their own
+// overflow:auto scroll) or omit to use document scroll.
+// (qa: messages-pull-to-refresh)
+function usePullToRefresh(opts: {
+  enabled: boolean;
+  onRefresh: () => Promise<void> | void;
+  containerRef?: React.RefObject<HTMLElement | null>;
+}): { pullDistance: number; refreshing: boolean } {
+  const { enabled, onRefresh, containerRef } = opts;
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const startYRef = useRef<number | null>(null);
+  const activeRef = useRef(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const getScrollTop = () => {
+      if (containerRef?.current) return containerRef.current.scrollTop;
+      return (document.scrollingElement?.scrollTop ?? window.pageYOffset ?? 0);
+    };
+    const target: HTMLElement | Window = containerRef?.current ?? window;
+    const THRESHOLD = 64;
+    const MAX_PULL = 110;
+    const RESISTANCE = 0.5;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (refreshing) return;
+      if (getScrollTop() > 2) { startYRef.current = null; activeRef.current = false; return; }
+      const t = e.touches[0];
+      if (!t) return;
+      startYRef.current = t.clientY;
+      activeRef.current = true;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!activeRef.current || startYRef.current == null) return;
+      const t = e.touches[0];
+      if (!t) return;
+      const dy = t.clientY - startYRef.current;
+      if (dy <= 0) { setPullDistance(0); return; }
+      // Only engage pull once user is moving down from scrollTop=0.
+      if (getScrollTop() > 2) { activeRef.current = false; setPullDistance(0); return; }
+      const eased = Math.min(MAX_PULL, dy * RESISTANCE);
+      setPullDistance(eased);
+    };
+    const onTouchEnd = async () => {
+      if (!activeRef.current) return;
+      activeRef.current = false;
+      const final = pullDistance;
+      setPullDistance(0);
+      startYRef.current = null;
+      if (final >= THRESHOLD) {
+        setRefreshing(true);
+        try { await onRefresh(); } catch {}
+        setRefreshing(false);
+      }
+    };
+
+    target.addEventListener("touchstart", onTouchStart as any, { passive: true });
+    target.addEventListener("touchmove", onTouchMove as any, { passive: true });
+    target.addEventListener("touchend", onTouchEnd as any, { passive: true });
+    target.addEventListener("touchcancel", onTouchEnd as any, { passive: true });
+    return () => {
+      target.removeEventListener("touchstart", onTouchStart as any);
+      target.removeEventListener("touchmove", onTouchMove as any);
+      target.removeEventListener("touchend", onTouchEnd as any);
+      target.removeEventListener("touchcancel", onTouchEnd as any);
+    };
+  }, [enabled, refreshing, pullDistance, onRefresh, containerRef]);
+
+  return { pullDistance, refreshing };
+}
+
+// Small visual indicator that renders at the top of a view while
+// the user is pulling to refresh / while refresh is in flight.
+function PullToRefreshIndicator({ pullDistance, refreshing }: { pullDistance: number; refreshing: boolean }) {
+  if (!refreshing && pullDistance < 4) return null;
+  const opacity = Math.min(1, pullDistance / 50);
+  const rotation = Math.min(360, (pullDistance / 64) * 180);
+  return (
+    <div style={{
+      position: "absolute", left: 0, right: 0, top: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      pointerEvents: "none",
+      transform: `translateY(${refreshing ? 36 : Math.max(0, pullDistance - 8)}px)`,
+      transition: refreshing ? "transform 0.18s ease" : undefined,
+      zIndex: 200,
+    }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: "50%",
+        background: "rgba(0,0,0,0.6)",
+        border: "1px solid rgba(78,205,196,0.45)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: "#4ECDC4", fontSize: 14, fontFamily: "'Space Mono', monospace",
+        opacity: refreshing ? 1 : opacity,
+        transform: refreshing ? "rotate(360deg)" : `rotate(${rotation}deg)`,
+        animation: refreshing ? "ptr-spin 0.9s linear infinite" : undefined,
+      }}>↻</div>
+    </div>
+  );
+}
+
 function QuickFeedbackFab({ username, view }: { username: string; view: string }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -3654,7 +3757,14 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
   // reduce duplicates right?'. Cross-user dedup is a future slice;
   // showing 'you said this before on X' is the headline today.
   // (qa: qa-duplicate-detection)
-  const [similar, setSimilar] = useState<Array<{ id: string; itemId: string; ts: string; note: string; score: number }>>([]);
+  const [similar, setSimilar] = useState<Array<{ id: string; itemId: string; ts: string; note: string; score: number; status?: string; processed?: boolean; tester?: string | null; mine?: boolean }>>([]);
+  // Per-suggestion inline action state — which row is expanded, the
+  // chosen status, and the draft note. Lets the user attend ("pass /
+  // fail / comment") to an existing report without leaving the FAB.
+  // (qa: qa-duplicate-detection — slice 2)
+  const [similarActiveId, setSimilarActiveId] = useState<string | null>(null);
+  const [similarDraft, setSimilarDraft] = useState<{ status: "passing" | "failing" | "regression-retest" | null; note: string }>({ status: null, note: "" });
+  const [similarBusy, setSimilarBusy] = useState(false);
   useEffect(() => {
     if (!open || text.trim().length < 15) { setSimilar([]); return; }
     const handle = setTimeout(async () => {
@@ -3678,7 +3788,13 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
       .then(r => r.ok ? r.json() : { comments: [] })
       .then(data => {
         if (cancelled) return;
-        const list = (data?.comments ?? []).filter((c: any) => c.processed);
+        // Filter on BOTH the local responded set (covers in-session
+        // submits before the DB round-trip) AND the server-side
+        // `retested` flag (covers cross-device + /qa-direct retests).
+        // The FAB list previously filtered on neither, so submitted
+        // items came back on reopen. (qa: qa-retest-list-persistence-fix)
+        const responded = readRetestRespondedIds();
+        const list = (data?.comments ?? []).filter((c: any) => c.processed && !c.retested && !responded.has(c.id));
         setMyRetests(list);
       })
       .catch(() => {});
@@ -3864,27 +3980,109 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
               }}
             />
 
-            {/* Similar-reports hint — surfaces overlapping notes from
-                the user's own history so they can skip the submit if
-                they already raised this. (qa: qa-duplicate-detection) */}
+            {/* Similar-reports card — cross-user scan. Each row expands
+                to an inline pass/fail/comment form so the user can
+                attend the existing report (upvote / verify / dispute)
+                rather than file a duplicate. Per @maaiz: 'I should be
+                able to attend it, like say pass or fail and add
+                comments not be directed to full qa to a general
+                thread'. (qa: qa-duplicate-detection — slice 2) */}
             {similar.length > 0 && (
               <div style={{ background: "rgba(162,155,254,0.08)", border: "1px solid rgba(162,155,254,0.25)", borderRadius: 10, padding: "8px 10px", marginBottom: 10 }}>
                 <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#A29BFE", fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>
-                  💡 SIMILAR TO {similar.length} OF YOUR PRIOR REPORT{similar.length === 1 ? "" : "S"}
+                  💡 {similar.length} POSSIBLE DUPLICATE{similar.length === 1 ? "" : "S"} — TAP TO ATTEND
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {similar.map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => { setOpen(false); setQaIframeFocus(m.itemId); setQaIframeComment(m.id); setQaOverlayOpen(true); }}
-                      style={{ textAlign: "left", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "6px 8px", color: "rgba(255,255,255,0.78)", fontSize: 11, lineHeight: 1.35, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
-                    >
-                      <div style={{ fontSize: 9, color: "#FFD166", fontFamily: "'Space Mono', monospace", letterSpacing: 1, marginBottom: 2 }}>
-                        {m.itemId.toUpperCase()} · {m.ts.slice(0, 10)} · {Math.round(m.score * 100)}% match
+                  {similar.map(m => {
+                    const isActiveRow = similarActiveId === m.id;
+                    const who = m.mine ? "you" : m.tester ? `@${m.tester}` : "another user";
+                    const statusChip = m.processed
+                      ? { label: "PATCHED", color: "#4ECDC4", bg: "rgba(78,205,196,0.12)" }
+                      : m.status === "failing"
+                        ? { label: "OPEN", color: "#FF6B6B", bg: "rgba(255,107,107,0.12)" }
+                        : m.status === "regression-retest"
+                          ? { label: "RETEST", color: "#FFD166", bg: "rgba(255,209,102,0.12)" }
+                          : { label: "TRACKED", color: "rgba(255,255,255,0.5)", bg: "rgba(255,255,255,0.05)" };
+                    return (
+                      <div key={m.id} style={{ background: isActiveRow ? "rgba(255,209,102,0.10)" : "rgba(0,0,0,0.25)", border: `1px solid ${isActiveRow ? "rgba(255,209,102,0.35)" : "rgba(255,255,255,0.06)"}`, borderRadius: 8, padding: "6px 8px" }}>
+                        <button
+                          onClick={() => { setSimilarActiveId(prev => prev === m.id ? null : m.id); setSimilarDraft({ status: null, note: "" }); }}
+                          style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", color: "rgba(255,255,255,0.85)", fontSize: 11, lineHeight: 1.35, cursor: "pointer", padding: 0, fontFamily: "'DM Sans', sans-serif" }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 9, color: "#FFD166", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{m.itemId.toUpperCase()}</span>
+                            <span style={{ fontSize: 8, color: statusChip.color, background: statusChip.bg, padding: "1px 5px", borderRadius: 3, fontFamily: "'Space Mono', monospace", letterSpacing: 1, fontWeight: 700, border: `1px solid ${statusChip.color}55` }}>{statusChip.label}</span>
+                            <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>{Math.round(m.score * 100)}% · {who} · {m.ts.slice(0, 10)}</span>
+                          </div>
+                          <div>{m.note.length > 140 ? m.note.slice(0, 140) + "…" : m.note}</div>
+                        </button>
+                        {isActiveRow && (
+                          <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed rgba(255,209,102,0.25)" }}>
+                            <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+                              {([
+                                { id: "passing", label: "✓ ALSO PASSES", color: "#2ecc71", bg: "rgba(46,204,113,0.12)" },
+                                { id: "failing", label: "✗ I HAVE THIS TOO", color: "#FF6B6B", bg: "rgba(255,107,107,0.12)" },
+                                { id: "regression-retest", label: "💬 ADD CONTEXT", color: "#A29BFE", bg: "rgba(162,155,254,0.12)" },
+                              ] as const).map(opt => {
+                                const sel = similarDraft.status === opt.id;
+                                return (
+                                  <button key={opt.id} onClick={() => setSimilarDraft(d => ({ ...d, status: opt.id }))} style={{ flex: 1, padding: "5px 4px", background: sel ? opt.bg : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? opt.color : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: sel ? opt.color : "rgba(255,255,255,0.5)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{opt.label}</button>
+                                );
+                              })}
+                            </div>
+                            <textarea
+                              value={similarDraft.note}
+                              onChange={e => setSimilarDraft(d => ({ ...d, note: e.target.value }))}
+                              placeholder="Optional — what you saw, what you'd add to this report…"
+                              rows={2}
+                              style={{ width: "100%", boxSizing: "border-box", background: "rgba(0,0,0,0.35)", color: "#fff", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "6px 8px", fontSize: 11, fontFamily: "'DM Sans', sans-serif", resize: "vertical", outline: "none", marginBottom: 6 }}
+                            />
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button
+                                disabled={!similarDraft.status || similarBusy}
+                                onClick={async () => {
+                                  if (!similarDraft.status) return;
+                                  setSimilarBusy(true);
+                                  const tag = similarDraft.status === "passing"
+                                    ? "✓ ALSO PASSES"
+                                    : similarDraft.status === "failing"
+                                      ? "✗ I HAVE THIS TOO"
+                                      : "💬 CONTEXT";
+                                  try {
+                                    await fetch("/api/qa/comment", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        itemId: m.itemId,
+                                        tester: username,
+                                        status: similarDraft.status,
+                                        note: `[👥 ATTEND · re:${m.id.slice(-8)} · ${tag}] ${similarDraft.note.trim() || "(no extra notes)"}`,
+                                      }),
+                                    });
+                                    setText("");
+                                    setSimilarActiveId(null);
+                                    setSimilarDraft({ status: null, note: "" });
+                                    setSimilar([]);
+                                    setOpen(false);
+                                    setToast({ msg: "Attended — see in /qa", kind: "ok" });
+                                  } catch {
+                                    setToast({ msg: "Network error", kind: "err" });
+                                  }
+                                  setSimilarBusy(false);
+                                }}
+                                style={{ flex: 1, padding: "7px", background: similarDraft.status && !similarBusy ? "#4ECDC4" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 6, color: similarDraft.status && !similarBusy ? "#000" : "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: similarDraft.status && !similarBusy ? "pointer" : "default" }}
+                              >{similarBusy ? "SENDING…" : "SUBMIT ATTEND"}</button>
+                              <button
+                                onClick={() => { setOpen(false); setQaIframeFocus(m.itemId); setQaIframeComment(m.id); setQaOverlayOpen(true); }}
+                                title="Open this report in the full QA dashboard"
+                                style={{ padding: "7px 10px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 6, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+                              >↗</button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {m.note.length > 110 ? m.note.slice(0, 110) + "…" : m.note}
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -5983,9 +6181,43 @@ function HomePage() {
   const lastMsgCreatedAtRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const groupChatScrollRef = useRef<HTMLDivElement | null>(null);
   const msgAudioCtx = useRef<AudioContext | null>(null);
   const tabFlashRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentViewRef = useRef("home");
+
+  // Pull-to-refresh wiring for messages inbox + DM thread + group
+  // chat. Per @maaiz: 'Message system pull down to refresh'.
+  // (qa: messages-pull-to-refresh)
+  const refreshInbox = useCallback(async () => {
+    try {
+      const data = await fetch("/api/messages").then(r => r.json());
+      if (data?.conversations) {
+        setConversations(data.conversations);
+        setUnreadCount(data.conversations.reduce((a: number, c: any) => a + (c.unreadCount ?? 0), 0));
+      }
+      if (data?.groupConversations) setGroupConversations(data.groupConversations);
+    } catch {}
+  }, []);
+  const refreshActiveConversation = useCallback(async () => {
+    if (!activeConversation) return;
+    try {
+      const r = await fetch(`/api/messages/${activeConversation.id}`);
+      const data = await r.json();
+      if (Array.isArray(data?.messages)) setConversationMessages(data.messages);
+    } catch {}
+  }, [activeConversation]);
+  const refreshActiveGroupChat = useCallback(async () => {
+    if (!activeGroupChatId) return;
+    try {
+      const r = await fetch(`/api/leaderboard/groups/${activeGroupChatId}/messages`);
+      const data = await r.json();
+      if (Array.isArray(data?.messages)) setGroupChatMessages(data.messages);
+    } catch {}
+  }, [activeGroupChatId]);
+  const inboxPtr = usePullToRefresh({ enabled: view === "messages", onRefresh: refreshInbox });
+  const convoPtr = usePullToRefresh({ enabled: view === "conversation", onRefresh: refreshActiveConversation, containerRef: messagesContainerRef });
+  const groupChatPtr = usePullToRefresh({ enabled: view === "groupChat", onRefresh: refreshActiveGroupChat, containerRef: groupChatScrollRef });
 
   // ── Onboarding + custom plan ──
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -12034,7 +12266,8 @@ function HomePage() {
             })}
           </div>
         )}
-        <div ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }} style={{ flex: 1, overflowY: "auto", padding: "8px 20px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div ref={(el) => { groupChatScrollRef.current = el; if (el) el.scrollTop = el.scrollHeight; }} style={{ flex: 1, overflowY: "auto", padding: "8px 20px 16px", display: "flex", flexDirection: "column", gap: 8, position: "relative" }}>
+          <PullToRefreshIndicator pullDistance={groupChatPtr.pullDistance} refreshing={groupChatPtr.refreshing} />
           {groupChatLoading && groupChatMessages.length === 0 && (
             <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: 20 }}>Loading…</div>
           )}
@@ -13220,7 +13453,8 @@ function HomePage() {
   );
 
   if (view === "messages") return (
-    <div key="messages" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
+    <div key="messages" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative" }}>
+      <PullToRefreshIndicator pullDistance={inboxPtr.pullDistance} refreshing={inboxPtr.refreshing} />
       <div style={{ padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
         <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: 4, fontWeight: 500, fontFamily: "'Space Mono', monospace" }}>MESSAGES</div>
@@ -13326,7 +13560,7 @@ function HomePage() {
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4 }}>
                       {previewTick && <span style={{ color: previewTick.color, letterSpacing: -2, paddingRight: 2, flexShrink: 0 }}>{previewTick.label}</span>}
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {lm.type === "adoption_request" ? "Trainer request" : lm.type === "friend_request" ? "Friend request" : lm.type === "friend_accepted" ? "Friend accepted" : lm.type === "plan_proposal" ? "Plan update proposed" : lm.body}
+                        {lm.type === "adoption_request" ? "Trainer request" : lm.type === "adoption_accepted" ? "Trainer request accepted" : lm.type === "adoption_declined" ? "Trainer request declined" : lm.type === "friend_request" ? "Friend request" : lm.type === "friend_accepted" ? "Friend accepted" : lm.type === "plan_proposal" ? "Plan update proposed" : lm.body}
                       </span>
                     </div>
                   </div>
@@ -13370,7 +13604,8 @@ function HomePage() {
   let _viewKey: string = view;
   let _content: React.ReactNode = null;
   if (view === "conversation" && activeConversation) { _viewKey = `conv-${activeConversation.id}`; _content = (
-    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100dvh" }}>
+    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100dvh", position: "relative" }}>
+      <PullToRefreshIndicator pullDistance={convoPtr.pullDistance} refreshing={convoPtr.refreshing} />
       {(() => {
         const isOnline = partnerLastSeen && (Date.now() - new Date(partnerLastSeen).getTime()) < 2 * 60 * 1000;
         const lastSeenText = (() => {
@@ -13406,19 +13641,41 @@ function HomePage() {
         )}
         {conversationMessages.map(msg => {
           const isMine = msg.from.id === user.id;
-          if (msg.type === "adoption_request") {
-            const isPending = incomingRequests.some(r => r.id === msg.requestId);
+          if (msg.type === "adoption_request" || msg.type === "adoption_accepted" || msg.type === "adoption_declined") {
+            // Status pill driven by the requestStatus the API now
+            // attaches to the message. Falls back to the local
+            // incomingRequests heuristic for legacy rows without
+            // requestStatus. (qa: trainer-request-pending-state)
+            const reqStatus: string | null = msg.requestStatus
+              ?? (incomingRequests.some(r => r.id === msg.requestId) ? "pending" : null);
+            const showActions = msg.type === "adoption_request" && reqStatus === "pending" && !isMine;
+            const banner = msg.type === "adoption_accepted"
+              ? { label: "ACCEPTED", color: "#2ecc71", bg: "rgba(46,204,113,0.12)" }
+              : msg.type === "adoption_declined"
+                ? { label: "DECLINED", color: "#FF6B6B", bg: "rgba(255,107,107,0.12)" }
+                : reqStatus === "accepted"
+                  ? { label: "ACCEPTED", color: "#2ecc71", bg: "rgba(46,204,113,0.12)" }
+                  : reqStatus === "declined"
+                    ? { label: "DECLINED", color: "#FF6B6B", bg: "rgba(255,107,107,0.12)" }
+                    : reqStatus === "pending"
+                      ? { label: "PENDING", color: "#FFD166", bg: "rgba(255,209,102,0.12)" }
+                      : null;
+            const label = msg.type === "adoption_request" ? "TRAINER REQUEST" : msg.type === "adoption_accepted" ? "TRAINER REQUEST — ACCEPTED" : "TRAINER REQUEST — DECLINED";
             return (
-              <div key={msg.id} style={{ background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 14, padding: "14px 16px", maxWidth: "85%" }}>
-                <div style={{ fontSize: 10, color: "#4ECDC4", letterSpacing: 3, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>TRAINER REQUEST</div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: isPending ? 12 : 0 }}>{msg.body}</div>
-                {isPending && (
+              <div key={msg.id} style={{ background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 14, padding: "14px 16px", maxWidth: "85%", alignSelf: isMine ? "flex-end" : "flex-start" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 10, color: "#4ECDC4", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>{label}</span>
+                  {banner && (
+                    <span style={{ fontSize: 9, color: banner.color, background: banner.bg, padding: "1px 6px", borderRadius: 3, fontFamily: "'Space Mono', monospace", letterSpacing: 1, fontWeight: 700, border: `1px solid ${banner.color}55` }}>{banner.label}</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: showActions ? 12 : 0 }}>{msg.body}</div>
+                {showActions && (
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={() => respondToRequest(msg.requestId, "accept")} disabled={respondingRequest === msg.requestId} style={{ flex: 1, padding: "9px", background: "#4ECDC4", border: "none", borderRadius: 8, color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{respondingRequest === msg.requestId ? "…" : "ACCEPT"}</button>
                     <button onClick={() => respondToRequest(msg.requestId, "decline")} disabled={respondingRequest === msg.requestId} style={{ flex: 1, padding: "9px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.8)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{respondingRequest === msg.requestId ? "…" : "DECLINE"}</button>
                   </div>
                 )}
-                {!isPending && !isMine && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4, fontFamily: "'Space Mono', monospace" }}>RESOLVED</div>}
               </div>
             );
           }
@@ -13438,11 +13695,32 @@ function HomePage() {
               } catch {}
               setRespondingRequest(null);
             };
+            // Status pill — driven by requestStatus from the API.
+            // Pending requests show PENDING; accepted shows ACCEPTED;
+            // declined shows nothing (friendship rows are deleted on
+            // decline, so requestStatus comes back null). The sender
+            // sees the same pill as the receiver so they know where
+            // they stand. (qa: trainer-request-pending-state —
+            // also covers friend lifecycle)
+            const reqStatus: string | null = msg.requestStatus ?? null;
+            const banner = isAccepted || reqStatus === "accepted"
+              ? { label: "ACCEPTED", color: "#2ecc71", bg: "rgba(46,204,113,0.12)" }
+              : reqStatus === "pending"
+                ? { label: "PENDING", color: "#FFD166", bg: "rgba(255,209,102,0.12)" }
+                : isMine && reqStatus === null && msg.type === "friend_request"
+                  ? { label: "RESOLVED", color: "rgba(255,255,255,0.5)", bg: "rgba(255,255,255,0.05)" }
+                  : null;
+            const showActions = !isMine && !isAccepted && reqStatus === "pending";
             return (
-              <div key={msg.id} style={{ background: "rgba(162,155,254,0.06)", border: "1px solid rgba(162,155,254,0.22)", borderRadius: 14, padding: "14px 16px", maxWidth: "85%" }}>
-                <div style={{ fontSize: 10, color: "#A29BFE", letterSpacing: 3, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>{isAccepted ? "FRIEND ACCEPTED" : "FRIEND REQUEST"}</div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: !isMine && !isAccepted ? 12 : 0 }}>{msg.body}</div>
-                {!isMine && !isAccepted && (
+              <div key={msg.id} style={{ background: "rgba(162,155,254,0.06)", border: "1px solid rgba(162,155,254,0.22)", borderRadius: 14, padding: "14px 16px", maxWidth: "85%", alignSelf: isMine ? "flex-end" : "flex-start" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 10, color: "#A29BFE", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>{isAccepted ? "FRIEND ACCEPTED" : "FRIEND REQUEST"}</span>
+                  {banner && (
+                    <span style={{ fontSize: 9, color: banner.color, background: banner.bg, padding: "1px 6px", borderRadius: 3, fontFamily: "'Space Mono', monospace", letterSpacing: 1, fontWeight: 700, border: `1px solid ${banner.color}55` }}>{banner.label}</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: showActions ? 12 : 0 }}>{msg.body}</div>
+                {showActions && (
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={() => handle("accept")} disabled={respondingRequest === msg.requestId} style={{ flex: 1, padding: "9px", background: "#A29BFE", border: "none", borderRadius: 8, color: "#000", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{respondingRequest === msg.requestId ? "…" : "ACCEPT"}</button>
                     <button onClick={() => handle("decline")} disabled={respondingRequest === msg.requestId} style={{ flex: 1, padding: "9px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "rgba(255,107,107,0.8)", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{respondingRequest === msg.requestId ? "…" : "DECLINE"}</button>

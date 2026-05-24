@@ -2,6 +2,23 @@
 
 ---
 
+## QA pass · 2026-05-24 — 11 comments processed (qa: qa-duplicate-detection, qa-retest-list-persistence-fix, messages-pull-to-refresh, trainer-request-pending-state, trainer-client-auto-friend, qa-retest-list-priority-sort, qa-deep-link-mascot-race)
+
+All 11 from @maaiz.
+
+### Addressed
+- **qa-duplicate-detection** (slice 2/N): pivoted from user-only scan to cross-user scan of the last 400 comments (RETEST follow-ups filtered out). Card now reads POSSIBLE DUPLICATES with status pill (OPEN / PATCHED / RETEST / TRACKED), % match, submitter, snippet. Each row expands inline with ALSO PASSES / I HAVE THIS TOO / ADD CONTEXT chips + textarea + SUBMIT ATTEND button so the user can attend an existing report without leaving the FAB. Arrow button still deep-links to the exact comment in /qa.
+- **qa-retest-list-persistence-fix**: YOUR PATCHES TO RETEST list re-pulled all processed comments on reopen, ignoring both the in-session ack set AND the server-side `retested` flag. Now filters on both — submitted retests stay gone.
+- **messages-pull-to-refresh**: new `usePullToRefresh` hook + `PullToRefreshIndicator` (teal spinner). Threshold 64px, max pull 110, 0.5 resistance. Wired to messages inbox + DM thread + group chat — each pull-down refetches the respective endpoint.
+- **trainer-client-auto-friend**: trainer-request accept path now upserts a Friendship (status=accepted) so clients are auto-friends. Existing friendship in either direction is flipped/kept accepted; blocked rows untouched. Disowning a client (DELETE /api/trainer/clients/[clientId]) was already friendship-preserving — confirmed in qa-state.
+- **trainer-request-pending-state**: /api/messages/[userId] now joins TrainerRequest + Friendship status onto each request-typed message; chat bubbles show coloured PENDING / ACCEPTED / DECLINED chips on both sides of the thread. PATCH /api/trainer/request drops in-app adoption_accepted / adoption_declined messages so the trainer aside reflects the outcome without depending on push delivery (push still fires).
+
+### Items with no action needed (status flips only)
+- **qa-retest-list-priority-sort**: two PASSING confirmations from @maaiz — sort by priority + chip works as designed; the "everything is medium" observation just reflects how reports were filed. Stays passing.
+- **qa-deep-link-mascot-race**: two retests confirming the mascot-gate fix from the previous pass landed. Item stays passing.
+
+---
+
 ## QA pass · 2026-05-24 — 9 comments processed (qa: system-notifs-scroll-bottom, system-notifs-unread-highlight, qa-deep-link-mascot-race, qa-retest-list-priority-sort, qa-resolve-away-old-links, qa-duplicate-detection, qa-retest-persistence)
 
 All 9 from @maaiz.

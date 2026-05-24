@@ -10,10 +10,10 @@ function json(data: object, status = 200) { return NextResponse.json(data, { sta
 // issues and test areas and marked as a recommend for history and
 // reduce duplicates right?'.
 //
-// Slice 1 — keyword overlap against the user's OWN prior comments
-// (cheapest, most relevant signal). Cross-user de-dup is a future
-// slice and would need a server-side index for fairness — for now
-// surfacing "you said this already on X" is the headline feature.
+// Slice 2 — cross-user scan. The user's request was to flag if an
+// issue is "already reported and awaiting patch" by ANYONE, so
+// they can attend/upvote rather than file a duplicate. Slice 1
+// only scanned the caller's own history.
 // (qa: qa-duplicate-detection)
 
 // Strip bracketed prefix tags ("[🐞 BUG · UI · view=home]") so the
@@ -60,23 +60,49 @@ export async function GET(req: NextRequest) {
     const qTokens = tokenise(q);
     if (qTokens.length < 3) return json({ matches: [] });
 
-    // Pull this user's last 100 comments — covers a few weeks of feedback
-    // without scanning the whole table.
+    // Cross-user scan: pull the 400 most recent comments + resolve the
+    // submitter usernames so the suggestion card can show "@alice
+    // reported this 2 days ago" rather than just an anonymous match.
+    // Skip RETEST notes — they're follow-ups, not the original report.
     const prior = await (prisma as any).qAComment.findMany({
-      where: { userId: uid },
       orderBy: { ts: "desc" },
-      take: 100,
+      take: 400,
     });
 
+    const userIds = Array.from(new Set(prior.map((c: any) => c.userId).filter(Boolean))) as string[];
+    const users = userIds.length
+      ? await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, username: true } })
+      : [];
+    const userById: Record<string, string> = {};
+    for (const u of users) userById[u.id] = u.username;
+
+    const isMine = (c: any) => c.userId === uid;
+
     const scored = prior
+      .filter((c: any) => {
+        // Drop retest follow-ups — match the originals instead.
+        if (typeof c.note === "string" && /\[🔄\s*RETEST/i.test(c.note)) return false;
+        return true;
+      })
       .map((c: any) => {
         const text = stripPrefix(typeof c.note === "string" ? c.note : "");
         const score = overlap(qTokens, tokenise(text));
-        return { id: c.id, itemId: c.itemId, ts: c.ts.toISOString(), note: text.slice(0, 180), score };
+        const tester = c.userId ? (userById[c.userId] ?? null) : (c.tester ?? null);
+        return {
+          id: c.id,
+          itemId: c.itemId,
+          ts: c.ts.toISOString(),
+          note: text.slice(0, 220),
+          score,
+          status: c.status,
+          processed: c.processed === true,
+          tester,
+          mine: isMine(c),
+        };
       })
-      .filter((m: any) => m.score >= 0.25) // ~quarter of distinct words shared
+      .filter((m: any) => m.score >= 0.25)
       .sort((a: any, b: any) => b.score - a.score)
-      .slice(0, 3);
+      .slice(0, 4);
 
     return json({ matches: scored });
   } catch (e: any) {

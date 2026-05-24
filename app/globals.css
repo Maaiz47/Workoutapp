@@ -497,3 +497,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .goal-celeb-icon { animation: goalCelebIcon 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; display: inline-block; }
 @keyframes goalCelebShine { 0% { transform: translateX(-100%) skewX(-15deg); } 100% { transform: translateX(250%) skewX(-15deg); } }
 .goal-celeb-shine { animation: goalCelebShine 0.7s ease 0.5s both; }
+
+/* Pull-to-refresh spinner — used by PullToRefreshIndicator on
+   message views. (qa: messages-pull-to-refresh) */
+@keyframes ptr-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

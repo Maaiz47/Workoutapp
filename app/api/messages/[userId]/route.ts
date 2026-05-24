@@ -60,7 +60,37 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
       };
     });
 
-    return json({ messages: sanitized, partnerLastSeen: partner?.lastSeenAt ?? null });
+    // Resolve request status for adoption_request / friend_request
+    // bubbles so the client can render a PENDING / ACCEPTED / DECLINED
+    // pill on both sides of the thread. Without this the trainer
+    // (who SENT the request) just sees a plain bubble with no idea
+    // whether the client has acted on it.
+    // (qa: trainer-request-pending-state)
+    const adoptionIds = sanitized
+      .filter((m: any) => (m.type === "adoption_request" || m.type === "adoption_accepted" || m.type === "adoption_declined") && m.requestId)
+      .map((m: any) => m.requestId as string);
+    const friendIds = sanitized
+      .filter((m: any) => (m.type === "friend_request" || m.type === "friend_accepted") && m.requestId)
+      .map((m: any) => m.requestId as string);
+    const adoptionRows = adoptionIds.length
+      ? await prisma.trainerRequest.findMany({ where: { id: { in: adoptionIds } }, select: { id: true, status: true } })
+      : [];
+    const friendRows = friendIds.length
+      ? await prisma.friendship.findMany({ where: { id: { in: friendIds } }, select: { id: true, status: true } })
+      : [];
+    const adoptionStatus = new Map(adoptionRows.map((r: any) => [r.id, r.status]));
+    const friendStatus = new Map(friendRows.map((r: any) => [r.id, r.status]));
+    const withStatus = sanitized.map((m: any) => {
+      if ((m.type === "adoption_request" || m.type === "adoption_accepted" || m.type === "adoption_declined") && m.requestId) {
+        return { ...m, requestStatus: adoptionStatus.get(m.requestId) ?? null };
+      }
+      if ((m.type === "friend_request" || m.type === "friend_accepted") && m.requestId) {
+        return { ...m, requestStatus: friendStatus.get(m.requestId) ?? null };
+      }
+      return m;
+    });
+
+    return json({ messages: withStatus, partnerLastSeen: partner?.lastSeenAt ?? null });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);
   }

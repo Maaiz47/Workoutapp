@@ -4845,11 +4845,12 @@
       "lastTested": "2026-05-24",
       "status": "regression-retest",
       "steps": [
-        "Open the QuickFeedback FAB. Type 15+ chars of a topic you have already reported on before.",
-        "Wait ~500ms; verify a purple SIMILAR TO N OF YOUR PRIOR REPORTS card appears below the textarea.",
-        "Tap one of the rows; verify the /qa overlay opens focused on that comment (lets you skip the submit if duplicate)."
+        "Open the QuickFeedback FAB. Type 15+ chars of a topic that someone has reported before.",
+        "Wait ~500ms; verify a purple POSSIBLE DUPLICATES card lists up to 4 matching reports with status pills, match %, submitter, date, and a snippet.",
+        "Tap a row; verify it expands inline with ALSO PASSES / I HAVE THIS TOO / ADD CONTEXT chips + textarea + SUBMIT ATTEND button.",
+        "Submitting posts an attend-comment to that report without leaving the FAB. The arrow button still opens the full /qa dashboard focused on that exact comment."
       ],
-      "notes": "[2026-05-24] Slice 1/N: server endpoint /api/qa/comments/similar does keyword-overlap against users own last 100 comments. Cross-user dedup is a future slice and would need a server-side index for scale + fairness."
+      "notes": "[2026-05-24] Slice 2/N: cross-user scan of last 400 comments, RETEST follow-ups filtered out, submitter username attached. Inline ATTEND form posts a [ATTEND re:XXXX TAG] comment without leaving the FAB. [2026-05-24] Slice 1/N: server endpoint /api/qa/comments/similar does keyword-overlap against users own last 100 comments. Cross-user dedup is a future slice and would need a server-side index for scale + fairness."
     },
     {
       "id": "qa-deep-link-mascot-race",
@@ -4879,6 +4880,67 @@
         "Verify each row has a coloured left border (3px) + a CRIT/HIGH/MED/LOW chip next to the item id."
       ],
       "notes": "[2026-05-24] Shipped: /api/qa/comments/mine joins qa-state.json to attach itemPriority to each comment; FAB sort wrapper + PRIORITY_META lookup adds borderLeft + chip."
+    },
+    {
+      "id": "qa-retest-list-persistence-fix",
+      "title": "YOUR PATCHES TO RETEST list does not re-show submitted retests on reopen",
+      "area": "Quick Feedback",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass qa-retest-list-persistence-fix",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open the QuickFeedback FAB. Expand YOUR PATCHES TO RETEST. Submit a retest.",
+        "Verify the row disappears.",
+        "Close the FAB, reopen it. Verify the submitted row DOES NOT come back."
+      ],
+      "notes": "[2026-05-24] Fixed: FAB now filters its retest list on BOTH readRetestRespondedIds and the server retested flag. Was previously filtering on neither."
+    },
+    {
+      "id": "messages-pull-to-refresh",
+      "title": "Pull-down-to-refresh on messages inbox, DM thread, and group chat",
+      "area": "Messaging",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass messages-pull-to-refresh",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open Messages inbox. From scrollTop=0, drag down past ~64px. Verify the teal spinner appears, releases on threshold, spins while refetching.",
+        "Open a DM thread. Same pull-down behaviour at the top of the thread.",
+        "Open a group chat. Same pull-down behaviour at the top of the thread."
+      ],
+      "notes": "[2026-05-24] Shipped: usePullToRefresh hook with touch listeners; 64px threshold, 110 max, 0.5 resistance. PullToRefreshIndicator absolute-positioned at top of each view. Refresh fns hit /api/messages, /api/messages/[partnerId], /api/leaderboard/groups/[id]/messages."
+    },
+    {
+      "id": "trainer-client-auto-friend",
+      "title": "Accepting a trainer-adoption request auto-creates a Friendship",
+      "area": "Trainer",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass trainer-client-auto-friend",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "As a trainer, send an adoption request to a user you are not friends with.",
+        "As that user, accept the request. Verify trainer + user are now accepted-friends in /api/friends.",
+        "As the trainer, disown the client. Verify the friendship still exists; only the coaching link is severed."
+      ],
+      "notes": "[2026-05-24] Shipped: PATCH /api/trainer/request accept path upserts a Friendship row (status=accepted). If one exists in either direction it is flipped/kept accepted; blocked rows are not touched. DELETE /api/trainer/clients/[clientId] was already friendship-preserving."
+    },
+    {
+      "id": "trainer-request-pending-state",
+      "title": "Trainer + friend request bubbles show PENDING / ACCEPTED / DECLINED on both sides",
+      "area": "Messaging",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass trainer-request-pending-state",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open a DM thread containing a trainer adoption_request you sent as a trainer. Verify a PENDING / ACCEPTED / DECLINED chip is shown next to the TRAINER REQUEST label.",
+        "As the client, accept it. Verify the bubble flips to ACCEPTED on both sides AND a new TRAINER REQUEST - ACCEPTED message appears.",
+        "Same flow for a friend request - sender sees the PENDING chip without having to leave + come back.",
+        "Decline a trainer request as a client. Verify the trainer gets a TRAINER REQUEST - DECLINED bubble in the thread."
+      ],
+      "notes": "[2026-05-24] Shipped: /api/messages/[userId] joins TrainerRequest + Friendship status onto each request-typed message and returns it as requestStatus. Client renders a coloured chip on both sides. PATCH /api/trainer/request drops an in-app adoption_accepted / adoption_declined Message so the trainer aside reflects the outcome without push delivery."
     }
   ]
 }
