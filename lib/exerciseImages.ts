@@ -60,6 +60,20 @@ const LOCAL_STRETCH_IDS = new Set<string>([
   "bird-dog",
 ]);
 
+// Centralized blacklist for remote free-exercise-db entries whose
+// shipped frames don't actually depict the named exercise. Listing
+// the DB id here pulls EVERY local id that maps to it (via
+// EXERCISE_DB_MAP or NAME_OVERRIDES) back to the emoji fallback in
+// one place, instead of tracking individual mapping rows. Reviewed
+// frames go in here; once we ship correct local frames at
+// /public/stretches/<id>/{0,1}.png we can remove the entry and add
+// the id to LOCAL_STRETCH_IDS instead. (qa: form-preview-images-wrong)
+const BROKEN_DB_MAPPINGS = new Set<string>([
+  // Frames don't show hanging leg raise — wrong action depicted.
+  // Flagged by @maaiz 2026-05-24.
+  "Hanging_Leg_Raise",
+]);
+
 export function getExerciseImageUrls(exerciseId: string, exerciseName?: string): [string, string] | null {
   if (LOCAL_STRETCH_IDS.has(exerciseId)) {
     return [`/stretches/${exerciseId}/0.png`, `/stretches/${exerciseId}/1.png`];
@@ -73,6 +87,9 @@ export function getExerciseImageUrls(exerciseId: string, exerciseName?: string):
     if (!dbId) dbId = NAME_OVERRIDES[key];
   }
   if (!dbId) return null;
+  // Known-wrong DB entry → emoji fallback. Single source of truth
+  // so adding more wrong frames is a one-line change above.
+  if (BROKEN_DB_MAPPINGS.has(dbId)) return null;
   return [
     `${BASE}/${encodeURIComponent(dbId)}/0.jpg`,
     `${BASE}/${encodeURIComponent(dbId)}/1.jpg`,
