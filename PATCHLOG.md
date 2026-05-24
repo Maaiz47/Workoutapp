@@ -2,6 +2,56 @@
 
 ---
 
+## Feat · 2026-05-24 — Messaging soft-delete, system notifications, Fresh Legs IP, form-preview audit, reorder iOS hardening, lucky-drop wire-up (qa: message-soft-delete, system-notifications-feed, tier-ip-fresh-legs-and-cap, form-preview-images-wrong, workout-exercise-reorder, weight-input-convention-clarity, random-rare-rewards, group-chat-bigger-avatars)
+
+Big multi-feature bundle. 10 commits land together.
+
+### Message soft-delete (qa: message-soft-delete)
+- `Message.deletedAt` + `GroupMessage.deletedAt` columns (nullable). Soft delete preserves the row so every reader sees the placeholder consistently.
+- `DELETE /api/messages/[messageId]` and `DELETE /api/leaderboard/groups/[id]/messages/[messageId]` — sender-only, system messages refused, group membership gated.
+- GET endpoints sanitize on read: body → '', replyTo/reactions/proposal stripped, `deleted: true` flagged.
+- DM UI: 🗑 button appended to the long-press reaction picker on own bubbles; tap → confirm → optimistic local flip → DELETE call. Recipient sees the placeholder on next poll.
+- Group chat UI: 500ms long-press on own bubble opens a `🗑 DELETE / CANCEL` overlay. Same optimistic flow.
+
+### System notifications feed (qa: system-notifications-feed)
+- Bundled-list approach via `lib/systemNotifications.ts` — update the const = code deploy. Read state per-user in localStorage.
+- Pinned `📢 IRONLOG SYSTEM` row at the top of the Messages inbox with unread badge.
+- Tapping opens `view="systemNotifs"` — chat-style read-only feed; bubbles tinted by severity (warning red, update teal, info purple), sorted chronologically.
+- Seeded with the anti-cheat warning: "logging incorrect data to game your tier score can result in a sub-rank deduction in the affected dimension for a period of time. Lift safe, track honestly, progress naturally. 💪"
+
+### Fresh Legs IP bonus + weekly target-cap (qa: tier-ip-fresh-legs-and-cap)
+- Carrot: +5 IP on the first session of a day if the previous calendar day had no logged session. Toast `✨ +5 IP · FRESH LEGS BONUS`.
+- Stick: weekly cap = `daysPerWeek + 1` distinct training days. Sessions past the cap on a new day earn 0 IP. Toast `🛌 RECOVERY CAP · 0 IP this session`.
+- Applied at save-time (`/api/workout` POST) for immediate feedback + storage correctness.
+- Applied at read-time (`leaderboardStats.computeStatsFromLogs`) so historical IP and leaderboard scores reflect the new mechanic uniformly.
+- Shared helpers in `lib/freshLegs.ts`.
+
+### Lucky drop wire-up (qa: random-rare-rewards, suggestion-bonus)
+- `UserProfile.tierScoreBonus` re-blended into the headline as a visible `🍀 Lucky` sub-rank. Cap +20 lifetime.
+- v2 had silently dropped this from the headline; v3.5 brings it back **as a visible component** so every +1 from rare drops or smart-pick bonuses now visibly nudges the score.
+- `computeAthleteTier` + `buildCanonicalTier` + `userProfile.findMany` select all carry the bonus through.
+
+### Form-preview audit (qa: form-preview-images-wrong)
+- Two known-wrong remote DB mappings blacklisted: `Hanging_Leg_Raise`, `Quad_Stretch`. Fallback to emoji icon.
+- New `/qa/form-previews` page: scrollable grid of every exercise's 2-frame animation, search + filter, per-card FLAG WRONG toggle, COPY FLAGGED button assembles a ready-to-paste BROKEN_DB_MAPPINGS snippet. Nav chip on the main QA dashboard.
+
+### Press-and-hold reorder, iOS hardened (qa: workout-exercise-reorder)
+- TouchSensor 500ms → 350ms delay (beats iOS context-menu race at ~550ms).
+- Tolerance 5px → 10px (iOS touch jitter cancelled drags before activation).
+- SortableExerciseItem `touchAction: 'none'` per dnd-kit recommendation for sortables in scrollable containers — root-cause of reorder failing during active session on iOS.
+- iOS callout/text-selection/tap-highlight suppressed.
+
+### WEIGHT label single-row alignment (qa: weight-input-convention-clarity)
+- Collapsed multi-row WEIGHT label to a single row: 'WEIGHT (kg)' + 📏 BAR? button inline. Matches REPS column header height; ±step indicator dropped (the +/− buttons make increment obvious); convention text moved into the BAR? tooltip + existing 🏋 TOTAL WEIGHT chip below.
+
+### Group chat: bigger avatars (qa: group-chat-bigger-avatars)
+- UserAvatarChip size 18 → 32 on incoming bubbles. Author chip restyled with larger gap + brighter username.
+
+### Tutorial v7 (qa: tier-ip-fresh-legs-and-cap, workout-exercise-reorder, message-soft-delete, system-notifications-feed)
+- TUTORIAL_VERSION bumped v6 → v7. Adds steps for Fresh Legs / reorder / message-delete / system feed; updates the tier-sub-ranks step to mention the new 🍀 Lucky sub-rank + 9-dim breakdown.
+
+---
+
 ## Feat · 2026-05-24 — Wellness sync, tier v3.5 scaffolding, UI polish bundle (qa: wellness-sync-v1, tier-scoring-v35, home-tier-card-stripped, weekly-recap-top-exercise-name, weight-input-convention-clarity, workout-warmup-mark-each-set, workout-rest-skipped-counter, user-log-audit-allaa)
 
 Big multi-slice deploy. Eleven commits land together — none of them shipped on their own previously.

@@ -1,6 +1,110 @@
 {
   "items": [
     {
+      "id": "tier-ip-fresh-legs-and-cap",
+      "title": "Fresh Legs +5 IP bonus + weekly target-cap (recovery beats farming)",
+      "area": "Tiers",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass tier-ip-fresh-legs-and-cap",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Log a session today after at least one full rest day (no log yesterday). Verify the IP toast reads '✨ +5 IP · FRESH LEGS BONUS' shortly after the save completes.",
+        "Log another session the same day. Verify NO Fresh Legs toast fires (bonus is once per day).",
+        "Log a session on a day immediately after a session yesterday — verify no Fresh Legs bonus fires.",
+        "With daysPerWeek=4: log 5 sessions in distinct days this week. The 5th should still earn full IP (cap is daysPerWeek + 1 = 5).",
+        "Log a 6th session on a 6th distinct day this week. Verify the toast reads '🛌 RECOVERY CAP · 0 IP this session' and Technique sub-rank doesn't move from this session's IP.",
+        "Verify leaderboard Technique sub-rank reflects the cap retroactively (historical sessions over the cap should also not contribute IP)."
+      ],
+      "notes": "[2026-05-24] Shipped: lib/freshLegs.ts shared helpers. Applied at save-time (api/workout) for immediate feedback + at read-time (leaderboardStats) so historical IP matches the cap. Toast surfaces both states. Cap = daysPerWeek + 1 distinct training days per ISO week; +1 buffer absorbs schedule shifts."
+    },
+    {
+      "id": "system-notifications-feed",
+      "title": "Pinned IRONLOG SYSTEM feed in the Messages inbox",
+      "area": "Messages",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass system-notifications-feed",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open /messages — verify a pinned 📢 IRONLOG SYSTEM row appears at the very top with a purple gradient + unread count badge.",
+        "Tap the row. Verify it opens a chat-style view with the anti-cheat warning bubble (red WARNING tint).",
+        "Verify the bubble's body reads 'Lift safe, track honestly, progress naturally. 💪' as the closing line.",
+        "Tap back. Verify the unread badge disappeared from the inbox row.",
+        "Re-open the system feed. Verify the bubble still shows (read state persists but content doesn't disappear)."
+      ],
+      "notes": "[2026-05-24] Shipped: lib/systemNotifications.ts bundled list + localStorage read tracking. Pinned row in inbox + view='systemNotifs' chat-style display."
+    },
+    {
+      "id": "message-soft-delete",
+      "title": "Long-press own message bubble to delete for everyone",
+      "area": "Messages",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass message-soft-delete",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Send a DM to a friend. Long-press your own bubble — verify the reaction picker appears with emoji chips + a 🗑 button at the end.",
+        "Tap 🗑, confirm in the alert. Verify your bubble flips to a dashed-border 'Message deleted' placeholder immediately.",
+        "On the recipient's device (or polling cycle), verify their copy of the bubble also flips to the placeholder.",
+        "In a group chat, long-press your own message — verify a 🗑 DELETE / CANCEL overlay appears above the bubble.",
+        "Tap DELETE, confirm. Verify the placeholder renders for all group members.",
+        "Long-press someone ELSE's message in a group — verify no delete affordance shows (sender-only)."
+      ],
+      "notes": "[2026-05-24] Shipped: Message.deletedAt + GroupMessage.deletedAt schema; sender-only DELETE endpoints; GET sanitization (body='', deleted:true). DM picker + group chat overlay UIs. System messages refuse delete."
+    },
+    {
+      "id": "workout-exercise-reorder",
+      "title": "Press-and-hold exercise cards to reorder (session + customise)",
+      "area": "Workout",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass workout-exercise-reorder",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open an active session on iPhone. Long-press an exercise card (about 350ms) — verify the card lifts with a gold glow.",
+        "Drag the card to a new position. Verify the surrounding cards shift to accommodate. Release — verify the new order persists.",
+        "Reload the session. Verify the order is preserved.",
+        "Try reordering a superset block — verify the entire block moves as a unit; internal order within the superset is preserved.",
+        "Open Customise → any day. Long-press an exercise card. Verify drag-to-reorder works the same way and persists via saveDay.",
+        "Tap (don't hold) any exercise — verify the normal expand/tap behaviour still works. Drag isn't triggered by quick taps."
+      ],
+      "notes": "[2026-05-24] Shipped: @dnd-kit/core + sortable. TouchSensor 350ms delay / tolerance 10 (iOS-tuned). SortableExerciseItem touchAction:'none' per dnd-kit spec for scrollable containers. Singles drag by ex.id; supersets drag by groupId and flatten back to exercises array preserving internal order."
+    },
+    {
+      "id": "form-preview-images-wrong",
+      "title": "Form-preview audit page + blacklist for known-wrong DB mappings",
+      "area": "QA",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass form-preview-images-wrong",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open /qa — verify the '🖼 FORM PREVIEW AUDIT' nav chip appears next to '📤 OPEN IN BROWSER'.",
+        "Tap it. Verify a grid of every WORKOUT_DATA + EXERCISES catalog exercise renders with 2-frame animations alternating every 900ms.",
+        "Use the search box — type 'bench' and verify only matching cards remain.",
+        "Tap FLAG WRONG on a card. Verify the card border turns red and the button reads ✓ FLAGGED.",
+        "Tap COPY {N} FLAGGED. Verify a snippet ready for BROKEN_DB_MAPPINGS is on the clipboard.",
+        "Verify Hanging Leg Raises now shows the emoji fallback (no remote image) in a workout where it appears.",
+        "Verify Standing Quad Stretch also shows the emoji fallback."
+      ],
+      "notes": "[2026-05-24] Shipped: BROKEN_DB_MAPPINGS set in lib/exerciseImages.ts (Hanging_Leg_Raise + Quad_Stretch); /qa/form-previews page; nav chip on /qa."
+    },
+    {
+      "id": "group-chat-bigger-avatars",
+      "title": "Bigger author avatars on group chat bubbles",
+      "area": "Messages",
+      "introduced": "2026-05-24",
+      "introducedBy": "QA pass group-chat-bigger-avatars",
+      "lastTested": "2026-05-24",
+      "status": "regression-retest",
+      "steps": [
+        "Open a group chat with messages from other members. Verify each incoming bubble shows a 32px circular avatar (was 18px) to the left of the username.",
+        "Verify own messages do NOT show an avatar (right-aligned, gradient bubble unchanged)."
+      ],
+      "notes": "[2026-05-24] Shipped: UserAvatarChip size 18 → 32 in group chat bubble render; author chip restyled with brighter username text."
+    },
+    {
       "id": "user-log-audit-allaa",
       "title": "Admin can audit + per-set correct miscoded workout-log weights (notation shifts, accidental LBs)",
       "area": "Admin",
