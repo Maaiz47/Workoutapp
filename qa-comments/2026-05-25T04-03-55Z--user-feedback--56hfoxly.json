@@ -1,0 +1,10 @@
+{
+  "id": "cmpkom4vj0000bamk56hfoxly",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Messaging · view=conversation] Online and last seen functions exist and work, but the online status needs to be updated live on the chat log, not on chat log reopen",
+  "screenshotUrl": null,
+  "ts": "2026-05-25T04:03:55.568Z"
+}
