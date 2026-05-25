@@ -1,0 +1,10 @@
+{
+  "id": "cmpkj0efi000013e77d947um4",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=workout] Edit button on exercises in active session is vague and can’t click into done set boxes to edit them now",
+  "screenshotUrl": null,
+  "ts": "2026-05-25T01:27:03.439Z"
+}
