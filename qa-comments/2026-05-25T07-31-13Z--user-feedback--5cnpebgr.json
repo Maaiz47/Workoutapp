@@ -1,0 +1,10 @@
+{
+  "id": "cmpkw0qbw0002pdvn5cnpebgr",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=groupChat] Links sent in both group chats and normal chats must be clickable with a preview and hyperlink both",
+  "screenshotUrl": null,
+  "ts": "2026-05-25T07:31:13.867Z"
+}
