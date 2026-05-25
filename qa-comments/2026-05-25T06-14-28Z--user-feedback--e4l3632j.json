@@ -1,0 +1,10 @@
+{
+  "id": "cmpkta0k70000jpw8e4l3632j",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=groupsHub] Adding group challenges doesn’t seem to be working",
+  "screenshotUrl": null,
+  "ts": "2026-05-25T06:14:28.183Z"
+}
