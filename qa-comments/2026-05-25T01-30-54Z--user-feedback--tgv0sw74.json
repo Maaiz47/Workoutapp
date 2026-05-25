@@ -1,0 +1,10 @@
+{
+  "id": "cmpkj5cj40000uz5stgv0sw74",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=workout] Drag to reorder starts dragging but can’t place it where I want\nIs it because the exercise was added to only session and it’s as a bonus?",
+  "screenshotUrl": null,
+  "ts": "2026-05-25T01:30:54.256Z"
+}
