@@ -1,0 +1,10 @@
+{
+  "id": "cmpkj9eax000e35vwizlqa6ml",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=workout] https://kommodo.ai/i/klD50Xfo10zpKDxWsKhz I want this part of active session to stay floating on screen instead of scrolling away when I go down",
+  "screenshotUrl": null,
+  "ts": "2026-05-25T01:34:03.177Z"
+}
