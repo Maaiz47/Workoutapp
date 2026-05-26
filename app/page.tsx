@@ -2122,7 +2122,7 @@ function workoutImageFor(title: string): string | null {
   const t = title.toLowerCase();
   // Hybrid cardio+HIIT before either single keyword so "Cardio + HIIT" hits this first.
   if ((t.includes("cardio") && t.includes("hiit")) || t.includes("metcon")) return "/ai/day-cardio-hiit.jpg";
-  if (t.includes("hiit"))                                 return "/ai/day-hiit.jpg";
+  if (t.includes("hiit"))                                 return "/ai/workout-hiit.jpg";
   if (t.includes("cardio") || t.includes("conditio"))     return "/ai/day-cardio.jpg";
   if (t.includes("bodyweight") || t.includes("bw only") || t.includes("calisthen") || t.includes("no equipment")) return "/ai/day-bw-only.jpg";
   if (t.includes("mobility") || t.includes("stretch") || t.includes("yoga"))    return "/ai/day-mobility.jpg";
