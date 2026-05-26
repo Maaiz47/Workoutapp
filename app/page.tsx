@@ -985,7 +985,7 @@ function WellnessCard() {
   if (injuries.length > 0) summaryBits.push(`🤕 ${injuries.length}`);
 
   return (
-    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, marginBottom: 12 }}>
+    <div id="wellness-card-anchor" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, marginBottom: 12 }}>
       <button onClick={toggleOpen} style={{ width: "100%", padding: 14, background: "transparent", border: "none", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: 2, fontFamily: "'Space Mono', monospace" }}>🌱 WELLNESS</span>
         <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{summaryBits.join(" · ")} {open ? "▲" : "▼"}</span>
@@ -10641,7 +10641,31 @@ function HomePage() {
             if (needSleep) items.push({ icon: "😴", text: "Log sleep" });
             return (
               <button
-                onClick={() => { setView("progress"); setProgressTab("dashboard"); }}
+                onClick={() => {
+                  // Force the WellnessCard open even if the user has
+                  // previously closed it (localStorage="0"), then
+                  // scroll the card into view after the dashboard
+                  // mounts. Per @maaiz: "Clicked into the hydrate
+                  // reminder on home but it took me to progress
+                  // dashboard with the wellness bit closed. Take the
+                  // user directly to the hydration entry … or … open
+                  // list/card". (qa: progress-wellness-reminders-on-home)
+                  try { localStorage.setItem("ironlog-wellness-open", "1"); } catch {}
+                  setView("progress");
+                  setProgressTab("dashboard");
+                  // Defer the scroll until React paints the dashboard.
+                  // Retry a couple times in case the card mounts late.
+                  let tries = 0;
+                  const tick = () => {
+                    const el = document.getElementById("wellness-card-anchor");
+                    if (el) {
+                      el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    } else if (tries++ < 8) {
+                      setTimeout(tick, 80);
+                    }
+                  };
+                  setTimeout(tick, 60);
+                }}
                 style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 12px", marginBottom: 8, background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 10, color: "#4ECDC4", fontSize: 11, fontWeight: 600, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
               >
                 <span>WELLNESS · {items.map(i => `${i.icon} ${i.text}`).join(" · ")}</span>

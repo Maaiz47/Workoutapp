@@ -2,6 +2,34 @@
 
 ---
 
+## QA pass · 2026-05-26 follow-up #3 — bundled deploy (qa: tier-consistency-home-progress, qa-deep-link-to-comment, qa-retest-flips-parent-status, qa-retest-submit-appears-immediately, progress-wellness-reminders-on-home, session-treadmill-into-warmups, session-substitute-exercise, session-combine-existing-exercises, qa-search-which-bar-clarification)
+
+5 fixable items shipped together, 3 feature asks tracked as open items.
+
+### Addressed (code)
+- **tier-consistency-home-progress** (NEW): Progress dashboard's YOUR RANK card was building its OWN stripped `stats` object missing 9 sub-rank inputs (weeklyVolumes, recentSetsByExercise, weight/bf, gender, IP, setsByMuscleGroup, daysPerWeek). Refactored to reuse the canonical `myAthleteBreakdown` useMemo from line 8287 — same data → same headline tier on Home and Progress. Source: @maaiz screenshot 'Rank fox in dashboard progress tab but big dawg on home? Tier calculated differently different places?'.
+- **qa-deep-link-to-comment** (slice 4): `itemEl.querySelector("button > span:last-child")` walked depth-first and matched the inner "LAST 26 May…" meta span instead of the ▼/▲ indicator span on the toggle button. So `toggleBtn.click()` never fired, the item never expanded, the comment node never mounted, and the 3-second retry silently timed out → only the item-card fallback flash fired. Now walks the button's DIRECT children backwards to find the actual indicator span. Source: @maaiz screenshot 'highlights that but doesn't show me the comment to update still, manually needed to find'.
+- **qa-retest-flips-parent-status** (slice 2 — live fix from prior placeholder): `/api/qa/comment` POST now parses the `[🔄 RETEST · re:XXXXXXXX]` note prefix, finds the parent comment via 8-char suffix match (same itemId, same-owner check), and patches the parent's status DB-side. Response includes `parentUpdate` so the client flips the badge in local state immediately. Source: @maaiz 'I marked this working but the original comment stays showing untested which isn't right'.
+- **qa-retest-submit-appears-immediately** (NEW): POST previously returned just `{ok, id, ts}` — InlineRetestForm's `if (data?.comment)` check was always false → reply invisible until reload. POST now returns the full comment object (with user shape, processed flag) + `parentUpdate`. Client `onSaved` appends the new comment AND maps over prev to flip the parent badge. Source: @maaiz 'when I submit, it's not clear the original comment was attended to and it doesn't show my latest comment immediately'.
+- **progress-wellness-reminders-on-home** (BUG FIX): clicking the WELLNESS reminder pill on Home now (a) force-opens the WellnessCard via `localStorage['ironlog-wellness-open']='1'` even when previously collapsed, and (b) scrolls the card into view after the dashboard mounts (retries up to 8×80ms for late mount). Added `id="wellness-card-anchor"` to the card root. Source: @maaiz 'Clicked into the hydrate reminder on home but it took me to progress dashboard with the wellness bit closed'.
+
+### Also processed this slice (5 verified-working acks)
+- re:lmz97l94 ×2 dups 'Think working' — /qa multi-improvement slice confirmed shipping
+- re:nmce573y 'Verified working' — test marker 'show me 12345666' ack
+- re:94tf1z1w 'Verified working' — exercise text summary additions confirmed
+- re:vjxdat6z 'Verified working' — weight/reps pre-fill confirmed
+- re:ol97jnz8 'Verified working' — parent missing locally (older batch), recorded passing
+
+### Tracked / NOT shipped (feature asks punted to next pass)
+- **session-treadmill-into-warmups** (NEW · re:9uh36ca0): cardio added during an active session arrives as bonus — needs warm-up-slot affordance or prompt-on-add (warm/main/bonus). Design decision pending.
+- **session-substitute-exercise** (NEW · re:vj07gfbj): substitute exercise picker filtered by same-muscle-group during active session. Needs muscle-overlap query + one-off-vs-permanent UX call.
+- **session-combine-existing-exercises** (NEW · re:6hoflssb): combine/superset two EXISTING exercises in a day split without re-adding. Current add-superset flow only pairs a NEW exercise with an existing one.
+
+### Tracked / NOT shipped (clarification needed)
+- **qa-search-which-bar-clarification** (NEW · re:yt95a3qb): @maaiz asked 'Which search bar?' on the retest of the QA dashboard sticky-search fix. The /qa search bar IS floating (app/qa/page.tsx:1947 `position: fixed`). Possibly cache hadn't refreshed, possibly they meant a different search bar elsewhere.
+
+---
+
 ## QA pass · 2026-05-26 follow-up #2 — 3 direct asks from @maaiz (qa: qa-deep-link-to-comment, system-notifs-bottom-always, qa-retest-list-show-fix-and-how-to)
 
 In-chat feedback after pass #1 — three precise bugs, all addressed.

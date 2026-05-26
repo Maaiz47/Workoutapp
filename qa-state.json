@@ -5130,7 +5130,7 @@
         "Verify a \ud83d\udca7 LOG HYDRATION or \ud83d\ude34 LOG SLEEP nudge card appears in the home pro-tips strip.",
         "Tap it \u2014 opens the wellness modal scoped to that field."
       ],
-      "notes": "[2026-05-26] Slice 1: wellnessRemindersForToday(user) helper + home pro-tip row hook. Source: @maaiz cmpjv3chl v8gh26f3."
+      "notes": "[2026-05-26] BUG FIX: clicking the WELLNESS reminder pill on Home now (a) force-opens the WellnessCard via localStorage='1' even if the user previously collapsed it, and (b) scrolls the wellness card into view after the dashboard mounts (retries up to 8x at 80ms intervals to handle late mount). Anchor id='wellness-card-anchor' on the card root. Source: @maaiz 'Clicked into the hydrate reminder on home but it took me to progress dashboard with the wellness bit closed. Take the user directly to the hydration entry or \u2026 open list/card'.\n\n[2026-05-26] Slice 1: wellnessRemindersForToday(user) helper + home pro-tip row hook. Source: @maaiz cmpjv3chl v8gh26f3."
     },
     {
       "id": "progress-daily-mission-counters",
@@ -5680,6 +5680,68 @@
         "Verify the original comment's badge has flipped to match the submitted status."
       ],
       "notes": "[2026-05-26] Slice 1: /api/qa/comment POST previously returned just {ok, id, ts}. InlineRetestForm's `if (data?.comment)` check always failed \u2192 onSubmitted never called \u2192 setComments never appended \u2192 reply invisible until reload. POST now returns the full comment object (with user shape) + parentUpdate. onSaved appends the new comment AND maps over prev to flip the parent status. Source: @maaiz 'when I submit, it's not clear the original comment was attended to and it doesn't show my latest comment immediately'."
+    },
+    {
+      "id": "session-treadmill-into-warmups",
+      "title": "Cardio added during an active session can be slotted into the WARM-UPS section, not just the bonus list",
+      "area": "Workouts",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 (re:9uh36ca0)",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Start an active session.",
+        "Add treadmill (or any cardio) via Add Exercise.",
+        "Verify the new card has a move-to-warm-up affordance (or that adding cardio prompts: warm-up / main / bonus).",
+        "Verify it lands in the warm-up section visually, not silently bucketed as bonus."
+      ],
+      "notes": "[2026-05-26] OPEN. @maaiz: 'Treadmill comes in as bonus \u2026 I can\\'t move it into warm ups section. But treadmill someone might want to be the main exercise too so not sure'. Needs design decision: prompt-on-add (warm/main/bonus) vs drag-to-reorder vs default-to-warm-up-for-cardio-tagged. Punted from 2026-05-26 deploy."
+    },
+    {
+      "id": "session-substitute-exercise",
+      "title": "Substitute exercise from a similar-muscle picker during an active session (instead of skipping + adding)",
+      "area": "Workouts",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 (re:vj07gfbj)",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Start an active session.",
+        "On any exercise card, find a SUBSTITUTE action.",
+        "Verify the picker only shows exercises targeting the same primary muscle group.",
+        "Verify the alternate exercise replaces the original in the day's split going forward (or is a one-off swap \u2014 TBD)."
+      ],
+      "notes": "[2026-05-26] OPEN. @maaiz: 'Introduce a substitute function for active sessions instead of manually skipping or adding a new exercise, can choose to substitute the exercise from a selection of exercises that are targeting similar muscle areas and identify the alternate exercise down that split'. Punted from 2026-05-26 deploy \u2014 needs the muscle-overlap query + the one-off-vs-permanent UX call."
+    },
+    {
+      "id": "session-combine-existing-exercises",
+      "title": "Combine / superset two EXISTING exercises in a day split (without re-adding them)",
+      "area": "Workouts",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 (re:6hoflssb)",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "On a day in the planner (or active session), pick exercise A.",
+        "Find a 'combine with / superset with' action that lets you link A to exercise B from the SAME day.",
+        "Verify the two are visually grouped + alternate rep-by-rep during the session."
+      ],
+      "notes": "[2026-05-26] OPEN. @maaiz (FAILING retest on the supersetting ask): 'No way to combine two of the existing exercises in a day split'. Existing add-superset flow only lets you add a NEW exercise as a pair to an existing one. Need to expose a 'combine with existing' picker. Punted from 2026-05-26 deploy."
+    },
+    {
+      "id": "qa-search-which-bar-clarification",
+      "title": "Clarify WHICH search bar was made floating (QA dashboard, not main app)",
+      "area": "QA",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 (re:yt95a3qb)",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Open /qa.",
+        "Verify the 'Search items, steps, notes, threads\u2026' bar is position:fixed at the viewport top (it follows you as you scroll).",
+        "If @maaiz was asking about a DIFFERENT search bar (main app exercise picker, etc), record which one as a follow-up."
+      ],
+      "notes": "[2026-05-26] The QA dashboard search bar IS floating (app/qa/page.tsx:1947 position:fixed). @maaiz retest 'Which search bar?' suggests they may have been asking about a different one or cache hadn't refreshed. Needs explicit clarification \u2014 not coded around in 2026-05-26 deploy."
     }
   ]
 }

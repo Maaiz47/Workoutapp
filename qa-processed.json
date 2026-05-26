@@ -673,6 +673,50 @@
     "cmpm4vqpj0002qlqmzm46ijte": {
       "ts": "2026-05-26T04:36:23Z",
       "summary": "@maaiz: 'Exercises like treadmill or rowing machine don't need sets or rest, just the time/speed/distance'. New item workout-cardio-time-distance-exercise \u2014 placeholder this slice, needs exercise-type flag + variant input row next pass. (qa: workout-cardio-time-distance-exercise)"
+    },
+    "cmpm65ekw0000j9x128d4bk5s": {
+      "ts": "2026-05-26",
+      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+    },
+    "cmpm6avqx0000bd156ovuypxz": {
+      "ts": "2026-05-26",
+      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+    },
+    "cmpm6bc5f0001bd15swwo8abh": {
+      "ts": "2026-05-26",
+      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+    },
+    "cmpm6e4y50002bd15tdqhu8q8": {
+      "ts": "2026-05-26",
+      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+    },
+    "cmpm6gvsl0004mfk9qkb28txq": {
+      "ts": "2026-05-26",
+      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+    },
+    "cmpm6io0k000013ng4zhhg0a5": {
+      "ts": "2026-05-26",
+      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+    },
+    "cmpm6kv0j0005mfk9ytnrm127": {
+      "ts": "2026-05-26",
+      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+    },
+    "cmpm6l377000113ngxtrdqxjf": {
+      "ts": "2026-05-26",
+      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+    },
+    "cmpm6lgqa000213ngp0ht7dpx": {
+      "ts": "2026-05-26",
+      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+    },
+    "cmpm6n4hp0000yf4u9sn8qgu8": {
+      "ts": "2026-05-26",
+      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+    },
+    "cmpm6nqor000313ngnja61hdu": {
+      "ts": "2026-05-26",
+      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
     }
   }
 }
