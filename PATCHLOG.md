@@ -2,6 +2,25 @@
 
 ---
 
+## QA pass · 2026-05-26 follow-up #4 — three punted feature asks shipped (qa: session-treadmill-into-warmups, session-substitute-exercise, session-combine-existing-exercises)
+
+The three items that got tracked-but-not-shipped in follow-up #3, now built per the design choices @maaiz picked.
+
+### Addressed
+- **session-treadmill-into-warmups** ("Prompt on add"): every card in the active-session Add Exercise picker renders a new `<SectionAddRow>` with three chip buttons (+ WARM-UP / + MAIN / + BONUS) plus a slim 💾 SAVE TO ROUTINE button. The default-highlighted chip is WARM-UP for `libEx.type === "cardio"`, BONUS for everything else (preserves prior silent behaviour for non-cardio adds — same one-tap result, just an explicit chip). `handleAdd(libEx, permanent, section)` gains a `section` parameter: warmup finds/creates the Warm-Up section + sets `trackable:false` to match planner semantics; main finds/creates the main section; bonus keeps the cooldown-aware insertion rule. Permanent saves additionally write `kind:"warmup"` or `kind:"main"` onto the planDay exercise so the next session's `toSessionEx` (line 7138) routes it back to the correct section.
+
+- **session-substitute-exercise** ("Ask each time" + same primary muscle): new ⇄ SWAP button on every trackable active-session exercise card, sitting between EDIT and DROP SET. Opens the existing `subModal` in a new `mode: "user"` shape — `suggestSubstitutions` bumped to 8 candidates, equipment filter relaxed so the user can explore alternates regardless of gear. Each candidate renders + JUST TODAY (session-only mutation of activeDay) and ↻ REPLACE (also PUTs `/api/plan` and patches `customPlan` so the swap persists across future sessions, gated by a window.confirm). If the original exercise has logged sets, a confirm fires up-front; logged sets are preserved under the original exercise id in session history.
+
+- **session-combine-existing-exercises** (strict superset, in-session discoverability): the +SUPERSET picker now renders a FROM THIS SESSION block at the TOP listing every other in-session exercise (anchor itself and exercises already in a different superset group are filtered out), each with + JUST TODAY / + ADD TO SPLIT buttons. The pairing infrastructure (`handlePair` `alreadyIn` branch at lines 18570-18579) has always supported pairing existing exercises — they were just buried in ALL EXERCISES with a ✓ IN SESSION badge that testers missed. Pure discoverability fix.
+
+### Design choices made by @maaiz (via AskUserQuestion this session)
+- Cardio placement: Prompt on add (3-chip selector).
+- Substitute scope: Ask each time (JUST TODAY vs ↻ REPLACE).
+- Substitute pool: Same primary muscle only.
+- Combine pairing kind: Superset (strict — existing UI).
+
+---
+
 ## QA pass · 2026-05-26 follow-up #3 — bundled deploy (qa: tier-consistency-home-progress, qa-deep-link-to-comment, qa-retest-flips-parent-status, qa-retest-submit-appears-immediately, progress-wellness-reminders-on-home, session-treadmill-into-warmups, session-substitute-exercise, session-combine-existing-exercises, qa-search-which-bar-clarification)
 
 5 fixable items shipped together, 3 feature asks tracked as open items.

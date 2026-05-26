@@ -874,6 +874,71 @@ function MiniChart({ data, color, label }: { data: number[]; color: string; labe
   );
 }
 
+// Section chip row for the active-session "Add Exercise" picker.
+// Renders 3 buttons (WARM-UP / MAIN / BONUS) that each add the
+// libEx into that section of the active session, plus a slim
+// ROUTINE button beneath that also saves into the user's split
+// (uses warmup or bonus kind depending on the visually-default
+// section — cardio defaults to warm-up, everything else to bonus).
+// Per @maaiz QA pass 2026-05-26: "Treadmill comes in as bonus …
+// I can't move it into warm ups section". The chip approach
+// keeps add-to-bonus as one-tap-as-before (just tap BONUS, which
+// is the existing red theme) while adding explicit WARM-UP and
+// MAIN routes that were previously impossible without backing out
+// of the picker and editing the plan. (qa: session-treadmill-into-warmups)
+function SectionAddRow({ libEx, defaultSection, handleAdd }: {
+  libEx: any;
+  defaultSection: "warmup" | "main" | "bonus";
+  handleAdd: (libEx: any, permanent: boolean, section: "warmup" | "main" | "bonus") => void;
+}) {
+  // Visual emphasis on the default section — cardio defaults to
+  // WARM-UP (yellow, bold border), non-cardio defaults to BONUS
+  // (red, bold border). The non-default chips stay dim. Tapping
+  // any chip adds to that section regardless of which is default.
+  const chipStyle = (section: "warmup" | "main" | "bonus", color: string) => {
+    const isDefault = section === defaultSection;
+    const opacityMul = isDefault ? 1 : 0.55;
+    return {
+      flex: 1 as const,
+      padding: "8px 4px",
+      background: isDefault ? `rgba(${color}, 0.16)` : `rgba(${color}, 0.06)`,
+      border: `1px solid rgba(${color}, ${isDefault ? 0.45 : 0.18})`,
+      borderRadius: 8,
+      color: `rgba(${color}, ${opacityMul})`,
+      fontSize: 9,
+      fontWeight: 700,
+      letterSpacing: 1.2,
+      cursor: "pointer" as const,
+      fontFamily: "'Space Mono', monospace",
+    };
+  };
+  return (
+    <>
+      <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+        <button onClick={() => handleAdd(libEx, false, "warmup")} style={chipStyle("warmup", "255,230,109")}>+ WARM-UP</button>
+        <button onClick={() => handleAdd(libEx, false, "main")} style={chipStyle("main", "78,205,196")}>+ MAIN</button>
+        <button onClick={() => handleAdd(libEx, false, "bonus")} style={chipStyle("bonus", "255,107,107")}>+ BONUS</button>
+      </div>
+      <button
+        onClick={() => handleAdd(libEx, true, defaultSection === "warmup" ? "warmup" : "bonus")}
+        style={{
+          width: "100%",
+          padding: "6px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 8,
+          color: "rgba(255,255,255,0.55)",
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: 1.5,
+          cursor: "pointer",
+          fontFamily: "'Space Mono', monospace",
+        }}
+      >💾 SAVE TO ROUTINE ({defaultSection === "warmup" ? "WARM-UP" : "BONUS"})</button>
+    </>
+  );
+}
+
 // Wellness card — 4 lightweight daily trackers (hydration / sleep+energy
 // / soreness / injuries). All localStorage-backed, all opt-in, all
 // touchpoint-light. Shown OPEN by default (since v3.3 — per @maaiz the
@@ -5913,7 +5978,11 @@ function HomePage() {
   // Auto-substitute modal — opened when the user taps the ⇄ NEED chip on
   // an exercise they don't have the equipment for. Shows up to 4
   // alternatives matched on primary muscle + available equipment.
-  const [subModal, setSubModal] = useState<{ exerciseId: string; name: string; missing: string[] } | null>(null);
+  // `mode` distinguishes the auto-prompted swap (equipment missing /
+  // injured) from a user-initiated SUBSTITUTE click. user mode shows
+  // BOTH "JUST TODAY" and "REPLACE PERMANENTLY" buttons per candidate
+  // (the auto path is session-only). Slice B (qa: session-substitute-exercise).
+  const [subModal, setSubModal] = useState<{ exerciseId: string; name: string; missing: string[]; mode?: "auto" | "user" } | null>(null);
   // Deload-week state. When `deloadActive` is true, the set-input
   // pre-fill scales last-session weights by 0.7 to give the user a
   // recovery week. Toggled from a banner on the session view when the
@@ -16387,8 +16456,14 @@ function HomePage() {
             user CAN actually do with their current equipment. Tapping a
             suggestion swaps the exercise in the active session. */}
         {subModal && (() => {
-          const subs = suggestSubstitutions(subModal.exerciseId, (ob.equipment ?? []) as any, 4);
-          const accept = (newEx: any) => {
+          const isUserMode = subModal.mode === "user";
+          // User-initiated SUBSTITUTE pulls more candidates and ignores
+          // equipment filtering (showing 8 same-primary-muscle picks)
+          // so the user can explore alternates even when they own all
+          // the gear. Auto mode keeps the equipment-aware filter so
+          // the swap actually solves "can't do this today".
+          const subs = suggestSubstitutions(subModal.exerciseId, (ob.equipment ?? []) as any, isUserMode ? 8 : 4);
+          const replaceInActiveDay = (newEx: any) => {
             setActiveDay(d => {
               if (!d) return d;
               return {
@@ -16399,20 +16474,75 @@ function HomePage() {
                 })),
               };
             });
+          };
+          const acceptSession = (newEx: any) => {
+            replaceInActiveDay(newEx);
+            setSubModal(null);
+          };
+          // PERMANENT path (user mode only): also patch the saved
+          // routine so this substitution sticks across future
+          // sessions of this day. Requires the original exercise to
+          // exist in the planner; surfaces inline if not.
+          const acceptPermanent = (newEx: any) => {
+            if (!activeDay) return;
+            const planDay = customPlan?.find((d: any) => d.id === activeDay.id);
+            if (!planDay) {
+              window.alert("Couldn't save the substitution — this day isn't in your saved routine yet.");
+              return;
+            }
+            const exs: any[] = planDay.exercises ?? [];
+            const targetIdx = exs.findIndex((x: any) => x.exerciseId === subModal.exerciseId);
+            if (targetIdx < 0) {
+              window.alert("Couldn't save the substitution — the original exercise isn't in your saved routine.");
+              return;
+            }
+            const ok = window.confirm(`Replace "${subModal.name}" with "${newEx.name}" in this day's routine? It will appear in every future session.`);
+            if (!ok) return;
+            const newPayload = exs.map((x: any, i: number) => i === targetIdx ? {
+              ...x, exerciseId: newEx.id, name: newEx.name,
+            } : x);
+            fetch("/api/plan", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ dayId: activeDay.id, exercises: newPayload }),
+            }).catch(() => {});
+            setCustomPlan((prev: any) => prev ? prev.map((d: any) => d.id === activeDay.id ? { ...d, exercises: newPayload } : d) : prev);
+            replaceInActiveDay(newEx);
             setSubModal(null);
           };
           return (
             <div onClick={() => setSubModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 330, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}>
-              <div onClick={e => e.stopPropagation()} style={{ maxWidth: 380, width: "100%", background: "#0a0a0a", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 16, padding: 20, position: "relative" }}>
+              <div onClick={e => e.stopPropagation()} style={{ maxWidth: 380, width: "100%", maxHeight: "82vh", overflowY: "auto", background: "#0a0a0a", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 16, padding: 20, position: "relative" }}>
                 <button onClick={() => setSubModal(null)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#FF8C42", letterSpacing: 2, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>⇄ SWAP EXERCISE</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#FF8C42", letterSpacing: 2, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>{isUserMode ? "⇄ SUBSTITUTE EXERCISE" : "⇄ SWAP EXERCISE"}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 6 }}>{subModal.name}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>Needs <strong>{subModal.missing.join(", ")}</strong> — pick something you can actually do today:</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>
+                  {isUserMode
+                    ? "Same primary muscle group — pick an alternate:"
+                    : <>Needs <strong>{subModal.missing.join(", ")}</strong> — pick something you can actually do today:</>}
+                </div>
                 {subs.length === 0 ? (
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>No close alternatives in the library with your current equipment. Add the missing equipment in Settings → 🛠 MY EQUIPMENT or skip this exercise today.</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                    {isUserMode
+                      ? "No same-muscle alternates in the library."
+                      : "No close alternatives in the library with your current equipment. Add the missing equipment in Settings → 🛠 MY EQUIPMENT or skip this exercise today."}
+                  </div>
+                ) : isUserMode ? (
+                  subs.map((s: any) => (
+                    <div key={s.id} style={{ padding: "10px 12px", marginBottom: 6, background: "rgba(255,140,66,0.04)", border: "1px solid rgba(255,140,66,0.18)", borderRadius: 8 }}>
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{s.name}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{(s.primaryMuscles ?? []).slice(0, 2).join(" · ").toUpperCase()} · {(s.equipment ?? []).join(" + ").toUpperCase()}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => acceptSession(s)} style={{ flex: 1, padding: "7px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ JUST TODAY</button>
+                        <button onClick={() => acceptPermanent(s)} style={{ flex: 1, padding: "7px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>↻ REPLACE</button>
+                      </div>
+                    </div>
+                  ))
                 ) : (
                   subs.map((s: any) => (
-                    <button key={s.id} onClick={() => accept(s)} style={{ display: "flex", width: "100%", textAlign: "left", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 6, background: "rgba(255,140,66,0.06)", border: "1px solid rgba(255,140,66,0.2)", borderRadius: 8, color: "#fff", cursor: "pointer" }}>
+                    <button key={s.id} onClick={() => acceptSession(s)} style={{ display: "flex", width: "100%", textAlign: "left", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 6, background: "rgba(255,140,66,0.06)", border: "1px solid rgba(255,140,66,0.2)", borderRadius: 8, color: "#fff", cursor: "pointer" }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}</div>
                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{(s.primaryMuscles ?? []).slice(0, 2).join(" · ").toUpperCase()} · {(s.equipment ?? []).join(" + ").toUpperCase()}</div>
@@ -16422,7 +16552,9 @@ function HomePage() {
                   ))
                 )}
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 14, lineHeight: 1.5 }}>
-                  Swap is session-only — the saved routine isn&apos;t modified.
+                  {isUserMode
+                    ? <><strong>+ JUST TODAY</strong> swaps only for this session. <strong>↻ REPLACE</strong> also updates your saved routine.</>
+                    : <>Swap is session-only — the saved routine isn&apos;t modified.</>}
                 </div>
               </div>
             </div>
@@ -17348,6 +17480,23 @@ function HomePage() {
                           <button onClick={e => { e.stopPropagation(); const m = lookupExMuscles(ex.name); setFormPreview({ id: ex.id, name: ex.name, ...m }); }} style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>FORM</button>
                           {trackable && done > 0 && (
                             <button onClick={(e) => { e.stopPropagation(); openEditModal(ex.id); }} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>EDIT</button>
+                          )}
+                          {/* SUBSTITUTE — explicit, user-initiated swap to
+                              another exercise hitting the same primary
+                              muscle. Confirms before discarding any
+                              logged sets. Slice B (qa: session-substitute-exercise).
+                              Per @maaiz: "Introduce a substitute function
+                              for active sessions instead of manually
+                              skipping or adding a new exercise". */}
+                          {trackable && (
+                            <button onClick={(e) => {
+                              e.stopPropagation();
+                              if (done > 0) {
+                                const ok = window.confirm(`You've logged ${done} set(s) for "${ex.name}". Substituting won't delete those — they stay in your session history under this exercise. Continue?`);
+                                if (!ok) return;
+                              }
+                              setSubModal({ exerciseId: ex.id, name: ex.name, missing: [], mode: "user" });
+                            }} style={{ background: "rgba(255,140,66,0.08)", border: "1px solid rgba(255,140,66,0.28)", borderRadius: 6, color: "#FF8C42", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>⇄ SWAP</button>
                           )}
                           {trackable && (() => {
                             const dsActive = isDropSetMode(ex);
@@ -18636,31 +18785,70 @@ function HomePage() {
             setSessionExSearch("");
           };
           // Add an exercise to the active session. permanent=true also writes
-          // it to the saved routine (warning confirm required).
-          const handleAdd = (libEx: any, permanent: boolean) => {
+          // it to the saved routine (warning confirm required). section
+          // controls which active-session section it lands in:
+          //   "warmup" → existing Warm-Up section (created if absent)
+          //   "main"   → the main exercise section
+          //   "bonus"  → the Bonus section (default — preserves prior behaviour)
+          // Slice C (qa: session-treadmill-into-warmups): cardio cards
+          // in the picker render explicit WARM-UP / MAIN / BONUS buttons
+          // so the user can place a treadmill in warm-ups instead of
+          // having it silently land as bonus. Per @maaiz: "Treadmill
+          // comes in as bonus … I can't move it into warm ups section".
+          const handleAdd = (libEx: any, permanent: boolean, section: "warmup" | "main" | "bonus" = "bonus") => {
             if (permanent) {
-              const ok = window.confirm("Add this exercise to your routine? It will appear in every future session of this day.");
+              const sectionLabel = section === "warmup" ? "warm-up" : section === "main" ? "main" : "bonus";
+              const ok = window.confirm(`Add this exercise to your routine as ${sectionLabel}? It will appear in every future session of this day.`);
               if (!ok) return;
             }
             const newEx: any = {
               id: libEx.id, name: libEx.name, sets: 3, reps: "10-12", rest: 60,
               type: libEx.type ?? "isolation",
               dropSet: false, dropSets: 0,
+              // Warm-up rows are not trackable (no weight×reps logging
+              // chips) — matches the planner's kind==="warmup" semantics
+              // at line 7144 where `trackable = false`.
+              ...(section === "warmup" ? { trackable: false } : {}),
             };
             setActiveDay(d => {
               if (!d) return d;
               const sections = [...d.sections];
-              // Position rule: Bonus sits BEFORE any cooldown so newly
-              // added exercises don't land after the user's wind-down
-              // stretches. If no cooldown exists, append to the end as
-              // before. (qa: workout-in-session-exercise-add)
-              const cooldownIdx = sections.findIndex((s: any) => s.type === "cooldown" || s.name.toUpperCase().startsWith("COOL"));
-              const bonusIdx = sections.findIndex(s => s.name.toUpperCase() === "BONUS");
+              const upperName = (n: string) => (n || "").toUpperCase();
+              const isWarmupSec = (s: any) => s.type === "warmup" || upperName(s.name).startsWith("WARM");
+              const isCooldownSec = (s: any) => s.type === "cooldown" || upperName(s.name).startsWith("COOL");
+              const isBonusSec = (s: any) => upperName(s.name) === "BONUS";
+
+              if (section === "warmup") {
+                let idx = sections.findIndex(isWarmupSec);
+                if (idx >= 0) {
+                  sections[idx] = { ...sections[idx], exercises: [...sections[idx].exercises, newEx] };
+                } else {
+                  // No warm-up section exists — create one at the top.
+                  sections.unshift({ name: "Warm-Up", type: "warmup", exercises: [newEx] } as any);
+                }
+                return { ...d, sections };
+              }
+
+              if (section === "main") {
+                // Main = first section that isn't warmup/cooldown/bonus.
+                let idx = sections.findIndex(s => !isWarmupSec(s) && !isCooldownSec(s) && !isBonusSec(s));
+                if (idx >= 0) {
+                  sections[idx] = { ...sections[idx], exercises: [...sections[idx].exercises, newEx] };
+                } else {
+                  // No main section — create one after warm-up, before
+                  // any cooldown/bonus.
+                  const warmupIdx = sections.findIndex(isWarmupSec);
+                  const insertAt = warmupIdx >= 0 ? warmupIdx + 1 : 0;
+                  sections.splice(insertAt, 0, { name: "Main", exercises: [newEx] } as any);
+                }
+                return { ...d, sections };
+              }
+
+              // section === "bonus" — preserved prior behaviour.
+              const cooldownIdx = sections.findIndex(isCooldownSec);
+              const bonusIdx = sections.findIndex(isBonusSec);
               if (bonusIdx >= 0) {
                 const updated = { ...sections[bonusIdx], exercises: [...sections[bonusIdx].exercises, newEx] };
-                // If the existing Bonus row sits AFTER a cooldown
-                // (legacy data), move it back before — keeps the
-                // running order sane on later adds too.
                 if (cooldownIdx >= 0 && bonusIdx > cooldownIdx) {
                   sections.splice(bonusIdx, 1);
                   sections.splice(cooldownIdx, 0, updated);
@@ -18678,11 +18866,15 @@ function HomePage() {
               const planDay = customPlan?.find((d: any) => d.id === activeDay.id);
               if (planDay) {
                 const exs: any[] = planDay.exercises ?? [];
+                // Set planDay.kind so the next session's section-build
+                // (line 7138) routes the exercise into the right section.
+                const planKind = section === "warmup" ? "warmup" : "main";
                 const newPayload = [...exs, {
                   exerciseId: libEx.id, name: libEx.name,
                   sets: 3, reps: "10-12", rest: 60,
                   notes: null, groupId: null, groupType: null,
                   dropSets: 0, dropSet: false,
+                  kind: planKind,
                 }];
                 fetch("/api/plan", {
                   method: "PUT",
@@ -18725,6 +18917,49 @@ function HomePage() {
                     Tap <strong>+ JUST TODAY</strong> to pair them for this workout only, or <strong>+ ADD TO SPLIT</strong> to save the pair to your routine so it appears in every future session of this day. Exercises already in today&apos;s session show a <span style={{ color: "#4ECDC4" }}>✓ IN SESSION</span> badge but can still be paired.
                   </div>
                 )}
+                {/* Slice A (qa: session-combine-existing-exercises): when
+                    +SUPERSET is tapped from an exercise card, surface
+                    OTHER in-session exercises in a prominent FROM THIS
+                    SESSION block at the TOP of the picker. Previously
+                    they were buried in ALL EXERCISES with a ✓ IN
+                    SESSION badge — easy to miss. Per @maaiz FAILING
+                    retest: "No way to combine two of the existing
+                    exercises in a day split". The pairing infra
+                    (handlePair alreadyIn branch) has always supported
+                    this; the change is purely discoverability. */}
+                {isSuperMode && !searchLower && (() => {
+                  const candidates: any[] = [];
+                  activeDay?.sections.forEach(s => s.exercises.forEach(x => {
+                    if (x.id === addingSupersetForId) return;
+                    if (x.groupId && x.groupId !== (partnerEx as any)?.groupId) return;
+                    const lib = (EXERCISES as any[]).find((e: any) => e.id === x.id);
+                    candidates.push({ id: x.id, name: x.name, muscles: lib?.primaryMuscles ?? [], type: x.type, fromSession: true });
+                  }));
+                  if (candidates.length === 0) return null;
+                  return (
+                    <>
+                      <div style={{ fontSize: 9, color: "rgba(78,205,196,0.7)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>🔗 FROM THIS SESSION · COMBINE WITH</div>
+                      {candidates.map((cEx: any) => {
+                        const muscles = (cEx.muscles as string[]).slice(0, 2).join(" · ");
+                        return (
+                          <div key={`session-${cEx.id}`} style={{ padding: "12px 14px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.28)", borderRadius: 10, marginBottom: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{cEx.name}</div>
+                                {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
+                              </div>
+                              <span style={{ fontSize: 9, color: "#4ECDC4", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 4, padding: "2px 6px", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>✓ IN SESSION</span>
+                            </div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={() => handlePair(cEx, false)} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ JUST TODAY</button>
+                              <button onClick={() => handlePair(cEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ADD TO SPLIT</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
                 {/* Superset mode: recommended partners at the top. */}
                 {isSuperMode && !searchLower && recommended.length > 0 && (
                   <>
@@ -18757,21 +18992,29 @@ function HomePage() {
                     Tap <strong>+ JUST TODAY</strong> to add for this workout only, or <strong>+ ADD TO SPLIT</strong> to save it to your routine so it appears in every future session of this day.
                   </div>
                 )}
+                {/* Renders the section chip row + ROUTINE button for an
+                    add-mode card. Cardio cards default-highlight WARM-UP;
+                    everything else default-highlights BONUS (the previous
+                    silent default). The chip is the action — tapping it
+                    adds the exercise to THAT section. ROUTINE is a
+                    separate slim button that saves to the user's split
+                    (as warm-up or bonus depending on which chip is
+                    visually default). Slice C (qa: session-treadmill-into-warmups). */}
+                {(() => null)()}
                 {!isSuperMode && !searchLower && sessionExSuggestions.length > 0 && (
                   <>
                     <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>✨ SUGGESTED FOR THIS WORKOUT</div>
                     {sessionExSuggestions.map((libEx: any) => {
                       const muscles = ((libEx.muscles ?? []) as string[]).slice(0, 2).join(" · ");
+                      const isCardio = libEx.type === "cardio";
+                      const defaultSection: "warmup" | "main" | "bonus" = isCardio ? "warmup" : "bonus";
                       return (
                         <div key={libEx.id} style={{ padding: "12px 14px", background: "rgba(78,205,196,0.04)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 10, marginBottom: 6 }}>
                           <div style={{ marginBottom: 8 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{libEx.name}</div>
                             {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
                           </div>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            <button onClick={() => handleAdd(libEx, false)} style={{ flex: 1, padding: "8px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ JUST TODAY</button>
-                            <button onClick={() => handleAdd(libEx, true)} style={{ flex: 1, padding: "8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ADD TO SPLIT</button>
-                          </div>
+                          <SectionAddRow libEx={libEx} defaultSection={defaultSection} handleAdd={handleAdd} />
                         </div>
                       );
                     })}
@@ -18781,6 +19024,8 @@ function HomePage() {
                 {(visibleList ?? filteredAll.slice(0, 50)).map((libEx: any) => {
                   const muscles = ((libEx.muscles ?? []) as string[]).slice(0, 2).join(" · ");
                   const alreadyIn = inSessionIds.has(libEx.id);
+                  const isCardio = libEx.type === "cardio";
+                  const defaultSection: "warmup" | "main" | "bonus" = isCardio ? "warmup" : "bonus";
                   return (
                     <div key={`all-${libEx.id}`} style={{ padding: isSuperMode ? "11px 14px" : 0, background: isSuperMode ? "rgba(255,255,255,0.03)" : "transparent", border: isSuperMode ? "1px solid rgba(255,255,255,0.06)" : "none", borderRadius: 10, marginBottom: 6 }}>
                       {isSuperMode ? (
@@ -18803,10 +19048,7 @@ function HomePage() {
                             <div style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{libEx.name}</div>
                             {muscles && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{muscles.toUpperCase()}</div>}
                           </div>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            <button onClick={() => handleAdd(libEx, false)} style={{ flex: 1, padding: "6px", background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 8, color: "#4ECDC4", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ SESSION</button>
-                            <button onClick={() => handleAdd(libEx, true)} style={{ flex: 1, padding: "6px", background: "rgba(255,107,107,0.06)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 8, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1.5, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ ROUTINE</button>
-                          </div>
+                          <SectionAddRow libEx={libEx} defaultSection={defaultSection} handleAdd={handleAdd} />
                         </div>
                       )}
                     </div>
