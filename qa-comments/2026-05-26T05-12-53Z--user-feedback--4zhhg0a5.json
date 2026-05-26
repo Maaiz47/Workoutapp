@@ -1,0 +1,10 @@
+{
+  "id": "cmpm6io0k000013ng4zhhg0a5",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "[🔄 RETEST · re:vj07gfbj] Introduce a substitute function for active sessions instead of manually skipping or adding a new exercise, can choose to substitute the exercise from a selection of exercises that are targeting similar muscle areas and identify the alternate exercise down that split",
+  "screenshotUrl": null,
+  "ts": "2026-05-26T05:12:53.010Z"
+}
