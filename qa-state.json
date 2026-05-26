@@ -5017,7 +5017,7 @@
         "Verify the feed lands scrolled to the bottom (newest), NOT scrolled to the top of the first unread.",
         "Unread highlight (NEW chip + glow) should still apply on unread bubbles."
       ],
-      "notes": "[2026-05-26] Slice 1: scroll target bumped to scrollHeight-clientHeight on mount unconditionally; first-unread-into-view dropped. Source: @maaiz cmpjpgpch 0wjm73wr."
+      "notes": "[2026-05-26] Slice 2: strengthened the scroll-to-bottom \u2014 fires on rAF + 80ms + 240ms timeouts to defeat layout races (initial scroll might have raced with patchNotifs fetch / image loads). @maaiz 76t264yp 'still opens at the top from the read messages' likely tested an earlier deploy. Re-test after this push.\n\n[2026-05-26] Slice 1: scroll target bumped to scrollHeight-clientHeight on mount unconditionally; first-unread-into-view dropped. Source: @maaiz cmpjpgpch 0wjm73wr."
     },
     {
       "id": "tier-points-loss-warning",
@@ -5556,6 +5556,67 @@
         "Verify each ADMIN account receives a push '\ud83e\uddcd New signup: @username (email)' and a SYSTEM NOTIF row."
       ],
       "notes": "[2026-05-26] Tracked. Source: @maaiz cmpkt63ce ropxtnoh."
+    },
+    {
+      "id": "qa-thread-action-on-any-own-comment",
+      "title": "/qa thread: every own comment shows an UPDATE / RETEST action (not just processed ones)",
+      "area": "QA",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 follow-up",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Open /qa, expand any item with multiple of your own comments \u2014 some processed, some not.",
+        "Verify every one of your comments has a '\ud83d\udcac UPDATE / RETEST' (unprocessed) or '\ud83d\udd04 POST RETEST' (processed) button.",
+        "Tap to expand. Verify the 3-chip status selector + textarea + SUBMIT.",
+        "Submit on a non-processed comment \u2014 verify a child comment posts to the thread."
+      ],
+      "notes": "[2026-05-26] Slice 1: gate dropped from `c.processed && c.tester === tester && !acked` to `c.tester === tester && !acked`. Label switches on processed flag. Source: @maaiz screenshot 2026-05-26 06:41 'Still can't continue these threads'."
+    },
+    {
+      "id": "qa-thread-summarised-view",
+      "title": "/qa item view: surface summarised original issue + patch status at top of thread",
+      "area": "QA",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 follow-up",
+      "lastTested": "2026-05-26",
+      "status": "failing",
+      "steps": [
+        "Open /qa, expand any item with many comments + at least 1 patch.",
+        "Verify the top of the thread shows: SUMMARISED ORIGINAL ISSUE (first failing comment, simplified) + PATCH STATUS chip (PATCHED / OPEN) + INLINE RETEST action.",
+        "Below that, the full comment list (newest-first or scrolled-to-newest on open)."
+      ],
+      "notes": "[2026-05-26] Slice 1: just the qa-state placeholder + tracking. Render code lands next pass. Source: @maaiz bkb56h0t 'Can't see most recent comments added to this - want to see all comments before patch, when it should show the summarised original issue, whether patched and to retest if working now'."
+    },
+    {
+      "id": "qa-thread-newest-at-bottom-autoscroll",
+      "title": "/qa thread auto-scrolls to newest comment on item-card expand",
+      "area": "QA",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 follow-up",
+      "lastTested": "2026-05-26",
+      "status": "failing",
+      "steps": [
+        "Open /qa, tap an item with 50+ comments to expand it (no ?focus= deep-link).",
+        "Verify the thread auto-scrolls to the NEWEST comment at the bottom \u2014 chat convention.",
+        "When opened via ?focus=item#comment-XYZ, verify it still scrolls to the specific comment (existing behaviour)."
+      ],
+      "notes": "[2026-05-26] Slice 1: placeholder. Implementation lands next pass \u2014 needs a scrollTo on item-card expand effect when no deep-link hash is present. Source: @maaiz bkb56h0t."
+    },
+    {
+      "id": "qa-retest-flips-parent-status",
+      "title": "When a tester marks their own comment 'WORKS NOW' the parent comment's status reflects it",
+      "area": "QA",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 follow-up",
+      "lastTested": "2026-05-26",
+      "status": "failing",
+      "steps": [
+        "Open /qa on an item where you have an UNPROCESSED failing comment.",
+        "Tap UPDATE / RETEST \u2192 WORKS NOW \u2192 SUBMIT.",
+        "Verify the NEW comment posts as 'passing' AND the original failing comment's badge updates to PASSING (server-side patch)."
+      ],
+      "notes": "[2026-05-26] Slice 1: placeholder. Needs /api/qa/comment to optionally patch the parent comment's status when the retest is on the same itemId + same tester + originalCommentId hint. Source: @maaiz ipt9it59 'Marked this working but the original comment stays showing untested which isn't right'."
     }
   ]
 }

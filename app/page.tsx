@@ -5577,11 +5577,18 @@ function HomePage() {
   // system-notifs-bottom-always)
   useEffect(() => {
     if (view !== "systemNotifs") return;
-    const el = systemFeedScrollRef.current;
-    if (!el) return;
-    requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
-    });
+    const stamp = () => {
+      const el = systemFeedScrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    };
+    // Multiple scroll attempts to defeat any layout race: rAF (next
+    // paint), 80ms (after most fetches resolve), 240ms (after image
+    // decode / fonts). Cheap. Each is idempotent. Drops the
+    // first-unread-into-top behaviour entirely. (qa: system-notifs-bottom-always)
+    requestAnimationFrame(stamp);
+    const t1 = setTimeout(stamp, 80);
+    const t2 = setTimeout(stamp, 240);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [view, systemViewSnapshot, patchNotifs]);
   // Snapshot unread state when entering systemNotifs view (so the
   // first-unread scroll + highlight render correctly), then mark

@@ -645,6 +645,22 @@
     "cmpkt63ce0000l0p5ropxtnoh": {
       "ts": "2026-05-26T01:13:44Z",
       "summary": "@maaiz idea: 'Push Notification of new user sign ups to admin accounts and into system notifications with their username and email'. Tracked as idea-admin-signup-push. (qa: idea-admin-signup-push)"
+    },
+    "cmplyuzv00004rrw976t264yp": {
+      "ts": "2026-05-26T02:10:53Z",
+      "summary": "@maaiz: 'Opening system notifications chat log still opens at the top from the read messages'. Strengthened scroll-to-bottom: now fires on rAF + 80ms + 240ms timeouts to defeat layout races. (qa: system-notifs-bottom-always)"
+    },
+    "cmplywiol0005rrw9u2w4siyu": {
+      "ts": "2026-05-26T02:10:53Z",
+      "summary": "@maaiz retest re:lmz97l94 (passing): 'Verified working.' Sticky search + PATCHED\u00b7RETEST chip confirmed. Item /qa-improvements stays improved; new follow-up items added for 'summarised original issue + auto-scroll to newest' asks below. (qa: qa-thread-summarised-view)"
+    },
+    "cmplyx7c50006rrw9ipt9it59": {
+      "ts": "2026-05-26T02:10:53Z",
+      "summary": "@maaiz retest re:lmz97l94 (failing follow-up): 'I marked this working but the original comment stays showing untested which isn't right'. New item qa-retest-flips-parent-status \u2014 slice 1 placeholder; needs /api/qa/comment to optionally patch the parent comment's status on retest. (qa: qa-retest-flips-parent-status)"
+    },
+    "cmplyyg4y0008am1jbkb56h0t": {
+      "ts": "2026-05-26T02:10:53Z",
+      "summary": "@maaiz retest re:lmz97l94 (failing follow-up): 'Can't see most recent comments added to this - want to see all comments before patch, when it should show the summarised original issue, whether patched and to retest if working now'. Two new items: qa-thread-summarised-view (top-of-thread summary card) + qa-thread-newest-at-bottom-autoscroll (chat-convention scroll on expand). Also shipped this pass: qa-thread-action-on-any-own-comment \u2014 UPDATE / RETEST action now appears on EVERY own comment in the thread, not just processed ones. (qa: qa-thread-action-on-any-own-comment, qa-thread-summarised-view, qa-thread-newest-at-bottom-autoscroll)"
     }
   }
 }

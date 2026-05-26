@@ -2,6 +2,24 @@
 
 ---
 
+## QA pass · 2026-05-26 follow-up — 4 comments processed (qa: qa-thread-action-on-any-own-comment, qa-thread-summarised-view, qa-thread-newest-at-bottom-autoscroll, qa-retest-flips-parent-status, system-notifs-bottom-always)
+
+All 4 from @maaiz, posted within minutes of the big pass landing.
+
+### Addressed
+- **qa-thread-action-on-any-own-comment** (NEW): the InlineRetestForm gate in `app/qa/page.tsx` dropped `c.processed &&` — every comment the current tester owns now shows an action button ("🔄 POST RETEST" when the comment is patched, "💬 UPDATE / RETEST" when it's still open). Same 3-chip + textarea + SUBMIT UX. Source: @maaiz screenshot 'Still can't continue these threads which is what the qa links in system Notifications should go to'.
+- **system-notifs-bottom-always**: strengthened the scroll-to-bottom — now fires on rAF + 80ms + 240ms timeouts to defeat any layout race with patchNotifs lazy-load + image decode. Source: @maaiz 76t264yp 'Opening system notifications chat log still opens at the top from the read messages' (likely tested before the previous deploy fully landed).
+
+### Tracked / slice-1 stubs (qa-state items only, code lands next pass)
+- **qa-thread-summarised-view**: top-of-thread card showing simplified original issue + PATCH status chip + inline retest. Source: @maaiz bkb56h0t.
+- **qa-thread-newest-at-bottom-autoscroll**: when no `?focus=` deep-link, auto-scroll to newest on item-card expand (chat convention). Source: @maaiz bkb56h0t.
+- **qa-retest-flips-parent-status**: when a tester marks their own comment 'WORKS NOW', the parent comment's status flips too. Needs `/api/qa/comment` to optionally patch the parent on retest. Source: @maaiz ipt9it59.
+
+### Verified passing
+- **/qa improvements (lmz97l94)** — sticky search + PATCHED·RETEST chip confirmed via @maaiz u2w4siyu 'Verified working'. (No specific qa-state item — lmz97l94 was a multi-improvement /qa slice; the follow-up failing comments produced the 3 tracked items above.)
+
+---
+
 ## QA pass · 2026-05-26 — 75 comments processed (qa: qa-duplicate-detection, system-notifs-bottom-always, qa-retest-list-untruncated, qa-patch-summary-user-friendly, workout-active-edit-set-tap, progress-watermark-animation, trainer-request-pending-state, progress-pb-list-collapsed-and-complete, progress-tip-hide-when-session-logged, progress-strength-subrank-copy, progress-progression-subrank-copy, progress-technique-subrank-copy, progress-mastery-subrank-audit, progress-daily-mission-counters, workout-active-header-pinned, chat-link-preview-and-hyperlink, progress-wellness-reminders-on-home, messaging-online-status-live, system-notifs-action-prev-feedback, tier-points-loss-warning, qa-retest-list-show-original-when-summary-cryptic, qa-comment-priority-from-dashboard, profile-equipment-list-pretty, tier-badges-larger-everywhere, groups-chat-achievement-posts, progress-consistency-hint-gating, progress-habits-subrank-target-aware, progress-leaderboards-section-rework, trainer-rank-page, trainer-badge-everywhere, progress-body-photos-storage, groups-public-vs-open-rework, conversation-bubble-rich, friend-request-push-notif, workout-active-drag-reorder-bonus, groups-add-challenges-fix, home-next-up-smart, pro-tip-overlay-zindex, idea-qa-deep-link-to-test-screen, idea-tier-name-labels, idea-daily-quest-one-swap, idea-progress-cards-rearrangeable, idea-admin-signup-push)
 
 All 75 from @maaiz — biggest single-pass batch. None flagged suspicious.

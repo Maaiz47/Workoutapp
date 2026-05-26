@@ -771,10 +771,11 @@ function ContributorsLeaderboard() {
 // Inline retest action for the user's own processed comments. Three
 // status chips + textarea + SUBMIT. Same UX as the FAB retest list.
 // (qa: qa-inline-retest-in-dashboard)
-function InlineRetestForm({ itemId, commentId, tester, onSubmitted }: {
+function InlineRetestForm({ itemId, commentId, tester, processed, onSubmitted }: {
   itemId: string;
   commentId: string;
   tester: string;
+  processed?: boolean;
   onSubmitted: (newComment: Comment) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -782,12 +783,17 @@ function InlineRetestForm({ itemId, commentId, tester, onSubmitted }: {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Button label switches on whether the comment has been processed.
+  // Processed → "🔄 POST RETEST" (the patch is done, confirm/deny).
+  // Unprocessed → "💬 UPDATE" (the comment is still open; you're
+  // continuing the thread). Both flow to the same action — post a
+  // child comment with the chosen status. (qa: qa-thread-action-on-any-own-comment)
   if (!open) {
     return (
       <button
         onClick={() => setOpen(true)}
         style={{ marginTop: 8, padding: "4px 10px", background: "rgba(255,209,102,0.08)", border: "1px dashed rgba(255,209,102,0.35)", borderRadius: 6, color: "#FFD166", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
-      >🔄 POST RETEST</button>
+      >{processed ? "🔄 POST RETEST" : "💬 UPDATE / RETEST"}</button>
     );
   }
   return (
@@ -1185,16 +1191,20 @@ function ItemCard({
                     fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5,
                     whiteSpace: "pre-wrap", wordBreak: "break-word",
                   }}>{c.note}</div>
-                  {/* Inline retest form — only for the current tester's own
-                      processed comments. Mirrors the FAB's YOUR PATCHES TO
-                      RETEST inline form so the deep-link UX matches.
-                      Hidden once the user has acked the retest locally.
-                      (qa: qa-inline-retest-in-dashboard) */}
-                  {c.processed && c.tester === tester && !readRetestRespondedIds().has(c.id) && (
+                  {/* Inline retest / update form — for every comment
+                      the current tester owns, processed or not. Per
+                      @maaiz: "Still can't continue these threads which
+                      is what the qa links in system Notifications
+                      should go to (direct to thread item) where they
+                      can mark pass fail or retest with comment etc".
+                      Hidden once the user has acked the action locally.
+                      (qa: qa-inline-retest-in-dashboard, qa-thread-action-on-any-own-comment) */}
+                  {c.tester === tester && !readRetestRespondedIds().has(c.id) && (
                     <InlineRetestForm
                       itemId={item.id}
                       commentId={c.id}
                       tester={tester}
+                      processed={c.processed}
                       onSubmitted={(newComment) => { markRetestResponded(c.id); onSaved(newComment); }}
                     />
                   )}
