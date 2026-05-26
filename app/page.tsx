@@ -15413,48 +15413,28 @@ function HomePage() {
             {/* Athlete tier card — visible to ALL roles (user, trainer,
                 admin) because trainers also train themselves. Hidden
                 only in Pure Mode. Previously gated to role === "user". */}
-            {!deGamified && (() => {
-              const distinctEx = new Set<string>();
-              const recentDistinctEx = new Set<string>();
-              const oneEightyDaysAgo = Date.now() - 180 * 86400000;
-              for (const dayId in history) for (const s of history[dayId]) {
-                const sets = (s.sets ?? {}) as Record<string, any>;
-                const sessionTs = s.date ? +new Date(s.date) : 0;
-                const isRecent = sessionTs >= oneEightyDaysAgo;
-                for (const k in sets) {
-                  const exKey = k.replace(/-\d+(-d\d+)?$/, "");
-                  if (exKey) {
-                    distinctEx.add(exKey);
-                    if (isRecent) recentDistinctEx.add(exKey);
-                  }
-                }
-              }
+            {!deGamified && myAthleteBreakdown && (() => {
+              // Reuse the canonical breakdown computed at the top of the
+              // component (8287). Previously this block built its OWN
+              // stripped stats object missing 9 sub-rank inputs
+              // (weeklyVolumes, recentSetsByExercise, weight/bf, gender,
+              // IP, setsByMuscleGroup, daysPerWeek), which produced a
+              // DIFFERENT headline tier from Home — same data, two
+              // answers. Per @maaiz: "Rank fox in dashboard progress
+              // tab but big dawg on home? Tier calculated differently
+              // different places? Should be using the same data for
+              // sub ranks and all". (qa: tier-consistency-home-progress)
+              const breakdown = myAthleteBreakdown;
               const monthsOnApp = user.createdAt ? (Date.now() - +new Date(user.createdAt)) / (30 * 86400000) : 0;
-              // Sum total volume from history (kg × reps across every logged set).
-              let totalVolume = 0;
-              for (const dayId in history) for (const s of history[dayId]) {
-                const sets = (s.sets ?? {}) as Record<string, any>;
-                for (const k in sets) { const v = sets[k]; if (v && !v.skipped) totalVolume += (v.weight ?? 0) * (v.reps ?? 0); }
-              }
-              const wl = wellnessLast14Days();
-              const stats: AthleteStatsForTier = {
-                totalSessions: overall.totalSessions,
-                streak: overall.streak,
-                totalVolumeKg: totalVolume,
-                prCount: Object.keys(overall.exercisePRs).length,
-                distinctExercises: distinctEx.size,
-                recentDistinctExercises: recentDistinctEx.size,
-                monthsOnApp,
-                hydrationGoalDays: wl.hydrationGoalDays,
-                sleepLoggedDays: wl.sleepLoggedDays,
-                energyLoggedDays: wl.energyLoggedDays,
-              };
-              const breakdown = computeAthleteTier(stats, tierTheme);
+              // Experience badge still needs its own derivation —
+              // simpler stat shape and only used here.
+              const totalSessionsForExp = (overall as any).totalSessions ?? 0;
+              const prCountForExp = Object.keys(overall.exercisePRs ?? {}).length;
               const exp = effectiveExperience({
                 recorded: (ob.fitnessLevel as ExperienceLevel) || null,
                 monthsOnApp,
-                totalSessions: stats.totalSessions,
-                prCount: stats.prCount,
+                totalSessions: totalSessionsForExp,
+                prCount: prCountForExp,
               });
               const expM = experienceMeta(exp.level);
               const tier = breakdown.headline;

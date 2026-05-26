@@ -166,7 +166,7 @@
         "Verify /qa opens with the relevant item expanded and the specific comment scrolled into view + briefly flashing.",
         "From the Quick Note FAB \u2192 YOUR PATCHES TO RETEST \u2192 tap the \u2197 shortcut on a row. Verify the same focused deep-link behaviour."
       ],
-      "notes": "[2026-05-26] Slice 3: deep-link comment lookup now retries up to 30\u00d7100ms (3s total) after item expand \u2014 threads with 100+ comments need real time to hydrate + mount. Without the retry the user landed on the item card but never on the specific comment. Source: @maaiz 'links still don't go to the exact comment in full qa, just to the general floating pill list'.\n\n[2026-05-24] Shipped: bubble + retest-list onClick now set ?focus=<itemId>#comment-<commentId>. /qa effect expands the item (clicks toggle if collapsed) then flashes the comment node by id."
+      "notes": "[2026-05-26] Slice 4: toggle-button click never fired because `querySelector('span:last-child')` walked depth-first and matched the inner 'LAST 26 May\u2026' meta span instead of the actual \u25bc/\u25b2 indicator span. Now walks the button's DIRECT children backwards to find the last <span>. Without this, the item card got the focus flash but never expanded \u2192 comment node never mounted \u2192 3-second retry just timed out. Source: @maaiz screenshot \u2014 landed on the item card highlighted but had to manually expand + scroll to find the comment.\n\n[2026-05-26] Slice 3: deep-link comment lookup now retries up to 30\u00d7100ms (3s total) after item expand \u2014 threads with 100+ comments need real time to hydrate + mount. Without the retry the user landed on the item card but never on the specific comment. Source: @maaiz 'links still don't go to the exact comment in full qa, just to the general floating pill list'.\n\n[2026-05-24] Shipped: bubble + retest-list onClick now set ?focus=<itemId>#comment-<commentId>. /qa effect expands the item (clicks toggle if collapsed) then flashes the comment node by id."
     },
     {
       "id": "workout-effort-recommended-chip",
@@ -5649,6 +5649,21 @@
         "Log a value. Verify the session log persists it correctly + Progress dashboards aggregate cardio minutes separately."
       ],
       "notes": "[2026-05-26] Slice 1: placeholder. Implementation needs an exercise-type flag (cardio | timed | distance) + a variant input row. Source: @maaiz cmpm4vqpj zm46ijte 'Exercises like treadmill or rowing machine don't need sets or rest, just the time/speed/distance'."
+    },
+    {
+      "id": "tier-consistency-home-progress",
+      "title": "Athlete tier headline is identical on Home and Progress dashboard (same data, same result)",
+      "area": "Tiers",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 followup #3",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Open Home \u2014 read the athlete tier headline (e.g. BIG DAWG \u00b7 T4).",
+        "Open Progress \u2192 dashboard \u2014 read the YOUR RANK card.",
+        "Verify the headline tier label + tierNum + overall score are IDENTICAL."
+      ],
+      "notes": "[2026-05-26] Slice 1: Progress dashboard was building its OWN stripped stats object (missing weeklyVolumes, recentSetsByExercise, weight/bf, gender, intensityPoints, setsByMuscleGroup, daysPerWeek). Refactored to reuse the canonical `myAthleteBreakdown` useMemo from line 8287. Source: @maaiz screenshot \u2014 Home: BIG DAWG \u00b7 T4, Progress: FOX \u00b7 TIER 5 OF 6."
     }
   ]
 }

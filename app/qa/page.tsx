@@ -1525,11 +1525,24 @@ export default function QAPage() {
         const itemEl = document.getElementById(`qa-item-${focusId}`);
         if (itemEl) {
           // Find the inner toggle button + click it open if currently
-          // collapsed (it stores no aria-expanded — heuristic: if the
-          // first child button's last span shows ▼, expand it).
+          // collapsed. Heuristic: check the button's DIRECT last child
+          // span — that's the ▼/▲ indicator. Previous code used
+          // `querySelector("span:last-child")` which walks depth-first
+          // and matched an inner "LAST 26 May…" span instead of the
+          // indicator, so the click never fired and the thread never
+          // mounted. (qa: qa-deep-link-to-comment)
           const toggleBtn = itemEl.querySelector("button") as HTMLButtonElement | null;
-          const indicator = toggleBtn?.querySelector("span:last-child");
-          if (toggleBtn && indicator?.textContent?.includes("▼")) toggleBtn.click();
+          // Walk direct children, find the last <span>.
+          let indicator: HTMLElement | null = null;
+          if (toggleBtn) {
+            const kids = toggleBtn.children;
+            for (let i = kids.length - 1; i >= 0; i--) {
+              const el = kids[i] as HTMLElement;
+              if (el.tagName === "SPAN") { indicator = el; break; }
+            }
+          }
+          const txt = indicator?.textContent ?? "";
+          if (toggleBtn && txt.includes("▼")) toggleBtn.click();
         }
       }
       // Retry the comment lookup for up to 3 seconds — threads with
