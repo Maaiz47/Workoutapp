@@ -178,7 +178,22 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return json({ comments: annotated });
+    // RETEST comments are the user's verdict on a previously-shipped
+    // patch. The list should hide ones marked "passing" (the user said
+    // works now — no need to circle back), but KEEP ones marked
+    // "failing" or "regression-retest" since those still need
+    // attention. Per @maaiz clarification 2026-05-26: "if I select
+    // retest it means it needs attention by you then test again. If
+    // I said it works now, that's when we don't need to circle back
+    // to it later after a qa process". (qa: qa-retest-no-self-surface)
+    const filtered = annotated.filter((c: any) => {
+      if (typeof c.note !== "string") return true;
+      const isRetest = /\[🔄\s*RETEST\b/i.test(c.note);
+      if (!isRetest) return true;
+      return c.status !== "passing";
+    });
+
+    return json({ comments: filtered });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);
   }

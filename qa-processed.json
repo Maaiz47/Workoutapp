@@ -717,6 +717,10 @@
     "cmpm6nqor000313ngnja61hdu": {
       "ts": "2026-05-26",
       "summary": "Confirmed working \u2014 weight/reps now pre-fill from last logged session. Thanks for the retest."
+    },
+    "cmpmmyvry0004vr4pjpy16052": {
+      "ts": "2026-05-26",
+      "summary": "RETEST comments no longer reappear in your patches-to-retest list \u2014 server now filters them out. The previous deploy marked your verdict comments as processed which surfaced them back asking you to retest your own retest."
     }
   }
 }

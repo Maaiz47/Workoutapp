@@ -5825,6 +5825,22 @@
         "Verify the cardio exercise does NOT appear in FROM THIS SESSION nor in ALL EXERCISES results."
       ],
       "notes": "[2026-05-26] Three filter points: (1) +SUPERSET button on the card now requires ex.type !== 'cardio' alongside trackable, (2) FROM THIS SESSION candidates skip x.type === 'cardio', (3) ALL EXERCISES picker filteredAll skips e.type === 'cardio' when isSuperMode. Per @maaiz 'No need to superset exercises with warm ups like treadmill or elliptical or rowing machine etc'."
+    },
+    {
+      "id": "qa-retest-no-self-surface",
+      "title": "RETEST comments don't reappear in the user's patches-to-retest list",
+      "area": "QA",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 followup #8",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Open the FAB \u2192 YOUR PATCHES TO RETEST.",
+        "Verify original bug reports (notes starting with [\ud83d\udc1e BUG ...]) appear.",
+        "Verify RETEST comments with status=passing DO NOT appear (user already said works now).",
+        "Verify RETEST comments with status=failing / regression-retest DO appear (still needs attention from Claude)."
+      ],
+      "notes": "[2026-05-26] /api/qa/comments/mine GET filters RETEST comments by status: keeps `failing` / `regression-retest` (still needs attention from Claude \u2192 next pass should see them), hides `passing` (user said works now \u2192 done). Steps updated to reflect this semantic. Per @maaiz clarification 'if I select retest it means it needs attention by you then test again. If I said it works now, that's when we don't need to circle back to it later after a qa process'.\n\n[2026-05-26] /api/qa/comments/mine GET now filters out comments whose note matches `[\ud83d\udd04 RETEST ...]`. These are user VERDICTS on previously-shipped patches, not bug reports. When marked processed during a qa-pass batch, the list was surfacing them back asking the user to retest their own retest. Per @maaiz: 'This should not come back to my your patches to test unless it's reported broken again'."
     }
   ]
 }

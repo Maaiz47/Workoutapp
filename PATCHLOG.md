@@ -2,6 +2,28 @@
 
 ---
 
+## QA pass · 2026-05-26 follow-up #7 — bundled deploy of 6 fixes (qa: tier-technique-subrank, session-combine-existing-exercises, groups-list-open-by-default, trainer-request-pending-state, session-cardio-no-superset, qa-retest-no-self-surface)
+
+Six fixes shipped in one bundle, including one new from this round of testing.
+
+### Addressed
+- **tier-technique-subrank**: stored `intensityPoints` on the DB row only carries WRITE-TIME bonuses (supersets +5, drop chains +3, fresh-legs). The RPE bonus (max(0, rpe-7) per set: +1 for RPE 8, +2 for RPE 9, +3 for RPE 10) is computed at READ TIME by the leaderboard pipeline (`lib/leaderboardStats.ts:290`) — never persisted. Frontend's `totalIntensityPointsLifetime` sum at `app/page.tsx:8390` was just summing the stored field, so Technique read 0 even when leaderboards showed IP from RPE-tagged sets. Frontend now replicates the per-set RPE bonus in the same set-walk loop, so the headline tier on Home matches the Rankings page. Source: @maaiz "Techniques sub rank still 0, but I got IP for logging RPE and it shows in some leaderboards" + follow-up "Rankings are not reading tier correctly, apparently I'm different tiers there than on home".
+
+- **session-combine-existing-exercises** (slice 2 — stretch filter): Slice A from follow-up #4 surfaced every other in-session exercise as a +SUPERSET partner candidate, including warm-up + cool-down stretches. Stretches set trackable:false (lib lines 7219/7224) and card-level +SUPERSET/+DROP SET/⇄ SWAP buttons are gated by trackable so you can't initiate a pair FROM a stretch — but the picker was still showing them as valid partners for a trackable anchor. Adds the same trackable:false filter to the FROM THIS SESSION candidate list. Source: @maaiz "I am clicking superset on an exercise and I can see things like cat-cow to add as second exercise but that's a stretch".
+
+- **groups-list-open-by-default**: recurring @maaiz complaint (5+ asks). showLbGroups now defaults to true. Added a useEffect on view==='groupsHub' that auto-fetches /api/leaderboard/groups when lbGroups is empty — the existing fetch was gated behind the VIEW button click handler, so default-open without the auto-fetch would render an empty list. HIDE button still collapses on demand. Source: @maaiz "Groups are still close list by default, why would it be that way? I've asked you literally more than 5 times to change that now".
+
+- **trainer-request-pending-state** (recurring): @maaiz reported Amanii accepted but not visible in the client list. The atomic transaction in PATCH `/api/trainer/request` ensures the TrainerClient row exists when the accepted-message is sent, so the row IS in the DB. The trainer's view is stale because of caching. Three reinforcements: (a) GET `/api/trainer/clients` sets `Cache-Control: no-store` + `dynamic="force-dynamic"` + `revalidate=0`, (b) frontend fetch uses `cache:"no-store"` + `?ts=Date.now()` cache-bust query param, (c) new window-focus + visibilitychange handler force-refreshes the clients list whenever the trainer reopens the app. Existing view-mount refresh kept.
+
+- **session-cardio-no-superset** (NEW): cardio exercises (treadmill, elliptical, rowing) shouldn't pair into supersets — continuous conditioning doesn't combine with strength sets. Three filter points: (1) +SUPERSET button on the card requires ex.type !== "cardio" alongside trackable, (2) FROM THIS SESSION candidates skip x.type === "cardio", (3) ALL EXERCISES picker filteredAll skips e.type === "cardio" when isSuperMode. Source: @maaiz "No need to superset exercises with warm ups like treadmill or elliptical or rowing machine etc".
+
+- **qa-retest-no-self-surface** (NEW): /api/qa/comments/mine GET now filters RETEST comments by status — keeps `failing` / `regression-retest` (still need attention from Claude → next qa-pass should see them), hides `passing` (user said works now → done). Original semantic clarified mid-pass by @maaiz: "if I select retest it means it needs attention by you then test again. If I said it works now, that's when we don't need to circle back to it later after a qa process". Source: @maaiz "This should not come back to my your patches to test unless it's reported broken again".
+
+### Also processed this slice (1 comment)
+- **jpy16052** (re:nja61hdu) — explanation of the qa-retest-no-self-surface fix above. Marked passing.
+
+---
+
 ## QA pass · 2026-05-26 follow-up #6 — tier flavor tagline + interconnect progress (qa: tier-flavor-tagline, tier-card-interconnect-progress)
 
 Two visual asks for the Progress tier card.
