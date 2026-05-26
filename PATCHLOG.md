@@ -2,6 +2,91 @@
 
 ---
 
+## QA pass · 2026-05-26 — 75 comments processed (qa: qa-duplicate-detection, system-notifs-bottom-always, qa-retest-list-untruncated, qa-patch-summary-user-friendly, workout-active-edit-set-tap, progress-watermark-animation, trainer-request-pending-state, progress-pb-list-collapsed-and-complete, progress-tip-hide-when-session-logged, progress-strength-subrank-copy, progress-progression-subrank-copy, progress-technique-subrank-copy, progress-mastery-subrank-audit, progress-daily-mission-counters, workout-active-header-pinned, chat-link-preview-and-hyperlink, progress-wellness-reminders-on-home, messaging-online-status-live, system-notifs-action-prev-feedback, tier-points-loss-warning, qa-retest-list-show-original-when-summary-cryptic, qa-comment-priority-from-dashboard, profile-equipment-list-pretty, tier-badges-larger-everywhere, groups-chat-achievement-posts, progress-consistency-hint-gating, progress-habits-subrank-target-aware, progress-leaderboards-section-rework, trainer-rank-page, trainer-badge-everywhere, progress-body-photos-storage, groups-public-vs-open-rework, conversation-bubble-rich, friend-request-push-notif, workout-active-drag-reorder-bonus, groups-add-challenges-fix, home-next-up-smart, pro-tip-overlay-zindex, idea-qa-deep-link-to-test-screen, idea-tier-name-labels, idea-daily-quest-one-swap, idea-progress-cards-rearrangeable, idea-admin-signup-push)
+
+All 75 from @maaiz — biggest single-pass batch. None flagged suspicious.
+
+### Addressed (code shipped this pass)
+
+- **qa-retest-list-untruncated** (NEW): YOUR PATCHES TO RETEST expander now renders the FULL untruncated note + summary when active (whiteSpace: pre-wrap). Snippet behaviour kept for the collapsed row.
+- **system-notifs-bottom-always** (NEW): IRONLOG SYSTEM feed always lands at the bottom on open. Dropped the first-unread scroll-into-top — chat convention wins per @maaiz "need to just see latest first at bottom like normal chats".
+- **qa-patch-summary-user-friendly**: `simplifyForUser()` now detects when the simplified text is dominated by camelCase / kebab-case identifiers / file paths and replaces with "Marked patched. Tap to open /qa for full technical details on the fix." Also short-circuits sub-12-char output to the same placeholder. Source: @maaiz "Not sure what this is about - reworded by Claude I think and I don't understand".
+- **workout-active-edit-set-tap** (NEW): tap on a done set box opens the EDIT modal. Long-press still opens the set-note modal (mutually exclusive via a `didLongPress` latch). Title updated.
+- **progress-watermark-animation** (NEW): watermark phrase now cycles every 8s with a 480ms cross-fade. New `watermarkVisible` boolean piped through `<WatermarkBackdrop visible=…>` on both Progress + Workout views.
+- **trainer-request-pending-state**: trainer clients list re-fetches on entering CLIENTS hub so a request accepted while the trainer is in another view appears without reload. Source: @maaiz "Amanii accepted my request and she did but not showing under my clients".
+- **progress-pb-list-collapsed-and-complete** (NEW): Personal Bests card now collapses by default + lists EVERY exercise PB the user has set (dropped the top-8 slice). Header chip shows count.
+- **progress-tip-hide-when-session-logged** (NEW): "Log a session today" tip filtered out of consistency-dim suggestions when `history` has a session for today's iso date.
+- **progress-strength-subrank-copy** (NEW): "log ≥4 sets of an exercise to start tracking" → "log 4+ sets of any one exercise (squat / bench / DL / OHP score most) to start tracking strength".
+- **progress-progression-subrank-copy** (NEW): "no weekly volume yet" → "log at least one full week of workouts to start tracking week-over-week volume".
+- **progress-technique-subrank-copy** (NEW): detail now reads "RPE per set + supersets + drop sets" so the user knows RPE-tagged sets ALSO feed Technique IP. Source: @maaiz "Technique subrank says super sets for drop sets for IP, but we also get IP from the RPE per set?".
+- **progress-mastery-subrank-audit** (NEW): mastery v3.2 — dropped the legacy `distinctExercises` fallback (was inflating users who'd tried many exercises but mastered few), bumped midpoint 20 → 25, hard-cap at 60 when only 1-6 distinct exercises have hit the 4-set qualifier. Addresses @maaiz "80 mastery from one routine seems wrong".
+- **progress-daily-mission-counters** (NEW): `computeChallengeProgress()` now accepts an `id → name` lookup AND reads `session.exercises` for per-session id→name resolution. Substring match runs against `id + name` so bundled days using short ids like 'a3' now match challenges like "deadlift-discipline". Assisted-variant pull-ups + dips contribute 0.5× reps (detected via name containing "assist").
+- **workout-active-header-pinned** (NEW): the session clock + rest-chip row is now `position: sticky; top: 0; z-index: 60` with a backdrop-blur background so the timer stays visible as the user scrolls through their exercise list.
+- **chat-link-preview-and-hyperlink** (NEW, slice 1): hoisted top-level `linkify()` helper. URLs render as `🔗 hostname` tappable anchors (target=_blank, rel=noopener). Wired into the group-chat bubble (which previously rendered raw `msg.body`). DM bubble already linkified via the local `renderBody` — kept, since it's now consistent with the new helper's pattern. Server-side OG preview card is next slice.
+- **progress-wellness-reminders-on-home** (NEW, slice 1): if today's hydration < target OR sleep unlogged, a teal nudge row appears above Daily Quest on Home, listing what's missing and tapping into Progress → dashboard. Defers full per-field deep-link to a follow-up.
+- **messaging-online-status-live** (NEW, slice 1): new `GET /api/messages/[userId]/presence` returns `{ partnerLastSeen }`. Client polls this every 15s while the DM view is open + visible, so the online dot / "last seen Xm ago" updates without reopening the chat.
+
+### Tracked / Slice-1 stubs (new qa-state items, code lands in next pass)
+
+- **system-notifs-action-prev-feedback** — one-tap PASS/FAIL/CONTEXT action row beneath the linked comment in /qa.
+- **tier-points-loss-warning** — toast on the lost intensity points when a set is logged without RPE.
+- **qa-retest-list-show-original-when-summary-cryptic** — surface original tester note alongside dev summary.
+- **qa-comment-priority-from-dashboard** — admin priority bumper chip on /qa.
+- **profile-equipment-list-pretty** — equipmentPretty(slug) + dedupe.
+- **tier-badges-larger-everywhere** — bump identity-card tier badge sizing 24px → 40px.
+- **groups-chat-achievement-posts** — groupSystemPost stub for member achievement / tier unlocks.
+- **progress-consistency-hint-gating** — gate the consistency hint on accountAgeDays ≥ 14 or daysLogged ≥ 7.
+- **progress-habits-subrank-target-aware** — multiply by target-hit ratio + streak bonus.
+- **progress-leaderboards-section-rework** — content swap to weight Δ + bf Δ + group-scoped top-5.
+- **trainer-badge-everywhere** — `<AvatarWithBadges/>` wrapper for friend list + leaderboard rows.
+- **progress-body-photos-storage** — persist Vercel blob URL into `BodyMeasurement.photoUrl` on save.
+- **groups-public-vs-open-rework** — collapse visibility enum to OPEN | INVITE_ONLY.
+- **conversation-bubble-rich** — `<ChatBubbleAvatar/>` + presence chip on chat header + inbox.
+- **friend-request-push-notif** — push already wired in `/api/friends` POST + PATCH-accept (verified existing code); item flipped to regression-retest awaiting @maaiz's device confirmation.
+- **workout-active-drag-reorder-bonus** — needs hands-on testing to tune sensors / collision detection.
+- **groups-add-challenges-fix** — POST `/api/groups/[id]/challenges` audit.
+- **home-next-up-smart** — `nextUpSuggestion()` scans days-since-muscle-group + cardio.
+- **5 ideas tracked** (`idea-qa-deep-link-to-test-screen`, `idea-tier-name-labels`, `idea-daily-quest-one-swap`, `idea-progress-cards-rearrangeable`, `idea-admin-signup-push`).
+
+### Verified passing (status flips only)
+
+- **qa-duplicate-detection · 3 retests**: 'Working now', 'Works in search', 'Think you get the idea' — passing.
+- **messages-pull-to-refresh**: 'Looks to be working' — passing.
+- **system-notifs-scroll-bottom + system-notifs-unread-highlight**: 'Think it's working to read notifications yes' — passing. (Note: a later retest in the same batch said "bottom always" which moved the new item system-notifs-bottom-always to regression-retest — see above.)
+- **workout-rest-skipped-counter**: 'Seems like timer in button working to me' — passing.
+- **workout-rest-too-fast-warning**: 'Verified working' — passing.
+- **qa-patch-notif-clickzone**: 'Verified working' — passing.
+- **home-messages-unread-count**: 'Verified working' — passing.
+- **system-notifications-feed + qa-pending-retests-list**: 'Verified working' — passing.
+- **qa-patch-notification (×2 retests)**: 'Verified working' + 'Disregard' — passing.
+- **tier-modal-sticky-close**: 'Verified working' — passing.
+- **workout-in-session-exercise-add**: 'Verified working' — passing.
+- **home-hub-singleline**: 'Verified working' — passing.
+- **profile-avatars**: 'Now works' — passing.
+- **system-notifs-swipe-back**: 'Works and should be marked working in the full qa section' — passing.
+- **trainer-rank-page** (NEW item): 'Sorry looks like it is there' — passing.
+
+### Items flipped back to regression-retest (audit-trail surfaced new context)
+
+- **pro-tip-overlay-zindex**: earlier verified, later 19:38Z "I HAVE THIS TOO" → re-investigation needed.
+- **qa-duplicate-detection**: same theme as 4 separate comments asking for auto-merge.
+- **system-notifs-scroll-bottom**: previously passed via first-unread, user now wants bottom-always (separately tracked as system-notifs-bottom-always).
+- **workout-effort-skip-warning**: works, but extension ask (warn on points losses too) feeds new tier-points-loss-warning item.
+- **profile-identity-premium**: equipment list pretty-name follow-up.
+- **image-prompts-v2**: priority lowered to LOW per @maaiz.
+- **home-clients-button-no-count**: restore count as plain "(N)" suffix, not unread bubble.
+- **profile-role-chip-not-toggle**: still reads as toggleable; tier badges bigger ask.
+- **celebration-overlays-everywhere**: groups-chat-achievement-posts slice.
+- **workout-music-launcher**: music buttons should float on active session.
+
+### Notes / Internal
+
+- 40 new qa-state items added (273 → 313). Pass script preserved as `scripts/qa-pass-2026-05-26.py` for reproducibility.
+- Imports left intact (React not directly imported — used `<>` fragments in the new `linkify()` helper).
+- Type-check green (`npx tsc --noEmit`).
+
+---
+
 ## Image batch · 2026-05-26 — 20 incoming images mapped (qa: image-prompts-v2, image-gen-plan-v2, achievements-premium-bonus-avatars, tier-icons-vivid, day-card-hero-routing, achievement-avatars-assets)
 
 Mapped the 20 PNGs in `/incoming/` (generated off the `/image-prompts-v2.md`

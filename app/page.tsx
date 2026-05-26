@@ -356,6 +356,38 @@ function SortableExerciseItem({
 // - Tolerance bumped 5 → 10 — iOS touchpoints jitter by a few px
 //   during the press window even with a stationary finger. The
 //   lower tolerance was cancelling drags before they could activate.
+// Linkify free-text message bodies: turn http(s)://… URLs into tappable
+// <a> tags + show them as a discrete preview pill. Used in BOTH DM
+// bubbles and group-chat bubbles so links are clickable in every chat.
+// Per @maaiz: "Links sent in both group chats and normal chats must
+// be clickable with a preview and hyperlink both".
+// (qa: chat-link-preview-and-hyperlink)
+function linkify(text: string): JSX.Element {
+  if (!text) return <>{text}</>;
+  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (!/^https?:\/\//.test(part)) return <span key={i}>{part}</span>;
+        let host = part;
+        try { host = new URL(part).hostname; } catch {}
+        return (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#4ECDC4", wordBreak: "break-all", textDecoration: "underline" }}
+            title={part}
+          >
+            🔗 {host}
+          </a>
+        );
+      })}
+    </>
+  );
+}
+
 function useReorderSensors() {
   return useSensors(
     useSensor(TouchSensor, { activationConstraint: { delay: 350, tolerance: 10 } }),
@@ -1603,7 +1635,15 @@ function ChallengesCard({ history, bodyMetrics, gender }: { history: Record<stri
         <span style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{currentMonth.toUpperCase()}</span>
       </div>)}
       {active.map(c => {
-        const progress = computeChallengeProgress(c, history);
+        // Build a global id → name index from the EXERCISES catalogue
+        // so the challenge progress can match against exercise names
+        // even when bundled days use short-form ids like 'a3'.
+        // (qa: progress-daily-mission-counters)
+        const nameByExerciseId: Record<string, string> = {};
+        for (const ex of (EXERCISES as any[])) {
+          if (ex?.id && ex?.name) nameByExerciseId[ex.id] = ex.name;
+        }
+        const progress = computeChallengeProgress(c, history, nameByExerciseId);
         const pct = Math.min(100, Math.round((progress / c.target) * 100));
         const opted = isOptedIn(c.id);
         const done = progress >= c.target;
@@ -2673,7 +2713,7 @@ function DaySessionRecap({
 // version measures the parent's scrollHeight with ResizeObserver and
 // renders enough rows to cover it, regardless of viewport / content.
 const WATERMARK_ROW_PX = 100; // 52px font + 48px marginBottom — keep in sync with the row style
-function WatermarkBackdrop({ phrase, opacity = 0.022 }: { phrase: string; opacity?: number }) {
+function WatermarkBackdrop({ phrase, opacity = 0.022, visible = true }: { phrase: string; opacity?: number; visible?: boolean }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [rows, setRows] = useState(24);
 
@@ -2707,7 +2747,9 @@ function WatermarkBackdrop({ phrase, opacity = 0.022 }: { phrase: string; opacit
     }}>
       {Array.from({ length: rows }).map((_, n) => (
         <div key={n} style={{
-          fontSize: 52, fontWeight: 800, color: "#fff", opacity,
+          fontSize: 52, fontWeight: 800, color: "#fff",
+          opacity: visible ? opacity : 0,
+          transition: "opacity 480ms ease-in-out",
           fontFamily: "'DM Sans', sans-serif", letterSpacing: -1,
           whiteSpace: "nowrap", transform: "rotate(-18deg)",
           marginBottom: 48, userSelect: "none",
@@ -4175,8 +4217,18 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
                           // the meat of what they reported. Falls back to
                           // the raw note if no tag found.
                           const rawNote = r.note.replace(/^\[[^\]]+\]\s*/, "").trim();
-                          const noteSnippet = rawNote.length > 90 ? rawNote.slice(0, 90) + "…" : rawNote;
-                          const summarySnippet = r.processedSummary ? (r.processedSummary.length > 120 ? r.processedSummary.slice(0, 120) + "…" : r.processedSummary) : "Marked patched. Retest and report back.";
+                          // When the row is expanded, show the full text —
+                          // the user wants to read the whole note + summary,
+                          // not snippet-clipped (qa: qa-retest-list-untruncated).
+                          const fullSummary = r.processedSummary && r.processedSummary.trim().length >= 8
+                            ? r.processedSummary.trim()
+                            : "Marked patched. Retest and report back.";
+                          const noteSnippet = isActive
+                            ? rawNote
+                            : (rawNote.length > 90 ? rawNote.slice(0, 90) + "…" : rawNote);
+                          const summarySnippet = isActive
+                            ? fullSummary
+                            : (fullSummary.length > 120 ? fullSummary.slice(0, 120) + "…" : fullSummary);
                           const priority = r.itemPriority ?? "medium";
                           const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
                             critical: { label: "CRIT", color: "#FF6B6B", bg: "rgba(255,107,107,0.18)" },
@@ -4195,8 +4247,8 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
                                   <div style={{ fontSize: 9, fontWeight: 700, color: "#FFD166", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>{r.itemId.toUpperCase()}</div>
                                   <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", color: pmeta.color, background: pmeta.bg, padding: "1px 5px", borderRadius: 3, border: `1px solid ${pmeta.color}55` }}>{pmeta.label}</span>
                                 </div>
-                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", lineHeight: 1.4, marginBottom: 4 }}><strong style={{ color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>YOU SAID:</strong> {noteSnippet}</div>
-                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}><strong style={{ color: "#4ECDC4", fontWeight: 700 }}>FIX:</strong> {summarySnippet}</div>
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", lineHeight: 1.4, marginBottom: 4, whiteSpace: isActive ? "pre-wrap" : "normal" }}><strong style={{ color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>YOU SAID:</strong> {noteSnippet}</div>
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.4, whiteSpace: isActive ? "pre-wrap" : "normal" }}><strong style={{ color: "#4ECDC4", fontWeight: 700 }}>FIX:</strong> {summarySnippet}</div>
                               </button>
                               {isActive && (
                                 <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed rgba(255,209,102,0.25)" }}>
@@ -5516,29 +5568,19 @@ function HomePage() {
   // (qa: system-notifs-scroll-bottom, system-notifs-unread-highlight)
   const [systemViewSnapshot, setSystemViewSnapshot] = useState<{ bundled: Set<string>; patch: Set<string> } | null>(null);
   const systemFeedScrollRef = useRef<HTMLDivElement | null>(null);
-  // Re-run the scroll-to-first-unread / bottom-land logic whenever
-  // the view opens, the snapshot lands, or patchNotifs lazy-loads
-  // after view-open. The ref callback alone only fires on mount, so
-  // a fetch that resolves after open never re-scrolled — leaving the
-  // user at an arbitrary spot. (qa: system-notifs-scroll-bottom)
+  // Always land at the bottom (newest message) when opening the system
+  // feed — chat convention. Unread highlighting still happens via the
+  // NEW chip + glow, but we no longer scroll the user to the first
+  // unread because @maaiz wants "latest first at bottom like normal
+  // chats". Re-fires whenever the view opens, the snapshot lands, or
+  // patchNotifs lazy-loads after view-open. (qa: system-notifs-scroll-bottom,
+  // system-notifs-bottom-always)
   useEffect(() => {
     if (view !== "systemNotifs") return;
     const el = systemFeedScrollRef.current;
     if (!el) return;
-    const bundledUnread = systemViewSnapshot?.bundled ?? new Set<string>();
-    const patchUnread = systemViewSnapshot?.patch ?? new Set<string>();
-    const entries = [
-      ...SYSTEM_NOTIFICATIONS.map(n => ({ ts: n.publishedAt, unread: bundledUnread.has(n.id) })),
-      ...patchNotifs.map(p => ({ ts: p.publishedAt, unread: patchUnread.has(p.id) })),
-    ].sort((a, b) => a.ts.localeCompare(b.ts));
-    const firstUnreadIdx = entries.findIndex(e => e.unread);
     requestAnimationFrame(() => {
-      if (firstUnreadIdx >= 0) {
-        const target = el.querySelector(`[data-unread-idx='${firstUnreadIdx}']`) as HTMLElement | null;
-        if (target) target.scrollIntoView({ block: "start" });
-      } else {
-        el.scrollTop = el.scrollHeight;
-      }
+      el.scrollTop = el.scrollHeight;
     });
   }, [view, systemViewSnapshot, patchNotifs]);
   // Snapshot unread state when entering systemNotifs view (so the
@@ -5663,6 +5705,10 @@ function HomePage() {
   // Marked seen for the current ISO week so it only fires once.
   const [recapShown, setRecapShown] = useState<WeeklyRecap | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
+  // Collapsible PERSONAL BESTS section on the Progress dashboard —
+  // defaults closed because users have many PBs and we don't want them
+  // to scroll past a wall. (qa: progress-pb-list-collapsed-and-complete)
+  const [showPRsExpanded, setShowPRsExpanded] = useState(false);
   const [showTipsLibrary, setShowTipsLibrary] = useState(false);
   // Card-expand transition. When set, an overlay morphs the day card's
   // image + title to fullscreen via framer-motion's layoutId. Tap START
@@ -6325,14 +6371,23 @@ function HomePage() {
     return () => clearInterval(id);
   }, []);
   const phrase = PHRASES[phraseIdx];
-  // Watermark uses a stable short phrase keyed off a session-stable
-  // index. Won't rotate as the hero tagline does — long phrases
-  // breaking the rotated 52px render were causing the whole page
-  // to "shift" on rotation. (qa: workout-rest-motivational-phrases)
-  const watermarkPhrase = useMemo(() => {
-    const idx = Math.floor(Math.random() * WATERMARK_PHRASES.length);
-    return WATERMARK_PHRASES[idx];
+  // Watermark phrase — cycles every ~8s with a cross-fade. Restricted
+  // to the SHORT phrase subset to avoid layout shift on rotation (the
+  // 52px rotated render overflowed when long phrases were used).
+  // (qa: workout-rest-motivational-phrases, progress-watermark-animation)
+  const [watermarkIdx, setWatermarkIdx] = useState(() => Math.floor(Math.random() * WATERMARK_PHRASES.length));
+  const [watermarkVisible, setWatermarkVisible] = useState(true);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setWatermarkVisible(false);
+      setTimeout(() => {
+        setWatermarkIdx(i => (i + 1 + Math.floor(Math.random() * (WATERMARK_PHRASES.length - 1))) % WATERMARK_PHRASES.length);
+        setWatermarkVisible(true);
+      }, 500);
+    }, 8000);
+    return () => clearInterval(id);
   }, []);
+  const watermarkPhrase = WATERMARK_PHRASES[watermarkIdx];
 
   // ── Theme ──
   useEffect(() => {
@@ -6478,6 +6533,38 @@ function HomePage() {
   // in friendsHub, the badge should decrement on return).
   useEffect(() => { if (user) fetchPendingFriendCount(); }, [user, fetchPendingFriendCount]);
   useEffect(() => { if (view === "home") fetchPendingFriendCount(); }, [view, fetchPendingFriendCount]);
+
+  // Refresh trainer clients when entering the Clients hub — accept can
+  // happen while the trainer is on the messages tab, so a stale snapshot
+  // would leave the accepted client invisible until next reload. Source:
+  // @maaiz l1dhjm6j "Amanii accepted my request and she did but not
+  // showing under my clients". (qa: trainer-request-pending-state)
+  useEffect(() => {
+    if (view === "clientsHub" && userHasRole(user, "trainer")) {
+      fetch("/api/trainer/clients").then(r => r.json()).then(data => {
+        if (data.clients) setClients(data.clients);
+      }).catch(() => {});
+    }
+  }, [view, user]);
+
+  // Live presence poll for the open DM — the user wants online status
+  // to update without reopening the chat. Polls /api/messages/[peerId]
+  // every 15s while the conversation view is open + visible.
+  // (qa: messaging-online-status-live)
+  useEffect(() => {
+    if (view !== "conversation" || !activeConversation) return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/messages/${activeConversation.id}/presence`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (alive && data.partnerLastSeen !== undefined) setPartnerLastSeen(data.partnerLastSeen);
+      } catch {}
+    };
+    const id = setInterval(tick, 15000);
+    return () => { alive = false; clearInterval(id); };
+  }, [view, activeConversation]);
 
   useEffect(() => {
     if (userHasRole(user, "trainer")) {
@@ -10483,6 +10570,35 @@ function HomePage() {
       )}
       <ProfileNagBanner ob={ob} onGoToSettings={() => setView("profile")} />
       <div style={{ padding: "10px 16px 0", position: "relative", zIndex: 20 }}>
+        {/* Wellness daily-update reminders — surfaces a discreet nudge
+            on Home for hydration / sleep when the user hasn't logged
+            them today. Tap drops them on the Progress → Wellness card.
+            Per @maaiz: "Not seeing any reminders in home to update
+            wellness info like hydration and sleep daily".
+            (qa: progress-wellness-reminders-on-home) */}
+        {(() => {
+          if (deGamified) return null;
+          try {
+            const hydra = readHydrationToday();
+            const sleep = readSleepToday();
+            const needHydra = hydra < HYDRATION_TARGET;
+            const needSleep = sleep.sleepHours == null;
+            if (!needHydra && !needSleep) return null;
+            const items: Array<{ icon: string; text: string }> = [];
+            if (needHydra) items.push({ icon: "💧", text: `${hydra}/${HYDRATION_TARGET} hydration` });
+            if (needSleep) items.push({ icon: "😴", text: "Log sleep" });
+            return (
+              <button
+                onClick={() => { setView("progress"); setProgressTab("dashboard"); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 12px", marginBottom: 8, background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 10, color: "#4ECDC4", fontSize: 11, fontWeight: 600, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}
+              >
+                <span>WELLNESS · {items.map(i => `${i.icon} ${i.text}`).join(" · ")}</span>
+                <span style={{ opacity: 0.6 }}>→</span>
+              </button>
+            );
+          } catch { return null; }
+        })()}
+
         {/* Daily Quest — randomised tiny goal per day. Suppressed when
             the user has toggled de-gamify mode in Settings. */}
         {!deGamified && (() => {
@@ -12357,7 +12473,7 @@ function HomePage() {
                     fontStyle: msg.deleted ? "italic" : undefined,
                   }}
                 >
-                  {msg.deleted ? "🗑 Message deleted" : msg.body}
+                  {msg.deleted ? "🗑 Message deleted" : linkify(msg.body)}
                 </div>
               </div>
             );
@@ -15127,15 +15243,18 @@ function HomePage() {
       return eid;
     };
 
-    // Get top PRs
+    // Per @maaiz: "PB list in progresssion is not closed by default, and
+    // does not show every PB for every exercise done". Show every PB the
+    // user has set (no top-8 slice); the section is wrapped in a
+    // collapsible expander below, defaulting collapsed.
+    // (qa: progress-pb-list-collapsed-and-complete)
     const prList = Object.entries(overall.exercisePRs)
-      .sort((a, b) => b[1].weight - a[1].weight)
-      .slice(0, 8);
+      .sort((a, b) => b[1].weight - a[1].weight);
 
 
     return (
       <div key="progress" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh", position: "relative", overflow: "hidden" }}>
-        <WatermarkBackdrop phrase={watermarkPhrase} opacity={0.022} />
+        <WatermarkBackdrop phrase={watermarkPhrase} opacity={0.022} visible={watermarkVisible} />
         <div style={{ padding: "24px 20px 0" }}>
           <button onClick={() => { setView("home"); setOpenHist(null); setSelectedExDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>← Back</button>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 12, letterSpacing: 1 }}>Progress</div>
@@ -15402,10 +15521,19 @@ function HomePage() {
                       (qa: tier-modal-action-tips) */}
                   {next && (() => {
                     const weakestId = breakdown.focusNext?.id ?? "consistency";
+                    // Has the user logged a session today? If so, drop
+                    // the "Log a session today" tip — they already did
+                    // it. (qa: progress-tip-hide-when-session-logged)
+                    const todayIso = new Date().toISOString().slice(0, 10);
+                    const sessionLoggedToday = Array.isArray(history) && history.some((h: any) => {
+                      if (!h?.date) return false;
+                      const d = typeof h.date === "string" ? h.date.slice(0, 10) : new Date(h.date).toISOString().slice(0, 10);
+                      return d === todayIso;
+                    });
                     type Tip = { icon: string; text: string };
                     const TIPS_BY_DIM: Record<string, Tip[]> = {
                       consistency: [
-                        { icon: "📅", text: "Log a session today — every day toward your weekly target adds adherence points." },
+                        ...(sessionLoggedToday ? [] : [{ icon: "📅", text: "Log a session today — every day toward your weekly target adds adherence points." }]),
                         { icon: "🔁", text: "Don't skip the rest days — hitting EXACTLY your daysPerWeek beats overtraining." },
                         { icon: "🔥", text: "Keep the weekly streak alive — every consecutive week at target adds streak bonus." },
                       ],
@@ -15485,15 +15613,24 @@ function HomePage() {
                 the tappable calendar lives). Keeping no calendar here
                 keeps the Dashboard focused on rank + overview cards. */}
 
-            {/* Personal Records */}
+            {/* Personal Records — collapsible. Per @maaiz: "PB list in
+                progresssion is not closed by default, and does not show
+                every PB for every exercise done".
+                (qa: progress-pb-list-collapsed-and-complete) */}
             {prList.length > 0 && (
               <div style={{ position: "relative", background: "linear-gradient(180deg, rgba(240,192,64,0.04), rgba(255,255,255,0.02))", border: "1px solid rgba(240,192,64,0.14)", borderRadius: 16, padding: "18px", marginBottom: 12, overflow: "hidden", boxShadow: "0 4px 20px -8px rgba(240,192,64,0.12)" }}>
                 <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent, rgba(240,192,64,0.5), transparent)" }} />
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                  <span style={{ fontSize: 15, filter: "drop-shadow(0 0 6px rgba(240,192,64,0.5))" }}>🏆</span>
-                  <span style={{ fontSize: 10, color: "#f0c040", letterSpacing: 2.5, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>PERSONAL BESTS</span>
-                </div>
-                {prList.map(([eid, pr], i) => {
+                <button
+                  onClick={() => setShowPRsExpanded(s => !s)}
+                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: 0, background: "transparent", border: "none", cursor: "pointer", marginBottom: showPRsExpanded ? 14 : 0 }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 15, filter: "drop-shadow(0 0 6px rgba(240,192,64,0.5))" }}>🏆</span>
+                    <span style={{ fontSize: 10, color: "#f0c040", letterSpacing: 2.5, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>PERSONAL BESTS ({prList.length})</span>
+                  </span>
+                  <span style={{ fontSize: 10, color: "rgba(240,192,64,0.6)" }}>{showPRsExpanded ? "▲" : "▼"}</span>
+                </button>
+                {showPRsExpanded && prList.map(([eid, pr], i) => {
                   const exName = findExName(eid);
                   const imgUrl = getExerciseImageUrls(eid, exName);
                   return (
@@ -16170,7 +16307,7 @@ function HomePage() {
       return (
         <div key="workout-prep" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: "80vw", height: "80vw", borderRadius: "50%", background: `radial-gradient(circle, ${activeDay.color}12 0%, transparent 60%)`, pointerEvents: "none", animation: "breathe 4s ease infinite" }} />
-          <WatermarkBackdrop phrase={watermarkPhrase} opacity={0.03} />
+          <WatermarkBackdrop phrase={watermarkPhrase} opacity={0.03} visible={watermarkVisible} />
           <div className="slide-up" style={{ zIndex: 1 }}>
             <button onClick={() => { setView("home"); setActiveDay(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", marginBottom: 48 }}>← Back</button>
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: activeDay.color, letterSpacing: 4, marginBottom: 12, opacity: 0.7 }}>DAY {activeDay.label}</div>
@@ -16746,7 +16883,11 @@ function HomePage() {
         {rest.running && rest.screenDismissed && rest.seconds > 0 && rest.total > 0 && (
           <div className="rest-strip" style={{ width: `${Math.max(2, (rest.seconds / rest.total) * 100)}%` }} />
         )}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        {/* Session clock row — sticky so it stays visible as the user
+            scrolls through their exercise list. Per @maaiz: "Want top
+            part of active session to stay floating on screen instead
+            of scrolling away when I go down". (qa: workout-active-header-pinned) */}
+        <div style={{ position: "sticky", top: 0, zIndex: 60, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", background: "rgba(10,10,10,0.92)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace", letterSpacing: 2 }}>{timer.fmt}</div>
           {/* Discreet rest countdown — only when the user dismissed
               the fullscreen rest overlay but the timer is still
@@ -17300,16 +17441,28 @@ function HomePage() {
                             const skipped = entry?.skipped;
                             const hasNote = !!entry?.note;
                             // Long-press → open the set-note modal so the
-                            // user can attach context. Only enabled on
-                            // logged sets (no point note-ing a future set).
+                            // user can attach context. Tap (release < 450ms)
+                            // on a logged set opens the edit modal so the
+                            // user can correct the set's weight/reps/RPE
+                            // without hunting for the EDIT button.
+                            // (qa: workout-active-edit-set-tap)
                             let pressTimer: any = null;
+                            let didLongPress = false;
                             const onPressStart = () => {
                               if (!d || skipped) return;
+                              didLongPress = false;
                               pressTimer = setTimeout(() => {
+                                didLongPress = true;
                                 setNoteModal({ key: k, current: entry?.note ?? "" });
                               }, 450);
                             };
-                            const onPressEnd = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+                            const onPressEnd = () => {
+                              if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+                            };
+                            const onClick = () => {
+                              if (didLongPress) return;
+                              if (d && !skipped) openEditModal(ex.id);
+                            };
                             return (
                               <button
                                 key={i}
@@ -17319,9 +17472,10 @@ function HomePage() {
                                 onTouchStart={onPressStart}
                                 onTouchEnd={onPressEnd}
                                 onTouchCancel={onPressEnd}
+                                onClick={onClick}
                                 disabled={!d}
                                 style={{ position: "relative", width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace", background: skipped ? "rgba(255,107,107,0.08)" : d ? "#2ecc7120" : c ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)", color: skipped ? "rgba(255,107,107,0.5)" : d ? "#2ecc71" : c ? "#fff" : "rgba(255,255,255,0.25)", border: c ? "1px solid rgba(255,255,255,0.15)" : skipped ? "1px solid rgba(255,107,107,0.2)" : "1px solid transparent", cursor: d ? "pointer" : "default", padding: 0 }}
-                                title={d && !skipped ? "Long-press to add a note" : ""}
+                                title={d && !skipped ? "Tap to edit · long-press to add a note" : ""}
                               >
                                 {skipped ? "−" : d ? "✓" : i + 1}
                                 {hasNote && <span style={{ position: "absolute", top: 2, right: 2, width: 5, height: 5, borderRadius: "50%", background: "#fdcb6e" }} />}

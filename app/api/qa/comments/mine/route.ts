@@ -53,7 +53,34 @@ function simplifyForUser(raw: string): string {
   const sentences = s.split(/(?<=[.!?])\s+/);
   let out = sentences.slice(0, 2).join(" ").trim();
   if (out.length > 200) out = out.slice(0, 197).trimEnd() + "…";
-  return out || raw;
+  // Fallback: when the result is dominated by dev-looking tokens
+  // (camelCase, snake_case, kebab-case identifiers, file paths,
+  // identifiers > 18 chars), the user has reported they "don't
+  // understand" — replace with a plain-English placeholder.
+  // (qa: qa-patch-summary-user-friendly)
+  if (out.length > 0) {
+    const tokens = out.split(/\s+/);
+    const looksDev = (t: string) => {
+      const stripped = t.replace(/[.,!?;:'"`)(]/g, "");
+      if (stripped.length === 0) return false;
+      if (stripped.length > 18) return true;
+      if (/^[a-z]+[A-Z]/.test(stripped)) return true; // camelCase
+      if (stripped.includes("_") && /[a-zA-Z]/.test(stripped)) return true;
+      if (/^[a-z]+(-[a-z0-9]+){2,}$/i.test(stripped)) return true; // kebab-case with 3+ parts
+      if (stripped.includes("/") && stripped.length > 6) return true; // path
+      return false;
+    };
+    const devTokens = tokens.filter(looksDev).length;
+    if (devTokens >= 2 && devTokens / Math.max(tokens.length, 1) >= 0.18) {
+      out = "Marked patched. Tap to open /qa for full technical details on the fix.";
+    }
+  }
+  // If after all that there's still nothing meaningful, hand back a
+  // safe placeholder rather than the dev-noise raw string.
+  if (!out || out.length < 12) {
+    return "Marked patched. Tap to open /qa for full technical details on the fix.";
+  }
+  return out;
 }
 
 async function readProcessedManifest(): Promise<Record<string, { ts: string; sha?: string; summary?: string }>> {

@@ -421,7 +421,10 @@ function strengthSubRank(
     .filter(e => e.count >= 4)
     .sort((a, b) => b.count - a.count)
     .slice(0, 6);
-  if (qualified.length === 0) return { score: 50, hasData: false, detail: "log ≥4 sets of an exercise to start tracking", pctChange: null, qualifiedCount: 0 };
+  // Per @maaiz: copy is unclear — name the gate (4+ sets of any one
+  // exercise, plus list the big lifts that score most heavily).
+  // (qa: progress-strength-subrank-copy)
+  if (qualified.length === 0) return { score: 50, hasData: false, detail: "log 4+ sets of any one exercise (squat / bench / DL / OHP score most) to start tracking strength", pctChange: null, qualifiedCount: 0 };
 
   // ── Absolute strength component ────────────────────────────────────
   let topE1RM = 0;
@@ -499,7 +502,11 @@ function strengthSubRank(
 // (qa: tier-scoring-v2)
 function progressionSubRank(weekly: Array<{ weekStartMs: number; volumeKg: number }>): { score: number; hasData: boolean; detail: string; slopePct: number | null } {
   if (!weekly || weekly.length < 9) {
-    return { score: 50, hasData: false, detail: weekly && weekly.length > 0 ? `log ${9 - weekly.length} more week${weekly.length === 8 ? "" : "s"} to unlock progression` : "no weekly volume yet", slopePct: null };
+    // Per @maaiz: "no weekly volume yet" was unclear. Spell out the gate
+    // — progression needs at least one full week of workouts to start
+    // computing week-over-week volume slope.
+    // (qa: progress-progression-subrank-copy)
+    return { score: 50, hasData: false, detail: weekly && weekly.length > 0 ? `log ${9 - weekly.length} more week${weekly.length === 8 ? "" : "s"} of workouts to unlock progression scoring` : "log at least one full week of workouts to start tracking week-over-week volume", slopePct: null };
   }
   const sorted = [...weekly].sort((a, b) => a.weekStartMs - b.weekStartMs);
   const n = sorted.length;
@@ -629,18 +636,27 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   // distinct count). Raises the bar from naive "logged at least
   // once" so doing the same 25 lifts seriously isn't worse than
   // dabbling in 25 random movements.
+  //
+  // Per @maaiz: "Maaiz has 80 mastery but he's probably not done many
+  // different exercises just 1 routine and not for that long yet". The
+  // legacy fallback to `distinctExercises` was inflating the score for
+  // users who've TRIED many exercises but mastered few. Drop the fallback
+  // — if there's no recent-set data, mastery is honestly 0.
+  // (qa: progress-mastery-subrank-audit)
   const recentByEx = s.recentSetsByExercise ?? {};
   const masteryQualified = Object.values(recentByEx).filter(arr => (arr?.length ?? 0) >= 4).length;
-  const masteryLegacy = s.recentDistinctExercises ?? s.distinctExercises;
-  const masteryCount = Object.keys(recentByEx).length > 0 ? masteryQualified : masteryLegacy;
-  const masteryHasData = Object.keys(recentByEx).length > 0
-    ? masteryQualified > 0
-    : masteryLegacy > 0;
-  // Mastery v3.1 — midpoint 18 → 20 (was 25 in v3 which paired with
-  // the 10× denominator gave 6mo users mastery=46). 20 gives a typical
-  // 6mo user with 12 mastered exercises ~56, room to grow toward 25-30
-  // for veteran lifters. (qa: tier-scoring-calibration-v3)
-  const mastery = scoreFromCount(masteryCount, 20);
+  const masteryCount = masteryQualified;
+  const masteryHasData = Object.keys(recentByEx).length > 0 && masteryQualified > 0;
+  // Mastery v3.2 — midpoint bumped 20 → 25 to honestly reward depth
+  // (a user with 5 qualified exercises scores ~37, not ~58). Pairs
+  // with the no-legacy-fallback above. (qa: progress-mastery-subrank-audit)
+  let mastery = scoreFromCount(masteryCount, 25);
+  // Hard cap at 60 when the user has only logged one routine's worth
+  // of distinct exercises and no breadth — single-routine users were
+  // crossing 80 which felt unearned. (qa: progress-mastery-subrank-audit)
+  if (masteryQualified > 0 && masteryQualified <= 6) {
+    mastery = Math.min(mastery, 60);
+  }
 
   // Habits — unchanged from v1.
   const hg = s.hydrationGoalDays ?? 0;
@@ -716,7 +732,12 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
     { id: "progression", label: "Progression", icon: "🚀", score: progressionRes.score, detail: progressionRes.detail,                                 hasData: progressionRes.hasData },
     { id: "volume",      label: "Volume",      icon: "📈", score: volume,           detail: `${Math.round(s.totalVolumeKg / 1000)}k kg-reps lifetime`, hasData: s.totalVolumeKg > 0 },
     { id: "mastery",     label: "Mastery",     icon: "🏆", score: mastery,          detail: `${masteryCount} exercises ≥4 sets (last 6mo) · ${s.distinctExercises} lifetime`, hasData: masteryHasData },
-    { id: "technique",   label: "Technique",   icon: "⚡", score: technique,        detail: techniqueHasData ? `${techniquePts} IP lifetime · supersets/dropsets/techniques` : "log supersets or drop chains to earn IP", hasData: techniqueHasData },
+    // Technique copy: name ALL three sources of intensity points so the
+    // user doesn't see "supersets/dropsets" and miss that RPE-per-set
+    // also feeds this. Per @maaiz: "Technique subrank says super sets
+    // for drop sets for IP, but we also get IP from the RPE per set?
+    // Make it make sense". (qa: progress-technique-subrank-copy)
+    { id: "technique",   label: "Technique",   icon: "⚡", score: technique,        detail: techniqueHasData ? `${techniquePts} IP lifetime · RPE per set + supersets + drop sets` : "earn IP via RPE-tagged sets, supersets, or drop chains", hasData: techniqueHasData },
     { id: "balance",     label: "Balance",     icon: "⚖️", score: balance,          detail: balanceDetail,                                             hasData: balanceHasData },
     { id: "bodycomp",    label: "Body Comp",   icon: "🧬", score: bcRes.score,      detail: bcRes.detail,                                              hasData: bcRes.hasData },
     { id: "habits",      label: "Habits",      icon: "💧", score: habits,           detail: `${hg}d hydration · ${sl}d sleep · ${en}d energy (14d)`,    hasData: habitsAny },

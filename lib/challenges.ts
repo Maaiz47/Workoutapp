@@ -112,9 +112,17 @@ export const CHALLENGES: Challenge[] = getMonthChallenges();
 // Compute the user's current progress against a challenge from their
 // workout history. Caller passes the same `history` map the rest of the
 // app uses (dayId → sessions[]).
+// Per @maaiz: "I don't think deadlift reps count is working for daily
+// mission" — root cause is bundled day exercises use short-form IDs
+// like 'a3' that don't contain the substring 'deadlift'. The substring
+// match was running against the SET KEY (exercise id), which never
+// matches when the catalog uses short ids. Fix: pass in a per-exercise
+// name lookup so the match runs against the full English name too.
+// (qa: progress-daily-mission-counters)
 export function computeChallengeProgress(
   challenge: Challenge,
   history: Record<string, any[]>,
+  nameByExerciseId?: Record<string, string>,
 ): number {
   const monthPrefix = challenge.monthIso; // "YYYY-MM"
   let total = 0;
@@ -130,16 +138,34 @@ export function computeChallengeProgress(
       if (iso !== monthPrefix) continue;
       sessionCount += 1;
       const sets = (session.sets ?? {}) as Record<string, any>;
+      // Build a session-local id → name index from session.exercises
+      // (when present). Falls back to the global nameByExerciseId arg
+      // for ids unique to this session.
+      const sessionNames: Record<string, string> = {};
+      const sessionExs = (session.exercises ?? []) as Array<{ id?: string; exerciseId?: string; name?: string }>;
+      for (const sex of sessionExs) {
+        const id = sex?.exerciseId ?? sex?.id;
+        if (id && sex?.name) sessionNames[id] = sex.name;
+      }
       for (const k in sets) {
         const v = sets[k];
         if (!v || v.skipped) continue;
         const exKey = k.replace(/-\d+(-d\d+)?$/, "");
         if (challenge.exerciseSubstrings) {
-          const matches = challenge.exerciseSubstrings.some(s => exKey.toLowerCase().includes(s.toLowerCase()));
+          const name = sessionNames[exKey] ?? nameByExerciseId?.[exKey] ?? "";
+          const haystack = `${exKey} ${name}`.toLowerCase();
+          const matches = challenge.exerciseSubstrings.some(s => haystack.includes(s.toLowerCase()));
           if (!matches) continue;
         }
         distinct.add(exKey);
-        if (challenge.metric === "total_reps") total += v.reps ?? 0;
+        // Per @maaiz on pull-ups: assisted variants should count as a
+        // fraction (configurable). Detect via name containing 'assist'
+        // and apply a 0.5× reps multiplier so the user makes partial
+        // progress instead of nothing. (qa: progress-daily-mission-counters)
+        const name = (sessionNames[exKey] ?? nameByExerciseId?.[exKey] ?? "").toLowerCase();
+        const isAssisted = /assist/.test(name);
+        const repCredit = isAssisted ? (v.reps ?? 0) * 0.5 : (v.reps ?? 0);
+        if (challenge.metric === "total_reps") total += repCredit;
         if (challenge.metric === "total_volume_kg") total += (v.weight ?? 0) * (v.reps ?? 0);
       }
     }

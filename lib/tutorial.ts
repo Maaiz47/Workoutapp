@@ -184,4 +184,18 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     body: "App version is shown in Settings. Tap CHECK FOR UPDATES any time to see if there's a newer build. Tap REFRESH NOW to pick it up — works inside the installed PWA too.",
     where: "Settings → 🔄 APP VERSION",
   },
+  {
+    id: "home-wellness-nudge",
+    icon: "💧",
+    title: "Wellness daily nudge on Home",
+    body: "If you haven't logged today's hydration (target) or sleep, a small teal WELLNESS row appears on Home above your Daily Quest. Tap to drop into Progress → Dashboard to log it. The nudge disappears the moment you hit both. (qa: progress-wellness-reminders-on-home)",
+    where: "Home → just above DAILY QUEST",
+  },
+  {
+    id: "workout-tap-to-edit-set",
+    icon: "✏️",
+    title: "Tap a done set to edit",
+    body: "In an active session, tap any DONE set box (the ✓ ones) to open the EDIT modal for that exercise — fix the weight / reps / RPE without hunting for the EDIT button. Long-press still drops a per-set note like before. (qa: workout-active-edit-set-tap)",
+    where: "Active session → tap any ✓ set box",
+  },
 ];
