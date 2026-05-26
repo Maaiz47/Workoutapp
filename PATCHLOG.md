@@ -2,6 +2,22 @@
 
 ---
 
+## QA pass · 2026-05-26 follow-up #2 — 3 direct asks from @maaiz (qa: qa-deep-link-to-comment, system-notifs-bottom-always, qa-retest-list-show-fix-and-how-to)
+
+In-chat feedback after pass #1 — three precise bugs, all addressed.
+
+### Addressed
+- **qa-deep-link-to-comment** (slice 3): deep-link comment lookup now retries up to 30×100ms (3s total) after the item card expands. Long threads (user-feedback has 156 comments) need real hydration time before `getElementById('comment-XYZ')` can find the node. Without the retry the user landed on the right item card but the comment was never reached. Source: @maaiz "links still don't go to the exact comment in full qa, just to the general floating pill list".
+- **system-notifs-bottom-always** (slice 3): restored the first-unread-into-view path the prior pass over-corrected away. New behaviour: first unread bubble scrolls into view if any unread exist; otherwise bottom-land. Multi-attempt scroll kept (rAF + 120ms + 260ms) for the layout-race tolerance. Matches @maaiz refined ask "want to see from oldest unread or from latest always by default".
+- **qa-retest-list-show-fix-and-how-to** (NEW): `/api/qa/comments/mine` now attaches `itemTitle`, `itemArea`, `itemSteps` to each comment. The FAB YOUR PATCHES TO RETEST expander shows: the qa-state item TITLE as the FIX headline (clear plain English), the technical processed-summary below it in a dim sub-line (only when different), then a 🧪 HOW TO RETEST card with the item's `steps[]` as a numbered list. Source: @maaiz "The blue FIX: in the details of your patches to test doesn't actually state what was fixed, show what was fixed to retest clearly and how to".
+
+### Also processed this slice (3 in-flight comments)
+- **9z2awfsh** (re-affirms system-notifs ask): "should only start from earliest unread or last message" — addressed by the system-notifs-bottom-always slice 3 above.
+- **900lgj9j** (retest re:bkb56h0t): "Fix: doesn't show what action you took and advise to retest" — addressed by qa-retest-list-show-fix-and-how-to above.
+- **zm46ijte** (new bug, tracked): "Exercises like treadmill or rowing machine don't need sets or rest, just the time/speed/distance" → new qa-state item **workout-cardio-time-distance-exercise** (slice 1 placeholder; needs an exercise-type flag + variant input row next pass).
+
+---
+
 ## QA pass · 2026-05-26 follow-up — 4 comments processed (qa: qa-thread-action-on-any-own-comment, qa-thread-summarised-view, qa-thread-newest-at-bottom-autoscroll, qa-retest-flips-parent-status, system-notifs-bottom-always)
 
 All 4 from @maaiz, posted within minutes of the big pass landing.

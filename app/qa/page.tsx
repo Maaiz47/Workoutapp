@@ -1532,18 +1532,33 @@ export default function QAPage() {
           if (toggleBtn && indicator?.textContent?.includes("▼")) toggleBtn.click();
         }
       }
-      // Give the expanded thread one more tick to mount before scrolling
-      // to the comment.
-      setTimeout(() => {
+      // Retry the comment lookup for up to 3 seconds — threads with
+      // 100+ comments need real time to hydrate + mount after the
+      // item expands. Without the retry the user lands on the item
+      // card but never on the specific comment, exactly as @maaiz
+      // reported: "links still don't go to the exact comment in full
+      // qa, just to the general floating pill list".
+      // (qa: qa-deep-link-to-comment)
+      let tries = 0;
+      const findAndFlash = () => {
         if (commentId) {
           const cmtEl = document.getElementById(`comment-${commentId}`) as HTMLElement | null;
-          if (cmtEl) { flash(cmtEl); return; }
+          if (cmtEl) { flash(cmtEl); return true; }
         }
+        return false;
+      };
+      const tick = () => {
+        if (findAndFlash()) return;
+        tries++;
+        if (tries < 30) { setTimeout(tick, 100); return; }
+        // Last-resort fallback: flash the item card so the user at
+        // least sees they landed on the right item.
         if (focusId) {
           const itemEl = document.getElementById(`qa-item-${focusId}`) as HTMLElement | null;
           if (itemEl) flash(itemEl);
         }
-      }, 120);
+      };
+      setTimeout(tick, 120);
     }, 250);
     return () => clearTimeout(t);
   }, [loading, showMascot]);

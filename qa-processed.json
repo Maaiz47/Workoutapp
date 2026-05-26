@@ -661,6 +661,18 @@
     "cmplyyg4y0008am1jbkb56h0t": {
       "ts": "2026-05-26T02:10:53Z",
       "summary": "@maaiz retest re:lmz97l94 (failing follow-up): 'Can't see most recent comments added to this - want to see all comments before patch, when it should show the summarised original issue, whether patched and to retest if working now'. Two new items: qa-thread-summarised-view (top-of-thread summary card) + qa-thread-newest-at-bottom-autoscroll (chat-convention scroll on expand). Also shipped this pass: qa-thread-action-on-any-own-comment \u2014 UPDATE / RETEST action now appears on EVERY own comment in the thread, not just processed ones. (qa: qa-thread-action-on-any-own-comment, qa-thread-summarised-view, qa-thread-newest-at-bottom-autoscroll)"
+    },
+    "cmpm4s3p10002bgfe9z2awfsh": {
+      "ts": "2026-05-26T04:36:23Z",
+      "summary": "@maaiz idea (re-affirming system-notifs ask): 'System notifications is still opening from the chatlog to the earliest message first - should only start from earliest unread or last message'. Restored first-unread-into-view + bottom-fallback this slice (system-notifs-bottom-always slice 3). (qa: system-notifs-bottom-always)"
+    },
+    "cmpm4t5nf0000uyue900lgj9j": {
+      "ts": "2026-05-26T04:36:23Z",
+      "summary": "@maaiz retest re:bkb56h0t: 'Fix: doesn't show what action you took and advise to retest'. New item qa-retest-list-show-fix-and-how-to \u2014 FAB list now shows qa-state item TITLE as FIX headline + \ud83e\uddea HOW TO RETEST steps[] list. (qa: qa-retest-list-show-fix-and-how-to)"
+    },
+    "cmpm4vqpj0002qlqmzm46ijte": {
+      "ts": "2026-05-26T04:36:23Z",
+      "summary": "@maaiz: 'Exercises like treadmill or rowing machine don't need sets or rest, just the time/speed/distance'. New item workout-cardio-time-distance-exercise \u2014 placeholder this slice, needs exercise-type flag + variant input row next pass. (qa: workout-cardio-time-distance-exercise)"
     }
   }
 }

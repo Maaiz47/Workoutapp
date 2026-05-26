@@ -107,9 +107,15 @@ export async function GET(req: NextRequest) {
 
     const manifest = await readProcessedManifest();
 
-    // Load qa-state.json so we can attach the item's priority to each
-    // comment for client-side sort. (qa: qa-retest-list-priority-sort)
+    // Load qa-state.json so we can attach per-item context (priority,
+    // title, area, retest steps) to each comment. Title + steps give
+    // the user a clearly-stated FIX + HOW TO RETEST in the FAB list
+    // instead of the dev-noise summary. (qa: qa-retest-list-priority-sort,
+    // qa-retest-list-show-fix-and-how-to)
     let itemPriority: Record<string, string> = {};
+    let itemTitle: Record<string, string> = {};
+    let itemArea: Record<string, string> = {};
+    let itemSteps: Record<string, string[]> = {};
     try {
       const p = path.join(process.cwd(), "qa-state.json");
       const raw = await fs.readFile(p, "utf-8");
@@ -117,7 +123,11 @@ export async function GET(req: NextRequest) {
       const items = parsed?.items;
       if (Array.isArray(items)) {
         for (const it of items) {
-          if (it?.id && typeof it.priority === "string") itemPriority[it.id] = it.priority;
+          if (!it?.id) continue;
+          if (typeof it.priority === "string") itemPriority[it.id] = it.priority;
+          if (typeof it.title === "string") itemTitle[it.id] = it.title;
+          if (typeof it.area === "string") itemArea[it.id] = it.area;
+          if (Array.isArray(it.steps)) itemSteps[it.id] = it.steps.filter((s: any) => typeof s === "string");
         }
       }
     } catch {}
@@ -153,6 +163,9 @@ export async function GET(req: NextRequest) {
         id: c.id,
         itemId: c.itemId,
         itemPriority: itemPriority[c.itemId] ?? "medium",
+        itemTitle: itemTitle[c.itemId] ?? null,
+        itemArea: itemArea[c.itemId] ?? null,
+        itemSteps: itemSteps[c.itemId] ?? [],
         stepIndex: c.stepIndex,
         status: c.status,
         note: c.note,

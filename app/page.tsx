@@ -3780,7 +3780,7 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
   // Per @maaiz idea: list of the user's pending retest items so they
   // can jump straight to the QA item from this overlay. Fetched
   // lazily when the FAB opens. (qa: qa-pending-retests-list)
-  const [myRetests, setMyRetests] = useState<Array<{ id: string; itemId: string; itemPriority?: "critical" | "high" | "medium" | "low"; processedSummary: string | null; note: string; ts: string }>>([]);
+  const [myRetests, setMyRetests] = useState<Array<{ id: string; itemId: string; itemPriority?: "critical" | "high" | "medium" | "low"; itemTitle?: string | null; itemArea?: string | null; itemSteps?: string[]; processedSummary: string | null; note: string; ts: string }>>([]);
   const [retestsExpanded, setRetestsExpanded] = useState(false);
   const [retestSearch, setRetestSearch] = useState("");
   // Inline retest action state: which row's mini-form is open, and
@@ -4237,6 +4237,18 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
                             low:      { label: "LOW",  color: "rgba(255,255,255,0.4)", bg: "rgba(255,255,255,0.05)" },
                           };
                           const pmeta = PRIORITY_META[priority];
+                          // What the FIX was, in plain English: prefer
+                          // the qa-state item title (always human-readable),
+                          // fall back to the simplified processedSummary
+                          // when no item title is available. Per @maaiz:
+                          // "The blue FIX: in the details of your patches
+                          // to test doesn't actually state what was fixed,
+                          // show what was fixed to retest clearly and how
+                          // to". (qa: qa-retest-list-show-fix-and-how-to)
+                          const fixHeadline = r.itemTitle?.trim() || fullSummary;
+                          const fixHeadlineSnippet = isActive
+                            ? fixHeadline
+                            : (fixHeadline.length > 120 ? fixHeadline.slice(0, 120) + "…" : fixHeadline);
                           return (
                             <div key={r.id} style={{ background: isActive ? "rgba(255,209,102,0.10)" : "rgba(255,255,255,0.03)", border: `1px solid ${isActive ? "rgba(255,209,102,0.35)" : "rgba(255,255,255,0.07)"}`, borderRadius: 8, padding: "8px 10px", borderLeft: `3px solid ${pmeta.color}` }}>
                               <button
@@ -4244,11 +4256,24 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
                                 style={{ width: "100%", textAlign: "left", background: "transparent", border: "none", color: "#fff", fontSize: 11, fontFamily: "'DM Sans', sans-serif", cursor: "pointer", padding: 0 }}
                               >
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                                  <div style={{ fontSize: 9, fontWeight: 700, color: "#FFD166", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>{r.itemId.toUpperCase()}</div>
+                                  <div style={{ fontSize: 9, fontWeight: 700, color: "#FFD166", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>{r.itemId.toUpperCase()}{r.itemArea ? ` · ${r.itemArea.toUpperCase()}` : ""}</div>
                                   <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", color: pmeta.color, background: pmeta.bg, padding: "1px 5px", borderRadius: 3, border: `1px solid ${pmeta.color}55` }}>{pmeta.label}</span>
                                 </div>
                                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", lineHeight: 1.4, marginBottom: 4, whiteSpace: isActive ? "pre-wrap" : "normal" }}><strong style={{ color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>YOU SAID:</strong> {noteSnippet}</div>
-                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", lineHeight: 1.4, whiteSpace: isActive ? "pre-wrap" : "normal" }}><strong style={{ color: "#4ECDC4", fontWeight: 700 }}>FIX:</strong> {summarySnippet}</div>
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", lineHeight: 1.4, whiteSpace: isActive ? "pre-wrap" : "normal", marginBottom: isActive ? 4 : 0 }}><strong style={{ color: "#4ECDC4", fontWeight: 700 }}>FIX:</strong> {fixHeadlineSnippet}</div>
+                                {isActive && fullSummary && fullSummary !== fixHeadline && (
+                                  <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.55)", lineHeight: 1.4, whiteSpace: "pre-wrap", marginBottom: 4, paddingLeft: 10, borderLeft: "2px solid rgba(78,205,196,0.25)" }}>{fullSummary}</div>
+                                )}
+                                {isActive && Array.isArray(r.itemSteps) && r.itemSteps.length > 0 && (
+                                  <div style={{ marginTop: 6, padding: "6px 8px", background: "rgba(78,205,196,0.05)", border: "1px solid rgba(78,205,196,0.18)", borderRadius: 6 }}>
+                                    <div style={{ fontSize: 9, color: "#4ECDC4", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 4 }}>🧪 HOW TO RETEST</div>
+                                    <ol style={{ margin: 0, paddingLeft: 16, fontSize: 10.5, color: "rgba(255,255,255,0.78)", lineHeight: 1.45 }}>
+                                      {r.itemSteps.map((step, si) => (
+                                        <li key={si} style={{ marginBottom: si < (r.itemSteps?.length ?? 0) - 1 ? 3 : 0 }}>{step}</li>
+                                      ))}
+                                    </ol>
+                                  </div>
+                                )}
                               </button>
                               {isActive && (
                                 <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed rgba(255,209,102,0.25)" }}>
@@ -5575,19 +5600,39 @@ function HomePage() {
   // chats". Re-fires whenever the view opens, the snapshot lands, or
   // patchNotifs lazy-loads after view-open. (qa: system-notifs-scroll-bottom,
   // system-notifs-bottom-always)
+  // Open behaviour: scroll to FIRST UNREAD if any exist, otherwise
+  // land at bottom (newest). Per @maaiz refined ask: "want to see
+  // from oldest unread or from latest always by default". Restores
+  // the first-unread-into-view path that the previous pass over-
+  // corrected away. Fires multiple times (rAF + 120ms + 260ms) so
+  // the patchNotifs lazy-load + image decode can't race the scroll.
+  // (qa: system-notifs-bottom-always, system-notifs-scroll-bottom,
+  // system-notifs-unread-highlight)
   useEffect(() => {
     if (view !== "systemNotifs") return;
     const stamp = () => {
       const el = systemFeedScrollRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
+      if (!el) return;
+      const bundledUnread = systemViewSnapshot?.bundled ?? new Set<string>();
+      const patchUnread = systemViewSnapshot?.patch ?? new Set<string>();
+      const hasUnread = bundledUnread.size > 0 || patchUnread.size > 0;
+      if (hasUnread) {
+        // Walk entries in chronological order to find the first unread.
+        const entries = [
+          ...SYSTEM_NOTIFICATIONS.map(n => ({ ts: n.publishedAt, unread: bundledUnread.has(n.id) })),
+          ...patchNotifs.map(p => ({ ts: p.publishedAt, unread: patchUnread.has(p.id) })),
+        ].sort((a, b) => a.ts.localeCompare(b.ts));
+        const firstUnreadIdx = entries.findIndex(e => e.unread);
+        if (firstUnreadIdx >= 0) {
+          const target = el.querySelector(`[data-unread-idx='${firstUnreadIdx}']`) as HTMLElement | null;
+          if (target) { target.scrollIntoView({ block: "start" }); return; }
+        }
+      }
+      el.scrollTop = el.scrollHeight;
     };
-    // Multiple scroll attempts to defeat any layout race: rAF (next
-    // paint), 80ms (after most fetches resolve), 240ms (after image
-    // decode / fonts). Cheap. Each is idempotent. Drops the
-    // first-unread-into-top behaviour entirely. (qa: system-notifs-bottom-always)
     requestAnimationFrame(stamp);
-    const t1 = setTimeout(stamp, 80);
-    const t2 = setTimeout(stamp, 240);
+    const t1 = setTimeout(stamp, 120);
+    const t2 = setTimeout(stamp, 260);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [view, systemViewSnapshot, patchNotifs]);
   // Snapshot unread state when entering systemNotifs view (so the
