@@ -2,6 +2,58 @@
 
 ---
 
+## Image batch · 2026-05-26 — 20 incoming images mapped (qa: image-prompts-v2, image-gen-plan-v2, achievements-premium-bonus-avatars, tier-icons-vivid, day-card-hero-routing, achievement-avatars-assets)
+
+Mapped the 20 PNGs in `/incoming/` (generated off the `/image-prompts-v2.md`
+backlog) to their canonical paths, compressed each to the spec'd envelope
+(pngquant for avatars + tier icons, JPG q80 for day-card heroes), and
+wired routes where needed. Reusable pipeline saved to
+`scripts/process-incoming-images.py` for the next batch.
+
+### Addressed
+- **achievements-premium-bonus-avatars** (Batch 10, 5/5): all `mb-*.png`
+  avatars at `/public/avatars/`. Schema + `MILESTONE_BONUS_BY_MILESTONE_ID`
+  lookup already wired — these grant the moment the user crosses
+  pushups-200 / pullups-30 / situps-200 / dips-50 / bwsquats-500.
+- **achievement-avatars-assets** (Batch 5, 7/7): all `ach-*.png` at
+  `/public/avatars/` (spark / hammer / anvil / phoenix / crucible /
+  blacksmith / forge-eternal). Assets ready; await achievements-v1 to
+  add the `ACHIEVEMENT_AVATARS` array in `lib/avatars.ts` and surface
+  them in the picker.
+- **tier-icons-vivid** (Batch 12, 1/1): Big Dawg refreshed — stocky
+  pitbull bust replaces the lean wolf at
+  `/public/tier-icons/vivid/big-dawg.png`. 13.5 KB after pngquant.
+- **day-card-hero-routing** (Batch 11, 6/7 wired): 6 new day-card heroes
+  at `/public/ai/day-*.jpg` (cardio / hiit / bw-only / mobility /
+  recovery / cardio-hiit). `workoutImageFor` in `app/page.tsx` rewritten:
+  hiit/cardio/recovery now point to the new `day-*.jpg` files; mobility
+  split from recovery into its own keyword route; new bodyweight /
+  bw-only / calisthen / no-equipment route added; hybrid cardio+hiit
+  / metcon route added before the single-keyword branches.
+- **image-prompts-v2** + **image-gen-plan-v2**: status table at the
+  top of `/image-prompts-v2.md` updated — 42/75 shipped after this
+  batch. Batch sections 5/10/11/12 all show `✅ SHIPPED 2026-05-26`.
+
+### Slices (shipped first part, more to do)
+- **day-card-hero-routing**: 7th image `/public/ai/day-bw-strength.jpg`
+  (static push-up plank) saved but NOT wired — awaiting @maaiz
+  decision on whether to repurpose for a "core" / "strength" route
+  or drop it. Tracked as open in CLAUDE.md reminder.
+- **achievement-avatars-assets**: assets-only slice. Next slice:
+  `ACHIEVEMENT_AVATARS` array + mint pipeline integration when
+  achievements-v1 ships.
+
+### Docs split
+- **CLAUDE.md**: trimmed from 443 → 164 lines. Full QA processing
+  procedure moved to `docs/qa-processing.md`. Forcing rules moved to
+  `docs/feature-forcing-rules.md`. CLAUDE.md retains the headlines
+  + pointers + reminders + repo basics, no detail duplication.
+- **scripts/vercel-should-skip.sh** SAFE_PATTERN extended to cover
+  `docs/` + `image-prompts-v2.md` so doc-only commits don't burn
+  deploy quota.
+
+---
+
 ## QA pass · 2026-05-24 — 11 comments processed (qa: qa-duplicate-detection, qa-retest-list-persistence-fix, messages-pull-to-refresh, trainer-request-pending-state, trainer-client-auto-friend, qa-retest-list-priority-sort, qa-deep-link-mascot-race)
 
 All 11 from @maaiz.

@@ -46,16 +46,18 @@ fi
 #   scripts/          — dev-only helpers, never bundled into the
 #                       Next.js output or shipped to the client.
 #   CLAUDE.md         — instructions for Claude sessions, not runtime.
+#   docs/             — claude-only docs offloaded from CLAUDE.md.
 #   README.md         — repo docs.
-#   image-prompts.md  — static generation-prompts catalogue.
+#   image-prompts*.md — static generation-prompts catalogue (v1 + v2).
 #   public/stretches/README.md — folder-level docs, not user-facing.
+#   public/avatars/README.md   — folder-level docs.
 #   .gitignore        — VCS metadata.
 #
 # Anything OUTSIDE this pattern triggers a deploy. This is intentionally
 # conservative — qa-state.json, qa-processed.json, PATCHLOG.md, prisma
 # schema, app/, lib/, public/* binaries, package.json, etc. all DO
 # trigger a deploy.
-SAFE_PATTERN='^(qa-comments/|scripts/|CLAUDE\.md$|README\.md$|image-prompts\.md$|public/stretches/README\.md$|public/avatars/README\.md$|\.gitignore$)'
+SAFE_PATTERN='^(qa-comments/|scripts/|docs/|CLAUDE\.md$|README\.md$|image-prompts(-v2)?\.md$|public/stretches/README\.md$|public/avatars/README\.md$|\.gitignore$)'
 
 echo "vercel-should-skip: files changed since $VERCEL_GIT_PREVIOUS_SHA:"
 echo "$CHANGES" | sed 's/^/  /'

@@ -2114,13 +2114,19 @@ function anatomyImageFor(primary: string[]): string | null {
   return null;
 }
 
-// Maps a workout title to one of the 8 AI workout-card images, or null if the
-// title doesn't cleanly match one of the canonical splits (chest day, arms,
-// etc. fall back to the animated SVG icon).
+// Maps a workout title to a hero background image, or null if the title
+// doesn't cleanly match a known flavour (chest day, arms, etc. fall back
+// to the animated SVG icon). `day-*.jpg` are the v2 image-gen batch 11
+// heroes; `workout-*.jpg` are the original launch set.
 function workoutImageFor(title: string): string | null {
   const t = title.toLowerCase();
-  if (t.includes("hiit"))                                 return "/ai/workout-hiit.jpg";
-  if (t.includes("cardio") || t.includes("conditio"))     return "/ai/workout-cardio.jpg";
+  // Hybrid cardio+HIIT before either single keyword so "Cardio + HIIT" hits this first.
+  if ((t.includes("cardio") && t.includes("hiit")) || t.includes("metcon")) return "/ai/day-cardio-hiit.jpg";
+  if (t.includes("hiit"))                                 return "/ai/day-hiit.jpg";
+  if (t.includes("cardio") || t.includes("conditio"))     return "/ai/day-cardio.jpg";
+  if (t.includes("bodyweight") || t.includes("bw only") || t.includes("calisthen") || t.includes("no equipment")) return "/ai/day-bw-only.jpg";
+  if (t.includes("mobility") || t.includes("stretch") || t.includes("yoga"))    return "/ai/day-mobility.jpg";
+  if (t.includes("recovery") || t.includes("foam") || t.includes("rest day"))    return "/ai/day-recovery.jpg";
   if (t.startsWith("push") && t.includes("volume"))       return "/ai/workout-push-volume.jpg";
   if (t.startsWith("push"))                               return "/ai/workout-push.jpg";
   if (t.startsWith("pull") && t.includes("width"))        return "/ai/workout-pull-width.jpg";
@@ -2131,7 +2137,6 @@ function workoutImageFor(title: string): string | null {
   if (t.includes("arm") || t.includes("bicep") || t.includes("tricep")) return "/ai/workout-arms.jpg";
   if (t.includes("core") || t.includes("abs") || t.includes("ab "))     return "/ai/workout-core.jpg";
   if (t.includes("glute"))                                return "/ai/workout-glutes.jpg";
-  if (t.includes("recovery") || t.includes("mobility") || t.includes("stretch")) return "/ai/workout-recovery.jpg";
   if (t.includes("power") || t.includes("olympic") || t.includes("explosive"))   return "/ai/workout-power.jpg";
   if (t.startsWith("full"))                               return "/ai/workout-fullbody.jpg";
   if (t.startsWith("upper"))                              return "/ai/workout-upper.jpg";

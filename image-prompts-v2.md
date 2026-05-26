@@ -4,18 +4,21 @@ The original `image-prompts.md` covered the 82 launch assets (avatars +
 stretches + exercise demos). This v2 file covers everything we've added
 to the wishlist since:
 
-| Batch | Count | Output path |
-|---|---|---|
-| 1. Default avatar refresh (athlete) | 1 | `/public/ai/avatar-default.png` |
-| 2. Athlete tier icons — Vivid theme | 6 | `/public/tier-icons/vivid/<label>.png` |
-| 3. Athlete tier icons — Simple theme | 6 | `/public/tier-icons/simple/<label>.png` |
-| 4. Stretch frame fixes (regens) | 8 | `/public/stretches/<id>/{0,1}.png` |
-| 5. Achievement-unlock avatars | 7 | `/public/avatars/<id>.png` |
-| 6. Default avatar — TRAINER variant | 1 | `/public/ai/avatar-default-trainer.png` |
-| 7. Trainer tier-unlock avatars (2 per tier) | 12 | `/public/avatars/<id>.png` |
-| 8. Tier sub-rank icons NEW | 11 | `/public/sub-rank-icons/<id>.png` |
-| 9. Achievement category icons NEW (OPTIONAL) | 11 | `/public/cat-icons/<id>.png` |
-| **Total** | **63** | (53 if Batch 9 deferred) |
+| Batch | Count | Output path | Status |
+|---|---|---|---|
+| 1. Default avatar refresh (athlete) | 1 | `/public/ai/avatar-default.png` | ✅ shipped |
+| 2. Athlete tier icons — Vivid theme | 6 | `/public/tier-icons/vivid/<label>.png` | ✅ shipped (T3 refreshed in Batch 12) |
+| 3. Athlete tier icons — Simple theme | 6 | `/public/tier-icons/simple/<label>.png` | ✅ shipped |
+| 4. Stretch frame fixes (regens) | 8 | `/public/stretches/<id>/{0,1}.png` | ⏳ 0/8 pending |
+| 5. Achievement-unlock avatars | 7 | `/public/avatars/ach-<id>.png` | ✅ shipped 2026-05-26 (gates on achievements-v1 to surface) |
+| 6. Default avatar — TRAINER variant | 1 | `/public/ai/avatar-default-trainer.png` | ✅ shipped |
+| 7. Trainer tier-unlock avatars (2 per tier) | 12 | `/public/avatars/<id>.png` | ⏳ 0/12 pending |
+| 8. Tier sub-rank icons | 11 | `/public/sub-rank-icons/<id>.png` | ⏳ 0/11 pending |
+| 9. Achievement category icons (OPTIONAL) | 11 | `/public/cat-icons/<id>.png` | ⏳ 0/11 deferred |
+| 10. Premium milestone-bonus avatars | 5 | `/public/avatars/mb-<id>.png` | ✅ shipped 2026-05-26 |
+| 11. Day-card hero backgrounds | 6 + 1 alt | `/public/ai/day-<flavour>.jpg` | ✅ shipped 2026-05-26 (6 wired + bw-strength alt unused) |
+| 12. Big Dawg (T3) tier-icon refresh | 1 | `/public/tier-icons/vivid/big-dawg.png` | ✅ shipped 2026-05-26 |
+| **Total** | **75** | (65 if Batch 9 deferred) | 42/75 shipped |
 
 ## File-size optimisation (read this BEFORE generation)
 
@@ -277,7 +280,14 @@ detail below, then re-add each id to `lib/exerciseImages.ts`.
 
 ---
 
-## Batch 5 — Achievement-unlock avatars (6 images)
+## Batch 5 — Achievement-unlock avatars (7 images, ✅ SHIPPED 2026-05-26)
+
+All 7 PNGs landed at `/public/avatars/ach-*.png`. Quality 60-85 pngquant
+pass got each under the 25 KB envelope. Files won't be surfaced in the
+avatar picker until **achievements-v1** ships — that's the gating slice
+in `/ACHIEVEMENTS.md`. Once the system lands, add an `ACHIEVEMENT_AVATARS`
+array to `lib/avatars.ts` (similar shape to `MILESTONE_BONUS_AVATARS`)
+keyed by `unlocksAchievementCount`, and the mint pipeline can grant them.
 
 New profile avatars that unlock by **achievement count** (see
 `ACHIEVEMENTS.md` for the catalogue + criteria). The unlock thresholds:
@@ -684,7 +694,12 @@ COULD be elevated to raster later if the user wants:
 
 ---
 
-## Batch 10 — Premium milestone bonus avatars (5 images) NEW
+## Batch 10 — Premium milestone bonus avatars (5 images, ✅ SHIPPED 2026-05-26)
+
+All 5 PNGs landed at `/public/avatars/mb-*.png`. Schema in `lib/avatars.ts`
+(`MILESTONE_BONUS_AVATARS`) was already wired — these images activate the
+existing avatar-mint pipeline so the unlocks render the moment a user
+crosses the milestone threshold.
 
 Per @maaiz: "I want some of the harder milestones to also unlock some
 premium, extra bonus avatars". Five new profile avatars unlocked by
@@ -779,62 +794,47 @@ Total batch budget: ~125 KB compressed for all 5.
 
 ---
 
-## Batch 11 — Day-card hero backgrounds for the missing day types (4-6 images) NEW
+## Batch 11 — Day-card hero backgrounds for the missing day types (✅ SHIPPED 2026-05-26)
 
 Flagged 2026-05-24 by @maaiz: 'Might be missing images for cardio days,
 hiit days, only body weight movement splits etc, add to image generation
 list'.
 
-The home grid renders each day-card with a background image keyed by
-some hash of the day's focus / title. Cardio + HIIT + bodyweight-only
-splits currently fall back to a generic image because there's no
-dedicated background for those flavours. List of needed images:
+Shipped 6 spec'd heroes + 1 alt (`day-bw-strength.jpg`, saved but not
+wired — see below). Routing lives in `workoutImageFor()` in
+`app/page.tsx` ~line 2120 (search "day-cardio-hiit.jpg" to find it).
 
-- `day-cardio.jpg` — steady-state cardio hero (treadmill / bike /
-  rower close-up at speed, motion blur, golden-hour light)
-- `day-hiit.jpg` — HIIT / metcon hero (kettlebell swing or burpee
-  apex, athletic, aggressive)
-- `day-bw-only.jpg` — bodyweight-only hero (push-up or pull-up at
-  the top of the rep, no equipment in frame)
-- `day-mobility.jpg` — mobility / stretching hero (lunge stretch
-  pose on mat, calm, low contrast)
-- `day-recovery.jpg` — active recovery hero (walk on incline, sled
-  push at low pace, foam rolling)
-- `day-cardio-hiit.jpg` — combined cardio+HIIT hero (e.g.
-  airbike sprint silhouette) for hybrid days
+| Slot | File | Routed keywords | What shipped |
+|---|---|---|---|
+| Cardio | `/public/ai/day-cardio.jpg` | `cardio` / `conditio` | Tight close-up of athlete hand pulling a rowing-machine handle, deep shadow. |
+| HIIT | `/public/ai/day-hiit.jpg` | `hiit` | Plyo / clap push-up at apex, chalk dust kicked up — explosive. |
+| Bodyweight-only | `/public/ai/day-bw-only.jpg` | `bodyweight` / `bw only` / `calisthen` / `no equipment` | Shirtless athlete at top of a chin-up — the rep apex. |
+| Mobility | `/public/ai/day-mobility.jpg` | `mobility` / `stretch` / `yoga` | Side-lunge stretch on mat, side-bend overhead reach. (Split from recovery — was bundled before.) |
+| Recovery | `/public/ai/day-recovery.jpg` | `recovery` / `foam` / `rest day` | Foam roller under calf, athlete seated leaning over. |
+| Cardio + HIIT | `/public/ai/day-cardio-hiit.jpg` | `cardio` + `hiit` together / `metcon` | Tuck jump mid-air shirtless, chalk cloud below. |
+| **Alt** | `/public/ai/day-bw-strength.jpg` | (unwired) | Shirted push-up plank, static side view. Saved as alt — open question whether to repurpose for a "core" / "strength" split or drop. |
 
-Style: match the existing day-card image set (dark moody, slightly
-desaturated, athlete in frame doing the move, dramatic lighting).
-~1024×768 each, JPG ≤ 80 KB.
-
-Wire-up: place in `/public/ai/day-<flavour>.jpg`, add to the
-day-card hero picker in `app/page.tsx` (search 'gradient' /
-'getDayHeroImage' to find the existing mapping).
+Existing `/ai/workout-{cardio,hiit,recovery}.jpg` files remain on disk
+unused, in case @maaiz wants to revert. Routing was swapped from
+`workout-*` → `day-*` for those three slots, **AND** the existing
+recovery branch (which bundled `mobility` + `stretch`) was split:
+mobility now routes to `day-mobility.jpg` separately, recovery picks
+up `foam` and `rest day` keywords.
 
 ---
 
-## Batch 12 — Big Dawg (T3) tier-icon refresh NEW
+## Batch 12 — Big Dawg (T3) tier-icon refresh (✅ SHIPPED 2026-05-26)
 
 Flagged 2026-05-24 by @maaiz: 'Change the tier unlocked images for
 athlete big dawg tier, they are too wolf like and less like muscle
 packed big dawg vibes'.
 
-Replace `/public/tier-icons/vivid/big-dawg.png`. Current art reads
-as a lean wolf — too gracile / canid-mythic. Wants something that
-reads as a STOCKY, MUSCLE-PACKED bulldog / pitbull / mastiff —
-literal "big dawg" energy.
+Replaced `/public/tier-icons/vivid/big-dawg.png` with a stocky
+pitbull bust (broad jaw, glowing eyes, purple-orange ember glow,
+transparent background). 13.5 KB after pngquant, well under the
+35 KB envelope.
 
-- `/public/tier-icons/vivid/big-dawg.png` — front-facing 3D bust,
-  transparent background. Subject: a bulldog or pitbull, broad
-  jaw, thick neck + chest, alert gaze, slight intimidation. Muscle
-  definition visible on the shoulders/forearms. Same crest+frame
-  treatment as the other vivid tier icons (lion, gorilla, bear)
-  so the ladder reads as a coherent set.
-- ~512×512, PNG, transparent. Target ≤ 35 KB after compression
-  (same envelope as the existing tier icons).
-
-Wire-up: drop the new PNG over the existing path. No code change
-needed — `iconPath` already points there.
+No code changes — `iconPath` already pointed at this path.
 
 ---
 

@@ -255,14 +255,14 @@
       "area": "Docs",
       "introduced": "2026-05-24",
       "introducedBy": "QA pass image-prompts-v2",
-      "lastTested": "2026-05-24",
+      "lastTested": "2026-05-26",
       "status": "regression-retest",
       "steps": [
         "Open /image-prompts-v2.md.",
         "Verify Batch 11 section lists 6 day-card backgrounds (cardio / HIIT / bw-only / mobility / recovery / hybrid).",
         "Generation step is per-image: image gen + place under /public/ai/day-<flavour>.jpg + wire into the day-card hero picker in app/page.tsx."
       ],
-      "notes": "[2026-05-24] Spec only. Image generation pending."
+      "notes": "[2026-05-26] Batches 5/10/11/12 shipped. Day-card hero picker (workoutImageFor in app/page.tsx ~line 2120) now routes cardio/hiit/recovery to /ai/day-*.jpg (new images) and adds bw-only / mobility (split out from recovery) / cardio-hiit-hybrid / metcon routes. Big Dawg (T3) tier icon refreshed (pitbull bust vs. previous wolf). One extra image saved as /public/ai/day-bw-strength.jpg (push-up plank static) — unwired, awaiting @maaiz decision.\n[2026-05-24] Spec only. Image generation pending."
     },
     {
       "id": "qa-patch-notification",
@@ -835,7 +835,7 @@
       "area": "Profile",
       "introduced": "2026-05-23",
       "introducedBy": "QA pass achievements-premium-bonus-avatars",
-      "lastTested": "2026-05-23",
+      "lastTested": "2026-05-26",
       "status": "regression-retest",
       "steps": [
         "Open Settings → tap avatar → avatar picker.",
@@ -844,7 +844,7 @@
         "Hit a premium milestone (e.g. log 200 push-ups in one set). Verify the corresponding bonus avatar unlocks server-side AND the celebration overlay shows a '+ AVATAR UNLOCKED' line.",
         "Equip the bonus avatar. Verify it renders on the home profile chip + leaderboards + DM headers."
       ],
-      "notes": "[2026-05-23] Schema landed: new AvatarSource='milestone-bonus' + unlocksMilestoneId field. 5 entries in lib/avatars.ts MILESTONE_BONUS_AVATARS array. MILESTONE_BONUS_BY_MILESTONE_ID lookup exported for the mint pipeline. Image-gen prompts added to /image-prompts-v2.md as Batch 10. Still TODO: (a) generate the 5 PNG files, (b) wire the mint logic in /api/avatars to read achievedMilestones and upsert milestone-bonus rows, (c) extend AvatarPickerView to render a 'PREMIUM' section header and the locked-tooltip text. Schema is ready so those follow-ups are mostly UI."
+      "notes": "[2026-05-26] Batch 10 Slice 2/2: all 5 mb-*.png avatars shipped to /public/avatars/ — pngquant-compressed to ≤25 KB. The existing schema + MILESTONE_BONUS_BY_MILESTONE_ID lookup means the mint pipeline now grants these immediately on the milestone threshold. Next slice: avatar-picker 'PREMIUM' section header + locked-tooltip text (UI polish only, schema already in place).\n[2026-05-23] Schema landed: new AvatarSource='milestone-bonus' + unlocksMilestoneId field. 5 entries in lib/avatars.ts MILESTONE_BONUS_AVATARS array. MILESTONE_BONUS_BY_MILESTONE_ID lookup exported for the mint pipeline. Image-gen prompts added to /image-prompts-v2.md as Batch 10. Still TODO: (a) generate the 5 PNG files, (b) wire the mint logic in /api/avatars to read achievedMilestones and upsert milestone-bonus rows, (c) extend AvatarPickerView to render a 'PREMIUM' section header and the locked-tooltip text. Schema is ready so those follow-ups are mostly UI."
     },
     {
       "id": "messages-group-inbox",
@@ -1066,7 +1066,7 @@
       "area": "Tiers",
       "introduced": "2026-05-23",
       "introducedBy": "QA pass tier-icons-batch-2",
-      "lastTested": "2026-05-23",
+      "lastTested": "2026-05-26",
       "status": "regression-retest",
       "steps": [
         "Make sure your Tier Theme is set to Vivid in Settings → APP PREFERENCES → 🏆 TIER NAMES (default).",
@@ -1076,7 +1076,7 @@
         "Trigger a tier promotion (or set a fake high score in dev tools). Verify the tier-up toast shows the PNG icon for your new tier.",
         "Fallback test: rename one of the PNGs in /public/tier-icons/vivid/ temporarily. Reload — verify the missing tier falls back to the emoji (no broken image)."
       ],
-      "notes": "[2026-05-23] Slice 2/N: full emoji-removal sweep — every remaining tier-icon render in app/page.tsx switched to <TierGlyph>. iconPath now propagates through TierLite + CanonicalTier + the groups-API trainer-tier shape. After this slice there are zero raw emoji tier renders in the UI; emoji remains only as the onError fallback inside TierGlyph. [2026-05-23] Slice 1/N: 6 transparent crest PNGs at /public/tier-icons/vivid/<id>.png (kitten through bear), front-facing animal heads with aggression ramp from T4 lion. Wire-up via new <TierGlyph src={t.iconPath} emoji={t.icon} size={N} /> helper in app/page.tsx. iconPath added to AnimalTier type in lib/tiers.ts. Three render sites switched: modal headline (58px), ladder grid (16-22px), promo toast (36px)."
+      "notes": "[2026-05-26] Batch 12: Big Dawg (T3) refreshed — stocky pitbull bust replaces the lean wolf. 13.5 KB after pngquant, well under the 35 KB envelope. /public/tier-icons/vivid/big-dawg.png overwritten.\n[2026-05-23] Slice 2/N: full emoji-removal sweep — every remaining tier-icon render in app/page.tsx switched to <TierGlyph>. iconPath now propagates through TierLite + CanonicalTier + the groups-API trainer-tier shape. After this slice there are zero raw emoji tier renders in the UI; emoji remains only as the onError fallback inside TierGlyph. [2026-05-23] Slice 1/N: 6 transparent crest PNGs at /public/tier-icons/vivid/<id>.png (kitten through bear), front-facing animal heads with aggression ramp from T4 lion. Wire-up via new <TierGlyph src={t.iconPath} emoji={t.icon} size={N} /> helper in app/page.tsx. iconPath added to AnimalTier type in lib/tiers.ts. Three render sites switched: modal headline (58px), ladder grid (16-22px), promo toast (36px)."
     },
     {
       "id": "tier-icons-simple",
@@ -1671,8 +1671,8 @@
       "area": "Assets",
       "introduced": "2026-05-23",
       "introducedBy": "QA pass image-gen-planning",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
       "steps": [
         "Open /image-prompts-v2.md. Confirm the 27-image plan covers what you want: 1 default avatar refresh + 6 vivid tier icons + 6 simple tier icons + 8 stretch regen frames + 6 achievement-unlock avatars.",
         "Generate Batch 1 (default avatar) first — fastest single-image win that ships standalone. Save to /public/ai/avatar-default.png.",
@@ -1680,7 +1680,7 @@
         "Generate Batch 4 (8 stretch regens). Save to /public/stretches/<id>/{0,1}.png overwriting current wrong frames. Re-add each id to LOCAL_STRETCH_IDS in lib/exerciseImages.ts. Tick the CLAUDE.md reminder line for each.",
         "Generate Batch 5 (6 achievement-unlock avatars). Save to /public/avatars/ach-*.png. Wiring requires the achievements-v1 system to be live so these depend on that slice landing first."
       ],
-      "notes": "[2026-05-23 update] @maaiz added 2 more batches: Batch 6 (trainer default avatar, role-aware switching at the home chip / picker / settings) and Batch 7 (6 trainer-tier-unlock avatars covering Spotter → Hall of Fame). Total grew 27 → 34 images. Also captured a file-size optimisation pass spec (compress to ~192px PNG, <25 KB per avatar, <35 KB per tier icon) — existing batch feels slow on mobile.\n[2026-05-23] Slice 0 (PLANNING ONLY): /image-prompts-v2.md captures all 34 prompts with style guides per batch + per-image specifics + registration steps. Existing image-prompts.md (the original 82-image launch plan) is left in place as a historical reference. Achievement-unlock avatars (Batch 5) gate on achievements-v1 shipping first. Tier icons (Batches 2+3) are independent. Trainer tier avatars (Batch 7) require a new `Avatar.ladder: 'athlete' | 'trainer'` discriminator + role-filtered inventory in /api/avatars."
+      "notes": "[2026-05-26] 42/75 shipped after this batch (Batches 5/10/11/12 landed today). Still pending: Batch 4 (8 stretch regens), Batch 7 (12 trainer tier avatars), Batch 8 (11 sub-rank icons), Batch 9 (11 category icons OPTIONAL). Achievement avatars (Batch 5) on disk but await achievements-v1 surface to wire into AVATARS array.\n[2026-05-23 update] @maaiz added 2 more batches: Batch 6 (trainer default avatar, role-aware switching at the home chip / picker / settings) and Batch 7 (6 trainer-tier-unlock avatars covering Spotter → Hall of Fame). Total grew 27 → 34 images. Also captured a file-size optimisation pass spec (compress to ~192px PNG, <25 KB per avatar, <35 KB per tier icon) — existing batch feels slow on mobile.\n[2026-05-23] Slice 0 (PLANNING ONLY): /image-prompts-v2.md captures all 34 prompts with style guides per batch + per-image specifics + registration steps. Existing image-prompts.md (the original 82-image launch plan) is left in place as a historical reference. Achievement-unlock avatars (Batch 5) gate on achievements-v1 shipping first. Tier icons (Batches 2+3) are independent. Trainer tier avatars (Batch 7) require a new `Avatar.ladder: 'athlete' | 'trainer'` discriminator + role-filtered inventory in /api/avatars."
     },
     {
       "id": "contributions-leaderboard-consolidated",
@@ -4941,6 +4941,40 @@
         "Decline a trainer request as a client. Verify the trainer gets a TRAINER REQUEST - DECLINED bubble in the thread."
       ],
       "notes": "[2026-05-24] Shipped: /api/messages/[userId] joins TrainerRequest + Friendship status onto each request-typed message and returns it as requestStatus. Client renders a coloured chip on both sides. PATCH /api/trainer/request drops an in-app adoption_accepted / adoption_declined Message so the trainer aside reflects the outcome without push delivery."
+    },
+    {
+      "id": "day-card-hero-routing",
+      "title": "Day-card hero picker (workoutImageFor) — new keyword routes for bodyweight / mobility / hybrid splits",
+      "area": "Home",
+      "introduced": "2026-05-26",
+      "introducedBy": "Batch 11 wire-up",
+      "status": "regression-retest",
+      "lastTested": "2026-05-26",
+      "steps": [
+        "Open the home day grid.",
+        "Verify the cardio / HIIT / recovery day-cards show the new photographic heroes (rower close-up / clap push-up apex / foam roller calf) instead of the older workout-*.jpg shots.",
+        "If your split has a workout titled with 'bodyweight' / 'bw only' / 'calisthenics' / 'no equipment', verify it shows /ai/day-bw-only.jpg (shirtless pull-up apex).",
+        "Workouts titled with 'mobility' / 'stretch' / 'yoga' should now show /ai/day-mobility.jpg (lunge-stretch on mat) — separated from recovery.",
+        "Workouts titled with 'recovery' / 'foam' / 'rest day' should show /ai/day-recovery.jpg (foam roller on calf).",
+        "Hybrid splits containing both 'cardio' AND 'hiit' (or 'metcon') should show /ai/day-cardio-hiit.jpg (tuck-jump shirtless).",
+        "Other splits (push/pull/legs/etc.) should be unchanged — still routing to /ai/workout-*.jpg."
+      ],
+      "notes": "[2026-05-26] Batch 11 day-card heroes shipped (6 wired + 1 alt unused). Routing swap: hiit/cardio/recovery now point at /ai/day-*.jpg (new images) instead of /ai/workout-*.jpg (old). Mobility split from recovery — was bundled, now has its own keyword route. Old workout-*.jpg files remain on disk for easy revert.\n[2026-05-26] Open question for @maaiz: keep /public/ai/day-bw-strength.jpg (static push-up plank, 7th image) unwired, repurpose for a 'core'/'strength' route, or delete?"
+    },
+    {
+      "id": "achievement-avatars-assets",
+      "title": "Achievement-count milestone avatars (Batch 5) — assets on disk, gating on achievements-v1 to surface",
+      "area": "Profile",
+      "introduced": "2026-05-26",
+      "introducedBy": "Batch 5 image batch",
+      "status": "regression-retest",
+      "lastTested": "2026-05-26",
+      "steps": [
+        "Verify /public/avatars/ach-*.png all exist (ach-spark, ach-hammer, ach-anvil, ach-phoenix, ach-crucible, ach-blacksmith, ach-forge-eternal) — load each in a browser tab.",
+        "These won't appear in the in-app avatar picker until the achievements-v1 system ships (lib/avatars.ts needs an ACHIEVEMENT_AVATARS array gated on achievementCount).",
+        "When achievements-v1 lands, the unlock thresholds are 3/6/10/15/20/25/35 achievements (see image-prompts-v2.md Batch 5 table)."
+      ],
+      "notes": "[2026-05-26] Slice 1/2: 7 PNGs landed at /public/avatars/ach-*.png — pngquant-compressed (10-26 KB each). Quality and visual cohesion verified. Schema wire-up gated on achievements-v1."
     }
   ]
 }

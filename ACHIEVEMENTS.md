@@ -4,6 +4,13 @@ Planning artefact for the achievements feature. NO code shipped yet —
 this is the spec the next slice will build against. Tracked in
 `qa-state.json` as `achievements-v1` (untested / planning).
 
+**2026-05-26 update:** all 7 count-milestone avatars (Batch 5) are now
+on disk at `/public/avatars/ach-{spark,hammer,anvil,phoenix,crucible,
+blacksmith,forge-eternal}.png`. They won't surface in the picker until
+this system ships and an `ACHIEVEMENT_AVATARS` array is added to
+`lib/avatars.ts` — but the visuals are no longer a blocker for the
+first code slice.
+
 ---
 
 ## TL;DR — recommended shape
