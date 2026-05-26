@@ -1,0 +1,10 @@
+{
+  "id": "cmpm65ekw0000j9x128d4bk5s",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Progress · view=progress] Clicked into the hydrate reminder on home but it took me to progress dashboard with the wellness bit closed\nTake the user directly to the hydration entry or if the reminder is about sleep directly there or if it’s about updating wellness entirely, can go there but open list/card",
+  "screenshotUrl": null,
+  "ts": "2026-05-26T05:02:34.255Z"
+}
