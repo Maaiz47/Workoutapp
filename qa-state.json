@@ -5017,7 +5017,7 @@
         "Verify the feed lands scrolled to the bottom (newest), NOT scrolled to the top of the first unread.",
         "Unread highlight (NEW chip + glow) should still apply on unread bubbles."
       ],
-      "notes": "[2026-05-26] Slice 3: restored the first-unread-into-view path the prior pass over-corrected away. New behaviour matches @maaiz refined ask 'want to see from oldest unread or from latest always by default' \u2014 first unread scrolls into view if any exist; otherwise bottom-land. Multi-attempt scroll kept (rAF + 120ms + 260ms).\n\n[2026-05-26] Slice 2: strengthened the scroll-to-bottom \u2014 fires on rAF + 80ms + 240ms timeouts to defeat layout races (initial scroll might have raced with patchNotifs fetch / image loads). @maaiz 76t264yp 'still opens at the top from the read messages' likely tested an earlier deploy. Re-test after this push.\n\n[2026-05-26] Slice 1: scroll target bumped to scrollHeight-clientHeight on mount unconditionally; first-unread-into-view dropped. Source: @maaiz cmpjpgpch 0wjm73wr."
+      "notes": "[2026-05-26] Slice 4 (live fix): SORT FLIPPED to newest-at-top. Per @maaiz 'when all system notifications are read, it's opening still at the top instead of bottom to show latest first. Maybe you can just flip the sort to show newest at the top, and show from unread when applicable'. Both render-side (line 13651) and scroll-side (line 5686) sorts now use `b.localeCompare(a)`. Scroll-on-open: if any unread, scroll to top-most unread (= newest unread, closest to top); if all read, scroll to top (= newest). Replaces the prior chronological-ascending + scroll-to-bottom convention.\n\n[2026-05-26] Slice 3: restored the first-unread-into-view path the prior pass over-corrected away. New behaviour matches @maaiz refined ask 'want to see from oldest unread or from latest always by default' \u2014 first unread scrolls into view if any exist; otherwise bottom-land. Multi-attempt scroll kept (rAF + 120ms + 260ms).\n\n[2026-05-26] Slice 2: strengthened the scroll-to-bottom \u2014 fires on rAF + 80ms + 240ms timeouts to defeat layout races (initial scroll might have raced with patchNotifs fetch / image loads). @maaiz 76t264yp 'still opens at the top from the read messages' likely tested an earlier deploy. Re-test after this push.\n\n[2026-05-26] Slice 1: scroll target bumped to scrollHeight-clientHeight on mount unconditionally; first-unread-into-view dropped. Source: @maaiz cmpjpgpch 0wjm73wr."
     },
     {
       "id": "tier-points-loss-warning",
@@ -5742,6 +5742,23 @@
         "If @maaiz was asking about a DIFFERENT search bar (main app exercise picker, etc), record which one as a follow-up."
       ],
       "notes": "[2026-05-26] The QA dashboard search bar IS floating (app/qa/page.tsx:1947 position:fixed). @maaiz retest 'Which search bar?' suggests they may have been asking about a different one or cache hadn't refreshed. Needs explicit clarification \u2014 not coded around in 2026-05-26 deploy."
+    },
+    {
+      "id": "qa-patch-notification-context",
+      "title": "Patch-notification body shows the original report + the actual fix (not just 'Actioned in qa-pass')",
+      "area": "QA",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 followup #5",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Get a fresh patch notification (file a bug, wait for next deploy).",
+        "Open System Notifications.",
+        "Verify the BUG PATCHED card body shows '\ud83d\udcdd You reported: <your original words>' on top.",
+        "Verify '\ud83d\udd27 <specific fix summary>' below it (not the generic 'Actioned in qa-pass\u2026').",
+        "Verify the prefix tags like '[\ud83d\udc1e BUG \u00b7 area \u00b7 view=foo]' are stripped from the reported snippet."
+      ],
+      "notes": "[2026-05-26] `fetchPatchNotifications` in lib/systemNotifications.ts now strips the client-side prefix tags from `c.note` (BUG/IDEA/RETEST/area markers like [Workout] etc) and includes the user's actual words in the body as '\ud83d\udcdd You reported: \u2026' (truncated to ~140 chars). Fix line uses processedSummary as before but prefixed with \ud83d\udd27. Also backfilled 11 generic 'Actioned in qa-pass 2026-05-26 (deploy)' summaries in qa-processed.json with real per-comment text describing the actual fix. Source: @maaiz screenshot of 5 identical 'Your bug report is patched' cards with same body \u2014 'Don't know what was reported or fixed from the system messages now'."
     }
   ]
 }

@@ -676,47 +676,47 @@
     },
     "cmpm65ekw0000j9x128d4bk5s": {
       "ts": "2026-05-26",
-      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+      "summary": "Clicking the WELLNESS pill on Home now force-opens the WellnessCard (overriding any previous collapse) and scrolls to it on the Progress dashboard."
     },
     "cmpm6avqx0000bd156ovuypxz": {
       "ts": "2026-05-26",
-      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+      "summary": "Confirmed working \u2014 /qa search bar is floating, per-step comments live, retest button labelled. Thanks for retesting."
     },
     "cmpm6bc5f0001bd15swwo8abh": {
       "ts": "2026-05-26",
-      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+      "summary": "Confirmed working (duplicate of your earlier retest on same item)."
     },
     "cmpm6e4y50002bd15tdqhu8q8": {
       "ts": "2026-05-26",
-      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+      "summary": "Clarification needed \u2014 the floating search bar I addressed is the one in /qa. Tracked as qa-search-which-bar-clarification \u2014 if you meant a different search bar, please reply with which screen."
     },
     "cmpm6gvsl0004mfk9qkb28txq": {
       "ts": "2026-05-26",
-      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+      "summary": "Active-session Add Exercise picker now shows + WARM-UP / + MAIN / + BONUS chips per card. Cardio defaults to WARM-UP highlighted."
     },
     "cmpm6io0k000013ng4zhhg0a5": {
       "ts": "2026-05-26",
-      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+      "summary": "New \u21c4 SWAP button on every active-session exercise card opens a same-primary-muscle picker with + JUST TODAY (one-off) and \u21bb REPLACE (saves to your routine) options per candidate."
     },
     "cmpm6kv0j0005mfk9ytnrm127": {
       "ts": "2026-05-26",
-      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+      "summary": "Confirmed working. Thanks for the retest."
     },
     "cmpm6l377000113ngxtrdqxjf": {
       "ts": "2026-05-26",
-      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+      "summary": "Confirmed working (test-marker comment 12345666 received)."
     },
     "cmpm6lgqa000213ngp0ht7dpx": {
       "ts": "2026-05-26",
-      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+      "summary": "Confirmed working \u2014 exercise form-cue summaries are now populated. Thanks for the retest."
     },
     "cmpm6n4hp0000yf4u9sn8qgu8": {
       "ts": "2026-05-26",
-      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+      "summary": "Tap + SUPERSET on any active-session exercise \u2192 the picker now shows a FROM THIS SESSION block at the top listing every other in-session exercise with + JUST TODAY / + ADD TO SPLIT buttons."
     },
     "cmpm6nqor000313ngnja61hdu": {
       "ts": "2026-05-26",
-      "summary": "Actioned in qa-pass 2026-05-26 (deploy)"
+      "summary": "Confirmed working \u2014 weight/reps now pre-fill from last logged session. Thanks for the retest."
     }
   }
 }

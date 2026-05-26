@@ -191,9 +191,26 @@ export async function fetchPatchNotifications(): Promise<PatchNotification[]> {
         const title = isIdea
           ? "💡 Your idea shipped"
           : "🐞 Your bug report is patched";
-        const body = c.processedSummary
-          ? `${c.processedSummary}\n\nTap to view the QA item.`
-          : `We just shipped a fix for the report you filed on '${c.itemId}'. Tap to view the QA item.`;
+        // Strip the client-side prefix ("[🐞 BUG · area · view=foo]"
+        // / "[💡 IDEA · ...]" / "[🔄 RETEST · re:XYZ]" / "[Workout]"
+        // bare-area markers) from the original note so the body
+        // surfaces only the user's real words. Without this the
+        // notif body was always "Actioned in qa-pass …" with zero
+        // hint of which bug, so 5 fixes looked identical in the
+        // feed. Per @maaiz: "Don't know what was reported or fixed
+        // from the system messages now". (qa: qa-patch-notification-context)
+        const stripped = c.note
+          .replace(/^\s*\[(?:🐞\s*BUG|💡\s*IDEA|🔄\s*RETEST[^\]]*|Other|Workout|Progress|Trainer|Profile|Onboarding|Auth)[^\]]*\]\s*/i, "")
+          .trim();
+        const reportedSnippet = stripped.length > 140 ? stripped.slice(0, 137).trimEnd() + "…" : stripped;
+        const fixLine = c.processedSummary && c.processedSummary.trim().length > 0
+          ? c.processedSummary.trim()
+          : `Fix shipped for the report you filed on '${c.itemId}'.`;
+        const bodyParts: string[] = [];
+        if (reportedSnippet) bodyParts.push(`📝 You reported: ${reportedSnippet}`);
+        bodyParts.push(`🔧 ${fixLine}`);
+        bodyParts.push("Tap to view the QA item.");
+        const body = bodyParts.join("\n\n");
         return {
           id: c.id,
           itemId: c.itemId,

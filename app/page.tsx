@@ -5682,18 +5682,24 @@ function HomePage() {
       const patchUnread = systemViewSnapshot?.patch ?? new Set<string>();
       const hasUnread = bundledUnread.size > 0 || patchUnread.size > 0;
       if (hasUnread) {
-        // Walk entries in chronological order to find the first unread.
+        // Match the render-side sort (newest at TOP). The first
+        // unread walking top-down = newest unread = the row closest
+        // to the top of the visible viewport, so scrolling to it
+        // keeps the user near the natural landing point and shows
+        // the rest of their unread above (newer) and below (older).
         const entries = [
           ...SYSTEM_NOTIFICATIONS.map(n => ({ ts: n.publishedAt, unread: bundledUnread.has(n.id) })),
           ...patchNotifs.map(p => ({ ts: p.publishedAt, unread: patchUnread.has(p.id) })),
-        ].sort((a, b) => a.ts.localeCompare(b.ts));
+        ].sort((a, b) => b.ts.localeCompare(a.ts));
         const firstUnreadIdx = entries.findIndex(e => e.unread);
         if (firstUnreadIdx >= 0) {
           const target = el.querySelector(`[data-unread-idx='${firstUnreadIdx}']`) as HTMLElement | null;
           if (target) { target.scrollIntoView({ block: "start" }); return; }
         }
       }
-      el.scrollTop = el.scrollHeight;
+      // No unread → land at the TOP (newest message), matching the
+      // user's ask "show latest first when all read".
+      el.scrollTop = 0;
     };
     requestAnimationFrame(stamp);
     const t1 = setTimeout(stamp, 120);
@@ -13648,13 +13654,23 @@ function HomePage() {
         // highlight' actually fire on re-entry.
         const bundledUnreadIds = systemViewSnapshot?.bundled ?? new Set<string>();
         const patchUnreadIds = systemViewSnapshot?.patch ?? new Set<string>();
+        // Newest at TOP (per @maaiz 2026-05-26: "when all system
+        // notifications are read, it's opening still at the top
+        // instead of bottom to show latest first. Maybe you can just
+        // flip the sort to show newest at the top, and show from
+        // unread when applicable"). Previously sorted ascending +
+        // scroll-to-bottom-on-open, which left already-read users at
+        // the oldest message. New sort + open-at-top = newest first
+        // for the all-read case. The scroll effect above is updated
+        // in parallel to scroll to the top-most unread (newest unread)
+        // when any unread exist. (qa: system-notifs-bottom-always)
         const entries = [
           ...SYSTEM_NOTIFICATIONS.map(n => ({ kind: "bundled" as const, n, unread: bundledUnreadIds.has(n.id) })),
           ...patchNotifs.map(p => ({ kind: "patch" as const, p, unread: patchUnreadIds.has(p.id) })),
         ].sort((a, b) => {
           const aTs = a.kind === "bundled" ? a.n.publishedAt : a.p.publishedAt;
           const bTs = b.kind === "bundled" ? b.n.publishedAt : b.p.publishedAt;
-          return aTs.localeCompare(bTs);
+          return bTs.localeCompare(aTs);
         });
         return (
           <div

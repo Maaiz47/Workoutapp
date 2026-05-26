@@ -2,6 +2,20 @@
 
 ---
 
+## QA pass · 2026-05-26 follow-up #5 — patch-notif body context + system-notifs sort flip (qa: qa-patch-notification-context, system-notifs-bottom-always)
+
+Two follow-on asks from @maaiz testing the latest deploy.
+
+### Addressed
+- **qa-patch-notification-context** (NEW): the BUG PATCHED notification body was just "Actioned in qa-pass 2026-05-26 (deploy)" for every patched comment — 5 different bug reports looked identical. Two fixes:
+  - `fetchPatchNotifications` (`lib/systemNotifications.ts`) now strips the client-side prefix tags (`[🐞 BUG · area · view=foo]`, `[💡 IDEA · …]`, `[🔄 RETEST · re:XYZ]`, `[Workout]`, `[Progress]`, etc) from `c.note` and includes the user's actual words in the body as `📝 You reported: <snippet>` (truncated to ~140 chars). The fix line below is prefixed `🔧 …` so reported-vs-fixed is visually distinct.
+  - Backfilled `qa-processed.json` for the 11 comments processed in follow-ups #3 + #4: replaced the generic "Actioned in qa-pass 2026-05-26 (deploy)" summary with real per-comment text describing the actual fix (or the verified-working ack).
+  - Source: @maaiz screenshot of 5 identical patch cards — "Don't know what was reported or fixed from the system messages now".
+
+- **system-notifs-bottom-always** (slice 4 — sort flip): SORT FLIPPED to newest-at-top, per @maaiz "when all system notifications are read, it's opening still at the top instead of bottom to show latest first. Maybe you can just flip the sort to show newest at the top, and show from unread when applicable". Both render-side sort (line 13651) and scroll-side sort (line 5686) now use `b.localeCompare(a)`. Open-scroll: if any unread, scroll to top-most unread (= newest unread, closest to top, lets user scroll up for newer and down for older within their unread cluster); if all read, scroll to top (= newest). Replaces the prior chronological-ascending + scroll-to-bottom convention.
+
+---
+
 ## QA pass · 2026-05-26 follow-up #4 — three punted feature asks shipped (qa: session-treadmill-into-warmups, session-substitute-exercise, session-combine-existing-exercises)
 
 The three items that got tracked-but-not-shipped in follow-up #3, now built per the design choices @maaiz picked.
