@@ -1,0 +1,10 @@
+{
+  "id": "cmplyyg4y0008am1jbkb56h0t",
+  "itemId": "__general__",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🔄 RETEST · re:lmz97l94] Can’t see most recent comments added to this - want to see all comments before patch, when it should show the summarised original issue, whether patched and to retest if working now",
+  "screenshotUrl": null,
+  "ts": "2026-05-26T01:41:12.370Z"
+}
