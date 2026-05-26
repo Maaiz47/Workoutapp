@@ -75,7 +75,75 @@ export async function POST(req: NextRequest) {
     // outage never fails a user-facing submit.
     try { await mirrorCommentToRepo(row); } catch (e) { console.error("mirror failed:", e); }
 
-    return NextResponse.json({ ok: true, id: row.id, ts: row.ts });
+    // Detect retest references and flip the parent comment's status to
+    // match. Note format is "[🔄 RETEST · re:XXXXXXXX] …" where XXXXXXXX
+    // is the last 8 chars of the parent comment id. If the parent
+    // belongs to the same tester (or unattributed) and isn't already
+    // at the new status, update it so the original comment's badge
+    // reflects the latest verdict. Per @maaiz: "I marked this working
+    // but the original comment stays showing untested which isn't right".
+    // (qa: qa-retest-flips-parent-status)
+    let parentUpdate: { id: string; status: string } | null = null;
+    try {
+      const reM = /\[🔄\s*RETEST\s*·\s*re:([a-z0-9]{4,})\]/i.exec(row.note);
+      if (reM && reM[1]) {
+        const shortId = reM[1].toLowerCase();
+        // Lookup candidates by itemId + ending in shortId. Use raw
+        // endsWith filter via findMany since Prisma can't directly
+        // suffix-match an id.
+        const candidates = await (prisma as any).qAComment.findMany({
+          where: { itemId },
+          select: { id: true, tester: true, userId: true, status: true },
+        });
+        const parent = candidates.find((c: any) => c.id.slice(-8).toLowerCase() === shortId);
+        if (parent && parent.id !== row.id) {
+          // Only patch when the same tester owns the parent (or no tester
+          // attribution) — don't let a tester flip someone else's status.
+          const sameOwner = (
+            (parent.userId && parent.userId === uid) ||
+            (!parent.userId && parent.tester && parent.tester.toLowerCase() === tester.trim().toLowerCase())
+          );
+          if (sameOwner && parent.status !== row.status) {
+            await (prisma as any).qAComment.update({
+              where: { id: parent.id },
+              data: { status: row.status },
+            });
+            parentUpdate = { id: parent.id, status: row.status };
+          }
+        }
+      }
+    } catch (e) {
+      console.error("parent-status flip failed:", e);
+    }
+
+    // Return the FULL comment so the client can add it to local state
+    // without a re-fetch. Previous shape `{ok, id, ts}` missed the
+    // `comment` field that InlineRetestForm reads — so just-submitted
+    // replies vanished until a full reload. (qa: qa-retest-submit-appears-immediately)
+    const processedMap = await readProcessedManifest();
+    let userObj: any = null;
+    if (uid) {
+      try {
+        userObj = await prisma.user.findUnique({
+          where: { id: uid },
+          select: { id: true, username: true, email: true, role: true },
+        });
+      } catch {}
+    }
+    const comment = {
+      id: row.id,
+      itemId: row.itemId,
+      stepIndex: row.stepIndex,
+      tester: row.tester,
+      userId: row.userId,
+      status: row.status,
+      note: row.note,
+      screenshotUrl: row.screenshotUrl,
+      ts: row.ts,
+      processed: processedMap[row.id] ? true : row.processed,
+      user: userObj,
+    };
+    return NextResponse.json({ ok: true, id: row.id, ts: row.ts, comment, parentUpdate });
   } catch (e: any) {
     console.error("POST /api/qa/comment", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

@@ -776,7 +776,7 @@ function InlineRetestForm({ itemId, commentId, tester, processed, onSubmitted }:
   commentId: string;
   tester: string;
   processed?: boolean;
-  onSubmitted: (newComment: Comment) => void;
+  onSubmitted: (newComment: Comment, parentUpdate?: { id: string; status: string } | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<"passing" | "failing" | "regression-retest" | null>(null);
@@ -836,7 +836,7 @@ function InlineRetestForm({ itemId, commentId, tester, processed, onSubmitted }:
               });
               if (res.ok) {
                 const data = await res.json();
-                if (data?.comment) onSubmitted(data.comment as Comment);
+                if (data?.comment) onSubmitted(data.comment as Comment, data?.parentUpdate ?? null);
                 setOpen(false); setStatus(null); setNote("");
               }
             } catch {}
@@ -863,7 +863,7 @@ function ItemCard({
   draft: Draft;
   setDraft: (next: Draft) => void;
   tester: string;
-  onSaved: (newComment: Comment) => void;
+  onSaved: (newComment: Comment, parentUpdate?: { id: string; status: string } | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1205,7 +1205,10 @@ function ItemCard({
                       commentId={c.id}
                       tester={tester}
                       processed={c.processed}
-                      onSubmitted={(newComment) => { markRetestResponded(c.id); onSaved(newComment); }}
+                      onSubmitted={(newComment, parentUpdate) => {
+                        markRetestResponded(c.id);
+                        onSaved(newComment, parentUpdate ?? null);
+                      }}
                     />
                   )}
                   {c.screenshotUrl && (
@@ -1589,8 +1592,19 @@ export default function QAPage() {
     setDrafts(prev => ({ ...prev, [itemId]: next }));
   }, []);
 
-  const onSaved = useCallback((c: Comment) => {
-    setComments(prev => [...prev, c]);
+  const onSaved = useCallback((c: Comment, parentUpdate?: { id: string; status: string } | null) => {
+    setComments(prev => {
+      // Append the new comment AND, if the server flipped the parent
+      // comment's status as part of the retest, reflect that in local
+      // state so the badge updates without a reload. Per @maaiz: "It's
+      // not clear the original comment was attended to and it doesn't
+      // show my latest comment immediately". (qa: qa-retest-flips-parent-status,
+      // qa-retest-submit-appears-immediately)
+      const next = parentUpdate
+        ? prev.map(x => x.id === parentUpdate.id ? { ...x, status: parentUpdate.status as Comment["status"] } : x)
+        : prev;
+      return [...next, c];
+    });
   }, []);
 
   if (loading) return (

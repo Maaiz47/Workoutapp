@@ -5610,13 +5610,13 @@
       "introduced": "2026-05-26",
       "introducedBy": "QA pass 2026-05-26 follow-up",
       "lastTested": "2026-05-26",
-      "status": "failing",
+      "status": "regression-retest",
       "steps": [
         "Open /qa on an item where you have an UNPROCESSED failing comment.",
         "Tap UPDATE / RETEST \u2192 WORKS NOW \u2192 SUBMIT.",
         "Verify the NEW comment posts as 'passing' AND the original failing comment's badge updates to PASSING (server-side patch)."
       ],
-      "notes": "[2026-05-26] Slice 1: placeholder. Needs /api/qa/comment to optionally patch the parent comment's status when the retest is on the same itemId + same tester + originalCommentId hint. Source: @maaiz ipt9it59 'Marked this working but the original comment stays showing untested which isn't right'."
+      "notes": "[2026-05-26] Slice 2 (live fix): /api/qa/comment POST now detects the [\ud83d\udd04 RETEST \u00b7 re:XXXXXXXX] note prefix, finds the parent comment by 8-char suffix match (same itemId), validates same-owner, and patches the parent's status to match. Response includes `parentUpdate` so the client flips the badge in local state immediately. Source: @maaiz screenshot 2026-05-26 10:07 'I marked this working but the original comment stays showing untested which isn't right'.\n\n[2026-05-26] Slice 1: placeholder. Needs /api/qa/comment to optionally patch the parent comment's status when the retest is on the same itemId + same tester + originalCommentId hint. Source: @maaiz ipt9it59 'Marked this working but the original comment stays showing untested which isn't right'."
     },
     {
       "id": "qa-retest-list-show-fix-and-how-to",
@@ -5664,6 +5664,22 @@
         "Verify the headline tier label + tierNum + overall score are IDENTICAL."
       ],
       "notes": "[2026-05-26] Slice 1: Progress dashboard was building its OWN stripped stats object (missing weeklyVolumes, recentSetsByExercise, weight/bf, gender, intensityPoints, setsByMuscleGroup, daysPerWeek). Refactored to reuse the canonical `myAthleteBreakdown` useMemo from line 8287. Source: @maaiz screenshot \u2014 Home: BIG DAWG \u00b7 T4, Progress: FOX \u00b7 TIER 5 OF 6."
+    },
+    {
+      "id": "qa-retest-submit-appears-immediately",
+      "title": "Just-submitted retest reply appears in the thread immediately (no reload)",
+      "area": "QA",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 followup #4",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Open /qa, expand an item with at least one own comment.",
+        "Tap UPDATE/RETEST \u2192 pick a status \u2192 SUBMIT.",
+        "Verify the new comment row appears at the bottom of the thread WITHOUT a page reload.",
+        "Verify the original comment's badge has flipped to match the submitted status."
+      ],
+      "notes": "[2026-05-26] Slice 1: /api/qa/comment POST previously returned just {ok, id, ts}. InlineRetestForm's `if (data?.comment)` check always failed \u2192 onSubmitted never called \u2192 setComments never appended \u2192 reply invisible until reload. POST now returns the full comment object (with user shape) + parentUpdate. onSaved appends the new comment AND maps over prev to flip the parent status. Source: @maaiz 'when I submit, it's not clear the original comment was attended to and it doesn't show my latest comment immediately'."
     }
   ]
 }
