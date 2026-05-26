@@ -15744,11 +15744,6 @@ function HomePage() {
                       </div>
                     );
                   })()}
-                  {exp.source === "blended" && (
-                    <div style={{ marginTop: 8, fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: 0.5 }}>
-                      Experience level inherited from onboarding — locks to actual training in {monthsUntilExpRecordedExpires(monthsOnApp).toFixed(1)} months.
-                    </div>
-                  )}
                 </div>
               );
             })()}
