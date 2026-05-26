@@ -2,6 +2,17 @@
 
 ---
 
+## QA pass · 2026-05-26 follow-up #6 — tier flavor tagline + interconnect progress (qa: tier-flavor-tagline, tier-card-interconnect-progress)
+
+Two visual asks for the Progress tier card.
+
+### Addressed
+- **tier-flavor-tagline** (NEW): the chip below the tier name on the Progress → YOUR RANK card no longer reads "INTERMEDIATE" / "ADVANCED" / etc. New `tierFlavor(tierNum, theme)` helper in `lib/tiers.ts` returns a fun tagline per tier (vivid theme: JUST HATCHED / WARMING UP / NOW A BALLER / ON THE PROWL / ABSOLUTE UNIT / APEX BEAST; simple theme: DUSTING OFF / PICKING UP / GOLD STANDARD / ELITE TERRITORY / BRILLIANT FORM / GAME MASTER). The chip also adopts the current tier's color so it visually unifies with the tier headline. The old `effectiveExperience` + `experienceMeta` calls inside the card render are gone — the card now reads only from the tier breakdown. Source: @maaiz 2026-05-26 'Instead of intermediate for athlete tier classification, can show something like now a baller. Bear can be apex beast. Gorilla absolute unit. We talked about this'.
+
+- **tier-card-interconnect-progress** (NEW): the 6 animal icons in YOUR RANK now sit ON TOP of a 3px-tall horizontal progress track. Background segment is a dim grey; filled segment is a gold → tier.color gradient that extends from KITTEN's centre to the user's CURRENT tier's centre (width = tierIdx × (100/6)% offset by left: 8.33% so centres align with each column's mid-point). Icons get z-index 1 to stay above the track. Source: @maaiz 'tier card like I just sent you ss in progression tab doesn't show the tier progress bar with the badges interconnecting'.
+
+---
+
 ## QA pass · 2026-05-26 follow-up #5 — patch-notif body context + system-notifs sort flip (qa: qa-patch-notification-context, system-notifs-bottom-always)
 
 Two follow-on asks from @maaiz testing the latest deploy.

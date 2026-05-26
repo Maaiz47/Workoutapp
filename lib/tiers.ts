@@ -66,6 +66,36 @@ export function getAthleteTiers(theme: string | null | undefined): AnimalTier[] 
   return ATHLETE_TIER_THEMES.vivid;
 }
 
+// Per-tier flavor label — replaces the old experience chip
+// (newcomer / beginner / INTERMEDIATE / advanced) on the rank
+// card. Per @maaiz 2026-05-26: "Instead of intermediate for
+// athlete tier classification, can show something like now a
+// baller. Bear can be apex beast. Gorilla absolute unit". One
+// row per theme; tierNum is 1 (lowest) → 6 (highest).
+// (qa: tier-flavor-tagline)
+export function tierFlavor(tierNum: number, theme: string | null | undefined): string {
+  const map: Record<string, Record<number, string>> = {
+    vivid: {
+      1: "JUST HATCHED",
+      2: "WARMING UP",
+      3: "NOW A BALLER",
+      4: "ON THE PROWL",
+      5: "ABSOLUTE UNIT",
+      6: "APEX BEAST",
+    },
+    simple: {
+      1: "DUSTING OFF",
+      2: "PICKING UP",
+      3: "GOLD STANDARD",
+      4: "ELITE TERRITORY",
+      5: "BRILLIANT FORM",
+      6: "GAME MASTER",
+    },
+  };
+  const key = theme === "simple" ? "simple" : "vivid";
+  return map[key][tierNum] ?? "ON THE GRIND";
+}
+
 // Display-only inverted tier rank — per @maaiz: "tiers should be
 // numbers so 1 is top tier (best)". Internal `tierNum` stays as
 // (1 = lowest, 6 = highest) so existing scoring, promotion logic,

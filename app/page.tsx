@@ -18,7 +18,7 @@ import { pickWarmupForDay } from "../lib/warmups";
 import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
 import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutorial";
 import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTargetReps, detectPlateau, shouldSuggestDeload } from "../lib/performance";
-import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown, AnimalTier, getAthleteTiers, displayTierNum, TIER_COUNT } from "../lib/tiers";
+import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown, AnimalTier, getAthleteTiers, displayTierNum, TIER_COUNT, tierFlavor } from "../lib/tiers";
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
@@ -15534,18 +15534,11 @@ function HomePage() {
               // different places? Should be using the same data for
               // sub ranks and all". (qa: tier-consistency-home-progress)
               const breakdown = myAthleteBreakdown;
-              const monthsOnApp = user.createdAt ? (Date.now() - +new Date(user.createdAt)) / (30 * 86400000) : 0;
-              // Experience badge still needs its own derivation —
-              // simpler stat shape and only used here.
-              const totalSessionsForExp = (overall as any).totalSessions ?? 0;
-              const prCountForExp = Object.keys(overall.exercisePRs ?? {}).length;
-              const exp = effectiveExperience({
-                recorded: (ob.fitnessLevel as ExperienceLevel) || null,
-                monthsOnApp,
-                totalSessions: totalSessionsForExp,
-                prCount: prCountForExp,
-              });
-              const expM = experienceMeta(exp.level);
+              // Experience meta chip removed in favour of tier-flavor
+              // tagline (NOW A BALLER, APEX BEAST, etc). Per @maaiz —
+              // the chip's role is to give the tier flavor, not to
+              // expose a parallel newcomer/intermediate/advanced
+              // classification that competes with the animal ladder.
               const tier = breakdown.headline;
               const themedTiers = getAthleteTiers(tierTheme);
               const tierIdx = themedTiers.findIndex(t => t.tierNum === tier.tierNum);
@@ -15563,26 +15556,44 @@ function HomePage() {
                     <div style={{ fontSize: 9, color: "rgba(240,192,64,0.6)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>TIER {displayTierNum(tierIdx + 1)} OF {ATHLETE_TIERS.length}</div>
                   </div>
 
-                  {/* Headline tier — big icon + big name. Plus experience
-                      badge as a sibling chip so it's not confusable with
-                      the headline name. */}
+                  {/* Headline tier — big icon + big name. The chip below
+                      the name shows a tier-flavor tagline ("NOW A BALLER",
+                      "APEX BEAST", etc) instead of the old experience
+                      level (newcomer/intermediate/advanced) — per @maaiz
+                      'Instead of intermediate for athlete tier classification,
+                      can show something like now a baller. Bear can be apex
+                      beast. Gorilla absolute unit'. Strings defined in
+                      lib/tiers.ts → tierFlavor(). (qa: tier-flavor-tagline) */}
                   <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12, position: "relative" }}>
                     <div style={{ lineHeight: 1, filter: "drop-shadow(0 4px 14px rgba(240,192,64,0.45))" }}><TierGlyph src={tier.iconPath} emoji={tier.icon} size={82} /></div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 26, fontWeight: 800, color: "#f0c040", letterSpacing: -0.3, lineHeight: 1 }}>{tier.label.toUpperCase()}</div>
-                      <div style={{ display: "inline-flex", marginTop: 6, fontSize: 10, color: expM.color, background: `${expM.color}1A`, border: `1px solid ${expM.color}55`, padding: "3px 8px", borderRadius: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, fontWeight: 700 }}>{expM.icon} {expM.label}</div>
+                      <div style={{ display: "inline-flex", marginTop: 6, fontSize: 10, color: tier.color, background: `${tier.color}1A`, border: `1px solid ${tier.color}55`, padding: "3px 8px", borderRadius: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, fontWeight: 700 }}>✨ {tierFlavor(tier.tierNum, tierTheme)}</div>
                     </div>
                   </div>
 
-                  {/* Tier ladder — 6 dots horizontally with the current
-                      one highlighted big. Visually shows "you are here,
-                      these are the others, this is the path". */}
+                  {/* Tier ladder — 6 icons horizontally INTERCONNECTED by
+                      a horizontal progress track sitting behind them, with
+                      the filled portion ending at the current tier. Per
+                      @maaiz 'tier card … doesn't show the tier progress
+                      bar with the badges interconnecting'.
+                      (qa: tier-card-interconnect-progress) */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "0 4px", position: "relative" }}>
+                    {/* Background track — sits behind the icons at the
+                        vertical centre of the icon row. The icon row's
+                        height is dominated by the current icon (size 36),
+                        so center it at ~18px from the top. */}
+                    <div aria-hidden style={{ position: "absolute", left: "8.33%", right: "8.33%", top: 18, height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 1.5, transform: "translateY(-50%)", pointerEvents: "none" }} />
+                    {/* Filled track up to current tier's centre. 6 columns
+                        each 16.66% wide; centre of column i is at
+                        (i + 0.5) * 16.66%. Subtract the left inset
+                        (8.33%) to align with the background track. */}
+                    <div aria-hidden style={{ position: "absolute", left: "8.33%", top: 18, height: 3, width: `${tierIdx * (100 / 6)}%`, background: `linear-gradient(90deg, ${ATHLETE_TIERS[0].color}, ${tier.color})`, borderRadius: 1.5, transform: "translateY(-50%)", boxShadow: `0 0 6px ${tier.color}66`, transition: "width 0.5s ease", pointerEvents: "none" }} />
                     {ATHLETE_TIERS.map((t, i) => {
                       const reached = i <= tierIdx;
                       const isCurrent = i === tierIdx;
                       return (
-                        <div key={t.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, minWidth: 0, opacity: reached ? 1 : 0.35 }}>
+                        <div key={t.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, minWidth: 0, opacity: reached ? 1 : 0.35, position: "relative", zIndex: 1 }}>
                           <div style={{ lineHeight: 1, filter: isCurrent ? `drop-shadow(0 0 8px ${t.color})` : reached ? "none" : "grayscale(1)", transition: "all 0.3s" }}><TierGlyph src={t.iconPath} emoji={t.icon} size={isCurrent ? 36 : 28} /></div>
                           <div style={{ fontSize: 8, color: isCurrent ? t.color : "rgba(255,255,255,0.4)", marginTop: 4, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, fontWeight: 700, textAlign: "center", lineHeight: 1.1, wordBreak: "break-word" }}>{t.label.toUpperCase()}</div>
                         </div>

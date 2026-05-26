@@ -5759,6 +5759,39 @@
         "Verify the prefix tags like '[\ud83d\udc1e BUG \u00b7 area \u00b7 view=foo]' are stripped from the reported snippet."
       ],
       "notes": "[2026-05-26] `fetchPatchNotifications` in lib/systemNotifications.ts now strips the client-side prefix tags from `c.note` (BUG/IDEA/RETEST/area markers like [Workout] etc) and includes the user's actual words in the body as '\ud83d\udcdd You reported: \u2026' (truncated to ~140 chars). Fix line uses processedSummary as before but prefixed with \ud83d\udd27. Also backfilled 11 generic 'Actioned in qa-pass 2026-05-26 (deploy)' summaries in qa-processed.json with real per-comment text describing the actual fix. Source: @maaiz screenshot of 5 identical 'Your bug report is patched' cards with same body \u2014 'Don't know what was reported or fixed from the system messages now'."
+    },
+    {
+      "id": "tier-flavor-tagline",
+      "title": "Tier flavor tagline replaces the experience-level chip (NOW A BALLER / APEX BEAST etc)",
+      "area": "Tiers",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 followup #6",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress \u2192 dashboard \u2192 YOUR RANK card.",
+        "Verify the chip below the tier name reads a fun tagline: '\u2728 JUST HATCHED' (Kitten), '\u2728 WARMING UP' (Fox), '\u2728 NOW A BALLER' (Big Dawg), '\u2728 ON THE PROWL' (Lion), '\u2728 ABSOLUTE UNIT' (Gorilla), '\u2728 APEX BEAST' (Bear).",
+        "Verify it is NOT 'INTERMEDIATE' / 'ADVANCED' / 'BEGINNER' anymore.",
+        "Switch theme to 'simple' (if available) and verify the simple variants render too."
+      ],
+      "notes": "[2026-05-26] New `tierFlavor(tierNum, theme)` helper in lib/tiers.ts. Replaces the `experienceMeta` chip rendered on the Progress tier card. The chip uses the CURRENT tier's color (vs the old experience color), so it visually unifies with the tier headline. Per @maaiz 2026-05-26: 'Instead of intermediate for athlete tier classification, can show something like now a baller. Bear can be apex beast. Gorilla absolute unit. We talked about this'."
+    },
+    {
+      "id": "tier-card-interconnect-progress",
+      "title": "Tier card animal icons are interconnected by a horizontal progress track",
+      "area": "Tiers",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 followup #6",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress \u2192 dashboard \u2192 YOUR RANK card.",
+        "Verify a thin horizontal track sits BEHIND the 6 animal icons, centered on the row.",
+        "Verify the track is FILLED with a gold\u2192tier-color gradient from KITTEN to the user's current tier.",
+        "Verify the remainder of the track (current tier \u2192 BEAR) is dim grey.",
+        "Verify the icons still sit ON TOP of the track (z-index correct)."
+      ],
+      "notes": "[2026-05-26] Added an absolutely-positioned 3px-tall background div + a filled-portion div with linear-gradient from ATHLETE_TIERS[0].color \u2192 tier.color, inside the existing position:relative row at line 15580. Filled width = tierIdx * (100/6)% offset by left:8.33% so the centres align with each column's mid-point. Icons get position:relative + zIndex:1 to stay above the track. Source: @maaiz screenshot 'tier card like I just sent you ss in progression tab doesn't show the tier progress bar with the badges interconnecting'."
     }
   ]
 }
