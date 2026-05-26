@@ -991,7 +991,7 @@
       "area": "Tiers",
       "introduced": "2026-05-23",
       "introducedBy": "QA pass tier-technique-subrank",
-      "lastTested": "2026-05-23",
+      "lastTested": "2026-05-26",
       "status": "regression-retest",
       "steps": [
         "Open the tier breakdown modal. Verify there are now EIGHT sub-ranks (Consistency, Strength, Progression, Volume, Mastery, Technique [new], Body Comp, Habits).",
@@ -1001,7 +1001,7 @@
         "Verify the Technique score scales reasonably: ~50 IP \u2192 57, ~200 IP \u2192 77, ~500 IP \u2192 90.",
         "Promote a user across a tier boundary purely via Technique IP \u2014 verify the headline reflects it."
       ],
-      "notes": "[2026-05-23] Shipped: new 8th sub-rank in computeAthleteTier. Score = scoreFromCount(totalIntensityPointsLifetime, 200) \u2014 200 IP \u2248 77 score. AthleteStatsForTier gains totalIntensityPointsLifetime?: number; CanonicalTier builder reads totalIntensityPoints and plumbs it through. UI auto-picks up because the modal renders the subRanks array dynamically. Quests/missions not yet wired (client-side only); to add them later, persist completion counts server-side and sum into the IP input."
+      "notes": "[2026-05-26] BUG FIX: the Technique sub-rank read 0 on the Progress card even when the user had IP from RPE-tagged sets (visible on leaderboards). Root cause: stored `intensityPoints` on the WorkoutLog row ONLY contains WRITE-TIME bonuses (supersets +5, drop chains +3, fresh-legs). The RPE bonus (max(0, rpe-7) per set: +1 for RPE 8, +2 for RPE 9, +3 for RPE 10) is computed at READ TIME by the leaderboard pipeline (lib/leaderboardStats.ts:290) \u2014 never persisted. Frontend's `totalIntensityPointsLifetime` sum at app/page.tsx:8390 was just summing the stored field. Fix: replicate the per-set RPE bonus inside the existing set-walk loop in `myAthleteBreakdown` so the Technique sub-rank input matches the leaderboard view. Source: @maaiz 'Techniques sub rank still 0, but I got IP for logging RPE and it shows in some leaderboards'.\n\n[2026-05-23] Shipped: new 8th sub-rank in computeAthleteTier. Score = scoreFromCount(totalIntensityPointsLifetime, 200) \u2014 200 IP \u2248 77 score. AthleteStatsForTier gains totalIntensityPointsLifetime?: number; CanonicalTier builder reads totalIntensityPoints and plumbs it through. UI auto-picks up because the modal renders the subRanks array dynamically. Quests/missions not yet wired (client-side only); to add them later, persist completion counts server-side and sum into the IP input."
     },
     {
       "id": "tier-scoring-calibration-v3",

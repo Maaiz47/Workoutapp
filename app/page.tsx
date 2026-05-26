@@ -8387,6 +8387,14 @@ function HomePage() {
     for (const dayId in history) for (const s of history[dayId]) {
       const sessionTs = s.date ? +new Date(s.date) : 0;
       const isRecent = sessionTs >= oneEightyDaysAgo;
+      // Stored intensityPoints on the DB row only carries the WRITE-TIME
+      // bonuses (supersets, drop chains, fresh-legs). The RPE bonus
+      // (+1/+2/+3 per set for RPE 8/9/10) is computed at READ TIME by
+      // the leaderboard pipeline (lib/leaderboardStats.ts:290) — never
+      // persisted. Replicate the same per-set bonus here so the
+      // Technique sub-rank matches the leaderboard view. Per @maaiz:
+      // "Techniques sub rank still 0, but I got IP for logging RPE and
+      // it shows in some leaderboards". (qa: tier-technique-subrank)
       totalIntensityPointsLifetime += (s.intensityPoints ?? 0);
       const sets = (s.sets ?? {}) as Record<string, any>;
       for (const k in sets) {
@@ -8396,6 +8404,7 @@ function HomePage() {
         const w = v.weight ?? 0;
         const r = v.reps ?? 0;
         const rpe = typeof v.rpe === "number" ? v.rpe : null;
+        if (rpe != null) totalIntensityPointsLifetime += Math.max(0, rpe - 7);
         if (exKey) {
           distinctEx.add(exKey);
           if (isRecent) {
