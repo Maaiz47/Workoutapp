@@ -6192,7 +6192,14 @@ function HomePage() {
   // For WEIGHT mode: gainers leaderboard or losers leaderboard. Flips the
   // sort direction without changing the data shown.
   const [lbWeightDir, setLbWeightDir] = useState<"loss" | "gain">("loss");
-  const [showLbGroups, setShowLbGroups] = useState(false);
+  // Groups list defaults to OPEN — collapse-by-default has been
+  // a recurring @maaiz complaint (5+ asks). User can still tap
+  // HIDE to collapse if they want. The fetch used to be gated
+  // behind the VIEW button click; with the default flipped to
+  // open, we trigger the fetch via a useEffect on view ===
+  // "groupsHub" so the list renders content not just a spinner.
+  // (qa: groups-list-open-by-default)
+  const [showLbGroups, setShowLbGroups] = useState(true);
   const [showLbGroupCreate, setShowLbGroupCreate] = useState(false);
   const [lbGroupName, setLbGroupName] = useState("");
   const [lbGroupPrivacy, setLbGroupPrivacy] = useState<"private"|"public">("private");
@@ -6983,6 +6990,23 @@ function HomePage() {
 
   // Keep currentViewRef in sync so SW message handler always sees latest view
   useEffect(() => { currentViewRef.current = view; }, [view]);
+
+  // Auto-load lbGroups when the Groups hub opens — pairs with the
+  // default-open showLbGroups state. Without this the list would
+  // render empty until the user navigates away and back. Skips if
+  // already loaded. (qa: groups-list-open-by-default)
+  useEffect(() => {
+    if (view !== "groupsHub") return;
+    if (lbGroups.length > 0) return;
+    let cancelled = false;
+    setLbGroupsLoading(true);
+    fetch("/api/leaderboard/groups")
+      .then(r => r.json())
+      .then(data => { if (!cancelled && data.groups) setLbGroups(data.groups); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLbGroupsLoading(false); });
+    return () => { cancelled = true; };
+  }, [view, lbGroups.length]);
 
   // Auto-advance after rest: stay on the current exercise while it still has
   // incomplete sets; otherwise expand the next incomplete exercise.

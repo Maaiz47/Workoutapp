@@ -5792,6 +5792,22 @@
         "Verify the icons still sit ON TOP of the track (z-index correct)."
       ],
       "notes": "[2026-05-26] Added an absolutely-positioned 3px-tall background div + a filled-portion div with linear-gradient from ATHLETE_TIERS[0].color \u2192 tier.color, inside the existing position:relative row at line 15580. Filled width = tierIdx * (100/6)% offset by left:8.33% so the centres align with each column's mid-point. Icons get position:relative + zIndex:1 to stay above the track. Source: @maaiz screenshot 'tier card like I just sent you ss in progression tab doesn't show the tier progress bar with the badges interconnecting'."
+    },
+    {
+      "id": "groups-list-open-by-default",
+      "title": "Groups list defaults to OPEN on the Groups hub view (no VIEW tap needed)",
+      "area": "Groups",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 followup #7",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Tap Groups in the bottom nav.",
+        "Verify the GROUPS list expands automatically (no VIEW tap required).",
+        "Verify the list renders content (not empty) \u2014 the fetch fires on view-mount.",
+        "Tap HIDE \u2192 verify collapse still works."
+      ],
+      "notes": "[2026-05-26] Default `useState(false)` \u2192 `useState(true)` for showLbGroups at line 6195. Added a separate useEffect keyed on view==='groupsHub' that auto-fetches /api/leaderboard/groups when lbGroups is empty \u2014 the existing fetch was gated behind the VIEW button click, so default-open without auto-fetch would render an empty list. Per @maaiz: 'Groups are still close list by default, why would it be that way? I've asked you literally more than 5 times to change that now'."
     }
   ]
 }
