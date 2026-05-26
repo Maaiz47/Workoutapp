@@ -1,0 +1,10 @@
+{
+  "id": "cmpm6gvsl0004mfk9qkb28txq",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "[🔄 RETEST · re:9uh36ca0] Works to add but it comes in as a bonus I guess that’s right since I added it to session only but I’m concerned because the warm ups,warm downs are a separated list during active session and when manually added, I can’t move it into warm ups section\nBut treadmill someone might want to be the main exercise too so not sure",
+  "screenshotUrl": null,
+  "ts": "2026-05-26T05:11:29.752Z"
+}
