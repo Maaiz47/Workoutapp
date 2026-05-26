@@ -6326,6 +6326,28 @@ function HomePage() {
   // ── Body metrics ──
   const [bodyMetrics, setBodyMetrics] = useState<any[]>([]);
   const [bodyMetricsLoaded, setBodyMetricsLoaded] = useState(false);
+
+  // ── Server-canonical athlete tier ──
+  // Source of truth for the headline tier, computed server-side from
+  // the same DB pipeline the leaderboard uses. Home + Progress overlay
+  // this onto myAthleteBreakdown so all three surfaces (home rail,
+  // progress card, leaderboard) agree. Also the on-app-open promotion
+  // toast waits for this to load before deciding to fire — prevents
+  // the transient initial-render value (when bodyMetrics/history are
+  // still arriving) from triggering a celebration that then settles
+  // back below the threshold.
+  // (qa: tier-consistency-home-progress, tier-promotion-toast)
+  const [serverCanonicalTier, setServerCanonicalTier] = useState<{
+    tierNum: number;
+    label: string;
+    icon: string;
+    iconPath?: string;
+    color: string;
+    bg: string;
+    border: string;
+    min: number;
+    score: number;
+  } | null>(null);
   const [metricWeight, setMetricWeight] = useState("");
   const [metricBf, setMetricBf] = useState("");
   // Time-of-day for the metric entry. Defaults to "morning" since
@@ -6661,6 +6683,26 @@ function HomePage() {
       }).catch(() => {});
     }
   }, [user]);
+
+  // Fetch the server-canonical tier when the user loads. Cheap call
+  // (single computeStatsForUsers) so we also refresh whenever the
+  // total session count or body-metric count changes — keeps home/
+  // progress in sync after a fresh workout or BF/weight log without
+  // each save handler having to call it explicitly.
+  // (qa: tier-consistency-home-progress)
+  const refreshServerTier = useCallback(() => {
+    fetch("/api/me/tier", { cache: "no-store" })
+      .then(r => r.json())
+      .then(data => { if (data.tier) setServerCanonicalTier(data.tier); })
+      .catch(() => {});
+  }, []);
+  const historyTotalSessions = useMemo(
+    () => Object.values(history).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0),
+    [history],
+  );
+  useEffect(() => {
+    if (user) refreshServerTier();
+  }, [user, historyTotalSessions, bodyMetrics.length, refreshServerTier]);
 
   // Refresh the home-hub friend badge whenever the user is set OR
   // we land back on the home view (e.g. after accepting a request
@@ -8588,8 +8630,27 @@ function HomePage() {
       totalIntensityPointsLifetime,
       setsByMuscleGroup,
     };
-    return computeAthleteTier(stats, tierTheme);
-  }, [user, history, overall, tierTheme, ob.daysPerWeek, ob.weightKg, ob.bodyFatPct, ob.gender, bodyMetrics]);
+    const localBreakdown = computeAthleteTier(stats, tierTheme);
+    // Overlay the server-canonical headline (DB-truth, same pipeline
+    // the leaderboard uses) onto the locally-computed breakdown. Keeps
+    // home/progress/leaderboard agreement at the 49↔50 boundary where
+    // cached `history` / `bodyMetrics` momentarily disagree with the
+    // server. Sub-ranks stay local so the tile detail strings (e.g.
+    // "best e1RM 70kg") still match what's actually on screen.
+    // (qa: tier-consistency-home-progress)
+    if (serverCanonicalTier) {
+      const themedTiers = getAthleteTiers(tierTheme);
+      const themedHeadline = themedTiers.find(t => t.tierNum === serverCanonicalTier.tierNum);
+      if (themedHeadline) {
+        return {
+          ...localBreakdown,
+          headline: themedHeadline,
+          headlineScore: serverCanonicalTier.score,
+        };
+      }
+    }
+    return localBreakdown;
+  }, [user, history, overall, tierTheme, ob.daysPerWeek, ob.weightKg, ob.bodyFatPct, ob.gender, bodyMetrics, serverCanonicalTier]);
 
   // Tier-promotion toast. Compares the user's CURRENT headline tierNum
   // to the last-observed value stored in localStorage; if higher, fires
@@ -8616,6 +8677,15 @@ function HomePage() {
     // observation as real.
     const hasRealHistory = Object.keys(history).some(k => Array.isArray(history[k]) && history[k].length > 0);
     if (!hasRealHistory) return;
+    // Also wait for the server-canonical tier to land. Without this
+    // guard, the local breakdown can transiently cross a tier
+    // boundary (bodyMetrics arriving late, BodyComp score wobbling
+    // by 8% of the headline) and fire a celebration that then settles
+    // back below the threshold — user saw "LION" toast on app open
+    // while home + progress still said BIG DAWG. Once server tier is
+    // in, myAthleteBreakdown.headline.tierNum is the DB-truth.
+    // (qa: tier-promotion-toast)
+    if (!serverCanonicalTier) return;
     const key = `ironlog.lastObservedTier.${user.id}`;
     const currentTier = myAthleteBreakdown.headline.tierNum;
     let lastObserved = 0;
@@ -8635,7 +8705,7 @@ function HomePage() {
       return () => clearTimeout(t);
     }
     // No 'quiet demotion' write — see header comment for why.
-  }, [user, myAthleteBreakdown, history]);
+  }, [user, myAthleteBreakdown, history, serverCanonicalTier]);
 
   // Balanced-fortnight celebration — counterpart to the Balance
   // sub-rank's neglect penalty. Fires a one-shot toast when the user

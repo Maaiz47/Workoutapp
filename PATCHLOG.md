@@ -2,6 +2,28 @@
 
 ---
 
+## QA pass · 2026-05-26 follow-up #8 — server-canonical tier ends home/progress vs leaderboard drift (qa: tier-consistency-home-progress, tier-promotion-toast)
+
+Single fix. The on-app-open tier celebration fired "LION" while Home and Progress kept showing BIG DAWG — three surfaces, three different answers at the 49↔50 tier boundary.
+
+### Addressed
+- **tier-consistency-home-progress** + **tier-promotion-toast**: with the headline score hovering one point below Lion (49/50), Home and Progress compute locally in the browser from cached `history` + `bodyMetrics`, while the leaderboard re-pulls fresh logs from the DB via `computeStatsForUsers`. The two inputs diverge for ~hundreds of milliseconds during the async data-arrival window on app open: bodyMetrics arrives 200ms after history, BodyComp sub-rank wobbles by up to 8% of the headline weighted score, and the local breakdown briefly crosses 50 → Lion before settling back to 49 → Big Dawg. The tier promotion toast effect captured the transient LION value into state, persisted `ironlog.lastObservedTier=4` to localStorage, then home + progress redrew as Big Dawg because they re-read myAthleteBreakdown on every render. User saw three contradictory tiers (Lion in toast + leaderboard, Big Dawg on home + progress).
+  - New endpoint **`GET /api/me/tier`** returns the calling user's canonical CanonicalTier — same DB-truth the leaderboard uses, via the same `computeStatsForUsers` pipeline. ~120 lines of route logic reuse, single SQL pull.
+  - Frontend fetches it on user-load and on every change to total session count or body-metric count (so logging a workout or a BF reading auto-refreshes the canonical headline without each save handler needing to call it explicitly).
+  - `myAthleteBreakdown` useMemo overlays the server headline + headlineScore onto the local breakdown when serverCanonicalTier is loaded; sub-ranks stay local so the progress tile detail strings ("best e1RM 70kg · trend pending", "25 exercises ≥4 sets") still match what the browser computed.
+  - Tier promotion toast effect now bails out when `serverCanonicalTier === null`, so transient initial-render values can't fire a premature celebration. Once the canonical tier lands, the comparison is DB-truth vs lastObserved — the toast fires exactly when the server agrees the user crossed a boundary.
+  - Source: @maaiz 2026-05-26 screenshot 'Got the achievement celebration or tier celebration for reaching lion on app open but it says big dawg on home and progress page. Which is it!?!?'.
+
+### Internal — no tutorial change
+This is a bug fix to existing tier surfaces, no new UI element introduced. `lib/tutorial.ts` unchanged.
+
+### Files
+- New: `app/api/me/tier/route.ts`
+- Modified: `app/page.tsx` (state + refresh callback + myAthleteBreakdown override + toast guard)
+- Modified: `qa-state.json` (steps + notes appended to both items)
+
+---
+
 ## QA pass · 2026-05-26 follow-up #7 — bundled deploy of 6 fixes (qa: tier-technique-subrank, session-combine-existing-exercises, groups-list-open-by-default, trainer-request-pending-state, session-cardio-no-superset, qa-retest-no-self-surface)
 
 Six fixes shipped in one bundle, including one new from this round of testing.

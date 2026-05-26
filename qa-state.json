@@ -4424,15 +4424,16 @@
       "area": "Tier",
       "introduced": "2026-05-23",
       "introducedBy": "QA pass tier-scoring-v2",
-      "lastTested": "2026-05-23",
+      "lastTested": "2026-05-26",
       "status": "regression-retest",
       "steps": [
         "Open the app for the first time after the v2 scoring rollout. Verify the localStorage key `ironlog.lastObservedTier.<userId>` gets set quietly to your current tierNum without triggering a toast (first observation is a silent baseline).",
         "Manually edit the localStorage key to a lower number (e.g. tierNum 2 if you're at Lion T4). Refresh the page. Verify the tier-up toast fires at the top of the screen with your CURRENT tier icon/label/color and the text 'TIER UP! \u00b7 <label> \u00b7 T<num>'. Tap to dismiss; auto-dismisses after 4s.",
         "Edit the key to a higher number than current. Refresh. Verify the toast does NOT fire (demotion is silent) and the key gets quietly resynced to the current value.",
-        "Log out and log in as a different user. Verify the prior user's tier promotion does NOT re-fire \u2014 the localStorage key is namespaced per userId."
+        "Log out and log in as a different user. Verify the prior user's tier promotion does NOT re-fire \u2014 the localStorage key is namespaced per userId.",
+        "Boundary scenario: with score hovering right at a threshold (e.g. 49/50 for Lion), open the app and verify the toast does NOT fire until the server-canonical tier (`/api/me/tier`) has loaded. The effect now bails out when `serverCanonicalTier === null`, so transient initial-render values (bodyMetrics still arriving) can't trigger a celebration that then settles back below the threshold."
       ],
-      "notes": "[2026-05-23 <sha7>] Shipped: added tierPromoToast state + useEffect that watches myAthleteBreakdown.headline.tierNum vs the localStorage `ironlog.lastObservedTier.<userId>` value. Fires only on UP transitions; first observation is silent; demotions are silent + resync. Tap-to-dismiss + 4s auto-dismiss. Rendered at HomePage's top-level return so it's visible across all views."
+      "notes": "[2026-05-23 <sha7>] Shipped: added tierPromoToast state + useEffect that watches myAthleteBreakdown.headline.tierNum vs the localStorage `ironlog.lastObservedTier.<userId>` value. Fires only on UP transitions; first observation is silent; demotions are silent + resync. Tap-to-dismiss + 4s auto-dismiss. Rendered at HomePage's top-level return so it's visible across all views.\n\n[2026-05-26 <sha7>] Stabilised against boundary-hover false-positives. The effect previously fired off whichever transient myAthleteBreakdown crossed the tier boundary first \u2014 with score sitting at 49 (one below Lion's 50 minimum), bodyMetrics arriving 200ms after history would briefly push the BodyComp sub-rank high enough to cross 50, the toast captured 'LION' into state, then real bodyMetrics arrived and the score settled back to 49 (Big Dawg). User saw the LION toast but home + progress kept saying Big Dawg. Fix: the effect now also waits for `serverCanonicalTier !== null` before checking, so the headline tier compared against localStorage is DB-truth, not a transient local value. Source: @maaiz screenshot 'Got the achievement celebration or tier celebration for reaching lion on app open but it says big dawg on home and progress page. Which is it!?!?'."
     },
     {
       "id": "home-hub-consolidation",
@@ -5652,7 +5653,7 @@
     },
     {
       "id": "tier-consistency-home-progress",
-      "title": "Athlete tier headline is identical on Home and Progress dashboard (same data, same result)",
+      "title": "Athlete tier headline is identical on Home, Progress dashboard, and the Rankings leaderboard (single source of truth)",
       "area": "Tiers",
       "introduced": "2026-05-26",
       "introducedBy": "QA pass 2026-05-26 followup #3",
@@ -5661,9 +5662,11 @@
       "steps": [
         "Open Home \u2014 read the athlete tier headline (e.g. BIG DAWG \u00b7 T4).",
         "Open Progress \u2192 dashboard \u2014 read the YOUR RANK card.",
-        "Verify the headline tier label + tierNum + overall score are IDENTICAL."
+        "Open Ranks \u2192 Global \u2192 find your row in the leaderboard.",
+        "Verify the headline tier label + tierNum + overall score are IDENTICAL across all three surfaces (including the score number \u2014 Home and Progress now read the same DB-truth the leaderboard uses).",
+        "Log a workout. Verify all three surfaces update together when /api/me/tier refetches (history change triggers the refresh)."
       ],
-      "notes": "[2026-05-26] Slice 1: Progress dashboard was building its OWN stripped stats object (missing weeklyVolumes, recentSetsByExercise, weight/bf, gender, intensityPoints, setsByMuscleGroup, daysPerWeek). Refactored to reuse the canonical `myAthleteBreakdown` useMemo from line 8287. Source: @maaiz screenshot \u2014 Home: BIG DAWG \u00b7 T4, Progress: FOX \u00b7 TIER 5 OF 6."
+      "notes": "[2026-05-26] Slice 1: Progress dashboard was building its OWN stripped stats object (missing weeklyVolumes, recentSetsByExercise, weight/bf, gender, intensityPoints, setsByMuscleGroup, daysPerWeek). Refactored to reuse the canonical `myAthleteBreakdown` useMemo from line 8287. Source: @maaiz screenshot \u2014 Home: BIG DAWG \u00b7 T4, Progress: FOX \u00b7 TIER 5 OF 6.\n\n[2026-05-26 <sha7>] Slice 2: even after Slice 1 unified Home and Progress against the same local useMemo, both still disagreed with the LEADERBOARD when the score sat at a tier boundary. Leaderboard re-pulls fresh logs + bodyMetrics from the DB; the local useMemo runs off cached React state (history, bodyMetrics) which is one workout / one BF reading behind during the async data arrival window. New endpoint `GET /api/me/tier` returns the canonical CanonicalTier from the same `computeStatsForUsers` pipeline the leaderboard uses. Frontend fetches it on user load + on every history-total / bodyMetrics-count change. The `myAthleteBreakdown` useMemo now overlays this server-canonical headline onto the local breakdown (sub-ranks stay local so tile detail strings still match what's on screen). Result: home rail, progress YOUR RANK card, and leaderboard 'YOU' row all read the same tier label, tierNum, and headline score. Source: @maaiz screenshot 2026-05-26 'Got the achievement celebration or tier celebration for reaching lion on app open but it says big dawg on home and progress page. Which is it!?!?'."
     },
     {
       "id": "qa-retest-submit-appears-immediately",
