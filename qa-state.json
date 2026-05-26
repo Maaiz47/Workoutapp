@@ -5835,12 +5835,14 @@
       "lastTested": "2026-05-26",
       "status": "regression-retest",
       "steps": [
+        "File a \u27f2 NEEDS RETEST or \u2717 STILL BROKEN verdict on any patch.",
         "Open the FAB \u2192 YOUR PATCHES TO RETEST.",
-        "Verify original bug reports (notes starting with [\ud83d\udc1e BUG ...]) appear.",
-        "Verify RETEST comments with status=passing DO NOT appear (user already said works now).",
-        "Verify RETEST comments with status=failing / regression-retest DO appear (still needs attention from Claude)."
+        "Verify the parent patch is STILL visible (user explicitly said it needs attention).",
+        "File a \u2713 WORKS NOW verdict on the same patch later.",
+        "Verify the parent disappears from the list (verified working).",
+        "Verify the \u2713 WORKS NOW verdict comment itself doesn't reappear either."
       ],
-      "notes": "[2026-05-26] /api/qa/comments/mine GET filters RETEST comments by status: keeps `failing` / `regression-retest` (still needs attention from Claude \u2192 next pass should see them), hides `passing` (user said works now \u2192 done). Steps updated to reflect this semantic. Per @maaiz clarification 'if I select retest it means it needs attention by you then test again. If I said it works now, that's when we don't need to circle back to it later after a qa process'.\n\n[2026-05-26] /api/qa/comments/mine GET now filters out comments whose note matches `[\ud83d\udd04 RETEST ...]`. These are user VERDICTS on previously-shipped patches, not bug reports. When marked processed during a qa-pass batch, the list was surfacing them back asking the user to retest their own retest. Per @maaiz: 'This should not come back to my your patches to test unless it's reported broken again'."
+      "notes": "[2026-05-26] CORRECTED LOGIC: the `retested` server flag was hiding parent comments the moment ANY retest existed (including \u27f2 NEEDS RETEST and \u2717 STILL BROKEN). That made marking RETEST pointless \u2014 the item vanished from the user's patches-to-retest list with no way back. Now `retested` only flips true for \u2713 WORKS NOW (passing) verdicts. Per @maaiz: 'You said again retest wouldn't surface again. What's the point of marking it for retest then???'. NEEDS RETEST and STILL BROKEN verdicts keep the parent visible \u2014 they're explicit asks to keep the item in the queue.\n\n[2026-05-26] /api/qa/comments/mine GET filters RETEST comments by status: keeps `failing` / `regression-retest` (still needs attention from Claude \u2192 next pass should see them), hides `passing` (user said works now \u2192 done). Steps updated to reflect this semantic. Per @maaiz clarification 'if I select retest it means it needs attention by you then test again. If I said it works now, that's when we don't need to circle back to it later after a qa process'.\n\n[2026-05-26] /api/qa/comments/mine GET now filters out comments whose note matches `[\ud83d\udd04 RETEST ...]`. These are user VERDICTS on previously-shipped patches, not bug reports. When marked processed during a qa-pass batch, the list was surfacing them back asking the user to retest their own retest. Per @maaiz: 'This should not come back to my your patches to test unless it's reported broken again'."
     }
   ]
 }

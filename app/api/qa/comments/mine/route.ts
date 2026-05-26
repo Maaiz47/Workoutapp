@@ -132,17 +132,22 @@ export async function GET(req: NextRequest) {
       }
     } catch {}
 
-    // Build a set of "comment ids the user has already retested" by
-     // scanning their own RETEST-tagged comments — the note format is
-     // `[🔄 RETEST · re:XXXXXXXX] …` where XXXXXXXX is the last 8 chars
-     // of the original processed comment id. Server-side detection
-     // means /qa-direct retests (not just FAB-list ones) also
-     // resolve away the patch link.
-     // (qa: qa-resolve-away-old-links)
-    const retestedShortIds = new Set<string>();
+    // Build a set of "comment ids the user has VERIFIED PASSING" by
+    // scanning their own RETEST comments WITH status=passing. The note
+    // format is `[🔄 RETEST · re:XXXXXXXX] …` where XXXXXXXX is the
+    // last 8 chars of the original comment id. ONLY passing verdicts
+    // count as verified — NEEDS RETEST and STILL BROKEN verdicts must
+    // keep the parent visible in the user's patches-to-retest list
+    // (the patch still needs attention). Per @maaiz clarification
+    // 2026-05-26: "if I select retest it means it needs attention by
+    // you then test again. If I said it works now, that's when we
+    // don't need to circle back". (qa: qa-resolve-away-old-links,
+    // qa-retest-no-self-surface)
+    const verifiedShortIds = new Set<string>();
     for (const c of comments) {
+      if (c.status !== "passing") continue;
       const m = typeof c.note === "string" ? c.note.match(/\[🔄\s*RETEST\s*·\s*re:([a-z0-9]{4,})\]/i) : null;
-      if (m && m[1]) retestedShortIds.add(m[1].toLowerCase());
+      if (m && m[1]) verifiedShortIds.add(m[1].toLowerCase());
     }
 
     const annotated = comments.map((c: any) => {
@@ -158,7 +163,10 @@ export async function GET(req: NextRequest) {
       const processedSummary = rawSummary ? simplifyForUser(rawSummary) : null;
       const processedAt = c.processedAt ? c.processedAt.toISOString() : (fileEntry?.ts ?? null);
       const processedSha = c.processedSha ?? fileEntry?.sha ?? null;
-      const retested = retestedShortIds.has(c.id.slice(-8).toLowerCase());
+      // `retested` now means "user verified passing" — replaces the
+      // prior "any retest exists" semantic which hid items the user
+      // explicitly wanted to keep visible (NEEDS RETEST / STILL BROKEN).
+      const retested = verifiedShortIds.has(c.id.slice(-8).toLowerCase());
       return {
         id: c.id,
         itemId: c.itemId,
@@ -178,19 +186,17 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // RETEST comments are the user's verdict on a previously-shipped
-    // patch. The list should hide ones marked "passing" (the user said
-    // works now — no need to circle back), but KEEP ones marked
-    // "failing" or "regression-retest" since those still need
-    // attention. Per @maaiz clarification 2026-05-26: "if I select
-    // retest it means it needs attention by you then test again. If
-    // I said it works now, that's when we don't need to circle back
-    // to it later after a qa process". (qa: qa-retest-no-self-surface)
+    // Hide only the user's own PASSING retest verdicts ("✓ WORKS NOW").
+    // Those are "done, no need to circle back". NEEDS RETEST and
+    // STILL BROKEN retests stay visible — they're the user explicitly
+    // telling the system "this still needs attention". The parent
+    // patches stay visible too, via the verifiedShortIds set above
+    // (which only flips `retested=true` for passing verdicts).
+    // (qa: qa-retest-no-self-surface)
     const filtered = annotated.filter((c: any) => {
       if (typeof c.note !== "string") return true;
       const isRetest = /\[🔄\s*RETEST\b/i.test(c.note);
-      if (!isRetest) return true;
-      return c.status !== "passing";
+      return !(isRetest && c.status === "passing");
     });
 
     return json({ comments: filtered });
