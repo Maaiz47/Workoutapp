@@ -1,0 +1,10 @@
+{
+  "id": "cmplyuzv00004rrw976t264yp",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=systemNotifs] Opening system notifications chat log still opens at the top from the read messages",
+  "screenshotUrl": null,
+  "ts": "2026-05-26T01:38:31.308Z"
+}
