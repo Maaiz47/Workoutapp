@@ -1,0 +1,10 @@
+{
+  "id": "cmpm4vqpj0002qlqmzm46ijte",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=workout] Exercises like treadmill or rowing machine don’t need sets or rest, just the time/speed/distance",
+  "screenshotUrl": null,
+  "ts": "2026-05-26T04:27:03.799Z"
+}
