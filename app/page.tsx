@@ -18963,6 +18963,13 @@ function HomePage() {
                   activeDay?.sections.forEach(s => s.exercises.forEach(x => {
                     if (x.id === addingSupersetForId) return;
                     if (x.groupId && x.groupId !== (partnerEx as any)?.groupId) return;
+                    // Stretches (warm-up / cool-down) are not trackable
+                    // and can't be supersetted — supersets only pair
+                    // trackable exercises. Per @maaiz 2026-05-26: "Warm
+                    // up and cooldown stretches can be separate to
+                    // exercises, no supersets or dropsets with the
+                    // stretches only other exercises right?". Confirmed.
+                    if ((x as any).trackable === false) return;
                     const lib = (EXERCISES as any[]).find((e: any) => e.id === x.id);
                     candidates.push({ id: x.id, name: x.name, muscles: lib?.primaryMuscles ?? [], type: x.type, fromSession: true });
                   }));
