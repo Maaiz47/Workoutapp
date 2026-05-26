@@ -3,7 +3,17 @@ import { prisma } from "../../../../lib/prisma";
 import { computeStatsForUsers } from "../../../../lib/leaderboardStats";
 
 const COOKIE = "ironlog-uid";
-function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
+// Trainer client list must NEVER be cached — when an athlete accepts
+// the coaching request, the trainer's next fetch has to see the new
+// row immediately or they'll think the accept didn't land. Per @maaiz
+// 2026-05-26 recurring report. (qa: trainer-request-pending-state)
+function json(data: object, status = 200) {
+  const res = NextResponse.json(data, { status });
+  res.headers.set("Cache-Control", "no-store, max-age=0, must-revalidate");
+  return res;
+}
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;

@@ -6672,14 +6672,34 @@ function HomePage() {
   // happen while the trainer is on the messages tab, so a stale snapshot
   // would leave the accepted client invisible until next reload. Source:
   // @maaiz l1dhjm6j "Amanii accepted my request and she did but not
-  // showing under my clients". (qa: trainer-request-pending-state)
+  // showing under my clients". 2026-05-26 follow-up: trainer reported
+  // the bug AGAIN even after a prior fix — the existing effect runs on
+  // view-change but if the trainer is ALREADY on clientsHub when the
+  // accept fires (or returns to it via push-notif which doesn't change
+  // view from the SW perspective), no refresh. Adding (a) explicit
+  // cache:"no-store" + cache-busting query param to defeat any SW
+  // cache, (b) a window-focus refresh so reopening the app pulls
+  // fresh, (c) the existing view-mount refresh stays.
+  // (qa: trainer-request-pending-state)
+  const refreshTrainerClients = useCallback(() => {
+    if (!userHasRole(user, "trainer")) return;
+    fetch(`/api/trainer/clients?ts=${Date.now()}`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(data => { if (data.clients) setClients(data.clients); })
+      .catch(() => {});
+  }, [user]);
   useEffect(() => {
-    if (view === "clientsHub" && userHasRole(user, "trainer")) {
-      fetch("/api/trainer/clients").then(r => r.json()).then(data => {
-        if (data.clients) setClients(data.clients);
-      }).catch(() => {});
-    }
-  }, [view, user]);
+    if (view === "clientsHub") refreshTrainerClients();
+  }, [view, refreshTrainerClients]);
+  useEffect(() => {
+    if (!userHasRole(user, "trainer")) return;
+    const onFocus = () => { refreshTrainerClients(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") refreshTrainerClients();
+    });
+    return () => { window.removeEventListener("focus", onFocus); };
+  }, [user, refreshTrainerClients]);
 
   // Live presence poll for the open DM — the user wants online status
   // to update without reopening the chat. Polls /api/messages/[peerId]
@@ -17570,7 +17590,15 @@ function HomePage() {
                               </button>
                             );
                           })()}
-                          {trackable && (!ex.groupId ? (
+                          {/* Cardio (treadmill, elliptical, rowing, etc)
+                              can't be supersetted — they're continuous
+                              conditioning, not strength sets that
+                              benefit from back-to-back pairing. Per
+                              @maaiz 2026-05-26: "No need to superset
+                              exercises with warm ups like treadmill or
+                              elliptical or rowing machine etc".
+                              (qa: session-cardio-no-superset) */}
+                          {trackable && ex.type !== "cardio" && (!ex.groupId ? (
                             <button onClick={(e) => {
                               e.stopPropagation();
                               setAddingSupersetForId(ex.id);
@@ -18738,6 +18766,12 @@ function HomePage() {
             if (!isSuperMode && inSessionIds.has(e.id)) return false;
             // Skip the anchor itself (can't pair with self).
             if (isSuperMode && partnerEx && e.id === partnerEx.id) return false;
+            // Cardio can't be a superset partner. The +SUPERSET button
+            // is already hidden on cardio anchors, but the picker also
+            // needs to exclude cardio from the candidate library so a
+            // strength anchor can't pair WITH a cardio exercise.
+            // (qa: session-cardio-no-superset)
+            if (isSuperMode && e.type === "cardio") return false;
             // Skip exercises already in a different superset (prevents orphan groups).
             if (isSuperMode) {
               const inGroupAlready = activeDay?.sections.some(s => s.exercises.some(x => x.id === e.id && x.groupId && x.groupId !== (partnerEx as any)?.groupId));
@@ -18994,6 +19028,10 @@ function HomePage() {
                     // exercises, no supersets or dropsets with the
                     // stretches only other exercises right?". Confirmed.
                     if ((x as any).trackable === false) return;
+                    // Cardio (treadmill/elliptical/rowing/etc) is
+                    // excluded too — continuous conditioning doesn't
+                    // pair with strength sets. (qa: session-cardio-no-superset)
+                    if (x.type === "cardio") return;
                     const lib = (EXERCISES as any[]).find((e: any) => e.id === x.id);
                     candidates.push({ id: x.id, name: x.name, muscles: lib?.primaryMuscles ?? [], type: x.type, fromSession: true });
                   }));

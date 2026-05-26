@@ -4953,7 +4953,7 @@
         "Same flow for a friend request - sender sees the PENDING chip without having to leave + come back.",
         "Decline a trainer request as a client. Verify the trainer gets a TRAINER REQUEST - DECLINED bubble in the thread."
       ],
-      "notes": "[2026-05-26] @maaiz retest re:l1dhjm6j: 'Not sure if push notification working, just checked if Amanii accepted my request and she did but not showing under my clients'. Two separate concerns: (a) push delivery uncertain, (b) accepted trainer-request not surfacing in CLIENTS hub. Investigate /api/trainer/clients return path + the post-accept hook. (qa: trainer-request-pending-state, trainer-client-auto-friend)\n\n[2026-05-24] Shipped: /api/messages/[userId] joins TrainerRequest + Friendship status onto each request-typed message and returns it as requestStatus. Client renders a coloured chip on both sides. PATCH /api/trainer/request drops an in-app adoption_accepted / adoption_declined Message so the trainer aside reflects the outcome without push delivery."
+      "notes": "[2026-05-26] Recurring: Amanii reported accepted but not visible in client list. Likely root cause: cached /api/trainer/clients response (SW or browser). Three reinforcements: (a) GET route now sets Cache-Control: no-store + dynamic='force-dynamic' + revalidate=0, (b) frontend fetch uses cache:'no-store' + ?ts=Date.now() cache-bust query param, (c) new window-focus + visibilitychange handler force-refreshes the clients list whenever the trainer reopens the app from background. Existing view==='clientsHub' refresh kept. Per @maaiz 2026-05-26 'Says Amanii accepted my client request but don't see her on the client list'.\n\n[2026-05-26] @maaiz retest re:l1dhjm6j: 'Not sure if push notification working, just checked if Amanii accepted my request and she did but not showing under my clients'. Two separate concerns: (a) push delivery uncertain, (b) accepted trainer-request not surfacing in CLIENTS hub. Investigate /api/trainer/clients return path + the post-accept hook. (qa: trainer-request-pending-state, trainer-client-auto-friend)\n\n[2026-05-24] Shipped: /api/messages/[userId] joins TrainerRequest + Friendship status onto each request-typed message and returns it as requestStatus. Client renders a coloured chip on both sides. PATCH /api/trainer/request drops an in-app adoption_accepted / adoption_declined Message so the trainer aside reflects the outcome without push delivery."
     },
     {
       "id": "day-card-hero-routing",
@@ -5808,6 +5808,23 @@
         "Tap HIDE \u2192 verify collapse still works."
       ],
       "notes": "[2026-05-26] Default `useState(false)` \u2192 `useState(true)` for showLbGroups at line 6195. Added a separate useEffect keyed on view==='groupsHub' that auto-fetches /api/leaderboard/groups when lbGroups is empty \u2014 the existing fetch was gated behind the VIEW button click, so default-open without auto-fetch would render an empty list. Per @maaiz: 'Groups are still close list by default, why would it be that way? I've asked you literally more than 5 times to change that now'."
+    },
+    {
+      "id": "session-cardio-no-superset",
+      "title": "Cardio exercises (treadmill, elliptical, rowing, etc) can't be supersetted",
+      "area": "Workouts",
+      "introduced": "2026-05-26",
+      "introducedBy": "QA pass 2026-05-26 followup #7",
+      "lastTested": "2026-05-26",
+      "status": "regression-retest",
+      "steps": [
+        "Add a cardio exercise to an active session (treadmill / elliptical / rowing).",
+        "Expand the card.",
+        "Verify NO + SUPERSET button appears (FORM / EDIT / DROP SET / SWAP can stay).",
+        "Tap + SUPERSET on a different strength exercise.",
+        "Verify the cardio exercise does NOT appear in FROM THIS SESSION nor in ALL EXERCISES results."
+      ],
+      "notes": "[2026-05-26] Three filter points: (1) +SUPERSET button on the card now requires ex.type !== 'cardio' alongside trackable, (2) FROM THIS SESSION candidates skip x.type === 'cardio', (3) ALL EXERCISES picker filteredAll skips e.type === 'cardio' when isSuperMode. Per @maaiz 'No need to superset exercises with warm ups like treadmill or elliptical or rowing machine etc'."
     }
   ]
 }
