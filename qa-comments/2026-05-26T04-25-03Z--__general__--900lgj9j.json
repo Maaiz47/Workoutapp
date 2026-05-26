@@ -1,0 +1,10 @@
+{
+  "id": "cmpm4t5nf0000uyue900lgj9j",
+  "itemId": "__general__",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "regression-retest",
+  "note": "[🔄 RETEST · re:bkb56h0t] Fix: doesn’t show what action you took and advise to retest",
+  "screenshotUrl": null,
+  "ts": "2026-05-26T04:25:03.195Z"
+}
