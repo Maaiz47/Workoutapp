@@ -1,0 +1,10 @@
+{
+  "id": "cmpm4s3p10002bgfe9z2awfsh",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "untested",
+  "note": "[💡 IDEA · Other · view=systemNotifs] System notifications is still opening from the chatlog to the earliest message first - should only start from earliest unread or last message",
+  "screenshotUrl": null,
+  "ts": "2026-05-26T04:24:14.002Z"
+}
