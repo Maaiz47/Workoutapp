@@ -13,7 +13,7 @@ Calibration fix. Analysis comparing maaiz / alla / munchy (all 13-day-old accoun
   - Progression: replaces the `weekly.length < 9 → score 50, hasData false` early return with the ramped score. Detail string now reads `X/9 weeks logged · ramping NN% (log Y more weeks to unlock full progression scoring)`.
   - Detail strings get a `· ramping NN%` suffix while still in the ramp so the UI explains the gating.
   - Established users (≥9 training weeks) unchanged — the rampFactor clamps to 1.
-  - Projected effect on the analysis trio: maaiz 51 → ~39 (Big Dawg), munchy 44 → ~33 (Big Dawg), alla 40 → ~28 (Kitten). All other current users with <9 training weeks see proportional drops; leaderboard will reshuffle on first read after deploy.
+  - Projected effect on the analysis trio: maaiz 51 → ~39 (Lion → Big Dawg), munchy 44 → ~33 (Big Dawg, just above floor), alla 40 → ~28 (Big Dawg → Fox). All other current users with <9 training weeks see proportional drops; leaderboard will reshuffle on first read after deploy.
   - Per @maaiz: 'Progression calculation can be used at stepped % every week until reaching 100 … not sure what your recommendation for strength is but could be similar.'
 
 ### Internal — no tutorial change
