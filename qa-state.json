@@ -581,6 +581,22 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "tier-newuser-ramp",
+      "title": "New-user ramp on Strength + Progression sub-ranks",
+      "area": "Tiers",
+      "introduced": "2026-05-27",
+      "introducedBy": "Calibration analysis vs maaiz / alla / munchy",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Create a brand-new account, log one workout. Open Progress \u2192 YOUR RANK. Verify Strength sub-rank score \u2248 round(50 \u00d7 1/9) \u2248 6 (not 50), and the detail string ends with '\u00b7 ramping 11%'. Verify Progression sub-rank similarly ramps (score \u2248 6, detail says 'X/9 weeks logged \u00b7 ramping NN%').",
+        "Log workouts across 9 distinct calendar weeks (or use an existing user with \u22659 weeks of training history). Verify Strength + Progression scores no longer carry the 'ramping' suffix and the score reflects the full calculated value (no x factor).",
+        "Verify the headline tier on Home / Progress / Leaderboard reshuffles after the change: pre-existing accounts with <9 training weeks see lower scores; established users (\u22659 weeks) are unaffected.",
+        "Spot-check leaderboard: a 13-day account that previously ranked Lion should now sit at Big Dawg or below. A user inactive for months should not gain credit for calendar time \u2014 only training weeks count (weeklyVolumes.length)."
+      ],
+      "notes": "[2026-05-27 <sha7>] Replaces the flat-50 freebie on Strength + Progression for users with <9 training weeks. The flat floor pushed 13-day-old accounts to Lion off ~10 free headline points (Str 20% * 50 + Prog 12% * 50 - what they'd actually earn). New formula: rampFactor = min(1, weeklyVolumes.length / 9), score *= rampFactor. Applied to all three return paths in strengthSubRank (qualified=0, !hasData, full blend) and the <9-week return in progressionSubRank. Weeks measured as training weeks (weeklyVolumes.length, last 180d) not calendar weeks \u2014 prevents the 'dormant 9 weeks then suddenly Lion' loophole. Established users (\u22659 weeks) unaffected. Detail strings get a '\u00b7 ramping NN%' suffix while in ramp. Per @maaiz: 'Progression calculation can be used at stepped % every week until reaching 100 \u2026 Week 1 = 10% x normal calculation, Week 2 = 20% \u2026 not sure what your recommendation for strength is but could be similar.'"
+    },
+    {
       "id": "trainer-client-subranks",
       "title": "Trainers can see each client's full sub-rank breakdown from the Clients hub + Group standings",
       "area": "Trainer",

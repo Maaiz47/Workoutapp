@@ -445,7 +445,20 @@ function strengthSubRank(
   recentByExercise: Record<string, RecentSet[]>,
   todayMs: number,
   currentBodyweightKg?: number | null,
+  weeklyVolumes?: Array<{ weekStartMs: number; volumeKg: number }>,
 ): { score: number; hasData: boolean; detail: string; pctChange: number | null; qualifiedCount: number } {
+  // New-user ramp (qa: tier-newuser-ramp): same 9-training-week
+  // ramp Progression uses. A 1-week user benching their own
+  // bodyweight shouldn't score 40+ on Strength on day one. After
+  // 9 training weeks the score is fully earned and the natural
+  // plateau of strength gains takes over (rate-of-change asymptote
+  // already lives in the existing calculation).
+  const RAMP_WEEKS = 9;
+  const weeksLogged = weeklyVolumes?.length ?? 0;
+  const rampFactor = Math.min(1, weeksLogged / RAMP_WEEKS);
+  const rampSuffix = rampFactor < 1 ? ` · ramping ${Math.round(rampFactor * 100)}%` : "";
+  const applyRamp = (raw: number) => Math.round(raw * rampFactor);
+
   const qualified = Object.entries(recentByExercise)
     .map(([id, sets]) => ({ id, sets, count: sets.length }))
     .filter(e => e.count >= 4)
@@ -454,7 +467,7 @@ function strengthSubRank(
   // Per @maaiz: copy is unclear — name the gate (4+ sets of any one
   // exercise, plus list the big lifts that score most heavily).
   // (qa: progress-strength-subrank-copy)
-  if (qualified.length === 0) return { score: 50, hasData: false, detail: "log 4+ sets of any one exercise (squat / bench / DL / OHP score most) to start tracking strength", pctChange: null, qualifiedCount: 0 };
+  if (qualified.length === 0) return { score: applyRamp(50), hasData: false, detail: "log 4+ sets of any one exercise (squat / bench / DL / OHP score most) to start tracking strength" + rampSuffix, pctChange: null, qualifiedCount: 0 };
 
   // ── Absolute strength component ────────────────────────────────────
   let topE1RM = 0;
@@ -500,7 +513,7 @@ function strengthSubRank(
   // ── Blend ─────────────────────────────────────────────────────────
   const hasData = rateHasData || absoluteHasData;
   if (!hasData) {
-    return { score: 50, hasData: false, detail: "keep logging — strength trend kicks in past 90d of history", pctChange: null, qualifiedCount: qualified.length };
+    return { score: applyRamp(50), hasData: false, detail: "keep logging — strength trend kicks in past 90d of history" + rampSuffix, pctChange: null, qualifiedCount: qualified.length };
   }
   // max() so the dominant signal wins — beginners ride rate, veterans
   // ride absolute. Plateaued amateurs get the better of two modest
@@ -517,7 +530,7 @@ function strengthSubRank(
   } else {
     detail = `best e1RM ${Math.round(topE1RM)}kg (${(absoluteRatio as number).toFixed(2)}× BW) · trend pending`;
   }
-  return { score: finalScore, hasData: true, detail, pctChange: avgPct, qualifiedCount: qualified.length };
+  return { score: applyRamp(finalScore), hasData: true, detail: detail + rampSuffix, pctChange: avgPct, qualifiedCount: qualified.length };
 }
 
 // Progression sub-rank — rewards a rising weekly-volume trend over
@@ -531,12 +544,25 @@ function strengthSubRank(
 //   •  1-3%/wk → linear 70 → 100. 3%+ caps at 100.
 // (qa: tier-scoring-v2)
 function progressionSubRank(weekly: Array<{ weekStartMs: number; volumeKg: number }>): { score: number; hasData: boolean; detail: string; slopePct: number | null } {
-  if (!weekly || weekly.length < 9) {
-    // Per @maaiz: "no weekly volume yet" was unclear. Spell out the gate
-    // — progression needs at least one full week of workouts to start
-    // computing week-over-week volume slope.
-    // (qa: progress-progression-subrank-copy)
-    return { score: 50, hasData: false, detail: weekly && weekly.length > 0 ? `log ${9 - weekly.length} more week${weekly.length === 8 ? "" : "s"} of workouts to unlock progression scoring` : "log at least one full week of workouts to start tracking week-over-week volume", slopePct: null };
+  // New-user ramp (qa: tier-newuser-ramp): instead of handing brand-
+  // new users a flat 50-point freebie until they hit the 9-week
+  // unlock, ramp the floor linearly. Weeks 0/9 → 0pts, 4/9 → 22,
+  // 8/9 → 44, 9+ → real slope at full credit. Kills the 13-day
+  // accounts that vaulted to Lion off the free 6pts from Progression
+  // alone. Per @maaiz "stepped % every week until reaching 100".
+  const RAMP_WEEKS = 9;
+  const weeksLogged = weekly?.length ?? 0;
+  if (weeksLogged < RAMP_WEEKS) {
+    const ramped = Math.round(50 * weeksLogged / RAMP_WEEKS);
+    const remaining = RAMP_WEEKS - weeksLogged;
+    return {
+      score: ramped,
+      hasData: false,
+      detail: weeksLogged > 0
+        ? `${weeksLogged}/${RAMP_WEEKS} weeks logged · ramping ${Math.round(100 * weeksLogged / RAMP_WEEKS)}% (log ${remaining} more week${remaining === 1 ? "" : "s"} to unlock full progression scoring)`
+        : "log at least one full week of workouts to start tracking week-over-week volume",
+      slopePct: null,
+    };
   }
   const sorted = [...weekly].sort((a, b) => a.weekStartMs - b.weekStartMs);
   const n = sorted.length;
@@ -650,7 +676,7 @@ export function computeAthleteTier(s: AthleteStatsForTier, theme?: string | null
   // numbers no longer regress as gain rates naturally slow.
   // (qa: tier-strength-absolute-blend)
   const todayMs = Date.now();
-  const strengthRes = strengthSubRank(s.recentSetsByExercise ?? {}, todayMs, s.weightCurrentKg);
+  const strengthRes = strengthSubRank(s.recentSetsByExercise ?? {}, todayMs, s.weightCurrentKg, s.weeklyVolumes);
 
   // Progression v2 — new sub-rank. Weekly volume regression slope.
   const progressionRes = progressionSubRank(s.weeklyVolumes ?? []);

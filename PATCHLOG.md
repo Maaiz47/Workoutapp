@@ -2,6 +2,29 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #1 — new-user ramp on Strength + Progression sub-ranks (qa: tier-newuser-ramp)
+
+Calibration fix. Analysis comparing maaiz / alla / munchy (all 13-day-old accounts) showed all three were Lion-or-near-Lion candidates off the back of a flat 50-point freebie on Strength + Progression. The 50-floor when `hasData=false` was contributing roughly 10 free headline points to every brand-new user (Str 20% × 50 + Prog 12% × 50 minus what they'd actually earn).
+
+### Addressed
+- **tier-newuser-ramp**: replaces the flat-50 floor on both Strength + Progression with a linear ramp tied to training weeks (`weeklyVolumes.length`, not calendar weeks — so dormant accounts can't game it).
+  - `rampFactor = min(1, weeklyVolumes.length / 9)`. Week 1 → 11%, Week 4 → 44%, Week 9+ → 100%.
+  - Strength: applies to all three return paths (`qualified.length === 0`, `!hasData` blend, full blended `finalScore`). A new user benching their bodyweight on day one no longer scores 40+ on Strength.
+  - Progression: replaces the `weekly.length < 9 → score 50, hasData false` early return with the ramped score. Detail string now reads `X/9 weeks logged · ramping NN% (log Y more weeks to unlock full progression scoring)`.
+  - Detail strings get a `· ramping NN%` suffix while still in the ramp so the UI explains the gating.
+  - Established users (≥9 training weeks) unchanged — the rampFactor clamps to 1.
+  - Projected effect on the analysis trio: maaiz 51 → ~39 (Big Dawg), munchy 44 → ~33 (Big Dawg), alla 40 → ~28 (Kitten). All other current users with <9 training weeks see proportional drops; leaderboard will reshuffle on first read after deploy.
+  - Per @maaiz: 'Progression calculation can be used at stepped % every week until reaching 100 … not sure what your recommendation for strength is but could be similar.'
+
+### Internal — no tutorial change
+Sub-rank scoring formula change; existing UI surfaces already display the score + detail string verbatim.
+
+### Files
+- Modified: `lib/tiers.ts` (progressionSubRank, strengthSubRank, computeAthleteTier call site)
+- Modified: `qa-state.json` (new item `tier-newuser-ramp`)
+
+---
+
 ## QA pass · 2026-05-26 follow-up #8 — server-canonical tier ends home/progress vs leaderboard drift (qa: tier-consistency-home-progress, tier-promotion-toast)
 
 Single fix. The on-app-open tier celebration fired "LION" while Home and Progress kept showing BIG DAWG — three surfaces, three different answers at the 49↔50 tier boundary.
