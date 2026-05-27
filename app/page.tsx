@@ -20,7 +20,7 @@ import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutor
 import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTargetReps, detectPlateau, shouldSuggestDeload } from "../lib/performance";
 import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown, AnimalTier, getAthleteTiers, displayTierNum, TIER_COUNT, tierFlavor } from "../lib/tiers";
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
-import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward } from "../lib/milestones";
+import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward, TIER_NUM_BY_ID } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, syncWellnessFromServer, syncWellnessToServerOnce, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
 import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead, fetchPatchNotifications, markPatchNotifsRead, markRetestResponded, readRetestRespondedIds, PatchNotification } from "../lib/systemNotifications";
@@ -8663,12 +8663,15 @@ function HomePage() {
   // the transient initial render — where myAthleteBreakdown computes
   // a Kitten (tierNum=1) before `history` finishes loading — this
   // overwrote the saved high tier with 1, then the real value re-
-  // promoted and fired the toast on EVERY app reopen. Fix: skip the
-  // effect entirely until history has loaded with real data, and
-  // never write a LOWER value to localStorage. lastObserved is now
-  // monotonically increasing — legitimate demotions don't re-fire
-  // promotion toasts when re-climbing past prior peaks, but that's
-  // the lesser evil vs the every-reopen spam.
+  // promoted and fired the toast on EVERY app reopen.
+  // (2026-05-27, qa: tier-newuser-ramp) Quiet demotion writes are
+  // RE-ENABLED now that the serverCanonicalTier guard below blocks
+  // the effect entirely until DB-truth lands. The original failure
+  // mode (writing tierNum=1 from a transient local render) can no
+  // longer fire. The re-enable is needed so users who were transient-
+  // Lion off the old flat-50 freebie get a real LION celebration when
+  // they actually earn it under the new ramped scoring — otherwise
+  // their localStorage stays at 4 forever and the check never fires.
   const [tierPromoToast, setTierPromoToast] = useState<{ tier: AnimalTier } | null>(null);
   useEffect(() => {
     if (!user || !myAthleteBreakdown) return;
@@ -8704,7 +8707,25 @@ function HomePage() {
       const t = setTimeout(() => setTierPromoToast(null), 6000);
       return () => clearTimeout(t);
     }
-    // No 'quiet demotion' write — see header comment for why.
+    if (currentTier < lastObserved) {
+      // Quiet demotion — bump the marker down so a real re-climb
+      // past the prior tier fires the celebration again. Safe under
+      // the new serverCanonicalTier guard (above) because the value
+      // we're writing is DB-truth, not a transient initial render.
+      try { localStorage.setItem(key, String(currentTier)); } catch {}
+      // Also relock tier milestones above the new current tier — same
+      // recalibration logic as avatars on the server side. The next
+      // session-save will re-detect the milestone and queue it.
+      // (qa: tier-newuser-ramp)
+      try {
+        const ach = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
+        let changed = false;
+        for (const [mid, requiredTier] of Object.entries(TIER_NUM_BY_ID)) {
+          if (requiredTier > currentTier && ach.has(mid)) { ach.delete(mid); changed = true; }
+        }
+        if (changed) localStorage.setItem(MILESTONE_STORAGE_KEY, JSON.stringify(Array.from(ach)));
+      } catch {}
+    }
   }, [user, myAthleteBreakdown, history, serverCanonicalTier]);
 
   // Balanced-fortnight celebration — counterpart to the Balance

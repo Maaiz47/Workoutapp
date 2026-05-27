@@ -33,8 +33,35 @@ export async function GET(req: NextRequest) {
     const tierIdx = (tier?.idx ?? 0) + 1;     // 1-based
     const qualifiedTier = tierAvatarsAtOrBelow(tierIdx);
 
+    // Relock tier-source unlocks above the user's current canonical
+    // tier. Necessary after tier-scoring recalibration (qa: tier-
+    // newuser-ramp) — users who were temporarily at a higher tier
+    // off the back of the old flat-50 freebie shouldn't keep the
+    // tier-gated avatars they didn't actually earn. Lucky-source
+    // unlocks are permanent — never revoked.
+    let ownedIds = new Set<string>(existingUnlocks.map((u: any) => u.avatarId));
+    const tooHigh = existingUnlocks.filter((u: any) => u.source === "tier" && (u.tier ?? 0) > tierIdx);
+    if (tooHigh.length > 0) {
+      await (prisma as any).userAvatarUnlock.deleteMany({
+        where: { userId: uid, avatarId: { in: tooHigh.map((u: any) => u.avatarId) } },
+      });
+      for (const u of tooHigh) ownedIds.delete(u.avatarId);
+    }
+
+    // If the user's equipped avatar is now relocked, revert it so the
+    // PATCH-side ownership check doesn't 403 the next interaction and
+    // so the UI doesn't render a "ghost" equipped state. Lucky avatars
+    // never get cleared because they're never relocked.
+    let selected = profile?.avatarId ?? null;
+    if (selected) {
+      const equipped = findAvatar(selected);
+      if (equipped?.source === "tier" && (equipped.tier ?? 0) > tierIdx) {
+        await prisma.userProfile.update({ where: { userId: uid }, data: { avatarId: null } });
+        selected = null;
+      }
+    }
+
     // Backfill any missing tier-source unlocks (idempotent).
-    const ownedIds = new Set<string>(existingUnlocks.map((u: any) => u.avatarId));
     const toMint = qualifiedTier.filter(a => !ownedIds.has(a.id));
     if (toMint.length > 0) {
       await (prisma as any).userAvatarUnlock.createMany({
@@ -48,7 +75,7 @@ export async function GET(req: NextRequest) {
     const tierUnlocked = AVATARS.filter(a => a.source === "tier" && ownedIds.has(a.id));
 
     return json({
-      selected: profile?.avatarId ?? null,
+      selected,
       tierUnlocked,
       luckyUnlocked,
       all: AVATARS,

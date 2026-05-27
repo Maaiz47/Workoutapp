@@ -2,6 +2,27 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #2 — recalibration cleanup: relock avatars, re-fire celebrations (qa: tier-newuser-ramp)
+
+Followup to the Strength + Progression ramp. Per @maaiz: "make sure all users are in their right tier, don't have additional tier avatars unlocked, and also make sure they get celebration for tier progressions (like maaiz getting lion celebration when he gets there and alla getting big dawg celebration when he graduates from fox)".
+
+### Addressed
+- **tier-newuser-ramp (followup)** — three small changes bundled with the ramp deploy:
+  - **Avatar relock.** `/api/avatars` GET now revokes any tier-source `UserAvatarUnlock` rows where `avatar.tier > current canonical tier`, and clears the user's equipped `avatarId` if it's a now-relocked tier avatar. Backfill then re-mints qualifying unlocks per usual. Lucky-source unlocks are permanent — never revoked. Means a user who was transient-Lion off the old freebie loses their Lion-tier avatars (Crowned, Mane Event, Thunderpride) cleanly until they actually earn Lion again.
+  - **Quiet demotion write re-enabled.** Tier promotion toast effect (`app/page.tsx`) was previously monotonic-up-only — a deliberate fix from 2026-05-24 to stop transient initial-render Kitten values from overwriting saved high tiers. That fix is now superseded by the `serverCanonicalTier` guard added in `tier-promotion-toast` (DB-truth, no transient values reach the effect). The demotion write is safe to re-enable, and necessary: without it, users whose localStorage `ironlog.lastObservedTier` was set to 4 by the old freebie can never re-trigger the Lion celebration. With the re-enable: silent demote to current canonical, then a real climb past prior peak fires the toast.
+  - **Tier milestone relock.** Same demotion branch also strips out `tier-monkey` / `tier-fox` / `tier-tiger` / `tier-lion` / `tier-gorilla` ids from the client-side `MILESTONE_STORAGE_KEY` set when the user's current tier drops below the milestone's `TIER_NUM_BY_ID` requirement. Re-fires on the next session-save when re-earned. Required exporting `TIER_NUM_BY_ID` from `lib/milestones.ts`.
+
+### Tier integrity (already automatic)
+No DB migration needed for the headline tier itself — `computeStatsForUsers` recomputes from logs on every read, so the moment this deploys every user lands at their new correct tier across home / progress / leaderboard / `/api/me/tier`.
+
+### Files
+- Modified: `app/api/avatars/route.ts` (revoke + reset equipped)
+- Modified: `app/page.tsx` (demotion write + milestone strip)
+- Modified: `lib/milestones.ts` (export `TIER_NUM_BY_ID`)
+- Modified: `qa-state.json` (extended `tier-newuser-ramp` steps + notes)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #1 — new-user ramp on Strength + Progression sub-ranks (qa: tier-newuser-ramp)
 
 Calibration fix. Analysis comparing maaiz / alla / munchy (all 13-day-old accounts) showed all three were Lion-or-near-Lion candidates off the back of a flat 50-point freebie on Strength + Progression. The 50-floor when `hasData=false` was contributing roughly 10 free headline points to every brand-new user (Str 20% × 50 + Prog 12% × 50 minus what they'd actually earn).

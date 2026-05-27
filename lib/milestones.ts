@@ -284,7 +284,7 @@ export const MILESTONES: Milestone[] = [
 // shift between themes. "Current" vs "passed" tagging matches by
 // number so the overlay correctly labels which rank you're at.
 // (qa: tier-themes — reported by @maaiz)
-const TIER_NUM_BY_ID: Record<string, number> = {
+export const TIER_NUM_BY_ID: Record<string, number> = {
   "tier-monkey":  2,   // legacy id → Tier 2 (Fox in vivid, Silver in simple)
   "tier-fox":     3,   // → Tier 3 (Big Dawg / Gold)
   "tier-tiger":   4,   // → Tier 4 (Lion / Platinum)
