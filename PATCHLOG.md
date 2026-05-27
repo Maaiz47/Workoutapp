@@ -2,6 +2,38 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #3 — profile preview modal (qa: profile-preview-modal)
+
+Tap any username or avatar across the app → modal pops with the target's basic info + tier badge + action row.
+
+### Addressed
+- **profile-preview-modal** — single new modal reachable from chat, leaderboard, and friends list.
+  - **New endpoint:** `GET /api/users/[userId]/preview`. Returns public-safe profile (id, username, role, createdAt, avatarId, hideFromGlobalLeaderboard) + canonical tier (via `computeStatsForUsers` — matches leaderboard truth) + viewer-relative relationship state (friendship status with friendshipId, isMyClient/isMyTrainer, requestOutgoing/Incoming). Never exposes body metrics, goals, training preferences, dob, or email.
+  - **New component:** `ProfilePreviewModal` at top of `app/page.tsx`. Centered modal, z-index 9050, backdrop blur, tap-to-dismiss + × close button. Headline shows 104px avatar with the user's tier glyph badged on the bottom-right corner, big bold @username, tier label + tierNum, TRAINER chip if applicable, joined-date footer.
+  - **Action row (state-aware):**
+    - 💬 MESSAGE — always available for non-self. Opens the DM thread via existing `openConversation` flow.
+    - 👥 ADD FRIEND / ⏳ FRIEND REQUEST PENDING / ✓ ACCEPT FRIEND REQUEST / ✕ REMOVE FRIEND — driven by the friendship status. Hits `/api/friends` POST/PATCH/DELETE.
+    - 🤝 ADD AS CLIENT / ⏳ CLIENT REQUEST PENDING / 👑 YOUR CLIENT — trainer viewing non-trainer user. Hits `/api/trainer/request` POST.
+    - 👑 YOUR TRAINER / ⏳ TRAINER REQUEST PENDING — read-only info for the inverse case (athlete viewing their trainer or pending trainer).
+    - Self view: no action row, just "This is you." copy.
+  - **Wired entry points:**
+    - **DM conversation header** (`app/page.tsx` line ~14238): partner name + online indicator + last-seen → entire area is now a button that opens the modal.
+    - **Group chat per-message author chip** (line ~12925): `UserAvatarChip` + `@username` row above incoming messages, both wrapped in a single tappable button.
+    - **Global leaderboard rows** (line ~5648): non-anonymous, non-self rows are now clickable. Anonymous (`Athlete #N`) rows stay non-interactive.
+    - **Friends Hub friend rows** (line ~1647, ~1661, ~1734): accepted / pending sent / pending received rows have clickable username chips. Multi-select mode for group creation suppresses the click (still toggles selection instead).
+  - **Privacy:** `hideFromGlobalLeaderboard` controls global rank anonymity only — the preview itself always renders identity (the viewer reached this modal by tapping the user somewhere, they already know who it is). Body metrics, goals, training prefs, DOB never surface.
+  - Per @maaiz: "Make a way to open a profile preview of all users by clicking on their username anywhere … Should be able to add friend from the profile preview, only see basic non private info, add client if viewing as trainer, remove friend if already added etc also send a private msg from there. Show the tier badge and profile avatar boldly. I especially want to make sure can get to an actionable profile view from clicking them in the chatlogs (above their messages or clicking on their profile avatar)."
+
+### Internal — tutorial unchanged
+The interaction is discoverable through normal use (tap a username/avatar). Will add to `lib/tutorial.ts` in a follow-up if explicit guidance is needed.
+
+### Files
+- New: `app/api/users/[userId]/preview/route.ts`
+- Modified: `app/page.tsx` (ProfilePreviewModal component + state + mount + wire-ups in DM header, group chat author chip, leaderboard rows, friends list rows; FriendsCard + GlobalLeaderboardView each take an `onOpenProfile` prop)
+- Modified: `qa-state.json` (new item `profile-preview-modal`)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #2 — recalibration cleanup: relock avatars, re-fire celebrations (qa: tier-newuser-ramp)
 
 Followup to the Strength + Progression ramp. Per @maaiz: "make sure all users are in their right tier, don't have additional tier avatars unlocked, and also make sure they get celebration for tier progressions (like maaiz getting lion celebration when he gets there and alla getting big dawg celebration when he graduates from fox)".

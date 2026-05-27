@@ -581,6 +581,28 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "profile-preview-modal",
+      "title": "Profile preview modal — tap username/avatar anywhere to open a preview with friend / message / add-as-client actions",
+      "area": "Profile",
+      "introduced": "2026-05-27",
+      "introducedBy": "Slice request from @maaiz",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open a 1:1 DM thread. Tap the partner's username/area in the header bar (top of the chat). Verify the profile preview modal opens with the partner's avatar + tier badge + their username.",
+        "Open a group chat (Groups → any group → MESSAGES tab). Tap the avatar OR @username above any incoming message. Verify the modal opens for that sender.",
+        "Inside the modal: tap 💬 MESSAGE. Verify the modal closes and the DM thread with that user opens (existing conversation if any, fresh otherwise).",
+        "Modal action — friend states: open the modal for a user you're not friends with → verify ADD FRIEND button. Tap it → verify it flips to FRIEND REQUEST PENDING. Open the modal for someone who's sent YOU a request → verify ACCEPT FRIEND REQUEST. Open the modal for an existing friend → verify REMOVE FRIEND (with confirm dialog).",
+        "Modal action — trainer: log in as a trainer, open the modal for a non-trainer user who isn't your client. Verify the 🤝 ADD AS CLIENT button. Tap it → modal flips to CLIENT REQUEST PENDING. For an existing client, verify the modal shows the 👑 YOUR CLIENT chip (no action button).",
+        "Open the modal for your OWN row (e.g. tap yourself in the global leaderboard). Verify no action buttons appear — copy reads 'This is you.'",
+        "Tap a non-anonymous row on the global leaderboard. Verify the modal opens. Anonymous rows (`Athlete #N`) should NOT be clickable.",
+        "Open Friends Hub. Tap any @username (accepted / pending sent / pending received). Verify the modal opens for that user. Multi-select mode (the trainer's 'select friends → create group' flow) should NOT trigger the modal — tap should toggle selection instead.",
+        "Privacy: confirm the modal never shows body metrics, goals, training preferences, or DOB — only username, avatar, tier badge, role, joined date.",
+        "Dismiss: tap outside the modal (backdrop) OR tap the × close button. Verify modal closes cleanly with no leftover state."
+      ],
+      "notes": "[2026-05-27 <sha7>] New endpoint `GET /api/users/[userId]/preview` returns public-safe profile + viewer-relative relationship state (friendship status + trainer link + pending requests). Tier breakdown comes from `computeStatsForUsers` so it matches the leaderboard. New `ProfilePreviewModal` component mounted at HomePage's top-level return — reachable from every view. Wired entry points: (1) DM conversation header partner area, (2) Group chat per-message author chip (UserAvatarChip + @username, both clickable), (3) Global leaderboard non-anonymous rows, (4) Friends Hub friend rows (accepted / pending sent / pending received). Modal action buttons: MESSAGE (opens DM thread), ADD FRIEND / FRIEND REQUEST PENDING / ACCEPT FRIEND REQUEST / REMOVE FRIEND (state-aware), ADD AS CLIENT / CLIENT REQUEST PENDING / YOUR CLIENT (trainer viewing user). Per @maaiz: 'Make a way to open a profile preview of all users by clicking on their username anywhere … Should be able to add friend from the profile preview, only see basic non private info, add client if viewing as trainer, remove friend if already added etc also send a private msg from there. Show the tier badge and profile avatar boldly. I especially want to make sure can get to an actionable profile view from clicking them in the chatlogs (above their messages or clicking on their profile avatar).'"
+    },
+    {
       "id": "tier-newuser-ramp",
       "title": "New-user ramp on Strength + Progression sub-ranks",
       "area": "Tiers",

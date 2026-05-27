@@ -141,6 +141,187 @@ function TierGlyph({ src, emoji, size, style }: { src?: string | null; emoji: st
   return <span style={{ fontSize: size, lineHeight: 1, display: "inline-block", verticalAlign: "middle", ...style }}>{emoji}</span>;
 }
 
+// ProfilePreviewModal — opens when previewUserId is set anywhere. Tap
+// a username or avatar in chat / leaderboard / friends list → this
+// modal renders the target's basic info, big avatar + tier badge, and
+// viewer-relative action buttons (message / friend / add-as-client).
+// Backed by /api/users/[userId]/preview which computes the canonical
+// tier + relationship state in one call. Self-views show no actions.
+// (qa: profile-preview-modal)
+function ProfilePreviewModal({
+  userId,
+  viewerUser,
+  onClose,
+  onOpenDM,
+  onFriendshipChanged,
+  tierTheme,
+}: {
+  userId: string;
+  viewerUser: { id: string; role?: string; extraRoles?: string[] } | null;
+  onClose: () => void;
+  onOpenDM: (partner: { id: string; username: string }) => void;
+  onFriendshipChanged?: () => void;
+  tierTheme: string | null | undefined;
+}) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionPending, setActionPending] = useState(false);
+
+  const refresh = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    fetch(`/api/users/${userId}/preview`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => { if (d.error) setError(d.error); else setData(d); })
+      .catch(e => setError(e?.message ?? "Failed to load profile"))
+      .finally(() => setLoading(false));
+  }, [userId]);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const sendFriendRequest = async () => {
+    if (!data?.user.username) return;
+    setActionPending(true);
+    try {
+      await fetch("/api/friends", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toUsername: data.user.username }) });
+      refresh();
+      onFriendshipChanged?.();
+    } finally { setActionPending(false); }
+  };
+  const acceptFriendRequest = async () => {
+    if (!data?.friendship.friendshipId) return;
+    setActionPending(true);
+    try {
+      await fetch("/api/friends", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ friendshipId: data.friendship.friendshipId, action: "accept" }) });
+      refresh();
+      onFriendshipChanged?.();
+    } finally { setActionPending(false); }
+  };
+  const removeFriend = async () => {
+    if (!data?.friendship.friendshipId) return;
+    if (!confirm(`Remove @${data.user.username} from friends?`)) return;
+    setActionPending(true);
+    try {
+      await fetch("/api/friends", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ friendshipId: data.friendship.friendshipId }) });
+      refresh();
+      onFriendshipChanged?.();
+    } finally { setActionPending(false); }
+  };
+  const sendTrainerRequest = async () => {
+    setActionPending(true);
+    try {
+      await fetch("/api/trainer/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetUserId: userId }) });
+      refresh();
+    } finally { setActionPending(false); }
+  };
+
+  const viewerIsTrainer = userHasRole(viewerUser, "trainer");
+  const themedTiers = getAthleteTiers(tierTheme);
+  const themedTier = data?.tier ? (themedTiers.find(t => t.tierNum === data.tier.tierNum) ?? data.tier) : null;
+
+  const actionStyle = (color: string, fill: number = 0.12, border: number = 0.4): React.CSSProperties => ({
+    padding: "12px 16px",
+    background: `rgba(${color},${fill})`,
+    border: `1px solid rgba(${color},${border})`,
+    color: `rgb(${color})`,
+    borderRadius: 12,
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: actionPending ? "wait" : "pointer",
+    letterSpacing: 1,
+    fontFamily: "'Space Mono', monospace",
+  });
+  const disabledStyle: React.CSSProperties = {
+    padding: "12px 16px",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    color: "rgba(255,255,255,0.45)",
+    borderRadius: 12,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "default",
+    letterSpacing: 1,
+    fontFamily: "'Space Mono', monospace",
+    textAlign: "center" as const,
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9050, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(10px)", cursor: "pointer" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 360, width: "100%", background: "linear-gradient(135deg, rgba(30,30,40,0.98), rgba(20,20,30,0.95))", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 28, position: "relative", cursor: "default", boxShadow: "0 24px 60px rgba(0,0,0,0.7)" }}>
+        <button onClick={onClose} aria-label="Close profile" style={{ position: "absolute", top: 10, right: 12, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 26, cursor: "pointer", lineHeight: 1, padding: 6 }}>×</button>
+
+        {loading && <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.5)" }}>Loading…</div>}
+        {error && !loading && <div style={{ textAlign: "center", padding: 20, color: "#FF6B6B", fontSize: 13 }}>{error}</div>}
+        {data && !loading && (
+          <>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 20 }}>
+              <div style={{ position: "relative", marginBottom: 14 }}>
+                <UserAvatarChip avatarId={data.user.avatarId} username={data.user.username} size={104} role={data.user.role} />
+                {themedTier && (
+                  <div style={{ position: "absolute", bottom: -6, right: -6, background: "rgba(0,0,0,0.7)", borderRadius: "50%", padding: 5, border: `2px solid ${themedTier.color}`, boxShadow: `0 0 14px ${themedTier.color}77` }}>
+                    <TierGlyph src={themedTier.iconPath} emoji={themedTier.icon} size={36} />
+                  </div>
+                )}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: -0.3 }}>@{data.user.username}</div>
+              {themedTier && (
+                <div style={{ fontSize: 11, marginTop: 6, color: themedTier.color, fontFamily: "'Space Mono', monospace", letterSpacing: 2, fontWeight: 700 }}>
+                  {themedTier.label.toUpperCase()} · T{displayTierNum(themedTier.tierNum)}
+                </div>
+              )}
+              {data.user.role === "trainer" && (
+                <div style={{ fontSize: 10, marginTop: 6, color: "#FFD166", background: "rgba(255,209,102,0.1)", border: "1px solid rgba(255,209,102,0.3)", padding: "3px 8px", borderRadius: 4, letterSpacing: 1.5, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>👑 TRAINER</div>
+              )}
+              <div style={{ fontSize: 11, marginTop: 8, color: "rgba(255,255,255,0.35)" }}>
+                Joined {new Date(data.user.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+              </div>
+            </div>
+
+            {!data.isSelf && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <button onClick={() => { onOpenDM({ id: data.user.id, username: data.user.username }); onClose(); }} style={actionStyle("78,205,196")}>💬 MESSAGE</button>
+
+                {data.friendship.status === "none" && (
+                  <button disabled={actionPending} onClick={sendFriendRequest} style={actionStyle("167,139,250")}>👥 ADD FRIEND</button>
+                )}
+                {data.friendship.status === "pending-sent" && (
+                  <button disabled style={disabledStyle}>⏳ FRIEND REQUEST PENDING</button>
+                )}
+                {data.friendship.status === "pending-received" && (
+                  <button disabled={actionPending} onClick={acceptFriendRequest} style={actionStyle("46,204,113")}>✓ ACCEPT FRIEND REQUEST</button>
+                )}
+                {data.friendship.status === "accepted" && (
+                  <button disabled={actionPending} onClick={removeFriend} style={{ ...actionStyle("255,107,107", 0.06, 0.3), fontSize: 13, fontWeight: 600, color: "rgba(255,107,107,0.85)" }}>✕ REMOVE FRIEND</button>
+                )}
+
+                {viewerIsTrainer && data.user.role === "user" && !data.trainerRelation.isMyClient && !data.trainerRelation.requestOutgoing && (
+                  <button disabled={actionPending} onClick={sendTrainerRequest} style={actionStyle("255,209,102")}>🤝 ADD AS CLIENT</button>
+                )}
+                {viewerIsTrainer && data.trainerRelation.requestOutgoing && (
+                  <button disabled style={disabledStyle}>⏳ CLIENT REQUEST PENDING</button>
+                )}
+                {viewerIsTrainer && data.trainerRelation.isMyClient && (
+                  <div style={{ ...disabledStyle, background: "rgba(255,209,102,0.06)", border: "1px solid rgba(255,209,102,0.25)", color: "rgba(255,209,102,0.85)" }}>👑 YOUR CLIENT</div>
+                )}
+
+                {data.user.role === "trainer" && data.trainerRelation.isMyTrainer && (
+                  <div style={{ ...disabledStyle, background: "rgba(255,209,102,0.06)", border: "1px solid rgba(255,209,102,0.25)", color: "rgba(255,209,102,0.85)" }}>👑 YOUR TRAINER</div>
+                )}
+                {data.user.role === "trainer" && data.trainerRelation.requestIncoming && (
+                  <div style={{ ...disabledStyle, fontSize: 11 }}>⏳ TRAINER REQUEST PENDING — accept in Messages</div>
+                )}
+              </div>
+            )}
+            {data.isSelf && (
+              <div style={{ textAlign: "center", padding: 16, color: "rgba(255,255,255,0.4)", fontSize: 12 }}>This is you.</div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── HOOKS ──────────────────────────────────────────────────────────────
 function useCountdown() {
   const [seconds, setSeconds] = useState(0);
@@ -1334,11 +1515,13 @@ function FriendsCard({
   clientIds,
   pendingClientIds,
   onAddAsClient,
+  onOpenProfile,
 }: {
   isTrainer?: boolean;
   clientIds?: Set<string>;
   pendingClientIds?: Set<string>;
   onAddAsClient?: (userId: string, username: string) => Promise<void>;
+  onOpenProfile?: (userId: string) => void;
 } = {}) {
   const [accepted, setAccepted] = useState<FriendRow[]>([]);
   const [pendingSent, setPendingSent] = useState<FriendRow[]>([]);
@@ -1463,7 +1646,7 @@ function FriendsCard({
           <div style={{ fontSize: 9, fontWeight: 700, color: "#4ECDC4", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>INCOMING ({pendingReceived.length})</div>
           {pendingReceived.map(f => (
             <div key={f.id} style={{ padding: "10px 12px", background: "rgba(78,205,196,0.06)", border: "1px solid rgba(78,205,196,0.2)", borderRadius: 10, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{f.friend.username}</span>
+              <button onClick={() => onOpenProfile?.(f.friend.id)} style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, textAlign: "left", cursor: onOpenProfile ? "pointer" : "default" }}>@{f.friend.username}</button>
               <button onClick={() => respond(f.id, "accept")} disabled={busy === f.id} style={{ padding: "6px 12px", background: "#4ECDC4", border: "none", borderRadius: 6, color: "#000", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{busy === f.id ? "…" : "ACCEPT"}</button>
               <button onClick={() => respond(f.id, "decline")} disabled={busy === f.id} style={{ padding: "6px 12px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 6, color: "rgba(255,107,107,0.8)", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>DECLINE</button>
             </div>
@@ -1477,7 +1660,7 @@ function FriendsCard({
           <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>SENT ({pendingSent.length})</div>
           {pendingSent.map(f => (
             <div key={f.id} style={{ padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{f.friend.username}</span>
+              <button onClick={() => onOpenProfile?.(f.friend.id)} style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, textAlign: "left", cursor: onOpenProfile ? "pointer" : "default" }}>@{f.friend.username}</button>
               <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>PENDING</span>
               <button onClick={() => unfriend(f.id)} disabled={busy === f.id} style={{ padding: "4px 8px", background: "transparent", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 4, color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 1, cursor: "pointer" }}>×</button>
             </div>
@@ -1548,7 +1731,7 @@ function FriendsCard({
                 {selectMode && (
                   <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isFriendSelected ? "#4ECDC4" : "rgba(255,255,255,0.2)"}`, background: isFriendSelected ? "#4ECDC4" : "transparent", color: "#000", fontSize: 11, fontWeight: 800, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>{isFriendSelected ? "✓" : ""}</div>
                 )}
-                <span style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{f.friend.username}</span>
+                <button onClick={(e) => { if (selectMode) return; e.stopPropagation(); onOpenProfile?.(f.friend.id); }} style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", padding: 0, textAlign: "left", cursor: (selectMode || !onOpenProfile) ? "inherit" : "pointer" }}>@{f.friend.username}</button>
                 {isTrainer && alreadyClient && (
                   <span title="Already your client" style={{ fontSize: 9, color: "#a855f7", letterSpacing: 1, fontFamily: "'Space Mono', monospace", padding: "2px 6px", background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.22)", borderRadius: 4 }}>CLIENT</span>
                 )}
@@ -5356,7 +5539,7 @@ function ClientLeaderboardBlock({ tierTheme }: { tierTheme: "vivid" | "simple" }
   );
 }
 
-function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onBack: () => void; viewerId: string; tierTheme: "vivid" | "simple"; isTrainer: boolean }) {
+function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer, onOpenProfile }: { onBack: () => void; viewerId: string; tierTheme: "vivid" | "simple"; isTrainer: boolean; onOpenProfile?: (userId: string) => void }) {
   // "myClients" tab is trainer-only and uses the existing /api/trainer/
   // leaderboard endpoint instead of /api/leaderboard/global. The Ranks
   // page is now the canonical home for ALL leaderboards (athlete /
@@ -5462,8 +5645,9 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer }: { onB
             const medal = r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : null;
             const tier = tierByNum(r.tierNum);
             const displayName = r.anonymous ? `Athlete #${r.rank}` : `@${r.username}`;
+            const clickable = !r.anonymous && !isMe && onOpenProfile;
             return (
-              <div key={r.userId} style={{ display: "grid", gridTemplateColumns: "32px 1fr 48px 40px", gap: 8, padding: "10px 12px", borderBottom: i < rows.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: isMe ? "rgba(78,205,196,0.05)" : (medal ? "rgba(240,192,64,0.03)" : "transparent"), alignItems: "center" }}>
+              <div key={r.userId} onClick={() => { if (clickable) onOpenProfile!(r.userId); }} style={{ display: "grid", gridTemplateColumns: "32px 1fr 48px 40px", gap: 8, padding: "10px 12px", borderBottom: i < rows.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: isMe ? "rgba(78,205,196,0.05)" : (medal ? "rgba(240,192,64,0.03)" : "transparent"), alignItems: "center", cursor: clickable ? "pointer" : "default" }}>
                 <div style={{ fontSize: 13, color: medal ? undefined : "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{medal ?? `#${r.rank}`}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                   <UserAvatarChip avatarId={r.anonymous ? null : r.avatarId} username={r.anonymous ? null : r.username} size={24} role={kind === "trainer" ? "trainer" : null} />
@@ -5801,6 +5985,17 @@ function HomePage() {
   // session save. Stacks newly-achieved entries in a queue so multiple
   // hitting in one session each get their moment.
   const [milestoneQueue, setMilestoneQueue] = useState<MilestoneAward[]>([]);
+  // Profile preview modal — tapping any username/avatar across the
+  // app (chat headers, group message author chips, leaderboard rows,
+  // friends list, etc) sets previewUserId, which renders the modal
+  // with the target's basic info + tier + viewer-relative action
+  // buttons (message / friend / add-as-client). Server endpoint is
+  // /api/users/[userId]/preview. (qa: profile-preview-modal)
+  const [previewUserId, setPreviewUserId] = useState<string | null>(null);
+  const openProfilePreview = useCallback((uid: string | null | undefined) => {
+    if (!uid) return;
+    setPreviewUserId(uid);
+  }, []);
   // Lucky-drop celebration — surfaced after a workout save when the
   // server's lucky-drop roll fires. Shape mirrors lib/luckyDrops.ts.
   // (qa: random-rare-rewards)
@@ -12548,7 +12743,7 @@ function HomePage() {
   }
 
   // ─── GLOBAL TIER LEADERBOARD ────────────────────────────────────────
-  if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} isTrainer={userHasRole(user, "trainer")} />;
+  if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} isTrainer={userHasRole(user, "trainer")} onOpenProfile={openProfilePreview} />;
   if (view === "avatarPicker") return <AvatarPickerView onBack={() => setView("profile")} currentAvatarId={currentAvatarId} setCurrentAvatarId={setCurrentAvatarId} avatarInventory={avatarInventory} setAvatarInventory={setAvatarInventory} />;
   // ─── CLIENTS HUB ──────────────────────────────────────────────────
   // Trainer's roster + actions, lifted out of the home dashboard.
@@ -12579,6 +12774,7 @@ function HomePage() {
             clientIds={clientIds}
             pendingClientIds={pendingClientIds}
             onAddAsClient={handleAddAsClient}
+            onOpenProfile={openProfilePreview}
           />
         </div>
       </div>
@@ -12731,10 +12927,10 @@ function HomePage() {
                     Bump 18 → 32 per @maaiz 'show it off'.
                     (qa: group-chat-bigger-avatars) */}
                 {!isMine && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, paddingLeft: 2 }}>
+                  <button onClick={() => openProfilePreview(msg.fromId)} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, paddingLeft: 2, background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 0 }}>
                     <UserAvatarChip avatarId={msg.fromAvatarId} username={msg.fromUsername} size={32} />
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", fontWeight: 600 }}>@{msg.fromUsername ?? "—"}</span>
-                  </div>
+                  </button>
                 )}
                 {/* Delete affordance — shown only when isMine AND
                     long-press registered. Tap deletes (with confirm);
@@ -14045,16 +14241,20 @@ function HomePage() {
         return (
           <div style={{ padding: "24px 20px 12px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
             <button onClick={() => { setView("messages"); setActiveConversation(null); setReplyingTo(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", gap: 7 }}>
-                @{activeConversation.username}
-                {isOnline && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ecc71", display: "inline-block", flexShrink: 0 }} />}
+            {/* Partner identity — tap to open profile preview modal.
+                (qa: profile-preview-modal) */}
+            <button onClick={() => openProfilePreview(activeConversation.id)} style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer", color: "inherit" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", gap: 7 }}>
+                  @{activeConversation.username}
+                  {isOnline && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#2ecc71", display: "inline-block", flexShrink: 0 }} />}
+                </div>
+                {!isOnline && lastSeenText && (
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>Last seen {lastSeenText}</div>
+                )}
+                {isOnline && <div style={{ fontSize: 11, color: "#2ecc71", marginTop: 1 }}>Online</div>}
               </div>
-              {!isOnline && lastSeenText && (
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>Last seen {lastSeenText}</div>
-              )}
-              {isOnline && <div style={{ fontSize: 11, color: "#2ecc71", marginTop: 1 }}>Online</div>}
-            </div>
+            </button>
           </div>
         );
       })()}
@@ -19286,6 +19486,21 @@ function HomePage() {
           — Settings, Customise, Progress, etc. The version that used
           to sit here was bypassed by every view's early-return JSX.
           (qa: profile-avatars-home-fix slice 3) */}
+      {/* Profile preview modal — opens when previewUserId is set
+          anywhere (clicking a username/avatar in chat, leaderboard,
+          friends list, etc). Mounted here at the top-level return so
+          it's reachable from every view branch.
+          (qa: profile-preview-modal) */}
+      {previewUserId && (
+        <ProfilePreviewModal
+          userId={previewUserId}
+          viewerUser={user}
+          onClose={() => setPreviewUserId(null)}
+          onOpenDM={(partner) => { openConversation(partner); }}
+          onFriendshipChanged={() => { fetchPendingFriendCount(); }}
+          tierTheme={tierTheme}
+        />
+      )}
       {/* Effort backfill prompt — small bottom sheet that appears
           when the user logs a set without picking an effort chip.
           Tapping a chip patches the just-logged set's rpe; SKIP or
