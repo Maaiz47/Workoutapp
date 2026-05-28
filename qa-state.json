@@ -581,6 +581,24 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "achievements-cardio-time",
+      "title": "Achievement catalogue expansion (+15) incl. cardio-time milestones reading totalCardioMinutes",
+      "area": "Achievements",
+      "introduced": "2026-05-27",
+      "introducedBy": "Audit 2026-05-27",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → achievements wall. Verify the total milestone count reflects the expanded catalogue (now 99 entries) and renders without layout breakage.",
+        "Cardio-time: log cardio sessions totalling 5+ hours (300+ min) of cardio across history. Save a session. Verify the '5 hours of cardio' achievement fires a celebration and appears unlocked. (Previously totalCardioMinutes was computed but no achievement consumed it.)",
+        "Strength combos: log bench ≥100, squat ≥100, deadlift ≥100 → verify 'Plate Trio' unlocks. Log bench ≥100, squat ≥140, deadlift ≥180 → verify 'Two-Plate Club' unlocks.",
+        "New lifts: log a hip thrust ≥100 kg → 'Hip Thrust · 100 kg' unlocks; a leg press ≥200 kg → 'Leg Press · 200 kg' unlocks.",
+        "Extensions: confirm hiit-100, prs-250, volume-5m/10m, streak-365, year-two appear locked with correct requirement copy in the info view until earned.",
+        "Verify none of the new achievements are flagged 'premium' (no '+ AVATAR UNLOCKED' line) — they intentionally don't depend on bonus avatar art."
+      ],
+      "notes": "[2026-05-27 <sha7>] Added 15 achievements to lib/milestones.ts (84→99): year-two, streak-365, prs-250, hipthrust-100kg/180kg, legpress-200kg/300kg, plate-trio, two-plate-club, hiit-100, cardio-time-300/1200/3000, volume-5m/10m. All non-premium and all read fields ALREADY populated in MilestoneState — no new plumbing. The cardio-time-* trio is notable: it consumes `totalCardioMinutes`, which was computed in the session-save handler and passed into MilestoneState but read by zero achievements until now (dead data field, now live). The achievements wall total is dynamic (MILESTONES.length) so no hardcoded count needed updating. Source: audit task from @maaiz 'add achievements'."
+    },
+    {
       "id": "profile-preview-modal",
       "title": "Profile preview modal — tap username/avatar anywhere to open a preview with friend / message / add-as-client actions",
       "area": "Profile",

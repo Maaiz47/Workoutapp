@@ -12,7 +12,7 @@ import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
 import { EXERCISES, missingEquipmentFor, suggestSubstitutions, inferEquipmentFromName } from "../lib/exercises";
 import { suggestDayTitle, suggestRoutineName } from "../lib/splitNaming";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
-import { MUSCLE_DETAIL, lookupMuscleDetail } from "../lib/muscleDetail";
+import { lookupMuscleDetail } from "../lib/muscleDetail";
 import { getFormCues } from "../lib/formCues";
 import { pickWarmupForDay } from "../lib/warmups";
 import { pickWarmups, pickCooldowns, StretchExercise, ALL_WARMUPS, ALL_COOLDOWNS, findStretchById } from "../lib/stretching";
@@ -2391,17 +2391,6 @@ function WorkoutTypeIcon({ title, color, size = 62 }: { title: string; color: st
 
 // Maps a primary muscle key (chest, lat, biceps, etc.) to one of the six
 // AI anatomy thumbnails. Returns null if the muscle group isn't covered.
-function anatomyImageFor(primary: string[]): string | null {
-  const m = primary.map(k => k.toLowerCase()).join(" ");
-  if (/\b(chest|pec)/.test(m))                          return "/ai/anatomy-chest.jpg";
-  if (/(lat|back|trap|rhomb|erector|rear.delt)/.test(m)) return "/ai/anatomy-back.jpg";
-  if (/(delt|shoulder)/.test(m))                         return "/ai/anatomy-shoulders.jpg";
-  if (/(bicep|tricep|arm|forearm)/.test(m))              return "/ai/anatomy-arms.jpg";
-  if (/(quad|hamstring|glute|calf|calve|leg)/.test(m))   return "/ai/anatomy-legs.jpg";
-  if (/(core|abs|obliq|abdomin)/.test(m))                return "/ai/anatomy-core.jpg";
-  return null;
-}
-
 // Maps a workout title to a hero background image, or null if the title
 // doesn't cleanly match a known flavour (chest day, arms, etc. fall back
 // to the animated SVG icon). `day-*.jpg` are the v2 image-gen batch 11

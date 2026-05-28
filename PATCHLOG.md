@@ -2,6 +2,35 @@
 
 ---
 
+## Audit · 2026-05-27 — app audit, +15 achievements, stale-code cleanup (qa: achievements-cardio-time)
+
+Full-app audit (UI, QA system, stale code) + achievements expansion + safe dead-code removal. Findings written up in `docs/AUDIT-2026-05-27.md`.
+
+### Achievements (+15, catalogue 84 → 99)
+- Added to `lib/milestones.ts`, all non-premium (no avatar-art dependency), all reading fields already populated in `MilestoneState` so they fire with zero new plumbing:
+  - Anniversary: `year-two` (730d). Consistency: `streak-365`. Strength: `prs-250`, `hipthrust-100kg/180kg`, `legpress-200kg/300kg`, `plate-trio` (bench+squat+DL ≥100), `two-plate-club` (100/140/180). HIIT: `hiit-100`. Volume: `volume-5m/10m`.
+  - **Cardio-time** `cardio-time-300/1200/3000` (5/20/50 hrs) — these consume `totalCardioMinutes`, a field that was computed in the session-save handler and passed into `MilestoneState` but read by **no** achievement until now. Dead data field → live.
+- Achievements wall total is dynamic (`MILESTONES.length`); no hardcoded count to update.
+
+### Stale-code cleanup (all grep- + tsc-verified zero-use)
+- `lib/tiers.ts`: removed dead v3.5 scaffolding never wired into `computeAthleteTier` — `SUBRANK_WEIGHTS`, `SOFT_FLOOR_SCORE`, `experienceLevelToMultiplier`, `inferObservedLevel`, `blendExperienceMultiplier`, `adherenceScore12w` (~80 lines). The live `adherenceScore` (4-week) and `LUCKY_BONUS_CAP` were confirmed in-use and kept.
+- `app/page.tsx`: removed dead `anatomyImageFor()` (no callers) and the unused `MUSCLE_DETAIL` import (only `lookupMuscleDetail` is used).
+
+### Audit findings (documented, NOT yet actioned — see docs/AUDIT-2026-05-27.md)
+- **QA system**: verified bug — `/api/qa/comment` requires a `note` for every status incl. `passing`, contradicting the dashboard's `noteRequired` heuristic. Plus several unverified medium/high items (retest parent matched by 8-char id suffix, swallowed JSON-parse errors, qa-scan 10-section window).
+- **UI**: sub-44px touch targets, centered modals missing `maxHeight/overflowY`, an ad-hoc/colliding z-index ladder, silent fetch failures.
+- **Stale/duplication**: the muscle-group→balance-bucket mapping + read-time RPE bonus are copy-pasted across `lib/leaderboardStats.ts` (server) and `app/page.tsx` (client) — flagged as the highest-value refactor (it's drifted before).
+- **Feature backlog**: achievement progress bars, streak resilience/freeze, profile→full-stats expansion, streak-at-risk push, shareable recap, CSV export, wearable import.
+
+### Internal — no tutorial change
+Achievements extend an existing surface (the achievements wall); no new UI surface introduced. Cleanup is internal.
+
+### Files
+- Modified: `lib/milestones.ts` (+15 achievements), `lib/tiers.ts` (dead-code removal), `app/page.tsx` (dead-code removal)
+- New: `docs/AUDIT-2026-05-27.md`, `qa-state.json` item `achievements-cardio-time`
+
+---
+
 ## QA pass · 2026-05-27 follow-up #3 — profile preview modal (qa: profile-preview-modal)
 
 Tap any username or avatar across the app → modal pops with the target's basic info + tier badge + action row.
