@@ -2,6 +2,19 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #13 — pro tip overlay hides the bottom nav (qa: pro-tip-hides-bottom-nav)
+
+This entry also doubles as the bump to **v1.2.2** — a real (non-empty) change that should fire the auto-update banner for any client already on v1.2.1.
+
+### Addressed
+- **pro-tip-hides-bottom-nav**: the bottom nav is portaled to `document.body` so it stays viewport-fixed across all views. When the pro tip modal opens, the nav was still visible peeking below the modal panel — visual noise competing with the modal content. Gated the `createPortal` call on `!tipModalOpen` so the nav simply doesn't render while the pro tip is open. Reappears smoothly on dismiss. Reported by @maaiz: "We don't need the bottom tabs while viewing the pro tip".
+
+### Files
+- Modified: `app/page.tsx` (one-line conditional on the nav portal mount)
+- Modified: `qa-state.json` (new item `pro-tip-hides-bottom-nav`)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #12 — version reset to v1.2.1 to verify the new auto-update banner (qa: version-bump-v1.2)
 
 Test deploy: bumps the user-facing app version cleanly so the next time the banner fires it shows a sequential `v1.2.1 → v1.2.2 → …` ladder instead of the historically-inflated `v1.1.112+`.

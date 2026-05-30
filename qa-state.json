@@ -581,6 +581,21 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "pro-tip-hides-bottom-nav",
+      "title": "Pro tip overlay hides the bottom nav while it's open",
+      "area": "Home",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz report",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "On home, tap the Pro Tip chip to open the expanded modal. Verify the floating bottom nav (Messages / Progress / Ranks / Groups / Friends / Clients) DISAPPEARS while the modal is open.",
+        "Tap outside the modal (backdrop) or tap × to dismiss. Verify the bottom nav reappears smoothly.",
+        "Open and dismiss the pro tip a couple of times. Verify the nav consistently appears/disappears in sync with the modal."
+      ],
+      "notes": "[2026-05-27 <sha7>] The bottom nav is portaled to document.body (`bottom-nav-portal-fix`) so it stays viewport-fixed regardless of which view the user is on. Pro tip modal sits at zIndex 9600 with a backdrop and the panel itself has marginBottom lifting it above the nav (`pro-tip-overlay-clears-bottom-nav`). User feedback: the nav is still visible below the panel which is visual noise — modal content should be the only thing competing for attention. Fix: gate the createPortal call on `!tipModalOpen` — when the pro tip is open, the nav simply doesn't render. Reported by @maaiz with screenshot: 'We don't need the bottom tabs while viewing the pro tip'."
+    },
+    {
       "id": "version-bump-v1.2",
       "title": "App version reset to 1.2.x for the major UX-overhaul cohort",
       "area": "App",

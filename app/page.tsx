@@ -12051,7 +12051,7 @@ function HomePage() {
           motion.div's bottom and floated mid-page on scroll). Per
           @maaiz: 'I think they should be fixed at the bottom with
           everything else scrolling'. (qa: bottom-nav-portal-fix) */}
-      {typeof document !== "undefined" && createPortal(
+      {typeof document !== "undefined" && !tipModalOpen && createPortal(
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, padding: "12px 20px calc(12px + env(safe-area-inset-bottom, 0px))", background: "rgba(10,10,18,0.78)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: "1px solid rgba(255,255,255,0.06)", zIndex: 60 }}>
         <div style={{ display: "flex", flexWrap: "nowrap", gap: 6, justifyContent: "center", maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
           {(() => {
