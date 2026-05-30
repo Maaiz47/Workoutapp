@@ -12936,7 +12936,7 @@ function HomePage() {
   }
 
   // ─── GLOBAL TIER LEADERBOARD ────────────────────────────────────────
-  if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} isTrainer={userHasRole(user, "trainer")} />;
+  if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} isTrainer={userHasRole(user, "trainer")} onOpenProfile={openProfilePreview} />;
   if (view === "avatarPicker") return <AvatarPickerView onBack={() => setView("profile")} currentAvatarId={currentAvatarId} setCurrentAvatarId={setCurrentAvatarId} avatarInventory={avatarInventory} setAvatarInventory={setAvatarInventory} />;
   // ─── CLIENTS HUB ──────────────────────────────────────────────────
   // Trainer's roster + actions, lifted out of the home dashboard.

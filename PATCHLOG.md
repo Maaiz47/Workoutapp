@@ -2,6 +2,25 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #14 — re-enable profile preview from leaderboard rows (qa: profile-preview-entry-points)
+
+Round-trip on the entry-point list. Bumps to **v1.2.3**.
+
+### Addressed
+- **profile-preview-entry-points (revisit)**: in follow-up #9 the `onOpenProfile` prop was removed from `GlobalLeaderboardView` per @maaiz "Clicking username on the message list opening profile is annoying, make it only from client or friend list, from the top of chat logs, from chat log message profile avatar icon" — interpretation was "exclude leaderboard". @maaiz round 2: "Add profile view from clicking on users from leaderboards. Obviously access based on relationship not friends/friends/client/trainer". Re-passed `onOpenProfile={openProfilePreview}` to the `GlobalLeaderboardView` mount.
+- Relationship gating is already baked into the modal's action row (driven by `/api/users/[userId]/preview`'s relationship state):
+  - ADD FRIEND vs FRIEND REQUEST PENDING vs ACCEPT FRIEND REQUEST vs REMOVE FRIEND
+  - ADD AS CLIENT vs CLIENT REQUEST PENDING vs YOUR CLIENT (trainer viewing non-trainer)
+  - YOUR TRAINER vs TRAINER REQUEST PENDING (athlete viewing trainer)
+  - Self view: no action row, just "This is you."
+- The headline (avatar, tier, username, joined date) is public info visible on the leaderboard row itself, so no extra gating needed on display — only on actions, which the modal already does.
+
+### Files
+- Modified: `app/page.tsx` (one-line `onOpenProfile` prop re-add)
+- Modified: `qa-state.json` (revised `profile-preview-entry-points` item)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #13 — pro tip overlay hides the bottom nav (qa: pro-tip-hides-bottom-nav)
 
 This entry also doubles as the bump to **v1.2.2** — a real (non-empty) change that should fire the auto-update banner for any client already on v1.2.1.

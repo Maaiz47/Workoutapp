@@ -662,20 +662,21 @@
     },
     {
       "id": "profile-preview-entry-points",
-      "title": "Profile preview only opens from chat header, chat-log avatar, and friends list (leaderboard rows no longer trigger it)",
+      "title": "Profile preview opens from chat header, chat-log avatar, friends list, and leaderboard rows (relationship gates the action row)",
       "area": "Profile",
       "introduced": "2026-05-27",
       "introducedBy": "@maaiz report",
       "lastTested": "2026-05-27",
       "status": "regression-retest",
       "steps": [
-        "Open Ranks → Global. Tap any non-anonymous row. Verify NOTHING happens — the row is no longer clickable (cursor: default, no profile preview).",
-        "Open a DM. Tap the partner's name/avatar in the conversation header. Verify the profile preview modal still opens (kept entry point).",
-        "Open a group chat. Tap an incoming message's avatar OR @username. Verify the profile preview modal opens (kept entry point).",
-        "Open Friends Hub. Tap any @username on an accepted / pending row. Verify the profile preview modal opens (kept entry point).",
-        "Open Messages list (inbox). Tap a conversation row. Verify it opens the conversation as normal — no profile preview interruption."
+        "Open Ranks → Global. Tap a non-anonymous row for someone you're NOT friends with. Verify the profile preview opens. Action row should show MESSAGE + ADD FRIEND (no REMOVE FRIEND, no YOUR CLIENT).",
+        "Open Ranks → Global. Tap a non-anonymous row for an existing friend. Verify the preview opens with MESSAGE + ✕ REMOVE FRIEND.",
+        "Logged in as a trainer, tap a non-anonymous row on the leaderboard for one of your existing clients. Verify the preview shows the 👑 YOUR CLIENT chip and the ADD AS CLIENT button is absent.",
+        "Tap your OWN row. Verify the preview shows 'This is you.' with no action buttons.",
+        "Anonymous rows (`Athlete #N`) should remain non-clickable.",
+        "Other entry points unchanged: DM conversation header, group chat per-message avatar/@username, Friends Hub rows."
       ],
-      "notes": "[2026-05-27 <sha7>] Per @maaiz: 'Clicking username on the message list opening profile is annoying, make it only from client or friend list, from the top of chat logs, from chat log message profile avatar icon'. Removed the `onOpenProfile={openProfilePreview}` prop from the GlobalLeaderboardView mount (line ~12886) so leaderboard rows no longer trigger the modal — they fall back to non-clickable cursor:default. Kept entry points: DM conversation header (line ~14366), group chat per-message author chip (line ~13050), Friends Hub rows (FriendsCard accepted / pending sent / pending received). Client list (trainer Clients hub) already routes the avatar/username tap to openClientDetail (the existing full client view) — left unchanged so trainers don't lose that flow; preview is still reachable for clients via chat headers when DMing them."
+      "notes": "[2026-05-27 <sha7>] Per @maaiz round 1: 'Clicking username on the message list opening profile is annoying, make it only from client or friend list, from the top of chat logs, from chat log message profile avatar icon' — removed the `onOpenProfile` prop from GlobalLeaderboardView. Per @maaiz round 2: 'Add profile view from clicking on users from leaderboards. Obviously access based on relationship not friends/friends/client/trainer' — re-passed `onOpenProfile={openProfilePreview}` to the GlobalLeaderboardView mount. Relationship gating is already baked into the modal's action row (driven by `/api/users/[userId]/preview` which returns friendship + trainer link state): ADD FRIEND vs FRIEND REQUEST PENDING vs ACCEPT FRIEND REQUEST vs REMOVE FRIEND; ADD AS CLIENT vs CLIENT REQUEST PENDING vs YOUR CLIENT; YOUR TRAINER. The headline (avatar, tier, username, joined date) is public info also visible on the leaderboard row itself, so no extra gating needed."
     },
     {
       "id": "profile-preview-no-scroll",
