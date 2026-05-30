@@ -711,14 +711,37 @@ export function getFormCues(exerciseId?: string, exerciseName?: string): string[
   if (exerciseName) {
     const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
     const key = norm(exerciseName);
-    const match = Object.keys(FORM_CUES).find(k => norm(k) === key || key.includes(norm(k)) || norm(k).includes(key));
-    if (match) return FORM_CUES[match];
-    // Fallback: scan the stretch library by normalised name.
+    // Longest-match wins. Substring matching with .find() returns the
+    // FIRST hit, which lets a shorter key (e.g. "leg-raises") win over
+    // a more specific longer one ("hanging-leg-raise") when both are
+    // substrings of the search name. That mismatch shipped lying-leg-
+    // raise cues for hanging leg raises. (qa: form-cues-longest-match)
+    let bestKey: string | null = null;
+    let bestLen = -1;
+    for (const k of Object.keys(FORM_CUES)) {
+      const nk = norm(k);
+      if (nk === key || key.includes(nk) || nk.includes(key)) {
+        if (nk.length > bestLen) { bestLen = nk.length; bestKey = k; }
+      }
+    }
+    if (bestKey) return FORM_CUES[bestKey];
+    // Fallback: scan the stretch library by normalised name. Same
+    // longest-match rule as above so a shorter stretch name doesn't
+    // win over a more specific longer one. (qa: form-cues-longest-match)
     try {
       const { ALL_WARMUPS, ALL_COOLDOWNS } = require("./stretching") as typeof import("./stretching");
       const all = [...ALL_WARMUPS, ...ALL_COOLDOWNS];
-      const hit = all.find(x => norm(x.name) === key || key.includes(norm(x.name)) || norm(x.name).includes(key));
-      if (hit && Array.isArray(hit.cues) && hit.cues.length > 0) return hit.cues;
+      let bestHit: { cues?: string[] } | null = null;
+      let bestLen = -1;
+      for (const x of all) {
+        const nx = norm(x.name);
+        if (nx === key || key.includes(nx) || nx.includes(key)) {
+          if (nx.length > bestLen && Array.isArray(x.cues) && x.cues.length > 0) {
+            bestLen = nx.length; bestHit = x;
+          }
+        }
+      }
+      if (bestHit?.cues && bestHit.cues.length > 0) return bestHit.cues;
     } catch {}
   }
   return GENERIC_CUES;

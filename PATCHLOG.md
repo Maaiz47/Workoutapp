@@ -2,6 +2,18 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #5 — form cues longest-match (qa: form-cues-longest-match)
+
+### Addressed
+- **form-cues-longest-match**: `lib/formCues.ts getFormCues` fuzzy-matched exercise names via `Object.keys(FORM_CUES).find(k => substring match)` — `.find` returns the FIRST hit, and `"leg-raises"` (line 498) is defined before `"hanging-leg-raise"` (line 503). The normalised "hangingleg raises" includes "legraises", so the lying-leg-raise cues (which say "keep your lower back pressed into the floor") shipped for hanging leg raises. Same pattern affected `straight-leg-raise` (also lost to `leg-raises`). Fix: replace `.find` with a longest-normalised-key-wins scan in both the FORM_CUES path and the stretch-library fallback below it. Reported by @maaiz: "the form helper text describes hanging leg raises wrong too".
+- **Form-preview image** (`Hanging_Leg_Raise` DB entry): already blacklisted in `lib/exerciseImages.ts:74` (`BROKEN_DB_MAPPINGS`) since 2026-05-24, so the upstream wrong-action frames are not served — the modal falls back to `/ai/form-fallback.jpg` ("NO FORM DEMO" placeholder). What the user described as a "wrong" image is likely the placeholder; sent to them for confirmation. No code change for the image — the blacklist is already doing its job; if anything additional is needed it's a real local hanging-leg-raise frame.
+
+### Files
+- Modified: `lib/formCues.ts` (longest-match wins, both FORM_CUES + stretch-library paths)
+- Modified: `qa-state.json` (new item `form-cues-longest-match`)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #4 — passing verdict can be saved with no note (qa: qa-passing-note-optional)
 
 Single fix from the audit's verified QA bug.

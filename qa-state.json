@@ -581,6 +581,22 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "form-cues-longest-match",
+      "title": "Form-cue fuzzy match prefers the longest matching key (no more lying-leg-raise cues showing for hanging leg raises)",
+      "area": "Exercises",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz report",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open the form preview for 'Hanging Leg Raises' (Day 1 finisher in the default plan, exercise id a7). Verify the FORM CUES card shows the hanging-leg-raise text — 'Start from a dead hang … curl your pelvis upward … lower legs slowly (eccentric matters)' — and NOT the lying-leg-raise text about pressing your lower back into the floor.",
+        "Open the form preview for 'Straight Leg Raise'. Verify it shows the straight-leg-raise cues, not lying-leg-raise.",
+        "Open the form preview for 'Lying Leg Raises' (id leg-raises). Verify it still shows the correct lying-leg-raise cues — the longest-match rule should not regress shorter id→cue resolution.",
+        "Spot-check 'Cable Crunch', 'Bicycle Crunch', and 'Crunches' — each should resolve to its own dedicated cues, not bleed into one another."
+      ],
+      "notes": "[2026-05-27 <sha7>] lib/formCues.ts getFormCues fuzzy match previously used Object.keys(FORM_CUES).find(...) which returns the FIRST substring hit. Because 'leg-raises' (line 498) is defined before 'hanging-leg-raise' (line 503), the normalised name 'hangingleg raises' matched 'leg-raises' first → lying-leg-raise cues shipped for hanging leg raises. Replaced .find with a longest-key-wins scan in both the FORM_CUES path and the stretch-library fallback below it. Same pattern silently fixed straight-leg-raise (also lost to leg-raises before). Reported by @maaiz: 'the form helper text describes hanging leg raises wrong too'."
+    },
+    {
       "id": "qa-passing-note-optional",
       "title": "QA submit — `passing` verdict can be saved with no note (note still required for failing / regression-retest / untested)",
       "area": "QA",
