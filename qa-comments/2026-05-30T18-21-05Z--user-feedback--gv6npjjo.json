@@ -1,0 +1,10 @@
+{
+  "id": "cmpsofpo70000pglkgv6npjjo",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=friendsHub] Can’t open a friend profile view modal from friends list\nAlso am I seeing all friends correctly?",
+  "screenshotUrl": null,
+  "ts": "2026-05-30T18:21:05.333Z"
+}
