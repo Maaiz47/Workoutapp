@@ -2,6 +2,36 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #12 — version reset to v1.2.1 to verify the new auto-update banner (qa: version-bump-v1.2)
+
+Test deploy: bumps the user-facing app version cleanly so the next time the banner fires it shows a sequential `v1.2.1 → v1.2.2 → …` ladder instead of the historically-inflated `v1.1.112+`.
+
+### Addressed
+- **version-bump-v1.2**: `/api/version` derives `appVersion` from `MAJOR_MINOR + ((patchCount) - PRE_V*_PATCH_OFFSET)`. Bumped `MAJOR_MINOR` to `"1.2"` and replaced `PRE_V1_1_PATCH_OFFSET = 30` with `PRE_V1_2_PATCH_OFFSET = 142` (= live PATCHLOG section count immediately BEFORE this entry). This entry adds one section, making the live count 143; `appVersion = "1.2." + max(0, 143 - 142) = "1.2.1"`. Subsequent pushes naturally land at 1.2.2, 1.2.3, etc.
+- Bumped `package.json` version field to `1.2.0` to keep tooling in sync (Vercel deploy metadata, npm scripts, etc).
+- Source: @maaiz "I think it's v1.1.112 right now. Reset it to v1.2.1 to move sequentially from there so I can test the update prompt is working".
+
+### v1.2 cohort
+The 2026-05-27 UX overhaul pass that justifies the minor bump:
+- New-user tier ramp on Strength + Progression (`tier-newuser-ramp`)
+- Recalibration cleanup: avatar relock + tier-celebration re-fire on demotion
+- Profile preview modal (`profile-preview-modal`) + entry-point trim + no-scroll fix
+- Auto-update banner overlay (`app-update-auto-banner` + `app-update-overlay-cross-view`)
+- Bottom nav portaled to `document.body` (`bottom-nav-portal-fix`)
+- Exercise catalogue audit + 4 image-mapping fixes (`exercise-audit-2026-05-27`)
+- Cardio muscle reclassification + image-prompts Batch 13 (`cardio-muscle-classification`)
+- +15 achievements + dead-code cleanup (`achievements-cardio-time`)
+- Form-cue longest-match (`form-cues-longest-match`)
+- QA passing-note optional (`qa-passing-note-optional`)
+- Group chat scroll-respects-user + pull-to-refresh intentional + pro tip overlay clears nav
+
+### Files
+- Modified: `app/api/version/route.ts` (`MAJOR_MINOR` + offset constant)
+- Modified: `package.json` (version field)
+- Modified: `qa-state.json` (new item `version-bump-v1.2`)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #11 — auto-update banner ACTUALLY renders (qa: app-update-overlay-cross-view)
 
 ### Addressed

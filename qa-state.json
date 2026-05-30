@@ -581,6 +581,21 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "version-bump-v1.2",
+      "title": "App version reset to 1.2.x for the major UX-overhaul cohort",
+      "area": "App",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz request to verify the new auto-update banner",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Hit /api/version directly. Verify `appVersion` reads `1.2.1` immediately after this commit deploys.",
+        "On the app (after a one-time hard refresh that loads the new bundle), open Settings → APP VERSION → CHECK FOR UPDATES. Verify the running version reads `v1.2.1`.",
+        "Push another small change (or any subsequent QA pass). Verify the patch number increments to `1.2.2` and the auto-update banner fires on the next focus/visibility event for clients still on `v1.2.1`."
+      ],
+      "notes": "[2026-05-27 <sha7>] Reset to v1.2 for the 2026-05-27 UX-overhaul cohort (per-session work shipped today: new-user tier ramp + recalibration cleanup, profile preview modal, auto-update banner via overlay portal, bottom-nav portal fix, exercise catalogue audit, cardio muscle reclassification, achievements expansion +15, form-cue longest-match, QA passing-note optional, plus today's UX bundle). Mechanic: bumped MAJOR_MINOR to '1.2' and replaced PRE_V1_1_PATCH_OFFSET (30) with PRE_V1_2_PATCH_OFFSET (142, = current PATCHLOG section count BEFORE this entry). This commit adds one new section so the live count becomes 143; appVersion = '1.2.' + max(0, 143 - 142) = '1.2.1'. Also bumped package.json version to 1.2.0 to keep tooling in sync. Source: @maaiz 'I think it's v1.1.112 right now. Reset it to v1.2.1 to move sequentially from there so I can test the update prompt is working'."
+    },
+    {
       "id": "app-update-overlay-cross-view",
       "title": "Auto-update banner + post-update toast actually render (moved into HomeGlobals' overlay-portal root)",
       "area": "App",

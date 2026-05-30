@@ -11,16 +11,19 @@ export const dynamic = "force-dynamic";
 // 1.1.0 milestone (2026-05-23): tier scoring v2, test-user generator,
 // workout polish batch, planner-equipment-strict, routine auto-naming,
 // avatar picker as routed page, contributors consolidated to /qa.
-const MAJOR_MINOR = "1.1";
-// Number of PATCHLOG section headers that existed at-or-before the v1.1
-// milestone (the "Tier scoring v2 ship" pass on 2026-05-23). Per @maaiz:
-// when v1.1 shipped the patch counter should have reset — we kept
-// counting historical v1.0 sections by mistake. Subtracting this
-// offset means the patch number now reflects only v1.1 work, so the
-// next deploy after this fix will read v1.1.<small number>, not
-// v1.1.112+.
-// (qa: version-patch-reset-on-minor)
-const PRE_V1_1_PATCH_OFFSET = 30;
+// 1.2.0 milestone (2026-05-27): per-session UX overhaul — new-user
+// tier ramp + recalibration, profile preview modal, auto-update
+// banner via overlay portal, bottom-nav portal fix, exercise
+// catalogue audit + cardio muscle reclassification, achievements
+// expansion (+15), form-cue longest-match. (qa: version-bump-v1.2)
+const MAJOR_MINOR = "1.2";
+// Number of PATCHLOG section headers that existed at-or-before the v1.2
+// reset. Same mechanic as the v1.1 reset: subtract this from the live
+// section count so the patch number starts at .1 for the v1.2 cohort
+// and increments per shipped PATCHLOG section. Per @maaiz "Reset it to
+// v1.2.1 to move sequentially from there so I can test the update
+// prompt is working". (qa: version-bump-v1.2)
+const PRE_V1_2_PATCH_OFFSET = 142;
 
 export async function GET() {
   const sha = process.env.VERCEL_GIT_COMMIT_SHA || "dev";
@@ -40,7 +43,7 @@ export async function GET() {
   } catch {}
   // Subtract the v1.0 baseline so the patch number resets when MAJOR_MINOR
   // increments. Clamp at 0 in case anyone deletes sections.
-  const minorPatch = Math.max(0, patchCount - PRE_V1_1_PATCH_OFFSET);
+  const minorPatch = Math.max(0, patchCount - PRE_V1_2_PATCH_OFFSET);
   const appVersion = `${MAJOR_MINOR}.${minorPatch}`;
 
   return NextResponse.json({ sha, shortSha, appVersion, ref, title });
