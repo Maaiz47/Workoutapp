@@ -33,8 +33,19 @@ export async function POST(req: NextRequest) {
     if (!validStatuses.includes(status)) {
       return NextResponse.json({ error: "status invalid" }, { status: 400 });
     }
-    if (typeof note !== "string" || note.trim().length === 0) {
-      return NextResponse.json({ error: "note is required" }, { status: 400 });
+    // `note` is required for verdicts that need explanation (failing,
+    // regression-retest, untested) but OPTIONAL for `passing` — a bare
+    // "works now" tap is a complete verdict. Empty notes for non-
+    // passing statuses still 400 so testers can't ship a failing flag
+    // with no context. The dashboard's noteRequired heuristic
+    // (page.tsx — draft.status !== "passing") matches this.
+    // (qa: qa-passing-note-optional)
+    const needsNote = status !== "passing";
+    if (typeof note !== "string") {
+      return NextResponse.json({ error: "note must be a string" }, { status: 400 });
+    }
+    if (needsNote && note.trim().length === 0) {
+      return NextResponse.json({ error: "note is required for non-passing verdicts" }, { status: 400 });
     }
 
     // Per-step scoping: stepIndex is the 0-indexed step within the

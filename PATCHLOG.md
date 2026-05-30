@@ -2,6 +2,19 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #4 — passing verdict can be saved with no note (qa: qa-passing-note-optional)
+
+Single fix from the audit's verified QA bug.
+
+### Addressed
+- **qa-passing-note-optional**: `/api/qa/comment` POST previously rejected any submission with an empty `note`, including for `passing`. That contradicted the dashboard's own `noteRequired = draft.status !== "passing"` rule + the optional-note placeholder copy ("Optional: any context worth noting"). Testers couldn't tap "works now" and move on — every passing verdict required typed text. Now: empty note allowed for `passing`; failing / regression-retest / untested still 400 with `note is required for non-passing verdicts`. Existing retest auto-fill ("[🔄 RETEST · re:…] Verified working.") is unaffected because it always populates the note before submit. Per @maaiz: "want to be able to mark passing without comments but also able to add if wanted".
+
+### Files
+- Modified: `app/api/qa/comment/route.ts` (gated the empty-note check behind status !== "passing")
+- Modified: `qa-state.json` (new item `qa-passing-note-optional`)
+
+---
+
 ## Audit · 2026-05-27 — app audit, +15 achievements, stale-code cleanup (qa: achievements-cardio-time)
 
 Full-app audit (UI, QA system, stale code) + achievements expansion + safe dead-code removal. Findings written up in `docs/AUDIT-2026-05-27.md`.

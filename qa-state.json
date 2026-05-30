@@ -581,6 +581,22 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "qa-passing-note-optional",
+      "title": "QA submit — `passing` verdict can be saved with no note (note still required for failing / regression-retest / untested)",
+      "area": "QA",
+      "introduced": "2026-05-27",
+      "introducedBy": "Audit 2026-05-27 follow-up",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open /qa, expand any item. In the inline submit box, pick status = `passing`. Leave the NOTE field blank. Verify SAVE is enabled and the comment posts successfully (no `note is required` 400).",
+        "Same item: pick status = `failing`. Leave the NOTE field blank. Verify SAVE is disabled (existing client guard) — and if you bypass the client, the API returns 400 'note is required for non-passing verdicts'.",
+        "Add an optional note alongside a `passing` verdict — verify it saves and the note text is preserved in the thread.",
+        "Retest path: tap UPDATE/RETEST on a parent comment, pick `passing`, leave the textarea blank. Verify the auto-filled '[🔄 RETEST · re:…] Verified working.' marker is submitted as the note (existing retest auto-fill behaviour is intact)."
+      ],
+      "notes": "[2026-05-27 <sha7>] Fixes a verified audit finding: `/api/qa/comment` POST previously rejected any submission with an empty note, including for `passing`, which contradicted the dashboard's `noteRequired = draft.status !== 'passing'` heuristic + the optional-note placeholder copy. Result: testers couldn't tap 'works now' and move on — every passing verdict required typed text. Fix gates the empty-note check behind `status !== 'passing'` so a bare passing tap saves cleanly; failing / regression-retest / untested still require explanation. Source: @maaiz 'want to be able to mark passing without comments but also able to add if wanted'."
+    },
+    {
       "id": "achievements-cardio-time",
       "title": "Achievement catalogue expansion (+15) incl. cardio-time milestones reading totalCardioMinutes",
       "area": "Achievements",
