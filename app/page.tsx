@@ -4709,10 +4709,134 @@ function QuickFeedbackFab({ username, view }: { username: string; view: string }
 // view branch of HomePage returns its own JSX early, so this component
 // needs to be inserted into EACH branch's return — there's no
 // single bottom render to attach to.
+
+// AppUpdateOverlay — self-contained banner + post-update toast.
+// Manages its own /api/version state so it can be mounted inside
+// HomeGlobals (which renders to a separate React root via the
+// overlay portal) and therefore shows across every view, not just
+// the main fall-through return. Previously the banner was defined
+// in HomePage's main return — which is bypassed by every view's
+// early return — so it literally never rendered for users on home /
+// messages / progress / etc. (qa: app-update-auto-banner)
+function AppUpdateOverlay({ disabled }: { disabled: boolean }) {
+  const [runningSha, setRunningSha] = useState<string | null>(null);
+  const [latestSha, setLatestSha] = useState<string | null>(null);
+  const [latestVer, setLatestVer] = useState<string | null>(null);
+  const [updateDismissedSha, setUpdateDismissedSha] = useState<string | null>(null);
+  const [justUpdatedTo, setJustUpdatedTo] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/version", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: any) => {
+        if (d?.shortSha) {
+          setRunningSha(d.shortSha);
+          setLatestSha(d.shortSha);
+          if (d?.appVersion) setLatestVer(d.appVersion);
+          try {
+            const lastSeen = localStorage.getItem("ironlog.lastSeenSha");
+            if (lastSeen && lastSeen !== d.shortSha) {
+              setJustUpdatedTo(d.appVersion || d.shortSha);
+              setTimeout(() => setJustUpdatedTo(null), 4500);
+            }
+            localStorage.setItem("ironlog.lastSeenSha", d.shortSha);
+          } catch {}
+        }
+      })
+      .catch(() => {});
+    try {
+      const dismissed = localStorage.getItem("ironlog.updateDismissedSha");
+      if (dismissed) setUpdateDismissedSha(dismissed);
+    } catch {}
+  }, []);
+
+  const checkForUpdate = useCallback(() => {
+    if (!runningSha) return;
+    fetch("/api/version", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: any) => {
+        if (d?.shortSha) {
+          setLatestSha(d.shortSha);
+          if (d?.appVersion) setLatestVer(d.appVersion);
+        }
+      })
+      .catch(() => {});
+  }, [runningSha]);
+
+  useEffect(() => {
+    if (!runningSha) return;
+    const id = setInterval(checkForUpdate, 5 * 60_000);
+    const onVisible = () => { if (document.visibilityState === "visible") checkForUpdate(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", checkForUpdate);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", checkForUpdate);
+    };
+  }, [runningSha, checkForUpdate]);
+
+  const performUpdateRefresh = useCallback(async () => {
+    try {
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          await reg.update();
+          if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+      }
+    } catch {}
+    try {
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("_v", String(Date.now()));
+        window.location.replace(url.toString());
+      }
+    } catch {
+      if (typeof window !== "undefined") window.location.reload();
+    }
+  }, []);
+
+  const dismissUpdate = useCallback(() => {
+    if (latestSha) {
+      setUpdateDismissedSha(latestSha);
+      try { localStorage.setItem("ironlog.updateDismissedSha", latestSha); } catch {}
+    }
+  }, [latestSha]);
+
+  const updateAvailable = !!(runningSha && latestSha && latestSha !== runningSha && updateDismissedSha !== latestSha);
+
+  return (
+    <>
+      {justUpdatedTo && !disabled && (
+        <div role="status" style={{ position: "fixed", top: "env(safe-area-inset-top, 0px)", left: 0, right: 0, zIndex: 9701, background: "linear-gradient(180deg, rgba(46,204,113,0.20), rgba(46,204,113,0.08))", borderBottom: "1px solid rgba(46,204,113,0.4)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", padding: "10px 14px", gap: 10 }}>
+          <div style={{ fontSize: 18, lineHeight: 1, flexShrink: 0, color: "#2ecc71" }}>✓</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#2ecc71", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>UPDATED TO v{justUpdatedTo}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>You&apos;re on the latest build.</div>
+          </div>
+          <button onClick={() => setJustUpdatedTo(null)} aria-label="Dismiss" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 20, cursor: "pointer", padding: "4px 6px", lineHeight: 1 }}>×</button>
+        </div>
+      )}
+      {updateAvailable && !disabled && (
+        <div role="status" style={{ position: "fixed", top: "env(safe-area-inset-top, 0px)", left: 0, right: 0, zIndex: 9700, background: "linear-gradient(180deg, rgba(78,205,196,0.18), rgba(78,205,196,0.08))", borderBottom: "1px solid rgba(78,205,196,0.35)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", padding: "10px 14px", gap: 10 }}>
+          <div style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>🔄</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>NEW VERSION AVAILABLE{latestVer ? ` · v${latestVer}` : ""}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>Refresh for the latest fixes.</div>
+          </div>
+          <button onClick={performUpdateRefresh} style={{ padding: "8px 12px", background: "#4ECDC4", border: "none", borderRadius: 8, color: "#000", fontSize: 10, fontWeight: 800, letterSpacing: 1.2, fontFamily: "'Space Mono', monospace", cursor: "pointer", whiteSpace: "nowrap" }}>REFRESH</button>
+          <button onClick={dismissUpdate} aria-label="Dismiss" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 20, cursor: "pointer", padding: "4px 6px", lineHeight: 1 }}>×</button>
+        </div>
+      )}
+    </>
+  );
+}
+
 function HomeGlobals({
   user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, trainerBreakdown, tierTheme,
   deGamified, milestoneQueue, onMilestoneAdvance, newPBs, onPBsDismiss, tierPromoToast, onTierPromoDismiss,
-  onJumpToLeaderboard, onOpenGlobalLeaderboard,
+  onJumpToLeaderboard, onOpenGlobalLeaderboard, updateOverlayDisabled,
 }: {
   user: { username: string; role: string; extraRoles?: string[] } | null;
   view: string;
@@ -4746,6 +4870,10 @@ function HomeGlobals({
   onJumpToLeaderboard?: () => void;
   // Opens the standalone global tier leaderboard view.
   onOpenGlobalLeaderboard?: () => void;
+  // Suppresses the auto-update overlay (banner + post-update toast)
+  // while the user is mid-workout so it can't interrupt set logging.
+  // Wired to HomePage's `started` flag. (qa: app-update-auto-banner)
+  updateOverlayDisabled?: boolean;
 }) {
   const isTrainer = userHasRole(user as any, "trainer");
   // Map the new AnimalTier shape → local TierLite shape so the
@@ -4762,6 +4890,7 @@ function HomeGlobals({
     : getTrainerTier(clients.length);
   return (
     <>
+      <AppUpdateOverlay disabled={!!updateOverlayDisabled} />
       <QuickFeedbackFab username={user?.username || ""} view={view} />
       <TierInfoModal
         open={tierModalOpen}
@@ -6019,103 +6148,11 @@ function HomePage() {
     setPreviewUserId(uid);
   }, []);
 
-  // ── Auto-update banner ──
-  // Settings already has a VersionCheckCard with a "Check for updates"
-  // tap (lines ~3330). That requires the user to dig into Settings —
-  // testers reporting already-fixed bugs (e.g. munchy on the form-cue
-  // regression after the longest-match fix) often haven't refreshed.
-  // This auto-poll wakes that flow up: snapshot the SHA on mount,
-  // re-check /api/version on focus / visibility / every 5 min, and
-  // surface a top banner when the server's SHA differs. Banner is
-  // suppressed while a workout is active so it can't interrupt set
-  // logging; dismissal is per-SHA so the next real deploy resurfaces
-  // it. (qa: app-update-auto-banner)
-  const [runningSha, setRunningSha] = useState<string | null>(null);
-  const [latestSha, setLatestSha] = useState<string | null>(null);
-  const [latestVer, setLatestVer] = useState<string | null>(null);
-  const [updateDismissedSha, setUpdateDismissedSha] = useState<string | null>(null);
-  // One-shot post-update confirmation toast. Fires on the FIRST load
-  // of any SHA the client hasn't seen before. Closes the feedback loop
-  // alongside the banner above: banner says "new version available →
-  // refresh", toast says "you're now on the new version" after the
-  // refresh lands. Skipped for brand-new clients (no prior lastSeenSha)
-  // so first-ever app opens don't show a confusing "updated from
-  // nothing" message. (qa: app-update-auto-banner)
-  const [justUpdatedTo, setJustUpdatedTo] = useState<string | null>(null);
-  useEffect(() => {
-    fetch("/api/version", { cache: "no-store" })
-      .then(r => r.ok ? r.json() : null)
-      .then((d: any) => {
-        if (d?.shortSha) {
-          setRunningSha(d.shortSha);
-          setLatestSha(d.shortSha);
-          if (d?.appVersion) setLatestVer(d.appVersion);
-          try {
-            const lastSeen = localStorage.getItem("ironlog.lastSeenSha");
-            if (lastSeen && lastSeen !== d.shortSha) {
-              setJustUpdatedTo(d.appVersion || d.shortSha);
-              setTimeout(() => setJustUpdatedTo(null), 4500);
-            }
-            localStorage.setItem("ironlog.lastSeenSha", d.shortSha);
-          } catch {}
-        }
-      })
-      .catch(() => {});
-    try {
-      const dismissed = localStorage.getItem("ironlog.updateDismissedSha");
-      if (dismissed) setUpdateDismissedSha(dismissed);
-    } catch {}
-  }, []);
-  const checkForUpdate = useCallback(() => {
-    if (!runningSha) return;
-    fetch("/api/version", { cache: "no-store" })
-      .then(r => r.ok ? r.json() : null)
-      .then((d: any) => {
-        if (d?.shortSha) {
-          setLatestSha(d.shortSha);
-          if (d?.appVersion) setLatestVer(d.appVersion);
-        }
-      })
-      .catch(() => {});
-  }, [runningSha]);
-  useEffect(() => {
-    if (!runningSha) return;
-    const id = setInterval(checkForUpdate, 5 * 60_000);
-    const onVisible = () => { if (document.visibilityState === "visible") checkForUpdate(); };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", checkForUpdate);
-    return () => {
-      clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", checkForUpdate);
-    };
-  }, [runningSha, checkForUpdate]);
-  const performUpdateRefresh = useCallback(async () => {
-    try {
-      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (reg) {
-          await reg.update();
-          if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
-        }
-      }
-    } catch {}
-    try {
-      if (typeof window !== "undefined") {
-        const url = new URL(window.location.href);
-        url.searchParams.set("_v", String(Date.now()));
-        window.location.replace(url.toString());
-      }
-    } catch {
-      if (typeof window !== "undefined") window.location.reload();
-    }
-  }, []);
-  const dismissUpdate = useCallback(() => {
-    if (latestSha) {
-      setUpdateDismissedSha(latestSha);
-      try { localStorage.setItem("ironlog.updateDismissedSha", latestSha); } catch {}
-    }
-  }, [latestSha]);
+  // Auto-update banner + post-update toast moved into AppUpdateOverlay,
+  // mounted inside HomeGlobals (overlay-portal root) so it renders
+  // across every view — not just the main fall-through return that
+  // every view's early-return JSX bypasses. (qa: app-update-auto-banner)
+
   // Lucky-drop celebration — surfaced after a workout save when the
   // server's lucky-drop roll fires. Shape mirrors lib/luckyDrops.ts.
   // (qa: random-rare-rewards)
@@ -6241,6 +6278,7 @@ function HomePage() {
         onPBsDismiss={() => setNewPBs([])}
         tierPromoToast={tierPromoToast}
         onTierPromoDismiss={() => setTierPromoToast(null)}
+        updateOverlayDisabled={started}
         onOpenGlobalLeaderboard={() => {
           setTierModalOpen(false);
           setView("globalLeaderboard");
@@ -19641,40 +19679,9 @@ function HomePage() {
           — Settings, Customise, Progress, etc. The version that used
           to sit here was bypassed by every view's early-return JSX.
           (qa: profile-avatars-home-fix slice 3) */}
-      {/* Post-update confirmation toast — one-shot on first load of
-          any SHA the client hasn't seen before. Closes the loop after
-          the user refreshes via the banner (or manually). Auto-dismiss
-          after 4.5s. (qa: app-update-auto-banner) */}
-      {justUpdatedTo && !started && (
-        <div role="status" style={{ position: "fixed", top: "env(safe-area-inset-top, 0px)", left: 0, right: 0, zIndex: 9701, background: "linear-gradient(180deg, rgba(46,204,113,0.20), rgba(46,204,113,0.08))", borderBottom: "1px solid rgba(46,204,113,0.4)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", padding: "10px 14px", gap: 10 }}>
-          <div style={{ fontSize: 18, lineHeight: 1, flexShrink: 0, color: "#2ecc71" }}>✓</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#2ecc71", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>UPDATED TO v{justUpdatedTo}</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>You're on the latest build.</div>
-          </div>
-          <button onClick={() => setJustUpdatedTo(null)} aria-label="Dismiss" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 20, cursor: "pointer", padding: "4px 6px", lineHeight: 1 }}>×</button>
-        </div>
-      )}
-      {/* App-update banner — auto-detects a deploy that happened
-          while this tab/PWA was open and prompts a one-tap refresh.
-          Suppressed while a workout is active so it can't break
-          mid-set logging. Dismiss state is per-SHA so a fresh
-          deploy resurfaces the banner. (qa: app-update-auto-banner) */}
-      {(() => {
-        const updateAvailable = !!(runningSha && latestSha && latestSha !== runningSha && updateDismissedSha !== latestSha);
-        if (!updateAvailable || started) return null;
-        return (
-          <div role="status" style={{ position: "fixed", top: "env(safe-area-inset-top, 0px)", left: 0, right: 0, zIndex: 9700, background: "linear-gradient(180deg, rgba(78,205,196,0.18), rgba(78,205,196,0.08))", borderBottom: "1px solid rgba(78,205,196,0.35)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", padding: "10px 14px", gap: 10 }}>
-            <div style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>🔄</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>NEW VERSION AVAILABLE{latestVer ? ` · v${latestVer}` : ""}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>Refresh for the latest fixes.</div>
-            </div>
-            <button onClick={performUpdateRefresh} style={{ padding: "8px 12px", background: "#4ECDC4", border: "none", borderRadius: 8, color: "#000", fontSize: 10, fontWeight: 800, letterSpacing: 1.2, fontFamily: "'Space Mono', monospace", cursor: "pointer", whiteSpace: "nowrap" }}>REFRESH</button>
-            <button onClick={dismissUpdate} aria-label="Dismiss" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 20, cursor: "pointer", padding: "4px 6px", lineHeight: 1 }}>×</button>
-          </div>
-        );
-      })()}
+      {/* AppUpdateOverlay (banner + post-update toast) now lives in
+          HomeGlobals → overlay-portal root, so it renders across
+          every view. (qa: app-update-auto-banner) */}
       {/* Profile preview modal — opens when previewUserId is set
           anywhere (clicking a username/avatar in chat, leaderboard,
           friends list, etc). Mounted here at the top-level return so

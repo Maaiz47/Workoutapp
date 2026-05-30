@@ -2,6 +2,24 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #11 — auto-update banner ACTUALLY renders (qa: app-update-overlay-cross-view)
+
+### Addressed
+- **app-update-overlay-cross-view**: the auto-update banner from follow-up #7 was defined in HomePage's main fall-through return (~line 19650). HomePage has multiple `if (view === ...) return (...)` early returns for home / messages / conversation / workout etc — each bypasses the main return. The banner JSX literally never reached the DOM for any normal view. That's why @maaiz wasn't seeing it after multiple legitimate deploys.
+  - Extracted a self-contained `AppUpdateOverlay` top-level component (manages its own `/api/version` state + focus/visibility/5-min interval listeners + the post-update toast).
+  - Mounted it inside `HomeGlobals`, which renders to a SEPARATE React root via `overlayRootRef` (the existing overlay-portal mechanism that already keeps celebration toasts visible across views). That root is independent of every view's early return.
+  - HomeGlobals now takes a `updateOverlayDisabled` prop, wired to HomePage's `started` flag, so banner + toast stay hidden during an active workout.
+  - Removed the dead state + JSX from HomePage so nothing duplicates.
+
+### Why this took two rounds
+- The original PR shipped the *code* but mounted it in unreachable JSX. The fix is purely architectural — banner logic itself was correct. Once the user's phone loads this bundle, every future deploy will fire the banner cleanly.
+
+### Files
+- Modified: `app/page.tsx` (new `AppUpdateOverlay` component, mounted in HomeGlobals, dead state + JSX removed from HomePage, `updateOverlayDisabled` prop threaded through)
+- Modified: `qa-state.json` (new item `app-update-overlay-cross-view`)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #10 — bottom nav portaled to document.body (qa: bottom-nav-portal-fix)
 
 ### Addressed

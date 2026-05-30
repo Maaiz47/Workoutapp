@@ -581,6 +581,23 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "app-update-overlay-cross-view",
+      "title": "Auto-update banner + post-update toast actually render (moved into HomeGlobals' overlay-portal root)",
+      "area": "App",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz report — 'Not getting any banner to refresh the app'",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "On home (or any normal view), after a fresh deploy + a focus/visibility event (or wait 5 min), verify the cyan banner '🔄 NEW VERSION AVAILABLE · v<X>' slides in at the top with REFRESH + × buttons.",
+        "Tap REFRESH. Verify the page reloads via cache-bust URL navigation and lands on the new bundle. After load, the green '✓ UPDATED TO v<X>' toast appears for ~4.5 s, then auto-dismisses.",
+        "Same flow from Messages, Progress, Ranks, Groups, Friends, Clients — verify the banner is visible on every view (previously only the unreachable fall-through return rendered it).",
+        "Start a workout session. While `started === true`, verify NEITHER banner NOR toast renders (suppressed via `updateOverlayDisabled={started}` passed to HomeGlobals).",
+        "Dismiss the banner via ×. Verify the dismissal sticks across the current SHA but a fresh deploy resurfaces it on the next focus/poll."
+      ],
+      "notes": "[2026-05-27 <sha7>] Root cause: the original implementation in PR #7 put the banner JSX in HomePage's main fall-through return (~line 19650). HomePage has multiple `if (view === ...) return (...)` early returns for home / messages / conversation / workout etc — every one of them bypasses the main return. The banner JSX literally never reached the DOM for any normal view. Fix: extracted a self-contained `AppUpdateOverlay` component (top-level, manages its own /api/version state + focus/visibility/interval listeners) and mounted it inside `HomeGlobals` which renders to a SEPARATE React root via the overlay portal (`overlayRootRef`) — that root is independent of every view's early return, so the overlay renders unconditionally. HomeGlobals now takes a `updateOverlayDisabled` prop (wired to HomePage's `started` flag) so the banner stays hidden during an active workout. Dead state + JSX in HomePage removed. Source: @maaiz 'Not getting any banner to refresh the app' after multiple deploys."
+    },
+    {
       "id": "bottom-nav-portal-fix",
       "title": "Home bottom nav is portaled to document.body so it's truly fixed to the viewport (not floating mid-page on scroll)",
       "area": "Home",
