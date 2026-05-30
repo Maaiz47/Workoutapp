@@ -11131,10 +11131,28 @@ function HomePage() {
               }}
             >
               {userHasRole(user, "trainer") && (() => {
-                const t = getTrainerTier(clients.length);
-                const tIdx = TRAINER_TIERS.findIndex(x => x.label === t.label);
-                const next = TRAINER_TIERS[tIdx + 1];
-                const remaining = next ? Math.max(0, next.min - clients.length) : 0;
+                // Prefer the canonical server-computed breakdown so the
+                // home rail agrees with the "How Tiers Work" modal and
+                // the trainer leaderboard. The legacy roster-count-only
+                // ladder (getTrainerTier(clients.length)) put a trainer
+                // with 3 clients at "Strategist" while their actual
+                // canonical score of 43 puts them at "Pro" — modal +
+                // home disagreed. Fall back to the legacy ladder ONLY
+                // during the brief window before /api/trainer/me/tier
+                // responds. (qa: tier-trainer-home-rail-canonical)
+                const canonicalHeadline = myTrainerBreakdown?.headline;
+                const canonicalScore = myTrainerBreakdown?.headlineScore;
+                const useCanonical = !!canonicalHeadline;
+                const tiers = useCanonical ? TRAINER_TIERS_NEW : TRAINER_TIERS;
+                const t = useCanonical
+                  ? { label: canonicalHeadline!.label, icon: canonicalHeadline!.icon, emoji: canonicalHeadline!.icon, iconPath: canonicalHeadline!.iconPath, color: canonicalHeadline!.color }
+                  : getTrainerTier(clients.length);
+                const currentRaw = useCanonical ? (canonicalScore ?? 0) : clients.length;
+                const tIdx = useCanonical
+                  ? TRAINER_TIERS_NEW.findIndex(x => x.tierNum === canonicalHeadline!.tierNum)
+                  : TRAINER_TIERS.findIndex(x => x.label === t.label);
+                const next = tiers[tIdx + 1];
+                const remaining = next ? Math.max(0, next.min - currentRaw) : 0;
                 const tierNum = displayTierNum(tIdx + 1);
                 return (
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -11147,8 +11165,8 @@ function HomePage() {
                         </span>
                       </div>
                       <CompactTierDotBar
-                        tiers={TRAINER_TIERS.map(x => ({ label: x.label, color: x.color, min: x.min }))}
-                        currentRaw={clients.length}
+                        tiers={tiers.map(x => ({ label: x.label, color: x.color, min: x.min }))}
+                        currentRaw={currentRaw}
                         currentLabel={t.label}
                       />
                     </div>

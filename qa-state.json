@@ -581,6 +581,37 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "tier-trainer-home-rail-canonical",
+      "title": "Trainer tier on the home rail uses the canonical multi-dim breakdown (matches 'How Tiers Work' modal + the trainer leaderboard)",
+      "area": "Tiers",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz report with screenshots",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Logged in as a trainer with N clients and a non-trivial roster+progression+streak profile (e.g. roster 32/100 + progression 67/100 → canonical score 43), open Home. Verify the trainer rail shows the SAME label + tierNum as the 'How Tiers Work' modal (Pro · T4 in the reported case, NOT Strategist · T5).",
+        "Tap the rail → 'How Tiers Work' opens with 'YOU · 43 PTS' on the matching tier row. The +N → next-tier hint on the rail should match the modal's 'POINTS TO NEXT TIER' value (+7 PTS → MENTOR if score=43).",
+        "Switch to the trainer leaderboard. Verify the user's row shows the same tier the home rail + modal show.",
+        "Before /api/trainer/me/tier responds (first ~100 ms of a fresh load), the rail temporarily uses the legacy roster-count ladder as a fallback. Sanity-check the rail looks reasonable in that transient window and then transitions to the canonical value once the fetch lands."
+      ],
+      "notes": "[2026-05-27 <sha7>] The home trainer rail (app/page.tsx line ~11134) was hardcoded to `getTrainerTier(clients.length)` — the legacy roster-count-only ladder (Spotter≥0, Strategist≥2, Pro≥5, Mentor≥10, Legend≥18, Hall of Fame≥30). A trainer with 3 clients but a canonical score of 43 (roster 32 + progression 67 + retention 0 etc.) was shown as 'Strategist · T5' on home while the 'How Tiers Work' modal correctly showed 'Pro · T4 · 43 PTS' from the canonical TRAINER_TIERS_NEW ladder (Spotter≥0, Strategist≥15, Pro≥30, Mentor≥50, Legend≥70, Hall of Fame≥88). Same mismatch class as the athlete tier home/progress fix from earlier today. Fix: prefer `myTrainerBreakdown.headline` + `myTrainerBreakdown.headlineScore` (fetched on user-load from /api/trainer/me/tier) for label / iconPath / color / tierNum and use TRAINER_TIERS_NEW for the dot-bar + next-tier math. Falls back to the legacy ladder only during the brief window before the fetch responds, so the rail never renders empty. Source: @maaiz screenshot pair showing modal 'YOU · 43 PTS · Pro · T4' while home rail showed 'STRATEGIST · T5 · +2 → PRO T4'."
+    },
+    {
+      "id": "big-dawg-avatars-rework",
+      "title": "Big Dawg (T3) profile avatars queued for rework (3 × 1024×1024 PNG, transparent)",
+      "area": "Avatars",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz request",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → IDENTITY → tap the avatar to open the picker. Browse the Big Dawg tier unlocks: Howler, Iron Paw, The Watcher. Verify they read as a stocky muscle-packed pitbull (matching the refreshed tier badge from Batch 12), NOT wolf-like.",
+        "Compare file sizes: each new PNG should be ≤ 80 KB after pngquant compression. Currently the on-disk files are 2–3 MB each — dropping them to spec saves ~8 MB on the Settings picker page weight.",
+        "Equip each in turn. Verify it renders cleanly at 32 px / 80 px / 104 px sizes (chat avatars, profile preview, identity card)."
+      ],
+      "notes": "[2026-05-27] Generation prompts + registration steps added as Batch 14 to image-prompts-v2.md. Per @maaiz: 'Big dawg maybe needs a tier badge and definitely profile avatar rework for all 3 unlocked avatars for the tier'. Tier badge itself (Batch 12, shipped 2026-05-26) is fine — left alone. Three avatars: dawg-howler, dawg-ironpaw, dawg-watcher. All on disk today as 2–3 MB PNGs that bias wolf-like and clash with the refreshed Batch 12 tier badge. No code changes required at registration — `lib/avatars.ts` already references these ids and `findAvatar()` resolves them via `/avatars/{id}.png`."
+    },
+    {
       "id": "pro-tip-hides-bottom-nav",
       "title": "Pro tip overlay hides the bottom nav while it's open",
       "area": "Home",

@@ -935,6 +935,72 @@ and quad stretch.
 
 ---
 
+## Batch 14 — Big Dawg (T3) profile-avatar rework (3 images, 1024×1024)
+
+Flagged 2026-05-27 by @maaiz: "Big dawg maybe needs a tier badge and
+definitely profile avatar rework for all 3 unlocked avatars for the
+tier". The tier-badge icon shipped in Batch 12 (the stocky pitbull
+bust at `/public/tier-icons/vivid/big-dawg.png`) is fine; the THREE
+tier-unlocked profile avatars at this tier need fresh art that reads
+as the new Big Dawg vibe (stocky muscle-packed pitbull, NOT
+wolf-like, NOT generic). All three currently bias too wolf-like and
+clash with the refreshed tier badge.
+
+Compress each to ≤ **80 KB** PNG via pngquant (the existing files on
+disk are 2–3 MB each — orders of magnitude over the file-size
+target documented in the README — fixing this incidentally drops
+page weight by ~8 MB at the Settings → IDENTITY picker).
+
+### `dawg-howler.png` — "Howler" (flavour: "Loud lifts, louder PRs.")
+> 1024×1024 square portrait, transparent background. Front-facing
+> bust of a stocky muscle-packed pitbull, MOUTH OPEN MID-HOWL —
+> head tilted slightly upward, lower jaw open wide, tongue + teeth
+> partially visible, ember-glow inside the mouth (orange→red),
+> ears pinned back, eyes squinted shut in effort. Thick neck +
+> upper chest visible. Color palette: charcoal-grey fur with deep
+> purple-violet rim-lighting + orange ember accents (matches the
+> refreshed Big Dawg tier badge). Photoreal-illustration hybrid
+> style, slight glow halo. Avoid: wolf snout, slender silhouette,
+> color drift away from purple/orange.
+
+### `dawg-ironpaw.png` — "Iron Paw" (flavour: "Earned every kilo.")
+> 1024×1024 square portrait, transparent background. Three-quarter
+> view of the same stocky pitbull, RAISED FRONT PAW PROMINENTLY IN
+> FRAME (paw lifted to roughly chin-level, claws/pad clearly
+> visible, paw slightly closer to camera than the head). Calm,
+> determined expression — mouth closed, focused stare directly at
+> the camera. The paw should feel "weighted" — thick, scarred,
+> a hint of metallic sheen on the pad as if it's been forged.
+> Same charcoal-grey fur + purple-violet rim-lighting + orange
+> ember accents. Photoreal-illustration hybrid style, glow halo.
+> Avoid: wolf proportions, paw out of frame, color drift.
+
+### `dawg-watcher.png` — "The Watcher" (flavour: "Always one rep ahead of yesterday.")
+> 1024×1024 square portrait, transparent background. Profile / side
+> view of the same stocky pitbull facing LEFT, head turned slightly
+> back toward camera so ONE EYE locks on the viewer (the "watching"
+> gesture). Stoic, alert expression — ears upright, mouth closed,
+> eye glowing faintly orange. Wide shoulders + thick neck visible
+> in profile. Same charcoal-grey fur + purple-violet rim-lighting
+> + orange ember accents. Photoreal-illustration hybrid style,
+> subtle glow halo. Avoid: wolf-like snout/ears, hunched posture,
+> color drift.
+
+### Registration after generation
+
+1. Drop the three PNGs at `public/avatars/dawg-howler.png`,
+   `public/avatars/dawg-ironpaw.png`, `public/avatars/dawg-watcher.png`.
+2. No code changes — `lib/avatars.ts` already references these ids
+   and `findAvatar()` resolves them via `/avatars/{id}.png`.
+3. Tick the Big Dawg avatar item on this batch and update the
+   CLAUDE.md image-gen reminder count.
+
+The TIER BADGE itself (`/public/tier-icons/vivid/big-dawg.png`)
+shipped in Batch 12 and reads correctly. Leave it alone unless
+@maaiz revisits.
+
+---
+
 ## After all batches land
 
 Total: **63 images** (53 if Batch 9 deferred). Breakdown:

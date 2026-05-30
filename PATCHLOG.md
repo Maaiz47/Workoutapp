@@ -2,6 +2,23 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #15 — trainer tier on home rail uses canonical breakdown + Big Dawg avatar rework queued (qa: tier-trainer-home-rail-canonical, big-dawg-avatars-rework)
+
+Bumps to **v1.2.4**.
+
+### Addressed
+- **tier-trainer-home-rail-canonical**: the home trainer rail (`app/page.tsx:11134`) was hardcoded to `getTrainerTier(clients.length)` — the legacy roster-count-only ladder (Spotter≥0, Strategist≥2, Pro≥5, Mentor≥10, Legend≥18, Hall of Fame≥30). For a trainer with 3 clients and a canonical score of 43 (roster 32 + progression 67 + retention 0 etc.), the rail rendered "Strategist · T5" while the "How Tiers Work" modal correctly showed "YOU · 43 PTS" on the Pro · T4 row from the canonical `TRAINER_TIERS_NEW` ladder (Spotter≥0, Strategist≥15, Pro≥30, Mentor≥50, Legend≥70, Hall of Fame≥88). Same mismatch class as the athlete home/progress tier fix earlier today. Fix: prefer `myTrainerBreakdown.headline` + `myTrainerBreakdown.headlineScore` (already fetched from `/api/trainer/me/tier` on user-load) for label / iconPath / color / tierNum / dot-bar; fall back to the legacy ladder only during the brief window before the fetch responds. Source: @maaiz screenshot pair showing the modal saying Pro · 43 PTS while the home rail said Strategist · T5 → Pro T4 +2.
+
+### Queued (image gen — no code)
+- **big-dawg-avatars-rework**: added Batch 14 to `image-prompts-v2.md` with frame-by-frame prompts for the three Big Dawg tier-unlocked profile avatars — `dawg-howler.png`, `dawg-ironpaw.png`, `dawg-watcher.png`. Existing files on disk bias wolf-like and clash with the refreshed tier badge from Batch 12. New target: stocky muscle-packed pitbull in charcoal-grey + purple-violet rim-lighting + orange ember accents (matches the Big Dawg badge). Each ≤ 80 KB after pngquant (current files are 2–3 MB — orders of magnitude over the README spec). No code changes at registration — `lib/avatars.ts` already references these ids. Per @maaiz: "Big dawg maybe needs a tier badge and definitely profile avatar rework for all 3 unlocked avatars for the tier" — tier badge itself (Batch 12) is fine, left alone.
+
+### Files
+- Modified: `app/page.tsx` (trainer rail canonical lookup + legacy fallback)
+- Modified: `image-prompts-v2.md` (new Batch 14)
+- Modified: `qa-state.json` (two new items)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #14 — re-enable profile preview from leaderboard rows (qa: profile-preview-entry-points)
 
 Round-trip on the entry-point list. Bumps to **v1.2.3**.
