@@ -76,6 +76,16 @@ const BROKEN_DB_MAPPINGS = new Set<string>([
   // (which should be a single-leg balance pulling heel to glute).
   // Flagged by @maaiz 2026-05-24.
   "Quad_Stretch",
+  // Plie_Dumbbell_Squat depicts a goblet-hold plie (weight in front,
+  // toes wide). Our sumo-squat is the high-bar barbell sumo stance —
+  // different setup. Only used by `sumo-squat` so blacklisting kills
+  // just that mapping. (qa: exercise-audit-2026-05-27)
+  "Plie_Dumbbell_Squat",
+  // Thigh_Abductor depicts the seated abductor machine (straight-leg
+  // hip abduction). Our `clamshell` is the side-lying hip external-
+  // rotation drill — different movement pattern entirely. Only used
+  // by `clamshell`. (qa: exercise-audit-2026-05-27)
+  "Thigh_Abductor",
 ]);
 
 export function getExerciseImageUrls(exerciseId: string, exerciseName?: string): [string, string] | null {
@@ -237,7 +247,7 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   "dumbbell-flyes":                 "Dumbbell_Flyes",
   "incline-dumbbell-flyes":         "Incline_Dumbbell_Flyes",
   "cable-crossover":                "Cable_Crossover",
-  "chest-press-machine":            "Barbell_Bench_Press_-_Medium_Grip",
+  "chest-press-machine":            "Machine_Bench_Press",
   "pec-deck":                       "Butterfly",
   "chest-dips":                     "Dips_-_Chest_Version",
   "pushups":                        "Pushups",
@@ -332,7 +342,7 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   // ── Calves ───────────────────────────────────────────────────────────────
   "standing-calf-raise":            "Standing_Dumbbell_Calf_Raise",
   "seated-calf-raise":              "Seated_Calf_Raise",
-  "dumbbell-calf-raise":            "Seated_Calf_Raise",
+  "dumbbell-calf-raise":            "Standing_Dumbbell_Calf_Raise",
 
   // ── Abs / Core ───────────────────────────────────────────────────────────
   "crunches":                       "Crunches",

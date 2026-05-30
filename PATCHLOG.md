@@ -2,6 +2,31 @@
 
 ---
 
+## Audit · 2026-05-27 — exercise catalogue sweep, 4 image mismatches fixed (qa: exercise-audit-2026-05-27)
+
+Per-exercise audit of the 167 entries in `lib/exercises.ts` against image mappings, form cues, and muscle groups. Full writeup in `docs/EXERCISE-AUDIT-2026-05-27.md`.
+
+### Addressed
+- **chest-press-machine**: image mapping `Barbell_Bench_Press_-_Medium_Grip` → **`Machine_Bench_Press`** (the machine-press exercise was showing barbell-bench frames).
+- **dumbbell-calf-raise**: image mapping `Seated_Calf_Raise` → **`Standing_Dumbbell_Calf_Raise`** (the standing exercise was showing seated frames — and the standing upstream id was already in use by `standing-calf-raise`).
+- **sumo-squat**: `Plie_Dumbbell_Squat` added to **`BROKEN_DB_MAPPINGS`** — wrong stance (plie holds weight in front; sumo is high-bar barbell). Falls back to NO-FORM-DEMO placeholder. Only `sumo-squat` used this mapping, so no other entry is affected.
+- **clamshell**: `Thigh_Abductor` added to **`BROKEN_DB_MAPPINGS`** — wrong movement (seated abductor machine vs side-lying hip external rotation). Same blacklist-and-fall-back. Only `clamshell` used it.
+
+### Filed but not actioned (see docs)
+- **`hip-thrust-db` → `Barbell_Hip_Thrust`**: barbell frames serve as a defensible same-movement demo for the dumbbell variant; could swap to upstream `Dumbbell_Hip_Thrust` if precision matters.
+- **`chest-press-machine` form cues**: falls back to GENERIC_CUES; worth adding a machine-specific entry.
+- **Schema observation**: 21 exercises use `"cardio"` in `primaryMuscles` (jump-rope, burpees, high-knees, etc.). The Balance bucketing already drops `cardio` to null, so it's working — but the naming is semantically muddled (muscle vs metabolic tag). Cleanest fix is a separate `metabolic` field; lowest-cost path is leaving it.
+
+### Process notes
+- Audit was an agent sweep + in-source verification of every claim. Two agent-claimed bugs were verified as **false positives** (it said `pullups` had no cue entry — it does, line 154; it complained about `barbell-deadlift` muscle classification — defensible). All four shipped fixes were independently verified in source before edit.
+
+### Files
+- Modified: `lib/exerciseImages.ts` (`EXERCISE_DB_MAP` entries for chest-press-machine + dumbbell-calf-raise; `BROKEN_DB_MAPPINGS` set extended)
+- New: `docs/EXERCISE-AUDIT-2026-05-27.md`
+- Modified: `qa-state.json` (new item `exercise-audit-2026-05-27`)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #5 — form cues longest-match (qa: form-cues-longest-match)
 
 ### Addressed

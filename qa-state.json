@@ -581,6 +581,23 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "exercise-audit-2026-05-27",
+      "title": "Exercise catalogue audit — fixed image mappings for chest-press-machine, dumbbell-calf-raise, sumo-squat, clamshell",
+      "area": "Exercises",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz audit request",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open the form preview for 'Chest Press Machine'. Verify the upstream frames depict a chest-press MACHINE (handles, seat, pad against back) — not a barbell bench press.",
+        "Open the form preview for 'Dumbbell Calf Raise'. Verify the frames show STANDING dumbbell calf raises — not seated.",
+        "Open the form preview for 'Sumo Squat'. Verify the frames either show the correct sumo barbell stance OR the 'NO FORM DEMO' placeholder (acceptable interim). It must NOT show the plie dumbbell squat (weight held in front).",
+        "Open the form preview for 'Clamshell'. Verify the frames either show the side-lying hip external-rotation drill OR the 'NO FORM DEMO' placeholder. It must NOT show the seated thigh-abductor machine.",
+        "Sanity: other exercises that previously resolved to the same DB ids still work — `barbell-bench-press` still shows the bench-press frames; `standing-calf-raise` still shows the standing calf raise frames."
+      ],
+      "notes": "[2026-05-27 <sha7>] Catalogue-wide audit (167 entries) cross-checked exercise name against EXERCISE_DB_MAP value, FORM_CUES resolution under the new longest-match rule, and primaryMuscles/secondaryMuscles plausibility. 4 verified image mismatches fixed: chest-press-machine → Machine_Bench_Press (was Barbell_Bench_Press_-_Medium_Grip); dumbbell-calf-raise → Standing_Dumbbell_Calf_Raise (was Seated_Calf_Raise); sumo-squat's Plie_Dumbbell_Squat + clamshell's Thigh_Abductor both added to BROKEN_DB_MAPPINGS so they fall back to the NO-FORM-DEMO placeholder until a real frame ships. 6 lower-severity findings documented in docs/EXERCISE-AUDIT-2026-05-27.md (incl. the schema-level observation that 'cardio' is used as both a muscle group and a metabolic tag across 21 exercises — defensible but flagged). Two agent-claimed bugs verified as false positives (pullups DOES have a cue entry at line 154; barbell-deadlift muscle classification is defensible). Source: @maaiz 'run an audit on all exercises to check if the form previews assigned are correct one by one, check the form help text too and the muscle groups assigned to each exercise'."
+    },
+    {
       "id": "form-cues-longest-match",
       "title": "Form-cue fuzzy match prefers the longest matching key (no more lying-leg-raise cues showing for hanging leg raises)",
       "area": "Exercises",
