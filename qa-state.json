@@ -581,6 +581,23 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "bottom-nav-portal-fix",
+      "title": "Home bottom nav is portaled to document.body so it's truly fixed to the viewport (not floating mid-page on scroll)",
+      "area": "Home",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz report",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open the home view. Verify the floating bottom hub (Messages / Progress / Ranks / Groups / Friends / Clients) sits at the bottom of the viewport.",
+        "Scroll down to the bottom of the home content (past Day 5, SAVED ROUTINES, MY EXERCISES). Verify the bottom hub STAYS at the bottom of the visible screen — it does not appear above SAVED ROUTINES or anywhere else in the page flow.",
+        "Scroll back to the top of the home view. Hub remains at the bottom of the viewport.",
+        "Switch to another view (e.g. Ranks). Verify the home hub no longer appears (it's only rendered while view === 'home').",
+        "Confirm the home spacer above the hub still preserves bottom padding so the last card isn't covered when scrolled all the way down."
+      ],
+      "notes": "[2026-05-27 <sha7>] Root cause: the home view JSX is wrapped in AnimatePresence > motion.div with an x/opacity transform animation. Transformed ancestors create a containing block for descendants with `position: fixed` — the nav (zIndex 60, `position: fixed; bottom: 0`) was anchored to the motion.div's bottom edge, NOT the viewport. With the motion.div taller than 100dvh (home content extends past the viewport), the nav floated wherever the bottom of the motion.div was — i.e., somewhere mid-content. Fix: wrap the nav block in `createPortal(..., document.body)` so it renders directly under document.body, escaping every transformed ancestor. `position: fixed` then anchors to the viewport as intended. Source: @maaiz screenshot showing nav appearing above SAVED ROUTINES section + 'Might be more wrong with the bottom tabs, I think they should be fixed at the bottom with everything else scrolling'."
+    },
+    {
       "id": "group-chat-scroll-respects-user",
       "title": "Group chat no longer pulls back to the bottom of history when the user scrolls up",
       "area": "Messages",

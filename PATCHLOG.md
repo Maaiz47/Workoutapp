@@ -2,6 +2,17 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #10 — bottom nav portaled to document.body (qa: bottom-nav-portal-fix)
+
+### Addressed
+- **bottom-nav-portal-fix**: home view is wrapped in `AnimatePresence > motion.div` with an x/opacity transform. Transformed ancestors create a containing block for descendants with `position: fixed` — the floating bottom nav (zIndex 60, `position: fixed; bottom: 0`) was anchored to the motion.div's bottom edge, not the viewport. With the home content taller than 100dvh, the nav floated wherever the motion.div's bottom landed in the scroll — sometimes mid-page above SAVED ROUTINES. Fix: wrap the nav block in `createPortal(..., document.body)` so it renders directly under `<body>`, escaping every transformed ancestor. `position: fixed` then anchors to the viewport as intended. Also resolves the underlying issue behind the pro tip overlay being obscured — the pro tip's `marginBottom` workaround from follow-up #9 now stacks correctly above the truly-fixed nav. Source: @maaiz screenshot + 'Might be more wrong with the bottom tabs, I think they should be fixed at the bottom with everything else scrolling'.
+
+### Files
+- Modified: `app/page.tsx` (home view bottom nav wrapped in `createPortal` to `document.body`)
+- Modified: `qa-state.json` (new item `bottom-nav-portal-fix`)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #9 — chat scroll + profile preview UX bundle (qa: group-chat-scroll-respects-user, profile-preview-entry-points, profile-preview-no-scroll, pro-tip-overlay-clears-bottom-nav)
 
 Four fixes from rapid @maaiz feedback this session.

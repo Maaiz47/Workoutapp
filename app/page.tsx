@@ -12004,7 +12004,16 @@ function HomePage() {
           Per @maaiz the hub is now FLOATING — fixed to the bottom of
           the viewport with a glass-blur background so it stays
           reachable while the user scrolls long pages.
-          (qa: home-hub-singleline, home-hub-floating) */}
+          (qa: home-hub-singleline, home-hub-floating)
+
+          Portaled to document.body so position:fixed anchors to the
+          viewport, not to the AnimatePresence motion.div ancestor
+          (which has a transform animation that creates a stacking
+          context — without the portal, the nav was anchored to the
+          motion.div's bottom and floated mid-page on scroll). Per
+          @maaiz: 'I think they should be fixed at the bottom with
+          everything else scrolling'. (qa: bottom-nav-portal-fix) */}
+      {typeof document !== "undefined" && createPortal(
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, padding: "12px 20px calc(12px + env(safe-area-inset-bottom, 0px))", background: "rgba(10,10,18,0.78)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: "1px solid rgba(255,255,255,0.06)", zIndex: 60 }}>
         <div style={{ display: "flex", flexWrap: "nowrap", gap: 6, justifyContent: "center", maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
           {(() => {
@@ -12076,7 +12085,8 @@ function HomePage() {
             </button>
           )}
         </div>
-      </div>
+      </div>,
+      document.body)}
     </div>
   );
 
