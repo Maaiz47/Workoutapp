@@ -2,6 +2,22 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #7 — auto-banner on new deploys (qa: app-update-auto-banner)
+
+### Addressed
+- **app-update-auto-banner**: Settings already had a `VersionCheckCard` with a manual "Check for updates" tap that snapshots `/api/version`'s SHA on mount and offers a cache-bust reload. The manual path required testers to dig into Settings — when a fix shipped, users like munchy who reported the same bug back hadn't refreshed and were still on the old bundle. New auto-poll mounted at HomePage's top-level: snapshots the running SHA on mount, re-polls `/api/version` on focus / visibilitychange / 5-min interval, and surfaces a cyan top banner ("🔄 NEW VERSION AVAILABLE · v<X> · Refresh for the latest fixes" with REFRESH + × buttons) when the server SHA differs.
+  - REFRESH reuses the same SW SKIP_WAITING + cache-bust URL navigation as the existing Settings flow (`performUpdateRefresh`).
+  - Dismissal is per-SHA via `localStorage.ironlog.updateDismissedSha` so the next real deploy resurfaces the banner.
+  - Banner is **suppressed while a workout session is active** (`!started`) so it can never break mid-set logging.
+  - Settings → APP VERSION still works as before; the manual and auto paths share the same `/api/version` endpoint + reload routine.
+- Per @maaiz: "check if there's a way to force app reopens or refreshes on client side if there was a major update deployed like with the form cue for hanging leg raises shown wrong, munchy reported it but maybe he hasn't refreshed the app".
+
+### Files
+- Modified: `app/page.tsx` (state + checkForUpdate effect + performUpdateRefresh + dismissUpdate + banner JSX)
+- Modified: `qa-state.json` (new item `app-update-auto-banner`)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #6 — cardio exercises get real muscles + image-prompts batch 13 (qa: cardio-muscle-classification)
 
 ### Addressed

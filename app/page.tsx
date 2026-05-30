@@ -5985,6 +5985,85 @@ function HomePage() {
     if (!uid) return;
     setPreviewUserId(uid);
   }, []);
+
+  // ── Auto-update banner ──
+  // Settings already has a VersionCheckCard with a "Check for updates"
+  // tap (lines ~3330). That requires the user to dig into Settings —
+  // testers reporting already-fixed bugs (e.g. munchy on the form-cue
+  // regression after the longest-match fix) often haven't refreshed.
+  // This auto-poll wakes that flow up: snapshot the SHA on mount,
+  // re-check /api/version on focus / visibility / every 5 min, and
+  // surface a top banner when the server's SHA differs. Banner is
+  // suppressed while a workout is active so it can't interrupt set
+  // logging; dismissal is per-SHA so the next real deploy resurfaces
+  // it. (qa: app-update-auto-banner)
+  const [runningSha, setRunningSha] = useState<string | null>(null);
+  const [latestSha, setLatestSha] = useState<string | null>(null);
+  const [latestVer, setLatestVer] = useState<string | null>(null);
+  const [updateDismissedSha, setUpdateDismissedSha] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/version", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: any) => {
+        if (d?.shortSha) { setRunningSha(d.shortSha); setLatestSha(d.shortSha); }
+        if (d?.appVersion) setLatestVer(d.appVersion);
+      })
+      .catch(() => {});
+    try {
+      const dismissed = localStorage.getItem("ironlog.updateDismissedSha");
+      if (dismissed) setUpdateDismissedSha(dismissed);
+    } catch {}
+  }, []);
+  const checkForUpdate = useCallback(() => {
+    if (!runningSha) return;
+    fetch("/api/version", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: any) => {
+        if (d?.shortSha) {
+          setLatestSha(d.shortSha);
+          if (d?.appVersion) setLatestVer(d.appVersion);
+        }
+      })
+      .catch(() => {});
+  }, [runningSha]);
+  useEffect(() => {
+    if (!runningSha) return;
+    const id = setInterval(checkForUpdate, 5 * 60_000);
+    const onVisible = () => { if (document.visibilityState === "visible") checkForUpdate(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", checkForUpdate);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", checkForUpdate);
+    };
+  }, [runningSha, checkForUpdate]);
+  const performUpdateRefresh = useCallback(async () => {
+    try {
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          await reg.update();
+          if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+      }
+    } catch {}
+    try {
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("_v", String(Date.now()));
+        window.location.replace(url.toString());
+      }
+    } catch {
+      if (typeof window !== "undefined") window.location.reload();
+    }
+  }, []);
+  const dismissUpdate = useCallback(() => {
+    if (latestSha) {
+      setUpdateDismissedSha(latestSha);
+      try { localStorage.setItem("ironlog.updateDismissedSha", latestSha); } catch {}
+    }
+  }, [latestSha]);
   // Lucky-drop celebration — surfaced after a workout save when the
   // server's lucky-drop roll fires. Shape mirrors lib/luckyDrops.ts.
   // (qa: random-rare-rewards)
@@ -19475,6 +19554,26 @@ function HomePage() {
           — Settings, Customise, Progress, etc. The version that used
           to sit here was bypassed by every view's early-return JSX.
           (qa: profile-avatars-home-fix slice 3) */}
+      {/* App-update banner — auto-detects a deploy that happened
+          while this tab/PWA was open and prompts a one-tap refresh.
+          Suppressed while a workout is active so it can't break
+          mid-set logging. Dismiss state is per-SHA so a fresh
+          deploy resurfaces the banner. (qa: app-update-auto-banner) */}
+      {(() => {
+        const updateAvailable = !!(runningSha && latestSha && latestSha !== runningSha && updateDismissedSha !== latestSha);
+        if (!updateAvailable || started) return null;
+        return (
+          <div role="status" style={{ position: "fixed", top: "env(safe-area-inset-top, 0px)", left: 0, right: 0, zIndex: 9700, background: "linear-gradient(180deg, rgba(78,205,196,0.18), rgba(78,205,196,0.08))", borderBottom: "1px solid rgba(78,205,196,0.35)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", padding: "10px 14px", gap: 10 }}>
+            <div style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>🔄</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#4ECDC4", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>NEW VERSION AVAILABLE{latestVer ? ` · v${latestVer}` : ""}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>Refresh for the latest fixes.</div>
+            </div>
+            <button onClick={performUpdateRefresh} style={{ padding: "8px 12px", background: "#4ECDC4", border: "none", borderRadius: 8, color: "#000", fontSize: 10, fontWeight: 800, letterSpacing: 1.2, fontFamily: "'Space Mono', monospace", cursor: "pointer", whiteSpace: "nowrap" }}>REFRESH</button>
+            <button onClick={dismissUpdate} aria-label="Dismiss" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 20, cursor: "pointer", padding: "4px 6px", lineHeight: 1 }}>×</button>
+          </div>
+        );
+      })()}
       {/* Profile preview modal — opens when previewUserId is set
           anywhere (clicking a username/avatar in chat, leaderboard,
           friends list, etc). Mounted here at the top-level return so
