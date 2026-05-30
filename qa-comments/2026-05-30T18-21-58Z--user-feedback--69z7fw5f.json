@@ -1,0 +1,10 @@
+{
+  "id": "cmpsogup600003xeb69z7fw5f",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=clientsHub] Not able to open a profile view from clicking username on leaderboard",
+  "screenshotUrl": null,
+  "ts": "2026-05-30T18:21:58.506Z"
+}
