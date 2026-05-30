@@ -219,6 +219,16 @@ function ProfilePreviewModal({
   const themedTiers = getAthleteTiers(tierTheme);
   const themedTier = data?.tier ? (themedTiers.find(t => t.tierNum === data.tier.tierNum) ?? data.tier) : null;
 
+  // Lock the page from scrolling while the modal is open. Without
+  // this, on iOS the body could scroll behind the backdrop (Reported
+  // as "Shouldn't be any scroll when viewing profile"). Restore the
+  // previous overflow on close. (qa: profile-preview-modal)
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   const actionStyle = (color: string, fill: number = 0.12, border: number = 0.4): React.CSSProperties => ({
     padding: "12px 16px",
     background: `rgba(${color},${fill})`,
@@ -246,8 +256,8 @@ function ProfilePreviewModal({
   };
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9050, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(10px)", cursor: "pointer" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 360, width: "100%", background: "linear-gradient(135deg, rgba(30,30,40,0.98), rgba(20,20,30,0.95))", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 28, position: "relative", cursor: "default", boxShadow: "0 24px 60px rgba(0,0,0,0.7)" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9050, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(10px)", cursor: "pointer", overscrollBehavior: "contain" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 360, width: "100%", maxHeight: "calc(100dvh - 48px)", overflowY: "auto", background: "linear-gradient(135deg, rgba(30,30,40,0.98), rgba(20,20,30,0.95))", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 28, position: "relative", cursor: "default", boxShadow: "0 24px 60px rgba(0,0,0,0.7)", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
         <button onClick={onClose} aria-label="Close profile" style={{ position: "absolute", top: 10, right: 12, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 26, cursor: "pointer", lineHeight: 1, padding: 6 }}>×</button>
 
         {loading && <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.5)" }}>Loading…</div>}
@@ -7142,6 +7152,26 @@ function HomePage() {
     if (nearBottom) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversationMessages, view]);
 
+  // Group chat: same intent as the DM scroll effect above. Pin to
+  // bottom on initial load (first batch of messages), then only auto-
+  // scroll on new messages if the user is already near the bottom.
+  // Without this guard, the ref-callback used to pin scrollTop =
+  // scrollHeight on every render, destroying the user's scroll
+  // position whenever they tried to scroll up. (qa: group-chat-scroll-respects-user)
+  const groupChatInitialPinRef = useRef(false);
+  useEffect(() => {
+    if (view !== "groupChat") { groupChatInitialPinRef.current = false; return; }
+    const container = groupChatScrollRef.current;
+    if (!container || groupChatMessages.length === 0) return;
+    if (!groupChatInitialPinRef.current) {
+      container.scrollTop = container.scrollHeight;
+      groupChatInitialPinRef.current = true;
+      return;
+    }
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+    if (nearBottom) container.scrollTop = container.scrollHeight;
+  }, [groupChatMessages, view]);
+
   // Poll for new messages and status updates while conversation is open
   useEffect(() => {
     if (view !== "conversation" || !activeConversation) return;
@@ -11426,7 +11456,12 @@ function HomePage() {
               </div>
               {tipModalOpen && (
                 <div onClick={() => setTipModalOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9600, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(8px)" }}>
-                  <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, background: "#0a0a0f", borderTop: "1px solid rgba(78,205,196,0.3)", borderRadius: "18px 18px 0 0", padding: "20px 22px 28px", boxSizing: "border-box" }}>
+                  {/* Lift the panel above the floating bottom hub so
+                      the last line of the tip + the HIDE buttons
+                      aren't obscured. Hub height matches the spacer
+                      below the day cards (96px + safe-area).
+                      (qa: pro-tip-overlay-zindex) */}
+                  <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "calc(100dvh - 96px - env(safe-area-inset-bottom, 0px) - 24px)", overflowY: "auto", background: "#0a0a0f", borderTop: "1px solid rgba(78,205,196,0.3)", borderRadius: "18px 18px 0 0", padding: "20px 22px 28px", marginBottom: "calc(96px + env(safe-area-inset-bottom, 0px))", boxSizing: "border-box", WebkitOverflowScrolling: "touch" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                       <div style={{ fontSize: 11, color: "#4ECDC4", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>💡 PRO TIP · {tip.category.toUpperCase()}</div>
                       <button onClick={() => setTipModalOpen(false)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 20, cursor: "pointer", padding: 0, lineHeight: 1 }}>×</button>
@@ -12853,7 +12888,7 @@ function HomePage() {
   }
 
   // ─── GLOBAL TIER LEADERBOARD ────────────────────────────────────────
-  if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} isTrainer={userHasRole(user, "trainer")} onOpenProfile={openProfilePreview} />;
+  if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} isTrainer={userHasRole(user, "trainer")} />;
   if (view === "avatarPicker") return <AvatarPickerView onBack={() => setView("profile")} currentAvatarId={currentAvatarId} setCurrentAvatarId={setCurrentAvatarId} avatarInventory={avatarInventory} setAvatarInventory={setAvatarInventory} />;
   // ─── CLIENTS HUB ──────────────────────────────────────────────────
   // Trainer's roster + actions, lifted out of the home dashboard.
@@ -12988,7 +13023,7 @@ function HomePage() {
             })}
           </div>
         )}
-        <div ref={(el) => { groupChatScrollRef.current = el; if (el) el.scrollTop = el.scrollHeight; }} style={{ flex: 1, overflowY: "auto", padding: "8px 20px 16px", display: "flex", flexDirection: "column", gap: 8, position: "relative" }}>
+        <div ref={groupChatScrollRef} style={{ flex: 1, overflowY: "auto", padding: "8px 20px 16px", display: "flex", flexDirection: "column", gap: 8, position: "relative" }}>
           <PullToRefreshIndicator pullDistance={groupChatPtr.pullDistance} refreshing={groupChatPtr.refreshing} />
           {groupChatLoading && groupChatMessages.length === 0 && (
             <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, padding: 20 }}>Loading…</div>

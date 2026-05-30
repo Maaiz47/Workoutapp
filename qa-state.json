@@ -581,6 +581,70 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "group-chat-scroll-respects-user",
+      "title": "Group chat no longer pulls back to the bottom of history when the user scrolls up",
+      "area": "Messages",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz report",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open a group chat with enough messages to scroll. Drag UP to view older messages — verify the chat stays put at the scroll position you reached (no auto-pull back to the bottom).",
+        "While scrolled up, wait through one or two poll cycles (~5 s each). Verify your scroll position is preserved across polls; new messages arriving below should NOT yank you down.",
+        "Scroll back to the bottom. Verify a new incoming message auto-scrolls (within 150 px of bottom = nearBottom = true).",
+        "Close the group chat and reopen. Verify it lands at the bottom (initial mount pin still works)."
+      ],
+      "notes": "[2026-05-27 <sha7>] Root cause: the group chat's scroll container used an INLINE ref callback `(el) => { ref.current = el; if (el) el.scrollTop = el.scrollHeight }`. Inline callbacks get a new function reference every render, so React re-runs the cleanup/setup cycle and the `scrollTop = scrollHeight` line fired on EVERY render — every poll, every new message, every prop change destroyed the user's scroll position. Fix: stable `ref={groupChatScrollRef}` + a dedicated useEffect mirroring the DM convo pattern (lines ~7146): initial mount pin (one-shot, via groupChatInitialPinRef), then nearBottom-aware auto-scroll on subsequent message updates (within 150 px of bottom = auto-scroll, else respect user's position). Source: @maaiz 'On chat logs I'm still getting pulled to the bottom of the chat history if I scroll up, it's not letting me actually scroll to where I want'."
+    },
+    {
+      "id": "profile-preview-entry-points",
+      "title": "Profile preview only opens from chat header, chat-log avatar, and friends list (leaderboard rows no longer trigger it)",
+      "area": "Profile",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz report",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open Ranks → Global. Tap any non-anonymous row. Verify NOTHING happens — the row is no longer clickable (cursor: default, no profile preview).",
+        "Open a DM. Tap the partner's name/avatar in the conversation header. Verify the profile preview modal still opens (kept entry point).",
+        "Open a group chat. Tap an incoming message's avatar OR @username. Verify the profile preview modal opens (kept entry point).",
+        "Open Friends Hub. Tap any @username on an accepted / pending row. Verify the profile preview modal opens (kept entry point).",
+        "Open Messages list (inbox). Tap a conversation row. Verify it opens the conversation as normal — no profile preview interruption."
+      ],
+      "notes": "[2026-05-27 <sha7>] Per @maaiz: 'Clicking username on the message list opening profile is annoying, make it only from client or friend list, from the top of chat logs, from chat log message profile avatar icon'. Removed the `onOpenProfile={openProfilePreview}` prop from the GlobalLeaderboardView mount (line ~12886) so leaderboard rows no longer trigger the modal — they fall back to non-clickable cursor:default. Kept entry points: DM conversation header (line ~14366), group chat per-message author chip (line ~13050), Friends Hub rows (FriendsCard accepted / pending sent / pending received). Client list (trainer Clients hub) already routes the avatar/username tap to openClientDetail (the existing full client view) — left unchanged so trainers don't lose that flow; preview is still reachable for clients via chat headers when DMing them."
+    },
+    {
+      "id": "profile-preview-no-scroll",
+      "title": "Profile preview modal clamps height and locks body scroll — no more page-scroll behind the modal",
+      "area": "Profile",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz report",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open a profile preview from any entry point. Verify the modal sits centered on the viewport with the backdrop blur over the entire page.",
+        "Try to scroll the page behind the modal (drag finger on the dark backdrop area). Verify the page does NOT scroll while the modal is open.",
+        "If the modal content is taller than the viewport (rare — happens at large dynamic type), the INNER panel scrolls internally with native momentum, capped at calc(100dvh - 48px) so it never extends past the safe area.",
+        "Close the modal (× or tap backdrop). Verify body scroll is restored to whatever it was before the modal opened."
+      ],
+      "notes": "[2026-05-27 <sha7>] User report (with screenshot showing modal anchored to bottom of viewport + visible scrollbar): 'Shouldn't be any scroll when viewing profile'. Two-part fix: (1) `useEffect` inside ProfilePreviewModal sets `document.body.style.overflow = 'hidden'` on mount and restores on unmount — kills any body-scroll-through during the modal lifetime. (2) Inner panel gains `maxHeight: calc(100dvh - 48px)` + `overflowY: auto` + `-webkit-overflow-scrolling: touch` + `overscroll-behavior: contain` so any overflow is bounded to the panel itself with native iOS momentum, instead of letting the page scroll behind it."
+    },
+    {
+      "id": "pro-tip-overlay-clears-bottom-nav",
+      "title": "Pro tip expanded overlay clears the floating bottom nav (no longer obscured)",
+      "area": "Home",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz report",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "On home, tap the Pro Tip chip to open the expanded modal. Verify the entire tip body + the HIDE 1H / HIDE FOR TODAY buttons are visible above the floating bottom nav (Messages / Progress / Ranks / Groups / Friends / Clients).",
+        "Scroll through a long tip (if any). Verify the panel itself scrolls internally if it exceeds available height — it is capped at calc(100dvh - 96px - safe-area - 24px).",
+        "Tap outside the panel to dismiss. Verify it closes cleanly."
+      ],
+      "notes": "[2026-05-27 <sha7>] The pro tip expanded modal sat at flex-end with `padding: '20px 22px 28px'` but no marginBottom. Even with zIndex 9600, the floating bottom hub (zIndex 60, but in the same motion.div stacking context with `position: fixed; bottom: 0`) sat on TOP visually and obscured the bottom ~96 px of the panel — last line of the tip + the HIDE buttons. Fix: `marginBottom: calc(96px + env(safe-area-inset-bottom, 0px))` lifts the panel above the hub, plus `maxHeight: calc(100dvh - 96px - safe-area - 24px)` + `overflowY: auto` ensures the panel itself contains its scroll if a tip ever exceeds the visible budget. Reported by @maaiz: 'Still can't read the Pro tips because the bottom buttons overlay them'."
+    },
+    {
       "id": "pull-to-refresh-intentional",
       "title": "Pull-to-refresh requires a deliberate drag — no longer fires when scrolling up in a short chat",
       "area": "Messages",

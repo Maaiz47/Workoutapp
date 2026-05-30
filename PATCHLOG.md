@@ -2,6 +2,25 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #9 — chat scroll + profile preview UX bundle (qa: group-chat-scroll-respects-user, profile-preview-entry-points, profile-preview-no-scroll, pro-tip-overlay-clears-bottom-nav)
+
+Four fixes from rapid @maaiz feedback this session.
+
+### Addressed
+- **group-chat-scroll-respects-user**: the group chat container used an INLINE ref callback `(el) => { ref.current = el; if (el) el.scrollTop = el.scrollHeight }`. Inline callbacks change reference every render, so React re-ran the cleanup/setup cycle and the `scrollTop = scrollHeight` line fired on every poll, every new message, every prop change — destroying any scroll position the user reached. Fixed by switching to a stable `ref={groupChatScrollRef}` + a dedicated useEffect mirroring the DM convo pattern: one-shot initial mount pin via `groupChatInitialPinRef`, then nearBottom-aware (≤150 px from bottom) auto-scroll on subsequent updates. Source: @maaiz 'On chat logs I'm still getting pulled to the bottom of the chat history if I scroll up'.
+- **profile-preview-entry-points**: per @maaiz 'Clicking username on the message list opening profile is annoying, make it only from client or friend list, from the top of chat logs, from chat log message profile avatar icon'. Removed `onOpenProfile={openProfilePreview}` from the GlobalLeaderboardView mount so leaderboard rows no longer trigger the modal (rows fall back to `cursor: default`, non-clickable). Kept entry points: DM conversation header (top of chat log), group chat per-message author chip (avatar + @username button), Friends Hub rows (accepted / pending sent / pending received). Trainer Clients hub already routes the avatar/username tap to `openClientDetail` — left unchanged so trainers don't lose that flow.
+- **profile-preview-no-scroll**: user reported the modal sitting near the bottom of the screen with a visible page scrollbar. Two-part fix: (1) `useEffect` inside `ProfilePreviewModal` sets `document.body.style.overflow = 'hidden'` on mount and restores on unmount — blocks any body-scroll-through. (2) Inner panel gains `maxHeight: calc(100dvh - 48px)`, `overflowY: auto`, `-webkit-overflow-scrolling: touch`, `overscroll-behavior: contain` — any overflow is bounded to the panel itself with native iOS momentum, not the page behind.
+- **pro-tip-overlay-clears-bottom-nav**: the pro tip expanded modal panel sat at `alignItems: flex-end` with no marginBottom. Even though the modal has zIndex 9600, the floating bottom hub (zIndex 60, but `position: fixed; bottom: 0` inside the same motion.div stacking context) sat on top visually and obscured the last line of the tip + the HIDE buttons. Added `marginBottom: calc(96px + env(safe-area-inset-bottom, 0px))` to lift the panel above the hub plus `maxHeight: calc(100dvh - 96px - safe-area - 24px)` + `overflowY: auto` so the panel contains its own scroll for any oversize tip. Source: @maaiz 'Still can't read the Pro tips because the bottom buttons overlay them'.
+
+### Filed for next follow-up
+- **Bottom nav not truly viewport-fixed.** @maaiz: 'Might be more wrong with the bottom tabs, I think they should be fixed at the bottom with everything else scrolling'. Root cause is the motion.div ancestor (`AnimatePresence` view transitions) creating a transform stacking context — `position: fixed` inside anchors to motion.div's bottom rather than the viewport. Fix is a `createPortal` to `document.body`; queued for the next push.
+
+### Files
+- Modified: `app/page.tsx` (ProfilePreviewModal body-scroll-lock + maxHeight, group chat ref + useEffect, leaderboard onOpenProfile prop removed, pro tip modal padding)
+- Modified: `qa-state.json` (4 new items)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #8 — pull-to-refresh requires intentional pull (qa: pull-to-refresh-intentional)
 
 ### Addressed
