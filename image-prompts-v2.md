@@ -838,6 +838,103 @@ No code changes — `iconPath` already pointed at this path.
 
 ---
 
+## Batch 13 — Exercise form-preview fixes (8 images = 4 pairs × 2 frames)
+
+Four exercise mappings hit `BROKEN_DB_MAPPINGS` in `lib/exerciseImages.ts`
+because the upstream free-exercise-db frames depict the wrong movement.
+Each currently falls back to `/ai/form-fallback.jpg` ("NO FORM DEMO"
+placeholder). Generate real local frames and drop them at the paths
+below; the resolver will pick them up automatically once the ids are
+added to `LOCAL_STRETCH_IDS` (the set also handles non-stretch local
+frames — naming is historical, the lookup serves any local id).
+
+Sources for the blacklist entries: `(qa: exercise-audit-2026-05-27)`
+for sumo-squat and clamshell, `2026-05-24 @maaiz` for hanging-leg-raise
+and quad stretch.
+
+### `hanging-leg-raise/0.png` — start (dead hang)
+> Single male athlete hanging from a pull-up bar by both hands,
+> arms straight (dead hang), legs together and FULLY EXTENDED straight
+> down — toes pointed at the floor. Core relaxed but pre-braced. Black
+> tank top + black shorts, neutral gym background, side-view camera
+> roughly waist-high. Photoreal style, dark background, dramatic
+> rim-light from above-left. Square 512×512.
+
+### `hanging-leg-raise/1.png` — end (legs raised, pelvis curled)
+> Same athlete + same pull-up bar + same camera angle + same gym
+> background as frame 0. Now legs together raised to approximately
+> 90° — feet at hip height — with the pelvis clearly CURLED upward
+> (posterior tilt) so the lower back is rounded. The motion reads as
+> a lower-ab curl, not just a hip flex. Knees may be slightly bent
+> if needed for clarity. Same lighting. Square 512×512.
+
+### `quad-stretch/0.png` — start (standing balance setup)
+> Single male athlete standing UPRIGHT on the LEFT leg only,
+> right leg slightly lifted behind so the foot floats just behind the
+> right glute. Both hands free at sides for balance. Black tank top
+> + black shorts, neutral gym background, three-quarter view camera
+> roughly chest-high. Photoreal style, dark background, rim-light
+> from above-left. Square 512×512.
+
+### `quad-stretch/1.png` — end (heel pulled to glute)
+> Same athlete + same standing position on the left leg + same camera
+> + same background as frame 0. Right hand now grasps the right ankle
+> from behind and pulls the heel firmly toward the right glute —
+> right knee points STRAIGHT DOWN at the floor (NOT splayed sideways),
+> hips squared forward, torso tall, free left arm extended slightly
+> for balance. Show clear quad-stretch tension on the front of the
+> right thigh. Same lighting. Square 512×512.
+
+### `sumo-squat/0.png` — start (barbell sumo stance, top)
+> Single male athlete standing upright with a loaded barbell racked
+> high across the upper back/traps (NOT held in front of the body —
+> this is the distinction from a plie / goblet squat). Feet WIDER than
+> shoulder width with toes turned out roughly 30–45°. Torso tall.
+> Black tank top + black shorts, neutral gym background, front-view
+> camera roughly chest-high. Photoreal style, dark background,
+> rim-light from above-left. Square 512×512.
+
+### `sumo-squat/1.png` — end (deep sumo squat)
+> Same athlete + same barbell on the back + same wide stance + same
+> camera + same background as frame 0. Now squatted DEEP — thighs
+> roughly parallel to the floor or slightly below, knees tracking
+> over the toes (out, not collapsing inward), torso still tall and
+> upright (less forward lean than a conventional squat). Same
+> lighting. Square 512×512.
+
+### `clamshell/0.png` — start (side-lying setup)
+> Single male athlete lying on the LEFT side on a yoga mat, knees
+> stacked and bent at roughly 45°, feet stacked and touching, hips
+> stacked and stable (not rolled back). Left arm folded under the
+> head as a pillow, right arm rested on the right hip or floor in
+> front. Black tank top + black shorts, neutral gym background,
+> top-down or three-quarter camera. Photoreal style, dark background,
+> rim-light from above-left. Square 512×512.
+
+### `clamshell/1.png` — end (top knee opened up)
+> Same athlete + same side-lying position + same camera + same
+> background as frame 0. FEET REMAIN TOUCHING throughout, but the
+> right (top) knee opens UPWARD AND OUTWARD — like a clam shell
+> opening — while the hips stay stacked (no rolling back). Show
+> clear external rotation of the top hip with a tense, contracted
+> right glute. Same lighting. Square 512×512.
+
+### Registration after generation
+
+1. Drop the 8 PNGs at `public/stretches/<id>/{0,1}.png` (the
+   `stretches/` path is historical — the resolver uses it for any
+   local id).
+2. In `lib/exerciseImages.ts`, add the 4 ids to `LOCAL_STRETCH_IDS`:
+   `"hanging-leg-raise"`, `"quad-stretch"`, `"sumo-squat"`,
+   `"clamshell"`.
+3. Remove the matching entries from `BROKEN_DB_MAPPINGS` (the local
+   override takes precedence, but cleaning the blacklist documents
+   that the issue is resolved).
+4. Tick the achievements-v1 / image-gen-v2 CLAUDE.md reminder for
+   these four ids.
+
+---
+
 ## After all batches land
 
 Total: **63 images** (53 if Batch 9 deferred). Breakdown:

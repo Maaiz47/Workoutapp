@@ -2,6 +2,28 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #6 — cardio exercises get real muscles + image-prompts batch 13 (qa: cardio-muscle-classification)
+
+### Addressed
+- **cardio-muscle-classification**: 18 cardio + HIIT exercises in `lib/exercises.ts` previously listed `"cardio"` as a placeholder in `primaryMuscles` / `secondaryMuscles`. That string is read NOWHERE as a muscle (Balance bucketer in `lib/leaderboardStats.ts:26` and `app/page.tsx:8651` both filter unknown muscles to null), so it was dead data and the affected exercises contributed 0 to Balance even when the user clearly worked the prime movers. Replaced with real kinesiology:
+  - jump-rope (calves), mountain-climbers (core / shoulders), burpees (chest/quads/core), high-knees (quads/core), treadmill (quads/glutes/calves), cycling (quads/glutes), rowing (back/hamstrings), elliptical (quads/glutes), jumping-jacks (calves/shoulders), tuck-jumps (quads), split-jumps (quads/glutes), speed-skaters (glutes/quads), plyo-pushup (chest), lateral-bounds (glutes/quads), broad-jump (quads/glutes), squat-thrust (quads), star-jump (quads/calves), lateral-shuffle (quads/glutes).
+  - Metabolic categorisation untouched — lives in `type: "cardio"` + `hiit: true` (read by plan generator, trainer-exercises API, and the milestone session counters). The muscle list was the wrong place for it.
+  - Net behavioural effect: cardio + HIIT sessions now feed the Balance sub-rank's 14-day per-muscle-bucket count. A user doing 5×/week treadmill no longer scores 0 on Balance for legs.
+- Per @maaiz: "even if exercises are for cardio, there will be specific muscles it will target most which need to be identified so their duration and intensity of cardio can be considered into a quantifiable amount of training they have done and how much they worked that specific muscle group".
+
+### Filed for follow-up
+- **Cardio-volume contribution.** Volume sub-rank still reads `weight × reps`; cardio sets remain 0 there. Needs a `minutes × intensity` formula (e.g. cardio-volume = duration_min × MET_factor × bodyweight, distributed across the prime movers). Punted to a follow-up so it can be designed without rushing — Balance crediting is the higher-leverage piece and lands here.
+
+### Image-prompts addition
+- **Batch 13** appended to `image-prompts-v2.md`: prompts + frame-by-frame specs for `hanging-leg-raise`, `quad-stretch`, `sumo-squat`, `clamshell` — the four exercise mappings now in `BROKEN_DB_MAPPINGS` that fall back to the NO-FORM-DEMO placeholder. Registration steps included (drop PNGs at `public/stretches/<id>/{0,1}.png`, add ids to `LOCAL_STRETCH_IDS`, remove blacklist entries). 8 images total.
+
+### Files
+- Modified: `lib/exercises.ts` (18 cardio/HIIT exercise muscle reassignments + section comment)
+- Modified: `image-prompts-v2.md` (Batch 13 added — 8 images / 4 pairs)
+- Modified: `qa-state.json` (new item `cardio-muscle-classification`)
+
+---
+
 ## Audit · 2026-05-27 — exercise catalogue sweep, 4 image mismatches fixed (qa: exercise-audit-2026-05-27)
 
 Per-exercise audit of the 167 entries in `lib/exercises.ts` against image mappings, form cues, and muscle groups. Full writeup in `docs/EXERCISE-AUDIT-2026-05-27.md`.

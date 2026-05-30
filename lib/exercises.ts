@@ -142,7 +142,7 @@ export const EXERCISES: Exercise[] = [
   { id: "standing-calf-raise", name: "Standing Calf Raise", primaryMuscles: ["calves"], secondaryMuscles: [], equipment: ["machine", "bodyweight"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
   { id: "seated-calf-raise", name: "Seated Calf Raise", primaryMuscles: ["calves"], secondaryMuscles: [], equipment: ["machine"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
   { id: "dumbbell-calf-raise", name: "Dumbbell Calf Raise", primaryMuscles: ["calves"], secondaryMuscles: [], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
-  { id: "jump-rope", name: "Jump Rope", primaryMuscles: ["calves", "cardio"], secondaryMuscles: ["core"], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "jump-rope", name: "Jump Rope", primaryMuscles: ["calves"], secondaryMuscles: ["core", "shoulders"], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
 
   // ── CORE ───────────────────────────────────────────────────────────────
 
@@ -155,7 +155,7 @@ export const EXERCISES: Exercise[] = [
   { id: "russian-twist", name: "Russian Twists", primaryMuscles: ["core"], secondaryMuscles: [], equipment: ["bodyweight", "dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness", "fat_loss"] },
   { id: "ab-rollout", name: "Ab Rollout", primaryMuscles: ["core"], secondaryMuscles: ["back"], equipment: ["machine"], location: "gym", difficulty: "intermediate", type: "isolation", goals: ["muscle"] },
   { id: "cable-crunch", name: "Cable Crunch", primaryMuscles: ["core"], secondaryMuscles: [], equipment: ["cable"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle"] },
-  { id: "mountain-climbers", name: "Mountain Climbers", primaryMuscles: ["core"], secondaryMuscles: ["cardio"], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "mountain-climbers", name: "Mountain Climbers", primaryMuscles: ["core"], secondaryMuscles: ["shoulders", "quads"], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
   { id: "dead-bug", name: "Dead Bug", primaryMuscles: ["core"], secondaryMuscles: [], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness"] },
   { id: "v-ups", name: "V-Ups", primaryMuscles: ["core"], secondaryMuscles: [], equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "isolation", goals: ["fitness", "fat_loss"] },
   { id: "toe-touches", name: "Toe Touches", primaryMuscles: ["core"], secondaryMuscles: [], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness", "fat_loss"] },
@@ -171,29 +171,37 @@ export const EXERCISES: Exercise[] = [
   { id: "terminal-knee-extension", name: "Terminal Knee Extension", primaryMuscles: ["quads"], secondaryMuscles: [], equipment: ["resistance_band", "bodyweight"], location: "both", difficulty: "beginner", type: "isolation", goals: ["fitness"] },
 
   // ── CARDIO / CONDITIONING ──────────────────────────────────────────────
+  // Prime-mover muscles below replace the placeholder ["cardio"] tag
+  // (which read nowhere as a muscle anyway — Balance bucketing dropped
+  // it to null). The metabolic categorisation lives in `type: "cardio"`
+  // and `hiit: true` flags below, NOT in the muscle list. With proper
+  // prime movers identified, the cardio/HIIT exercises now contribute
+  // to the user's Balance sub-rank (the 14-day per-muscle-bucket count)
+  // and — once cardio-volume is wired up — to per-muscle volume credit
+  // scaled by duration × intensity. (qa: cardio-muscle-classification)
 
-  { id: "burpees",       name: "Burpees",       primaryMuscles: ["cardio"], secondaryMuscles: ["chest", "core", "quads"], equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
-  { id: "high-knees",   name: "High Knees",   primaryMuscles: ["cardio"], secondaryMuscles: ["core"],           equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "burpees",       name: "Burpees",       primaryMuscles: ["chest", "quads", "core"], secondaryMuscles: ["shoulders", "triceps"], equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "high-knees",   name: "High Knees",   primaryMuscles: ["quads", "core"], secondaryMuscles: ["calves"],          equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
   { id: "box-jumps",    name: "Box Jumps",    primaryMuscles: ["quads", "calves"], secondaryMuscles: ["glutes"], equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fitness", "fat_loss"],  hiit: true },
-  { id: "treadmill",    name: "Treadmill",    primaryMuscles: ["cardio"], secondaryMuscles: [],                  equipment: ["treadmill", "machine"],    location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
-  { id: "cycling",      name: "Stationary Bike", primaryMuscles: ["cardio"], secondaryMuscles: ["quads"],       equipment: ["elliptical", "machine"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
-  { id: "rowing-machine", name: "Rowing Machine", primaryMuscles: ["cardio", "back"], secondaryMuscles: ["core"], equipment: ["machine"], location: "gym",  difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
-  { id: "elliptical",   name: "Elliptical",   primaryMuscles: ["cardio"], secondaryMuscles: ["quads", "glutes"], equipment: ["elliptical"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
-  { id: "jumping-jacks", name: "Jumping Jacks", primaryMuscles: ["cardio"], secondaryMuscles: [],               equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "treadmill",    name: "Treadmill",    primaryMuscles: ["quads", "glutes", "calves"], secondaryMuscles: ["hamstrings", "core"], equipment: ["treadmill", "machine"],    location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
+  { id: "cycling",      name: "Stationary Bike", primaryMuscles: ["quads", "glutes"], secondaryMuscles: ["hamstrings", "calves"],       equipment: ["elliptical", "machine"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
+  { id: "rowing-machine", name: "Rowing Machine", primaryMuscles: ["back", "hamstrings"], secondaryMuscles: ["quads", "biceps", "core"], equipment: ["machine"], location: "gym",  difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
+  { id: "elliptical",   name: "Elliptical",   primaryMuscles: ["quads", "glutes"], secondaryMuscles: ["hamstrings", "calves"], equipment: ["elliptical"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"] },
+  { id: "jumping-jacks", name: "Jumping Jacks", primaryMuscles: ["calves", "shoulders"], secondaryMuscles: ["quads", "core"], equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
 
   // ── HIIT ───────────────────────────────────────────────────────────────
 
-  { id: "tuck-jumps",      name: "Tuck Jumps",      primaryMuscles: ["quads", "cardio"],   secondaryMuscles: ["core", "calves"],           equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
-  { id: "split-jumps",     name: "Split Jumps",     primaryMuscles: ["quads", "glutes"],   secondaryMuscles: ["cardio", "calves"],          equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
-  { id: "speed-skaters",   name: "Speed Skaters",   primaryMuscles: ["glutes", "cardio"],  secondaryMuscles: ["quads", "core"],             equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
-  { id: "plyo-pushup",     name: "Plyo Push-Up",    primaryMuscles: ["chest", "cardio"],   secondaryMuscles: ["shoulders", "triceps", "core"], equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "tuck-jumps",      name: "Tuck Jumps",      primaryMuscles: ["quads"],             secondaryMuscles: ["core", "calves", "glutes"], equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "split-jumps",     name: "Split Jumps",     primaryMuscles: ["quads", "glutes"],   secondaryMuscles: ["calves", "core"],            equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "speed-skaters",   name: "Speed Skaters",   primaryMuscles: ["glutes", "quads"],   secondaryMuscles: ["core", "calves"],            equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "plyo-pushup",     name: "Plyo Push-Up",    primaryMuscles: ["chest"],             secondaryMuscles: ["shoulders", "triceps", "core"], equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
   { id: "bear-crawl",      name: "Bear Crawl",      primaryMuscles: ["core", "shoulders"], secondaryMuscles: ["quads", "chest"],            equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fitness", "fat_loss"], hiit: true },
   { id: "inchworm",        name: "Inchworm",        primaryMuscles: ["core", "shoulders"], secondaryMuscles: ["hamstrings", "chest"],        equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fitness", "fat_loss"], hiit: true },
-  { id: "lateral-bounds",  name: "Lateral Bounds",  primaryMuscles: ["glutes", "quads"],   secondaryMuscles: ["cardio", "calves"],          equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
-  { id: "broad-jump",      name: "Broad Jump",      primaryMuscles: ["quads", "glutes"],   secondaryMuscles: ["cardio", "calves"],          equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
-  { id: "squat-thrust",    name: "Squat Thrust",    primaryMuscles: ["quads", "cardio"],   secondaryMuscles: ["core", "glutes"],            equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
-  { id: "star-jump",       name: "Star Jump",       primaryMuscles: ["cardio"],            secondaryMuscles: ["quads", "shoulders"],        equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
-  { id: "lateral-shuffle", name: "Lateral Shuffle", primaryMuscles: ["quads", "glutes"],   secondaryMuscles: ["cardio", "calves"],          equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fitness", "fat_loss"], hiit: true },
+  { id: "lateral-bounds",  name: "Lateral Bounds",  primaryMuscles: ["glutes", "quads"],   secondaryMuscles: ["calves", "core"],            equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "broad-jump",      name: "Broad Jump",      primaryMuscles: ["quads", "glutes"],   secondaryMuscles: ["calves", "core"],            equipment: ["bodyweight"], location: "both", difficulty: "intermediate", type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "squat-thrust",    name: "Squat Thrust",    primaryMuscles: ["quads"],             secondaryMuscles: ["core", "glutes", "chest"],   equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "star-jump",       name: "Star Jump",       primaryMuscles: ["quads", "calves"],   secondaryMuscles: ["shoulders", "core"],         equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fat_loss", "fitness"], hiit: true },
+  { id: "lateral-shuffle", name: "Lateral Shuffle", primaryMuscles: ["quads", "glutes"],   secondaryMuscles: ["calves", "core"],            equipment: ["bodyweight"], location: "both", difficulty: "beginner",      type: "cardio", goals: ["fitness", "fat_loss"], hiit: true },
 ];
 
 export function getExerciseById(id: string): Exercise | undefined {

@@ -581,6 +581,23 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "cardio-muscle-classification",
+      "title": "Cardio + HIIT exercises now list real prime-mover muscles (Balance sub-rank credits cardio sessions)",
+      "area": "Exercises",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz follow-up to exercise audit",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open any cardio exercise (e.g. Treadmill, Stationary Bike, Jump Rope) → form preview → MUSCLES tab. Verify the muscle diagram highlights real prime movers (quads/glutes/calves for treadmill; back/hams for rowing; calves+shoulders for jump rope) — NOT a generic 'cardio' chip.",
+        "Same for HIIT exercises (Burpees, Mountain Climbers, Speed Skaters). Verify proper prime movers shown.",
+        "Log a cardio session (e.g. 3 sets of treadmill). Open Progress → YOUR RANK → Balance sub-rank detail. Verify the 14-day muscle-bucket count now includes the treadmill's prime movers (quads/glutes/calves). Previously these sessions contributed 0 to Balance because 'cardio' fell through the bucketer.",
+        "Spot check the plan generator: cardio exercises still resolve in plan generation (lib/planGenerator.ts uses `type: 'cardio'` and `hiit: true`, not the muscle list — unchanged).",
+        "Spot check the type filter in /api/trainer/exercises: still accepts ['compound', 'isolation', 'cardio', 'isometric'] — the `type` field is the metabolic category, untouched."
+      ],
+      "notes": "[2026-05-27 <sha7>] Removed the placeholder 'cardio' string from 18 exercises' primaryMuscles/secondaryMuscles in lib/exercises.ts and assigned real prime movers per kinesiology. The metabolic categorisation is preserved via the existing `type: 'cardio'` and `hiit: true` fields (read by lib/planGenerator.ts, app/api/trainer/exercises, and the milestone session-counter pipeline — none read 'cardio' as a muscle). Net effect: cardio + HIIT sessions now feed the Balance sub-rank's 14-day per-muscle-bucket count via the existing bucketer in lib/leaderboardStats.ts:26 + app/page.tsx:8651. Volume sub-rank still reads weight×reps (cardio sets remain 0 there until a dedicated cardio-volume formula lands). Source: @maaiz 'even if exercises are for cardio, there will be specific muscles it will target most which need to be identified so their duration and intensity of cardio can be considered into a quantifiable amount of training they have done and how much they worked that specific muscle group'. Per-exercise muscle assignments:\n• jump-rope: calves / core, shoulders\n• mountain-climbers: core / shoulders, quads\n• burpees: chest, quads, core / shoulders, triceps\n• high-knees: quads, core / calves\n• treadmill: quads, glutes, calves / hamstrings, core\n• cycling: quads, glutes / hamstrings, calves\n• rowing-machine: back, hamstrings / quads, biceps, core\n• elliptical: quads, glutes / hamstrings, calves\n• jumping-jacks: calves, shoulders / quads, core\n• tuck-jumps: quads / core, calves, glutes\n• split-jumps: quads, glutes / calves, core\n• speed-skaters: glutes, quads / core, calves\n• plyo-pushup: chest / shoulders, triceps, core\n• lateral-bounds: glutes, quads / calves, core\n• broad-jump: quads, glutes / calves, core\n• squat-thrust: quads / core, glutes, chest\n• star-jump: quads, calves / shoulders, core\n• lateral-shuffle: quads, glutes / calves, core\n\nALSO appended Batch 13 to image-prompts-v2.md with prompts for hanging-leg-raise, quad-stretch, sumo-squat, clamshell — the four exercise mappings that fell back to NO-FORM-DEMO and now have generation prompts queued."
+    },
+    {
       "id": "exercise-audit-2026-05-27",
       "title": "Exercise catalogue audit — fixed image mappings for chest-press-machine, dumbbell-calf-raise, sumo-squat, clamshell",
       "area": "Exercises",
