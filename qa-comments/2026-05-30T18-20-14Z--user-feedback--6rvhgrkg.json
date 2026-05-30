@@ -1,0 +1,10 @@
+{
+  "id": "cmpsoemh20002vsvl6rvhgrkg",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Messaging · view=conversation] Need profile avatar icons next to each message bubble in chatlogs both private chats and group chats",
+  "screenshotUrl": null,
+  "ts": "2026-05-30T18:20:14.535Z"
+}
