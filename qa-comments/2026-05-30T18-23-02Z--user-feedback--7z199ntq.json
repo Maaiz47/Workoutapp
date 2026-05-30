@@ -1,0 +1,10 @@
+{
+  "id": "cmpsoi8a20000jsm57z199ntq",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Other · view=clientsHub] When I search Amanii I can see she accepted my client request but I can’t see her in my client list or open a profile view modal of her profile to be able to revoke/remove/add",
+  "screenshotUrl": null,
+  "ts": "2026-05-30T18:23:02.763Z"
+}
