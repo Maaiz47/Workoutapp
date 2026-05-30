@@ -2,6 +2,22 @@
 
 ---
 
+## QA pass · 2026-05-27 follow-up #8 — pull-to-refresh requires intentional pull (qa: pull-to-refresh-intentional)
+
+### Addressed
+- **pull-to-refresh-intentional**: `usePullToRefresh` (`app/page.tsx` ~3906) armed the gesture the moment a touch started with `scrollTop ≤ 2` and began accumulating `pullDistance` as soon as `dy > 0`. In short chats where `scrollTop` is already 0, a normal upward-scroll gesture (which on iOS is a downward finger drag) immediately accumulated pull and could cross the 64 px threshold on release — the chat would refresh without the user intending to.
+  - Added an **`ARM_THRESHOLD = 30`** dead zone: the finger must traverse 30 px downward before any indicator appears. First ~30 px treated as scroll/braking momentum. Visible distance is now `(dy - 30) × 0.5`, capped at 110.
+  - Added **cancellation on any upward motion** during the gesture. If `dy` goes negative at any point, the gesture is permanently disqualified until the next touch — reaching the top via momentum and bouncing back can no longer fire refresh.
+  - Raw finger drag to trigger refresh went from **128 px → 158 px** and must be a clean downward drag from rest. Refresh on a deliberate pull still works exactly as before.
+  - Applies to all three call sites that share the hook: DM inbox (`inboxPtr`), DM conversation (`convoPtr`), Group chat (`groupChatPtr`).
+- Per @maaiz: "When I scroll up in a chatlog if it's too short or if I reach the top too quickly, it makes the chatlog refresh. The pull down to refresh feature needs to be more intentional, not accidental."
+
+### Files
+- Modified: `app/page.tsx` (`usePullToRefresh` hook — new dead-zone + cancellation logic)
+- Modified: `qa-state.json` (new item `pull-to-refresh-intentional`)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #7 — auto-banner on new deploys (qa: app-update-auto-banner)
 
 ### Addressed

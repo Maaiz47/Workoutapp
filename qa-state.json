@@ -581,6 +581,23 @@
       "notes": "[2026-05-24] Slice 1/N: scaffolding only. SUBRANK_WEIGHTS const (Str 20 / Cons 16 / Vol 12 / Prog 12 / Mst 10 / Bal 10 / BC 8 / Hbt 7 / Tech 5 = 100), SOFT_FLOOR_SCORE = 30, experienceLevelToMultiplier + inferObservedLevel + blendExperienceMultiplier helpers, adherenceScore12w helper. New optional inputs on AthleteStatsForTier (recentVolumeKg90d, sessionsLast12Weeks, weightLastLogMs, fitnessLevel, goal, accountCreatedAtMs). Formulas + headline aggregation still on v3.4 \u2014 next slice wires the new weights + per-dim rewrites + stats batch additions together."
     },
     {
+      "id": "pull-to-refresh-intentional",
+      "title": "Pull-to-refresh requires a deliberate drag — no longer fires when scrolling up in a short chat",
+      "area": "Messages",
+      "introduced": "2026-05-27",
+      "introducedBy": "@maaiz report",
+      "lastTested": "2026-05-27",
+      "status": "regression-retest",
+      "steps": [
+        "Open a short DM thread (one with few enough messages that the entire history fits without scrolling). Swipe upward (i.e. drag finger downward) as if to scroll up. Verify NO pull-to-refresh indicator appears and the chat does NOT refresh.",
+        "Same thread: scroll inside the chat normally — any momentum-scroll past the top of the visible area should NOT engage pull-to-refresh.",
+        "Same thread: from a paused state at the top, deliberately drag downward at least ~150 px. Verify the indicator appears and rotates, and on release the refresh fires (existing behaviour for an intentional pull).",
+        "Open a long DM thread. Scroll down to the middle, then drag downward to scroll up to the top. Verify reaching the top via scroll momentum does NOT trigger refresh.",
+        "Same flow on Group Chat (`groupChatPtr`) and the Messages inbox (`inboxPtr`). All three usePullToRefresh consumers share the hook so the fix applies everywhere."
+      ],
+      "notes": "[2026-05-27 <sha7>] usePullToRefresh (app/page.tsx ~line 3906) armed the gesture whenever a touch started with scrollTop ≤ 2 and began accumulating pullDistance the moment dy went positive. In a short chat where scrollTop is already 0, a normal upward-scroll gesture (which on iOS is a downward finger drag) immediately accumulated pull and could cross the 64-px threshold on release. Two-part fix:\n• ARM_THRESHOLD = 30: a dead zone the finger must traverse downward before any indicator is shown. The first ~30 px of drag are treated as scroll/braking momentum, not pull intent. Visible distance is now `(dy - 30) × 0.5`, capped at 110.\n• Cancellation: if dy ever goes negative (the user scrolled up at any point during the gesture), the gesture is permanently disqualified until the next touch. Reaching the top via momentum and bouncing back can no longer fire refresh.\nNet effect: raw finger drag to trigger refresh went from 128 px (= 64/0.5) to 158 px (= 30 + 64/0.5) and must be a clean downward drag from rest. Refresh on intentional pull still works exactly as before. Source: @maaiz 'When I scroll up in a chatlog if it's too short or if I reach the top too quickly, it makes the chatlog refresh. The pull down to refresh feature needs to be more intentional, not accidental.'"
+    },
+    {
       "id": "app-update-auto-banner",
       "title": "Auto-banner prompts the user to refresh when a new deploy lands while their tab/PWA is open",
       "area": "App",

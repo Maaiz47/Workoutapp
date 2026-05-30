@@ -3912,7 +3912,8 @@ function usePullToRefresh(opts: {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const startYRef = useRef<number | null>(null);
-  const activeRef = useRef(false);
+  const armedRef = useRef(false);      // gesture has crossed the intentional-pull dead zone
+  const cancelledRef = useRef(false);  // gesture disqualified for this touch (e.g. user scrolled up)
 
   useEffect(() => {
     if (!enabled) return;
@@ -3921,35 +3922,57 @@ function usePullToRefresh(opts: {
       return (document.scrollingElement?.scrollTop ?? window.pageYOffset ?? 0);
     };
     const target: HTMLElement | Window = containerRef?.current ?? window;
+    // ARM_THRESHOLD: a "dead zone" the finger must traverse downward
+    // before any pull is shown. Stops short chats — where scrollTop is
+    // already 0 — from triggering refresh on a normal upward-scroll
+    // gesture (which on iOS is a downward finger drag). Without this,
+    // any drag from scrollTop=0 immediately accumulated pullDistance.
+    // User report: "When I scroll up in a chatlog if it's too short or
+    // if I reach the top too quickly, it makes the chatlog refresh".
+    // (qa: pull-to-refresh-intentional)
+    const ARM_THRESHOLD = 30;
     const THRESHOLD = 64;
     const MAX_PULL = 110;
     const RESISTANCE = 0.5;
 
     const onTouchStart = (e: TouchEvent) => {
       if (refreshing) return;
-      if (getScrollTop() > 2) { startYRef.current = null; activeRef.current = false; return; }
+      armedRef.current = false;
+      cancelledRef.current = false;
+      if (getScrollTop() > 2) { startYRef.current = null; cancelledRef.current = true; return; }
       const t = e.touches[0];
       if (!t) return;
       startYRef.current = t.clientY;
-      activeRef.current = true;
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (!activeRef.current || startYRef.current == null) return;
+      if (cancelledRef.current || startYRef.current == null) return;
       const t = e.touches[0];
       if (!t) return;
       const dy = t.clientY - startYRef.current;
-      if (dy <= 0) { setPullDistance(0); return; }
-      // Only engage pull once user is moving down from scrollTop=0.
-      if (getScrollTop() > 2) { activeRef.current = false; setPullDistance(0); return; }
-      const eased = Math.min(MAX_PULL, dy * RESISTANCE);
+      // User scrolled past the top mid-gesture → cancel.
+      if (getScrollTop() > 2) { cancelledRef.current = true; setPullDistance(0); return; }
+      // Any upward motion disqualifies the gesture as PTR — they're
+      // scrolling, not pulling. Stays cancelled until the next touch.
+      if (dy < 0) { cancelledRef.current = true; setPullDistance(0); return; }
+      // Below the dead zone: don't show the indicator yet. A finger
+      // drifting down a few px while braking from an upward flick
+      // won't accidentally engage.
+      if (!armedRef.current) {
+        if (dy < ARM_THRESHOLD) return;
+        armedRef.current = true;
+      }
+      const eased = Math.min(MAX_PULL, (dy - ARM_THRESHOLD) * RESISTANCE);
       setPullDistance(eased);
     };
     const onTouchEnd = async () => {
-      if (!activeRef.current) return;
-      activeRef.current = false;
+      const cancelled = cancelledRef.current;
+      const armed = armedRef.current;
+      startYRef.current = null;
+      armedRef.current = false;
+      cancelledRef.current = false;
+      if (cancelled || !armed) { setPullDistance(0); return; }
       const final = pullDistance;
       setPullDistance(0);
-      startYRef.current = null;
       if (final >= THRESHOLD) {
         setRefreshing(true);
         try { await onRefresh(); } catch {}
