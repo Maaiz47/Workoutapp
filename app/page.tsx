@@ -6024,12 +6024,31 @@ function HomePage() {
   const [latestSha, setLatestSha] = useState<string | null>(null);
   const [latestVer, setLatestVer] = useState<string | null>(null);
   const [updateDismissedSha, setUpdateDismissedSha] = useState<string | null>(null);
+  // One-shot post-update confirmation toast. Fires on the FIRST load
+  // of any SHA the client hasn't seen before. Closes the feedback loop
+  // alongside the banner above: banner says "new version available →
+  // refresh", toast says "you're now on the new version" after the
+  // refresh lands. Skipped for brand-new clients (no prior lastSeenSha)
+  // so first-ever app opens don't show a confusing "updated from
+  // nothing" message. (qa: app-update-auto-banner)
+  const [justUpdatedTo, setJustUpdatedTo] = useState<string | null>(null);
   useEffect(() => {
     fetch("/api/version", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
       .then((d: any) => {
-        if (d?.shortSha) { setRunningSha(d.shortSha); setLatestSha(d.shortSha); }
-        if (d?.appVersion) setLatestVer(d.appVersion);
+        if (d?.shortSha) {
+          setRunningSha(d.shortSha);
+          setLatestSha(d.shortSha);
+          if (d?.appVersion) setLatestVer(d.appVersion);
+          try {
+            const lastSeen = localStorage.getItem("ironlog.lastSeenSha");
+            if (lastSeen && lastSeen !== d.shortSha) {
+              setJustUpdatedTo(d.appVersion || d.shortSha);
+              setTimeout(() => setJustUpdatedTo(null), 4500);
+            }
+            localStorage.setItem("ironlog.lastSeenSha", d.shortSha);
+          } catch {}
+        }
       })
       .catch(() => {});
     try {
@@ -19577,6 +19596,20 @@ function HomePage() {
           — Settings, Customise, Progress, etc. The version that used
           to sit here was bypassed by every view's early-return JSX.
           (qa: profile-avatars-home-fix slice 3) */}
+      {/* Post-update confirmation toast — one-shot on first load of
+          any SHA the client hasn't seen before. Closes the loop after
+          the user refreshes via the banner (or manually). Auto-dismiss
+          after 4.5s. (qa: app-update-auto-banner) */}
+      {justUpdatedTo && !started && (
+        <div role="status" style={{ position: "fixed", top: "env(safe-area-inset-top, 0px)", left: 0, right: 0, zIndex: 9701, background: "linear-gradient(180deg, rgba(46,204,113,0.20), rgba(46,204,113,0.08))", borderBottom: "1px solid rgba(46,204,113,0.4)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", padding: "10px 14px", gap: 10 }}>
+          <div style={{ fontSize: 18, lineHeight: 1, flexShrink: 0, color: "#2ecc71" }}>✓</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#2ecc71", letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>UPDATED TO v{justUpdatedTo}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 1 }}>You're on the latest build.</div>
+          </div>
+          <button onClick={() => setJustUpdatedTo(null)} aria-label="Dismiss" style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 20, cursor: "pointer", padding: "4px 6px", lineHeight: 1 }}>×</button>
+        </div>
+      )}
       {/* App-update banner — auto-detects a deploy that happened
           while this tab/PWA was open and prompts a one-tap refresh.
           Suppressed while a workout is active so it can't break
