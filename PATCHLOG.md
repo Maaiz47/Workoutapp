@@ -2,6 +2,19 @@
 
 ---
 
+## QA pass · 2026-06-03 follow-up #2 — sleep helper copy matches actual behaviour (qa: wellness-sleep-tracking)
+
+Bumps to **v1.2.7**.
+
+### Addressed
+- **wellness-sleep-tracking**: helper line said "Update any time — naps add to the total or replace it entirely." which contradicted itself and didn't match the code — both the chips and the custom-hours input always REPLACE the stored sleep total; no additive "+ nap" mode exists. @maaiz: "Not sure how naps can both add to total and replace total entirely from this UI". New copy: "Update any time — latest entry wins. After a nap, type the new total." Behaviour unchanged; copy now accurate.
+
+### Files
+- Modified: `app/page.tsx` (one-line helper copy)
+- Modified: `qa-state.json` (note prepended on `wellness-sleep-tracking`)
+
+---
+
 ## QA pass · 2026-06-03 follow-up — qa-patch push fanout (qa: qa-patch-push-fanout)
 
 Bumps to **v1.2.6**.

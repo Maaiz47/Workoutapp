@@ -1329,7 +1329,7 @@ function WellnessCard() {
               />
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>h</span>
             </div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 6, lineHeight: 1.4 }}>Update any time — naps add to the total or replace it entirely.</div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 6, lineHeight: 1.4 }}>Update any time — latest entry wins. After a nap, type the new total.</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", width: 50 }}>Energy</span>
               {[1, 2, 3, 4, 5].map(e => (
