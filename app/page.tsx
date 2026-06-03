@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -241,17 +241,24 @@ function ProfilePreviewModal({
   // element. Forcing scrollTop=0 on mount kills that.
   // (qa: profile-preview-modal)
   const innerPanelRef = useRef<HTMLDivElement | null>(null);
+  // Body-scroll-lock — kept as plain useEffect so SSR doesn't choke
+  // on document references during hydration.
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    // Defer one frame so the panel has been laid out before we reset
-    // the scroll position; without this iOS sometimes runs its own
-    // scroll-into-view AFTER our reset, undoing it.
-    const raf = requestAnimationFrame(() => {
-      if (innerPanelRef.current) innerPanelRef.current.scrollTop = 0;
-    });
-    return () => { document.body.style.overflow = prev; cancelAnimationFrame(raf); };
+    return () => { document.body.style.overflow = prev; };
   }, []);
+  // Scroll-reset — uses useLayoutEffect so it fires synchronously
+  // after DOM mutations and BEFORE the browser paints (no flicker, no
+  // iOS auto-scroll race). Re-runs whenever `loading` flips false
+  // (i.e. content height grows after the data fetch) AND on close
+  // animation by tracking `userId`. Previous useEffect+RAF fix didn't
+  // stick because iOS's scroll-into-view was running AFTER our reset
+  // when the panel content grew taller than the viewport on data
+  // load. (qa: profile-preview-opens-at-top)
+  useLayoutEffect(() => {
+    if (innerPanelRef.current) innerPanelRef.current.scrollTop = 0;
+  }, [userId, loading]);
 
   const actionStyle = (color: string, fill: number = 0.12, border: number = 0.4): React.CSSProperties => ({
     padding: "12px 16px",
@@ -4967,6 +4974,20 @@ function HomeGlobals({
   // while the user is mid-workout so it can't interrupt set logging.
   // Wired to HomePage's `started` flag. (qa: app-update-auto-banner)
   updateOverlayDisabled?: boolean;
+  // Profile preview overlay — userId of the user whose preview is
+  // open (null = no modal). Lifted to HomeGlobals so the modal
+  // renders into the cross-view overlay portal root and shows on
+  // EVERY view, not just HomePage's main fall-through return. The
+  // earlier mount on HomePage was unreachable when view branches
+  // used `return (...)` short-circuits (friendsHub, clientsHub,
+  // globalLeaderboard, etc) — same class as the auto-update banner
+  // regression. (qa: profile-preview-modal)
+  previewUserId?: string | null;
+  onClosePreview?: () => void;
+  onPreviewOpenDM?: (partner: { id: string; username: string }) => void;
+  onPreviewFriendshipChanged?: () => void;
+  viewer?: { id: string; role?: string; extraRoles?: string[] } | null;
+  tierThemeForPreview?: string | null;
 }) {
   const isTrainer = userHasRole(user as any, "trainer");
   // Map the new AnimalTier shape → local TierLite shape so the
@@ -4984,6 +5005,16 @@ function HomeGlobals({
   return (
     <>
       <AppUpdateOverlay disabled={!!updateOverlayDisabled} />
+      {previewUserId && onClosePreview && onPreviewOpenDM && (
+        <ProfilePreviewModal
+          userId={previewUserId}
+          viewerUser={viewer ?? null}
+          onClose={onClosePreview}
+          onOpenDM={onPreviewOpenDM}
+          onFriendshipChanged={onPreviewFriendshipChanged}
+          tierTheme={tierThemeForPreview ?? null}
+        />
+      )}
       <QuickFeedbackFab username={user?.username || ""} view={view} />
       <TierInfoModal
         open={tierModalOpen}
@@ -6372,6 +6403,12 @@ function HomePage() {
         tierPromoToast={tierPromoToast}
         onTierPromoDismiss={() => setTierPromoToast(null)}
         updateOverlayDisabled={started}
+        previewUserId={previewUserId}
+        onClosePreview={() => setPreviewUserId(null)}
+        onPreviewOpenDM={(partner) => { openConversation(partner); }}
+        onPreviewFriendshipChanged={() => { fetchPendingFriendCount(); }}
+        viewer={user}
+        tierThemeForPreview={tierTheme}
         onOpenGlobalLeaderboard={() => {
           setTierModalOpen(false);
           setView("globalLeaderboard");
@@ -14652,13 +14689,26 @@ function HomePage() {
             // they stand. (qa: trainer-request-pending-state —
             // also covers friend lifecycle)
             const reqStatus: string | null = msg.requestStatus ?? null;
+            // Pill labels — pending / accepted / cancelled / declined
+            // come from the joined Friendship.status on the request id
+            // (see /api/messages/[userId] route). 'cancelled' = sender
+            // withdrew via DELETE before the recipient acted.
+            // 'declined' = recipient PATCH'd with action='decline'.
+            // 'RESOLVED' is now ONLY the fallback for legacy rows
+            // (cancelled/declined before the soft-delete change) where
+            // requestStatus comes back null because the Friendship was
+            // hard-deleted. (qa: friend-request-cancel-vs-decline)
             const banner = isAccepted || reqStatus === "accepted"
               ? { label: "ACCEPTED", color: "#2ecc71", bg: "rgba(46,204,113,0.12)" }
               : reqStatus === "pending"
                 ? { label: "PENDING", color: "#FFD166", bg: "rgba(255,209,102,0.12)" }
-                : isMine && reqStatus === null && msg.type === "friend_request"
-                  ? { label: "RESOLVED", color: "rgba(255,255,255,0.5)", bg: "rgba(255,255,255,0.05)" }
-                  : null;
+                : reqStatus === "cancelled"
+                  ? { label: "CANCELLED", color: "rgba(255,255,255,0.6)", bg: "rgba(255,255,255,0.05)" }
+                  : reqStatus === "declined"
+                    ? { label: "DECLINED", color: "#FF6B6B", bg: "rgba(255,107,107,0.12)" }
+                    : isMine && reqStatus === null && msg.type === "friend_request"
+                      ? { label: "RESOLVED", color: "rgba(255,255,255,0.5)", bg: "rgba(255,255,255,0.05)" }
+                      : null;
             const showActions = !isMine && !isAccepted && reqStatus === "pending";
             return (
               <div key={msg.id} style={{ background: "rgba(162,155,254,0.06)", border: "1px solid rgba(162,155,254,0.22)", borderRadius: 14, padding: "14px 16px", maxWidth: "85%", alignSelf: isMine ? "flex-end" : "flex-start" }}>
@@ -19822,21 +19872,12 @@ function HomePage() {
       {/* AppUpdateOverlay (banner + post-update toast) now lives in
           HomeGlobals → overlay-portal root, so it renders across
           every view. (qa: app-update-auto-banner) */}
-      {/* Profile preview modal — opens when previewUserId is set
-          anywhere (clicking a username/avatar in chat, leaderboard,
-          friends list, etc). Mounted here at the top-level return so
-          it's reachable from every view branch.
+      {/* ProfilePreviewModal moved into HomeGlobals (overlay portal
+          root) so it renders across every view — not just the main
+          fall-through return that view branches like friendsHub /
+          clientsHub / globalLeaderboard bypass via `return (...)`.
+          Same architectural fix as the AppUpdateOverlay.
           (qa: profile-preview-modal) */}
-      {previewUserId && (
-        <ProfilePreviewModal
-          userId={previewUserId}
-          viewerUser={user}
-          onClose={() => setPreviewUserId(null)}
-          onOpenDM={(partner) => { openConversation(partner); }}
-          onFriendshipChanged={() => { fetchPendingFriendCount(); }}
-          tierTheme={tierTheme}
-        />
-      )}
       {/* Effort backfill prompt — small bottom sheet that appears
           when the user logs a set without picking an effort chip.
           Tapping a chip patches the just-logged set's rpe; SKIP or

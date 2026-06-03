@@ -692,6 +692,60 @@
       "notes": "[2026-05-27 <sha7>] Root cause: the group chat's scroll container used an INLINE ref callback `(el) => { ref.current = el; if (el) el.scrollTop = el.scrollHeight }`. Inline callbacks get a new function reference every render, so React re-runs the cleanup/setup cycle and the `scrollTop = scrollHeight` line fired on EVERY render — every poll, every new message, every prop change destroyed the user's scroll position. Fix: stable `ref={groupChatScrollRef}` + a dedicated useEffect mirroring the DM convo pattern (lines ~7146): initial mount pin (one-shot, via groupChatInitialPinRef), then nearBottom-aware auto-scroll on subsequent message updates (within 150 px of bottom = auto-scroll, else respect user's position). Source: @maaiz 'On chat logs I'm still getting pulled to the bottom of the chat history if I scroll up, it's not letting me actually scroll to where I want'."
     },
     {
+      "id": "dm-relationship-gate",
+      "title": "DM message send requires accepted friendship OR trainer-client link (system messages bypass)",
+      "area": "Messaging",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Open a DM conversation with a user you are NOT friends with and NOT in a trainer-client relationship with. Try to send a text message. Verify the API returns 403 with the message 'You can only message friends or your trainer/client. Send a friend request first.'",
+        "Add the user as a friend (POST then accept). Send a text message again. Verify it goes through (200).",
+        "Remove the friendship. Try to send a text message. Verify it fails again with 403.",
+        "Set up a trainer-client relationship (adoption + accept). Verify the trainer can DM the client and vice versa even without a friendship — trainer-client link satisfies the gate.",
+        "Send a system-typed message (e.g. friend_request, adoption_request) from another endpoint. Verify it lands regardless of relationship — system types bypass the gate."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz 'Make users unable to message each other if not friends or client and trainer'. POST /api/messages for `type === \"text\"` now does a Promise.all of (a) accepted Friendship in either direction, (b) TrainerClient where viewer=trainer, (c) TrainerClient where viewer=client. If all three return null → 403 with friendly copy. System types (friend_request, friend_accepted, adoption_request, adoption_accepted, adoption_declined, plan_proposal, etc) bypass the gate because they're created via prisma.message.create directly from other route handlers (/api/friends, /api/trainer/request, etc), not through this POST. The bootstrap flow (sending a friend request to a stranger to BECOME their friend) still works. Slice 1/N — UI-side gating (hide the input field when no relationship) is a follow-up; this slice is the defensive server-side enforcement."
+    },
+    {
+      "id": "friend-request-cancel-vs-decline",
+      "title": "Friend request bubble pill shows CANCELLED vs DECLINED instead of catch-all RESOLVED",
+      "area": "Messaging",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Send a friend request to a user. Verify the bubble shows PENDING.",
+        "From the sender side, cancel (× button). Verify the bubble pill flips to CANCELLED (neutral grey) — not the old RESOLVED catch-all.",
+        "Send another friend request to the same user. Verify the previously-cancelled row is REUSED (no orphan friendship records, no duplicate bubbles in the thread).",
+        "From the recipient side, decline a pending request. Verify the bubble pill flips to DECLINED (red).",
+        "Send a friend request again to that same user. Verify the previously-declined row is REUSED — sides swap so the new requester is userAId.",
+        "Accept a friend request as the recipient. Verify pill shows ACCEPTED.",
+        "Historic rows that were hard-deleted before this change (legacy cancelled/declined) — verify the bubble still falls back to RESOLVED so the user thread doesn't break."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz 'Instead of resolved it can say friend request cancelled'. RESOLVED was the catch-all pill rendered when requestStatus came back null (because cancel and decline both hard-deleted the Friendship row). Fix:\\n• DELETE /api/friends — for pending status, set status='cancelled' (audit-preserving). For accepted, still hard-delete (unfriend semantic).\\n• PATCH /api/friends action='decline' — set status='declined' instead of deleting.\\n• POST /api/friends against an existing cancelled or declined row — re-issue: bump status back to pending, swap sides so caller becomes userAId, refresh requestedAt, re-emit the friend_request message + push.\\n• Pill render — added explicit CANCELLED (neutral) and DECLINED (red) labels; RESOLVED kept only as legacy fallback when requestStatus is null (pre-soft-delete rows).\\nNo schema migration — status is a plain string. /api/messages/[userId] GET already joined Friendship.status into the message via requestId so the pill labels switched automatically once the API stopped hard-deleting."
+    },
+    {
+      "id": "profile-preview-cross-view-mount",
+      "title": "Profile preview modal actually opens from every view (was unreachable on early-return view branches)",
+      "area": "Profile",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz report — nothing happens when clicking username on leaderboards / Friends / Clients hub",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "From the Friends Hub view (Home → Friends → FriendsCard), tap any @username chip. Verify the profile preview modal opens.",
+        "From the Global Leaderboard (Home → Ranks → Athletes / Trainers tab), tap any non-anonymous row. Verify the modal opens.",
+        "From the Trainer's Clients hub leaderboard rows (Clients → leaderboard at the bottom), tap any row. (Note: client roster taps still route to openClientDetail; leaderboard rows now open the preview.)",
+        "From a DM conversation header — partner area. Verify still works (this path already worked since conversation view uses `_content =` not early-return).",
+        "From a group chat per-message avatar. Verify still works.",
+        "Group rankings rows + My Leaderboards rows (Progress) — verify still work; both were reachable through earlier render paths but now uniformly resolve through HomeGlobals' overlay-portal root."
+      ],
+      "notes": "[2026-06-03 <sha7>] Root cause @maaiz reported with 3 screenshots ('Nothing happens when clicking username on any of these leaderboards and rankings'): the ProfilePreviewModal was mounted in HomePage's main fall-through return. View branches that use `return (...)` short-circuits — friendsHub (line 13095), globalLeaderboard (line 13076), clientsHub, etc — bypass that main return entirely, so the modal was never rendered into the DOM on those views. setPreviewUserId(uid) triggered a re-render but the modal mount was unreachable, so nothing visible happened. Same architectural class as the auto-update banner regression. Fix: extended HomeGlobals (which renders into a separate React root via overlayRootRef and is therefore reachable from every view) with new optional props — previewUserId, onClosePreview, onPreviewOpenDM, onPreviewFriendshipChanged, viewer, tierThemeForPreview — and moved the modal mount inside it. HomePage passes the state + callbacks through; the dead mount on HomePage's main return is removed. The DM conversation path worked previously only because that view uses `_content =` (assignment) instead of `return`, so it still reached the main return — but that's brittle; routing through HomeGlobals unifies the path."
+    },
+    {
       "id": "qa-patch-push-fanout",
       "title": "QA patch notifications fire OS push (not just in-app system feed)",
       "area": "QA",
@@ -837,7 +891,7 @@
         "Same test on group chat (per-message author chip on a low message).",
         "Same test on the various leaderboard rows — tapping a row near the bottom of a long list should still open the modal scrolled to the top."
       ],
-      "notes": "[2026-06-03 <sha7>] @maaiz reported 'When opening profile view from inside a chatlog, misalignment issues' with a screenshot showing the modal opened with ONLY the action buttons (MESSAGE / REMOVE FRIEND / YOUR CLIENT / DISOWN CLIENT) visible — the headline (avatar + tier + username + joined date) was scrolled past the top of the modal. Root cause: the inner panel has overflowY:auto (bounded by maxHeight: calc(100dvh - 48px) so it never extends past the safe area) and on iOS the panel was auto-scrolling toward the originally-focused element from the chat — a tap point near the bottom of the screen pulls the panel's scroll position down too. Fix: added an `innerPanelRef` to the inner panel + a `requestAnimationFrame` in the body-scroll-lock useEffect that sets `scrollTop = 0` after one paint. The RAF defer is needed because without it iOS's own scroll-into-view runs AFTER our reset and undoes it."
+      "notes": "[2026-06-03 <sha7>] Round 2: the first useEffect+RAF fix didn't stick. @maaiz reported the modal STILL opens scrolled past the headline after the v1.2.9 deploy. Switched to `useLayoutEffect` with deps `[userId, loading]` so the scroll-reset fires synchronously after DOM mutations and BEFORE the browser paints — re-runs on initial mount AND when `loading` flips false (i.e. content height grows after the data fetch, which is when iOS's scroll-into-view was racing our reset). Both useEffect+RAF and useLayoutEffect approaches are kept in the file for forensic reference; the layout-effect on data-load is the operative one.\\n\\n[2026-06-03 <sha7>] @maaiz reported 'When opening profile view from inside a chatlog, misalignment issues' with a screenshot showing the modal opened with ONLY the action buttons (MESSAGE / REMOVE FRIEND / YOUR CLIENT / DISOWN CLIENT) visible — the headline (avatar + tier + username + joined date) was scrolled past the top of the modal. Root cause: the inner panel has overflowY:auto (bounded by maxHeight: calc(100dvh - 48px) so it never extends past the safe area) and on iOS the panel was auto-scrolling toward the originally-focused element from the chat — a tap point near the bottom of the screen pulls the panel's scroll position down too. First-attempt fix: added an `innerPanelRef` to the inner panel + a `requestAnimationFrame` in the body-scroll-lock useEffect that sets `scrollTop = 0` after one paint. The RAF defer was meant to dodge iOS's own scroll-into-view but didn't — see round 2 above."
     },
     {
       "id": "profile-preview-no-scroll",

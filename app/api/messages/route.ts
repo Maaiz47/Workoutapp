@@ -110,6 +110,34 @@ export async function POST(req: NextRequest) {
     const { toId, body, type = "text", requestId, replyToId } = await req.json();
     if (!toId || !body?.trim()) return json({ error: "toId and body required" }, 400);
 
+    // Relationship gate — user-typed text messages require an
+    // accepted friendship OR a trainer-client link in either
+    // direction. System message types (friend_request, friend_accepted,
+    // adoption_request, adoption_accepted, plan_proposal etc) are
+    // created by other route handlers via prisma.message.create
+    // directly and bypass this POST, so the bootstrap flow isn't
+    // blocked. Per @maaiz: 'Make users unable to message each other
+    // if not friends or client and trainer'. (qa: dm-relationship-gate)
+    if (type === "text") {
+      const [friend, asTrainer, asClient] = await Promise.all([
+        prisma.friendship.findFirst({
+          where: {
+            status: "accepted",
+            OR: [
+              { userAId: uid, userBId: toId },
+              { userAId: toId, userBId: uid },
+            ],
+          },
+          select: { id: true },
+        }),
+        prisma.trainerClient.findFirst({ where: { trainerId: uid, clientId: toId }, select: { id: true } }),
+        prisma.trainerClient.findFirst({ where: { trainerId: toId, clientId: uid }, select: { id: true } }),
+      ]);
+      if (!friend && !asTrainer && !asClient) {
+        return json({ error: "You can only message friends or your trainer/client. Send a friend request first." }, 403);
+      }
+    }
+
     // Update sender's lastSeenAt (non-blocking)
     (prisma.user as any).update({ where: { id: uid }, data: { lastSeenAt: new Date() } }).catch(() => {});
 

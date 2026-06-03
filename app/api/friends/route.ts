@@ -134,6 +134,38 @@ export async function POST(req: NextRequest) {
         }
         return json({ error: "Request already pending" }, 409);
       }
+      if (existing.status === "cancelled" || existing.status === "declined") {
+        // Re-issue: reuse the row so the historic message bubble's
+        // requestStatus stays in sync (no orphan messages pointing at
+        // a deleted friendship). Swap sides so `uid` is the requester
+        // (userAId) and `target` is the recipient (userBId).
+        // (qa: friend-request-cancel-vs-decline)
+        const updated = await prisma.friendship.update({
+          where: { id: existing.id },
+          data: {
+            status: "pending",
+            userAId: uid,
+            userBId: target.id,
+            requestedAt: new Date(),
+            acceptedAt: null,
+          },
+        });
+        await prisma.message.create({
+          data: {
+            fromId: uid,
+            toId: target.id,
+            body: `${me.username} sent you a friend request`,
+            type: "friend_request",
+            requestId: updated.id,
+          },
+        }).catch(() => {});
+        sendPushToUser(target.id, {
+          title: "New friend request",
+          body: `${me.username} wants to be friends`,
+          url: "/?friends=1",
+        }).catch(() => {});
+        return json({ friendship: updated, reissued: true });
+      }
     }
 
     const friendship = await prisma.friendship.create({
@@ -213,11 +245,17 @@ export async function PATCH(req: NextRequest) {
     if (action === "decline") {
       if (f.userBId !== uid) return json({ error: "Only recipient can decline" }, 403);
       if (f.status !== "pending") return json({ error: "Request already resolved" }, 400);
-      // Decline = delete the row so a fresh request can be sent later
-      // (mirrors how trainer-decline leaves nothing in the way of a
-      // future retry). No audit row needed for athlete-to-athlete.
-      await prisma.friendship.delete({ where: { id: friendshipId } });
-      return json({ ok: true });
+      // Decline = mark the row as declined (audit-preserving, mirrors
+      // cancel below). The friend request message pill renders
+      // 'DECLINED' so the requester sees the specific outcome instead
+      // of the ambiguous 'RESOLVED' catch-all. A future re-request
+      // reissues this row via the POST re-issue path.
+      // (qa: friend-request-cancel-vs-decline)
+      const updated = await prisma.friendship.update({
+        where: { id: friendshipId },
+        data: { status: "declined" },
+      });
+      return json({ friendship: updated });
     }
 
     if (action === "block") {
@@ -256,6 +294,20 @@ export async function DELETE(req: NextRequest) {
     if (!f) return json({ error: "Friendship not found" }, 404);
     if (f.userAId !== uid && f.userBId !== uid) return json({ error: "Not your friendship" }, 403);
     if (f.status === "blocked") return json({ error: "Cannot delete a block — PATCH to remove" }, 400);
+
+    // Cancel (sender withdraws a pending request) — soft mark as
+    // cancelled so the message bubble pill shows 'CANCELLED' instead
+    // of the ambiguous 'RESOLVED'. Audit row preserved. A future
+    // POST from either side re-issues this row.
+    // Unfriend (accepted) — actually delete the row.
+    // (qa: friend-request-cancel-vs-decline)
+    if (f.status === "pending") {
+      const updated = await prisma.friendship.update({
+        where: { id: friendshipId },
+        data: { status: "cancelled" },
+      });
+      return json({ ok: true, friendship: updated, cancelled: true });
+    }
 
     await prisma.friendship.delete({ where: { id: friendshipId } });
     return json({ ok: true });

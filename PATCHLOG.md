@@ -2,6 +2,22 @@
 
 ---
 
+## QA pass · 2026-06-03 follow-up #5 — DM gate + friend request cancel/decline labels + profile preview cross-view mount + modal opens at top (qa: dm-relationship-gate, friend-request-cancel-vs-decline, profile-preview-cross-view-mount, profile-preview-opens-at-top)
+
+### Addressed
+- **profile-preview-cross-view-mount** (the REAL "clicking does nothing" bug): the `ProfilePreviewModal` was mounted in HomePage's main fall-through return. Views like `friendsHub`, `globalLeaderboard`, `clientsHub` use `return (...)` short-circuits and bypass that main return entirely — so setting `previewUserId` re-rendered HomePage but the modal mount was never reached. Wirings on those surfaces were all calling `openProfilePreview` correctly; the modal just had nowhere to render. Same architectural class as the auto-update banner regression. Fix: moved the `ProfilePreviewModal` mount into `HomeGlobals` (which renders into a separate React root via `overlayRootRef` and is reachable from every view). Extended `HomeGlobals` props with `previewUserId / onClosePreview / onPreviewOpenDM / onPreviewFriendshipChanged / viewer / tierThemeForPreview`; HomePage passes its state + callbacks through. Dead mount on HomePage's main return removed.
+- **profile-preview-opens-at-top** (round 2): the v1.2.9 `requestAnimationFrame` reset didn't stick. Switched to `useLayoutEffect` with deps `[userId, loading]` so scrollTop=0 runs synchronously after DOM mutations and BEFORE paint — re-fires when content height grows after the data fetch (the race iOS was winning).
+- **dm-relationship-gate**: per @maaiz "Make users unable to message each other if not friends or client and trainer". `POST /api/messages` for `type === "text"` now checks for an accepted Friendship OR a TrainerClient row in either direction; absent → 403 with friendly copy. System messages (friend_request, adoption_request, etc) bypass the gate because they're created via `prisma.message.create` from other route handlers, not through this POST.
+- **friend-request-cancel-vs-decline**: per @maaiz "Instead of resolved it can say friend request cancelled". `DELETE /api/friends` for a `pending` row now sets `status = "cancelled"` (preserves the row for audit + the message bubble pill). `accepted` row still hard-deletes (true unfriend). `PATCH action=decline` sets `status = "declined"` instead of deleting. `POST /api/friends` against an existing `cancelled`/`declined` row re-issues by flipping the row back to `pending` (swaps sides so the current caller is the requester, re-emits the friend_request message + push). Message pill labels now: PENDING / ACCEPTED / **CANCELLED** / **DECLINED**, falling back to the legacy "RESOLVED" only when `requestStatus === null` (pre-soft-delete rows where the friendship was hard-deleted before this change).
+
+### Files
+- Modified: `app/page.tsx` (HomeGlobals signature + props pass-through + ProfilePreviewModal mount relocation + useLayoutEffect scroll reset + pill label cases)
+- Modified: `app/api/friends/route.ts` (DELETE soft-delete pending, PATCH decline soft-delete, POST re-issue path)
+- Modified: `app/api/messages/route.ts` (DM relationship gate on POST type="text")
+- Modified: `qa-state.json` (4 items: dm-relationship-gate, friend-request-cancel-vs-decline, profile-preview-cross-view-mount, profile-preview-opens-at-top updated)
+
+---
+
 ## QA pass · 2026-06-03 follow-up #4 — My Leaderboards click + profile preview opens at top (qa: my-leaderboards-row-clickable, profile-preview-opens-at-top)
 
 Two small fixes from rapid @maaiz feedback while testing the click-anywhere profile preview consolidation.
