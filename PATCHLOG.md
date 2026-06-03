@@ -2,6 +2,21 @@
 
 ---
 
+## QA pass · 2026-06-03 follow-up #3 — hydration shows mL/L + alt mL entry (qa: wellness-hydration-tracking)
+
+### Addressed
+- **wellness-hydration-tracking**: hydration display + entry gains a mL/L surface alongside the existing glass count, per @maaiz "Add mL or L to hydration and keep cups alongside it, with custom entry possible for more than 8 glasses".
+  - Summary line: `5 / 8 glasses · 1.25 L · today` (auto-formats: <1000 mL → "NNN mL", ≥1000 mL → "X.XX L", ≥10 L → drops decimals).
+  - New mL alt-entry row below the progress bar — quick presets 500 mL / 750 mL / 1 L / 1.5 L (standard bottle sizes) + an "any" mL input that rounds to the nearest glass (250 mL each).
+  - Custom >8 glasses entry already supported via the existing input (max=50); explicitly documented now via tooltip and the "1 glass ≈ 250 mL" helper line.
+  - **Storage shape unchanged** — still integer glasses, so `hydrationGoalDays` scoring, `HYDRATION_TARGET = 8`, progress bar, and the 14-day Habits sub-rank input all keep working as-is. mL is a derived view + alt-entry surface only.
+
+### Files
+- Modified: `app/page.tsx` (hydration block: summary line + mL row + tooltip + helper)
+- Modified: `qa-state.json` (note prepended to `wellness-hydration-tracking`)
+
+---
+
 ## QA pass · 2026-06-03 follow-up #2 — sleep helper copy matches actual behaviour (qa: wellness-sleep-tracking)
 
 Bumps to **v1.2.7**.

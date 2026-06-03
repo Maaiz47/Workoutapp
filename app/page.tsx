@@ -1265,33 +1265,89 @@ function WellnessCard() {
               throughout the day OR enter a single value when you
               remember. (qa: wellness-hydration-tracking) */}
           <div style={{ padding: "10px 12px", background: "rgba(116,185,255,0.05)", border: "1px solid rgba(116,185,255,0.18)", borderRadius: 10, marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 11, color: "#74b9ff", fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>💧 HYDRATION</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{hydra} / {HYDRATION_TARGET} glasses · today</div>
-              </div>
-              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                <button onClick={() => bumpHydra(-1)} style={{ width: 30, height: 34, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#74b9ff", fontSize: 16, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>−</button>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={50}
-                  value={hydra || ""}
-                  onChange={e => setHydraDirect(parseInt(e.target.value || "0", 10) || 0)}
-                  placeholder="0"
-                  style={{ width: 42, height: 34, background: "rgba(116,185,255,0.1)", border: "1px solid rgba(116,185,255,0.3)", borderRadius: 8, color: "#74b9ff", fontSize: 13, textAlign: "center", fontFamily: "'Space Mono', monospace", outline: "none" }}
-                  title="Type the exact number of glasses for today"
-                />
-                <button onClick={() => bumpHydra(1)} style={{ width: 30, height: 34, background: "rgba(116,185,255,0.15)", border: "1px solid rgba(116,185,255,0.3)", borderRadius: 8, color: "#74b9ff", fontSize: 16, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+</button>
-              </div>
-            </div>
-            <div style={{ marginTop: 8, display: "flex", gap: 3 }}>
-              {Array.from({ length: HYDRATION_TARGET }).map((_, i) => (
-                <div key={i} style={{ flex: 1, height: 4, background: i < hydra ? "#74b9ff" : "rgba(255,255,255,0.08)", borderRadius: 2 }} />
-              ))}
-            </div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 6, lineHeight: 1.4 }}>Update any time — latest entry wins, even if reduced.</div>
+            {(() => {
+              // 1 glass ≈ 250 mL (a typical drinking-glass / standard
+              // cup). Storage stays as integer glasses so the existing
+              // hydrationGoalDays scoring + HYDRATION_TARGET progress
+              // bar don't change — mL is a derived view + alt-entry
+              // surface. Per @maaiz 'Add mL or L to hydration and keep
+              // cups alongside it, with custom entry possible for more
+              // than 8 glasses'. (qa: wellness-hydration-tracking)
+              const ML_PER_GLASS = 250;
+              const totalMl = hydra * ML_PER_GLASS;
+              const totalL = totalMl / 1000;
+              const volumeLabel = totalMl >= 1000
+                ? `${totalL.toFixed(totalL >= 10 ? 0 : 2)} L`
+                : `${totalMl} mL`;
+              return (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: "#74b9ff", fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Space Mono', monospace" }}>💧 HYDRATION</div>
+                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{hydra} / {HYDRATION_TARGET} glasses · {volumeLabel} · today</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                      <button onClick={() => bumpHydra(-1)} style={{ width: 30, height: 34, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#74b9ff", fontSize: 16, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>−</button>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={50}
+                        value={hydra || ""}
+                        onChange={e => setHydraDirect(parseInt(e.target.value || "0", 10) || 0)}
+                        placeholder="0"
+                        style={{ width: 42, height: 34, background: "rgba(116,185,255,0.1)", border: "1px solid rgba(116,185,255,0.3)", borderRadius: 8, color: "#74b9ff", fontSize: 13, textAlign: "center", fontFamily: "'Space Mono', monospace", outline: "none" }}
+                        title="Type the exact number of glasses for today — supports any number, even >8"
+                      />
+                      <button onClick={() => bumpHydra(1)} style={{ width: 30, height: 34, background: "rgba(116,185,255,0.15)", border: "1px solid rgba(116,185,255,0.3)", borderRadius: 8, color: "#74b9ff", fontSize: 16, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+</button>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 8, display: "flex", gap: 3 }}>
+                    {Array.from({ length: HYDRATION_TARGET }).map((_, i) => (
+                      <div key={i} style={{ flex: 1, height: 4, background: i < hydra ? "#74b9ff" : "rgba(255,255,255,0.08)", borderRadius: 2 }} />
+                    ))}
+                  </div>
+                  {/* mL alt-entry row — for users who track volume rather
+                      than cups. Internally rounds to the nearest glass
+                      (250 mL each) so the canonical store + progress bar
+                      stay consistent. Quick presets cover bottle sizes
+                      (500 mL / 750 mL / 1 L / 1.5 L); the input takes any
+                      integer mL up to 12 500 (50 glasses). */}
+                  <div style={{ display: "flex", gap: 4, marginTop: 8, alignItems: "center" }}>
+                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", width: 50 }}>or mL</span>
+                    {[500, 750, 1000, 1500].map(ml => {
+                      const matchedGlasses = Math.round(ml / ML_PER_GLASS);
+                      const active = hydra === matchedGlasses;
+                      const label = ml >= 1000 ? `${ml / 1000}L` : `${ml}`;
+                      return (
+                        <button
+                          key={ml}
+                          onClick={() => setHydraDirect(active ? 0 : matchedGlasses)}
+                          style={{ flex: 1, padding: "4px 0", background: active ? "rgba(116,185,255,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${active ? "#74b9ff" : "rgba(255,255,255,0.08)"}`, borderRadius: 5, color: active ? "#74b9ff" : "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+                          title={`Set to ${matchedGlasses} glasses (~${ml} mL)`}
+                        >{label}</button>
+                      );
+                    })}
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={12500}
+                      step={50}
+                      value={hydra * ML_PER_GLASS === 0 ? "" : hydra * ML_PER_GLASS}
+                      onChange={e => {
+                        const ml = parseInt(e.target.value || "0", 10) || 0;
+                        setHydraDirect(Math.round(ml / ML_PER_GLASS));
+                      }}
+                      placeholder="any"
+                      style={{ width: 58, height: 26, background: "rgba(116,185,255,0.08)", border: "1px solid rgba(116,185,255,0.25)", borderRadius: 5, color: "#74b9ff", fontSize: 10, textAlign: "center", fontFamily: "'Space Mono', monospace", outline: "none", boxSizing: "border-box" }}
+                      title="Enter exact mL — rounds to the nearest glass (250 mL each)"
+                    />
+                  </div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 6, lineHeight: 1.4 }}>1 glass ≈ 250 mL · update any time, latest entry wins.</div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Sleep + Energy — sleep is editable any time so naps can
