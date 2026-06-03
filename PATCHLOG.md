@@ -57,6 +57,21 @@ Files: `app/api/trainer/request/route.ts`, `app/api/trainer/clients/route.ts`, `
 
 ---
 
+## QA pass · 2026-06-03 follow-up #8 — quick feedback tray rename + form-preview audit relabel (qa: quick-feedback-fab, form-preview-images-wrong)
+
+Two tiny copy/UX clarifications from @maaiz screenshot of the form-preview audit page.
+
+### Addressed
+- **quick-feedback-fab (rename)**: per @maaiz "Rename floating note pill in settings to always on quick feedback tray or something". Settings toggle card label changed from "💬 FLOATING NOTE PILL · ON/OFF" to "💬 QUICK FEEDBACK TRAY · ON/OFF" and subtitle reworded to "Always-on bottom-right tray so you can drop quick notes mid-test without leaving the flow." Updated section header comment + QA-state step text to match.
+- **form-preview-images-wrong (relabel)**: per @maaiz "What is WD on that screenshot? The exercise names aren't showing right ... seeing a letter and number like a1 or w2". The exercise name was already showing as the card title — the confusing line was the metadata row underneath. Swapped `${ex.id} · ${WD|CAT}` for `${WORKOUT PLAN | CATALOGUE} · id ${ex.id}` so the source is human-readable and the raw slot id is labelled instead of being mistaken for the name.
+
+### Files
+- Modified: `app/page.tsx` (QuickNoteToggle label + subtitle, section header comment)
+- Modified: `app/qa/form-previews/page.tsx` (metadata row relabel)
+- Modified: `qa-state.json` (quick-feedback-fab title/step copy, form-preview-images-wrong notes)
+
+---
+
 ## QA pass · 2026-06-03 follow-up #7 — admin avatar + pro tip centered + tier modal scroll lock + theme badges + bright-text baseline (qa: avatars-admin-exclusive, pro-tip-modal-centered, tier-modal-body-scroll-lock, tier-theme-preview-uses-badges, theme-bright-text-baseline)
 
 Five small fixes bundled from rapid @maaiz feedback while testing the v1.2.10 deploy.

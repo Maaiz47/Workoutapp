@@ -486,7 +486,7 @@
         "Verify Hanging Leg Raises now shows the emoji fallback (no remote image) in a workout where it appears.",
         "Verify Standing Quad Stretch also shows the emoji fallback."
       ],
-      "notes": "[2026-05-24] Shipped: BROKEN_DB_MAPPINGS set in lib/exerciseImages.ts (Hanging_Leg_Raise + Quad_Stretch); /qa/form-previews page; nav chip on /qa."
+      "notes": "[2026-05-24] Shipped: BROKEN_DB_MAPPINGS set in lib/exerciseImages.ts (Hanging_Leg_Raise + Quad_Stretch); /qa/form-previews page; nav chip on /qa. [2026-06-03] Relabelled cryptic 'WD/CAT · id' metadata to 'WORKOUT PLAN / CATALOGUE · id <x>' so reviewers don't have to mentally expand the abbreviation."
     },
     {
       "id": "group-chat-bigger-avatars",
@@ -4600,7 +4600,7 @@
     },
     {
       "id": "quick-feedback-fab",
-      "title": "Quick Note floating button \u2014 micro-testing along the way",
+      "title": "Quick feedback tray \u2014 always-on micro-testing pill",
       "area": "Other",
       "introduced": "2026-05-21",
       "introducedBy": "QA pass micro-testing-review",
@@ -4608,7 +4608,7 @@
       "status": "regression-retest",
       "steps": [
         "Log in as any user \u2014 the teal '\ud83d\udcac NOTE' pill should appear in the bottom-right of every screen (home, workout, progress, settings, messages, customise, exercise-history, body-tracker)",
-        "Open Settings \u2192 FEEDBACK & QA \u2192 '\ud83d\udcac FLOATING NOTE PILL \u00b7 ON' \u2014 tap it; the toggle should flip to OFF and the pill should disappear from the screen WITHOUT a page reload",
+        "Open Settings \u2192 FEEDBACK & QA \u2192 '\ud83d\udcac QUICK FEEDBACK TRAY \u00b7 ON' \u2014 tap it; the toggle should flip to OFF and the pill should disappear from the screen WITHOUT a page reload",
         "Tap the toggle again \u2014 pill reappears live. Confirm the localStorage key 'ironlog-fab-enabled' tracks 0/1 across reloads",
         "With the pill ON, tap it on the home view \u2014 the bottom-sheet quick-note form should slide in with @username + view context shown at the top",
         "Confirm the three KIND chips (\ud83d\udc1e BUG / \ud83d\udca1 IDEA / \u2713 WORKS) all start UNSELECTED \u2014 the SEND NOTE button should read 'PICK A CHIP' and be disabled until you select one",

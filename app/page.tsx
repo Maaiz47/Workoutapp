@@ -3940,11 +3940,11 @@ function QuickNoteToggle() {
           fontSize: 11, fontWeight: 700, letterSpacing: 1.5,
           color: enabled ? "#4ECDC4" : "rgba(255,255,255,0.5)",
           fontFamily: "'Space Mono', monospace",
-        }}>💬 FLOATING NOTE PILL · {enabled ? "ON" : "OFF"}</div>
+        }}>💬 QUICK FEEDBACK TRAY · {enabled ? "ON" : "OFF"}</div>
         <div style={{
           fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4, lineHeight: 1.5,
         }}>
-          Shows a bottom-right pill on every screen so you can drop quick notes mid-test without leaving the flow.
+          Always-on bottom-right tray so you can drop quick notes mid-test without leaving the flow.
         </div>
       </div>
       <div style={{
@@ -16035,7 +16035,7 @@ function HomePage() {
 
           {/* ── SECTION: FEEDBACK & QA — all the ways to tell the team
               what's working, what isn't, or what you'd like. Surfaces:
-              (1) the floating 💬 NOTE pill on every screen — toggle
+              (1) the always-on 💬 quick feedback tray on every screen — toggle
               below; (2) this Send Feedback card for longer-form notes;
               (3) the full /qa dashboard for structured per-feature
               testing with threads. ── */}

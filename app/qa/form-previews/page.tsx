@@ -233,7 +233,7 @@ export default function FormPreviewsReviewPage() {
               <div style={{ padding: "10px 12px" }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 2, wordBreak: "break-word" }}>{ex.name}</div>
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, marginBottom: 8 }}>
-                  {ex.id} · {ex.source === "workout-data" ? "WD" : "CAT"}
+                  {ex.source === "workout-data" ? "WORKOUT PLAN" : "CATALOGUE"} · id {ex.id}
                 </div>
                 <button
                   onClick={() => toggleFlag(ex.id)}
