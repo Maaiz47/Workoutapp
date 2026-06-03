@@ -27,7 +27,7 @@ export const WORKOUT_DATA: WorkoutDay[] = [
       ]},
       { name: "Triceps", exercises: [
         { id: "a4", name: "Tricep Rope Pushdowns", sets: 3, reps: "12-15", type: "isolation", rest: 40 },
-        { id: "a5", name: "Overhead Tricep Extension", sets: 3, reps: "12-15", type: "isolation", rest: 40 },
+        { id: "a5", name: "Double Dumbbell Skull Crusher", sets: 3, reps: "12-15", type: "isolation", rest: 40 },
       ]},
       { name: "Extras", exercises: [
         { id: "a6", name: "Lateral Raises", sets: 4, reps: "15", type: "isolation", rest: 35, note: "Light & slow — builds width" },

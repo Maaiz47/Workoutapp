@@ -1162,6 +1162,25 @@
       "notes": "[2026-05-27 <sha7>] Removed the placeholder 'cardio' string from 18 exercises' primaryMuscles/secondaryMuscles in lib/exercises.ts and assigned real prime movers per kinesiology. The metabolic categorisation is preserved via the existing `type: 'cardio'` and `hiit: true` fields (read by lib/planGenerator.ts, app/api/trainer/exercises, and the milestone session-counter pipeline — none read 'cardio' as a muscle). Net effect: cardio + HIIT sessions now feed the Balance sub-rank's 14-day per-muscle-bucket count via the existing bucketer in lib/leaderboardStats.ts:26 + app/page.tsx:8651. Volume sub-rank still reads weight×reps (cardio sets remain 0 there until a dedicated cardio-volume formula lands). Source: @maaiz 'even if exercises are for cardio, there will be specific muscles it will target most which need to be identified so their duration and intensity of cardio can be considered into a quantifiable amount of training they have done and how much they worked that specific muscle group'. Per-exercise muscle assignments:\n• jump-rope: calves / core, shoulders\n• mountain-climbers: core / shoulders, quads\n• burpees: chest, quads, core / shoulders, triceps\n• high-knees: quads, core / calves\n• treadmill: quads, glutes, calves / hamstrings, core\n• cycling: quads, glutes / hamstrings, calves\n• rowing-machine: back, hamstrings / quads, biceps, core\n• elliptical: quads, glutes / hamstrings, calves\n• jumping-jacks: calves, shoulders / quads, core\n• tuck-jumps: quads / core, calves, glutes\n• split-jumps: quads, glutes / calves, core\n• speed-skaters: glutes, quads / core, calves\n• plyo-pushup: chest / shoulders, triceps, core\n• lateral-bounds: glutes, quads / calves, core\n• broad-jump: quads, glutes / calves, core\n• squat-thrust: quads / core, glutes, chest\n• star-jump: quads, calves / shoulders, core\n• lateral-shuffle: quads, glutes / calves, core\n\nALSO appended Batch 13 to image-prompts-v2.md with prompts for hanging-leg-raise, quad-stretch, sumo-squat, clamshell — the four exercise mappings that fell back to NO-FORM-DEMO and now have generation prompts queued."
     },
     {
+      "id": "tricep-extension-rename-and-skull-variants",
+      "title": "Renamed Overhead Tricep Extension to Double Dumbbell Skull Crusher + added single-arm overhead extension + EZ-bar skull crusher",
+      "area": "Exercises",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz form-preview audit",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Open Day 1 (Push Day) in the workout view. Verify the Triceps section now reads 'Double Dumbbell Skull Crusher' (was 'Overhead Tricep Extension') for slot a5.",
+        "Tap into Double Dumbbell Skull Crusher — verify the form-preview animation matches: athlete lying on bench, both arms extending two dumbbells overhead toward forehead and back up.",
+        "Open the customise / swap-exercise picker for the Triceps slot. Verify three distinct catalogue entries are present: 'EZ-Bar Skull Crushers' (barbell + bench), 'Double Dumbbell Skull Crushers' (dumbbell + bench), and 'Overhead Tricep Extension' (single dumbbell, no bench requirement).",
+        "Swap a5 to 'Overhead Tricep Extension' from the picker. Verify the form preview now shows a STANDING dumbbell triceps extension (single dumbbell, raised behind head and overhead).",
+        "Confirm only one weight + reps field renders — users log the single-dumbbell weight (not paired). Each-arm cadence is form, not separate tracking.",
+        "Open /qa/form-previews and search 'skull'. Verify both 'EZ-Bar Skull Crushers' and 'Double Dumbbell Skull Crushers' have valid form animations from the free-exercise-db.",
+        "Search 'overhead' on the audit page. Verify 'Overhead Tricep Extension' resolves to the standing-dumbbell DB image (not the lying one)."
+      ],
+      "notes": "[2026-06-03] @maaiz flagged on /qa/form-previews that 'Overhead Tricep Extension' card was showing a lying-down skull crusher image — image was right for the action but the LABEL was wrong. Fix: renamed lib/workouts.ts slot a5 from 'Overhead Tricep Extension' to 'Double Dumbbell Skull Crusher' (slot id stays a5, so set/PB history is preserved). Updated lib/exercises.ts: 'skull-crushers' catalogue entry renamed to 'EZ-Bar Skull Crushers' (already mapped to EZ-Bar_Skullcrusher DB image — no image change); added new 'double-dumbbell-skull-crushers' (dumbbell+bench, mapped to Lying_Dumbbell_Tricep_Extension); existing 'overhead-tricep-extension' equipment narrowed to ['dumbbell'] only, remapped image to Standing_Dumbbell_Triceps_Extension so it depicts the standing single-dumbbell variant the user described. Added NAME_OVERRIDES entries covering 'Single Arm Overhead Tricep Extension', 'Standing Overhead Tricep Extension', 'EZ Bar Skull Crusher', 'Z Bar Skull Crusher' aliases so name-fuzzy lookup resolves correctly."
+    },
+    {
       "id": "exercise-audit-2026-05-27",
       "title": "Exercise catalogue audit — fixed image mappings for chest-press-machine, dumbbell-calf-raise, sumo-squat, clamshell",
       "area": "Exercises",

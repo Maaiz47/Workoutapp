@@ -57,6 +57,26 @@ Files: `app/api/trainer/request/route.ts`, `app/api/trainer/clients/route.ts`, `
 
 ---
 
+## QA pass · 2026-06-03 follow-up #9 — tricep extension rename + skull crusher variants (qa: tricep-extension-rename-and-skull-variants)
+
+@maaiz spotted on /qa/form-previews that the "Overhead Tricep Extension" card was rendering a lying-down skull-crusher animation. The image WAS accurate for the action; the label was wrong.
+
+### Addressed
+- **a5 slot renamed**: `lib/workouts.ts` Day 1 → Triceps → slot `a5` renamed from "Overhead Tricep Extension" to "Double Dumbbell Skull Crusher". Slot id stays `a5` so existing set/PB history is preserved.
+- **Catalogue updated**:
+  - `skull-crushers` → renamed to "EZ-Bar Skull Crushers" (already mapped to `EZ-Bar_Skullcrusher` DB image — no image change, just label specificity).
+  - New `double-dumbbell-skull-crushers` → "Double Dumbbell Skull Crushers", equipment `["dumbbell", "bench"]`, mapped to `Lying_Dumbbell_Tricep_Extension`.
+  - `overhead-tricep-extension` → equipment narrowed from `["dumbbell", "cable"]` to `["dumbbell"]`, image remapped from `Lying_Dumbbell_Tricep_Extension` to `Standing_Dumbbell_Triceps_Extension` so it depicts the standing single-dumbbell variant (one arm at a time, raised behind head). Tracking unchanged — users log the single-dumbbell weight.
+- **Name aliases**: added NAME_OVERRIDES for "Single Arm Overhead Tricep Extension", "Standing Overhead Tricep Extension", "EZ Bar Skull Crusher", "Z Bar Skull Crusher", and plural variants so fuzzy name lookup resolves correctly.
+
+### Files
+- Modified: `lib/workouts.ts` (a5 rename)
+- Modified: `lib/exercises.ts` (skull-crushers rename, double-dumbbell-skull-crushers added, overhead-tricep-extension equipment narrowed)
+- Modified: `lib/exerciseImages.ts` (NAME_OVERRIDES + EXERCISE_DB_MAP updated)
+- Modified: `qa-state.json` (1 new item)
+
+---
+
 ## QA pass · 2026-06-03 follow-up #8 — quick feedback tray rename + form-preview audit relabel (qa: quick-feedback-fab, form-preview-images-wrong)
 
 Two tiny copy/UX clarifications from @maaiz screenshot of the form-preview audit page.

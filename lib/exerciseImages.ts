@@ -166,7 +166,24 @@ const NAME_OVERRIDES: Record<string, string> = {
   [norm("Rope Triceps Pushdown")]:             "Triceps_Pushdown_-_Rope_Attachment",
   [norm("Triceps Rope Pushdown")]:             "Triceps_Pushdown_-_Rope_Attachment",
   [norm("Tricep Pushdown")]:                   "Triceps_Pushdown",
-  [norm("Overhead Tricep Extension")]:         "Lying_Dumbbell_Tricep_Extension",
+  // "Overhead Tricep Extension" is the standing single-dumbbell variant
+  // (one arm at a time, raised behind the head). The lying double-
+  // dumbbell variant lives under "Double Dumbbell Skull Crusher" and
+  // the EZ-bar variant under "EZ-Bar Skull Crusher".
+  [norm("Overhead Tricep Extension")]:         "Standing_Dumbbell_Triceps_Extension",
+  [norm("Single Arm Overhead Tricep Extension")]: "Standing_Dumbbell_Triceps_Extension",
+  [norm("Standing Overhead Tricep Extension")]:   "Standing_Dumbbell_Triceps_Extension",
+  [norm("Double Dumbbell Skull Crusher")]:     "Lying_Dumbbell_Tricep_Extension",
+  [norm("Double Dumbbell Skull Crushers")]:    "Lying_Dumbbell_Tricep_Extension",
+  [norm("Lying Dumbbell Tricep Extension")]:   "Lying_Dumbbell_Tricep_Extension",
+  [norm("EZ Bar Skull Crusher")]:              "EZ-Bar_Skullcrusher",
+  [norm("EZ-Bar Skull Crusher")]:              "EZ-Bar_Skullcrusher",
+  [norm("EZ Bar Skull Crushers")]:             "EZ-Bar_Skullcrusher",
+  [norm("EZ-Bar Skull Crushers")]:             "EZ-Bar_Skullcrusher",
+  [norm("Z Bar Skull Crusher")]:               "EZ-Bar_Skullcrusher",
+  [norm("Z-Bar Skull Crusher")]:               "EZ-Bar_Skullcrusher",
+  [norm("Skull Crushers")]:                    "EZ-Bar_Skullcrusher",
+  [norm("Skull Crusher")]:                     "EZ-Bar_Skullcrusher",
   [norm("Close-Grip Bench Press")]:            "Close-Grip_Barbell_Bench_Press",
   [norm("Close Grip Bench Press")]:            "Close-Grip_Barbell_Bench_Press",
   [norm("Tricep Dips (or Machine)")]:          "Dips_-_Triceps_Version",
@@ -303,9 +320,10 @@ const EXERCISE_DB_MAP: Record<string, string> = {
 
   // ── Triceps ──────────────────────────────────────────────────────────────
   "close-grip-bench":               "Close-Grip_Barbell_Bench_Press",
-  "overhead-tricep-extension":      "Lying_Dumbbell_Tricep_Extension",
+  "overhead-tricep-extension":      "Standing_Dumbbell_Triceps_Extension",
   "tricep-pushdown":                "Triceps_Pushdown",
   "skull-crushers":                 "EZ-Bar_Skullcrusher",
+  "double-dumbbell-skull-crushers": "Lying_Dumbbell_Tricep_Extension",
   "tricep-kickback":                "Tricep_Dumbbell_Kickback",
   "tricep-dips":                    "Dips_-_Triceps_Version",
   "bench-dips":                     "Bench_Dips",

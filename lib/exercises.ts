@@ -99,9 +99,10 @@ export const EXERCISES: Exercise[] = [
   // ── TRICEPS ────────────────────────────────────────────────────────────
 
   { id: "close-grip-bench", name: "Close Grip Bench Press", primaryMuscles: ["triceps"], secondaryMuscles: ["chest"], equipment: ["barbell", "bench"], requireAll: true, location: "gym", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength"] },
-  { id: "skull-crushers", name: "Skull Crushers", primaryMuscles: ["triceps"], secondaryMuscles: [], equipment: ["barbell", "bench"], requireAll: true, location: "gym", difficulty: "intermediate", type: "isolation", goals: ["muscle"] },
+  { id: "skull-crushers", name: "EZ-Bar Skull Crushers", primaryMuscles: ["triceps"], secondaryMuscles: [], equipment: ["barbell", "bench"], requireAll: true, location: "gym", difficulty: "intermediate", type: "isolation", goals: ["muscle"] },
+  { id: "double-dumbbell-skull-crushers", name: "Double Dumbbell Skull Crushers", primaryMuscles: ["triceps"], secondaryMuscles: [], equipment: ["dumbbell", "bench"], requireAll: true, location: "gym", difficulty: "intermediate", type: "isolation", goals: ["muscle"] },
   { id: "tricep-pushdown", name: "Tricep Pushdown", primaryMuscles: ["triceps"], secondaryMuscles: [], equipment: ["cable"], location: "gym", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
-  { id: "overhead-tricep-extension", name: "Overhead Tricep Extension", primaryMuscles: ["triceps"], secondaryMuscles: [], equipment: ["dumbbell", "cable"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
+  { id: "overhead-tricep-extension", name: "Overhead Tricep Extension", primaryMuscles: ["triceps"], secondaryMuscles: [], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },
   { id: "tricep-dips", name: "Tricep Dips", primaryMuscles: ["triceps"], secondaryMuscles: ["chest", "shoulders"], equipment: ["dip_bar", "bodyweight"], location: "both", difficulty: "intermediate", type: "compound", goals: ["muscle", "strength", "fitness"] },
   { id: "tricep-kickback", name: "Tricep Kickback", primaryMuscles: ["triceps"], secondaryMuscles: [], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fat_loss"] },
   { id: "bench-dips", name: "Bench Dips", primaryMuscles: ["triceps"], secondaryMuscles: ["shoulders"], equipment: ["bodyweight"], location: "both", difficulty: "beginner", type: "compound", goals: ["fitness", "fat_loss"] },
