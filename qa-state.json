@@ -692,6 +692,23 @@
       "notes": "[2026-05-27 <sha7>] Root cause: the group chat's scroll container used an INLINE ref callback `(el) => { ref.current = el; if (el) el.scrollTop = el.scrollHeight }`. Inline callbacks get a new function reference every render, so React re-runs the cleanup/setup cycle and the `scrollTop = scrollHeight` line fired on EVERY render — every poll, every new message, every prop change destroyed the user's scroll position. Fix: stable `ref={groupChatScrollRef}` + a dedicated useEffect mirroring the DM convo pattern (lines ~7146): initial mount pin (one-shot, via groupChatInitialPinRef), then nearBottom-aware auto-scroll on subsequent message updates (within 150 px of bottom = auto-scroll, else respect user's position). Source: @maaiz 'On chat logs I'm still getting pulled to the bottom of the chat history if I scroll up, it's not letting me actually scroll to where I want'."
     },
     {
+      "id": "qa-patch-push-fanout",
+      "title": "QA patch notifications fire OS push (not just in-app system feed)",
+      "area": "QA",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz report",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "After a QA pass deploys, run `curl -X POST https://<host>/api/admin/qa-push-fanout -H 'x-admin-key: $ADMIN_SECRET' -H 'Content-Type: application/json' -d '{\"since\":\"<pass-timestamp ISO>\"}'`.",
+        "Endpoint returns `{ sent, total, sinceUsed, candidates }`. Verify `sent` matches the number of unique users whose comments were processed in the pass.",
+        "On a phone subscribed to push for an affected user, verify an OS-level notification appears with title '🔧 IRONLOG · Patch shipped' and the simplified summary as body. Tap → deep-links to /qa?focus=<itemId>#comment-<id>.",
+        "Run the endpoint a second time with the same `since`. Verify `sent: 0` (pushedAt is now set on every comment, so the duplicate-guard fires).",
+        "Sanity: a user with no PushSubscription rows silently no-ops — `sendPushToUser` already catches that path. The pushedAt timestamp is still set so we don't keep retrying."
+      ],
+      "notes": "[2026-06-03 <sha7>] @maaiz reported 'maaiz did not get push notification of the patches, but it's in his system messages log'. Investigation: sendPushToUser is wired for friend requests / trainer requests / DMs / trainer proposals but NEVER for qa-processed.json updates. The IRONLOG SYSTEM feed bubble was the ONLY surface — push for processed patches was simply never built (earlier session-summary claims about push firing were wrong). Fix: added a `pushedAt DateTime?` field to QAComment (indexed on (userId, pushedAt)) + a new admin endpoint POST /api/admin/qa-push-fanout that reads qa-processed.json, finds in-window unpushed comments owned by a user, fires sendPushToUser with the simplified summary as the push body, and stamps pushedAt to prevent duplicates. Time-windowed via the `since` body param (defaults to NOW - 1 h) so the 180 historic comments don't blast as a one-time storm — only entries newer than `since` are pushed. I call the endpoint manually after each QA pass push. For the 2026-06-03 pass itself: 6 comments processed across @maaiz / @azim / @humaam; expected `sent` = number of users with active PushSubscription rows for those user ids. Slice 1/N — next slice would automate the curl call from the deploy webhook so the human doesn't have to remember; cron-on-Vercel could also poll and fanout."
+    },
+    {
       "id": "chat-dm-per-message-avatars",
       "title": "DM chat bubbles show per-message avatar + tappable username (matches group chat author chip)",
       "area": "Messages",

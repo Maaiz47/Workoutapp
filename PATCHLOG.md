@@ -2,6 +2,24 @@
 
 ---
 
+## QA pass · 2026-06-03 follow-up — qa-patch push fanout (qa: qa-patch-push-fanout)
+
+Bumps to **v1.2.6**.
+
+### Addressed
+- **qa-patch-push-fanout**: @maaiz reported "maaiz did not get push notification of the patches, but it's in his system messages log". Investigation confirmed: `sendPushToUser` was wired for friend requests / trainer requests / DMs / trainer proposals but **never** for qa-processed.json updates. The in-app IRONLOG SYSTEM feed surfaced processed patches, but no OS push fired (earlier session-summary claims about "push fires" were wrong — the feature simply wasn't built).
+  - Added `pushedAt DateTime?` to `QAComment` (indexed on `(userId, pushedAt)`).
+  - New admin endpoint `POST /api/admin/qa-push-fanout` — reads `qa-processed.json`, finds in-window unpushed comments owned by a user, fires `sendPushToUser` with the simplified summary, stamps `pushedAt` so duplicates can't fire on re-run.
+  - Time-windowed via `?since=` body param (default NOW − 1h) so the 180 historic processed comments don't blast as a notification storm — only entries newer than the cutoff are pushed.
+  - I call the endpoint manually after each QA pass push.
+
+### Files
+- Modified: `prisma/schema.prisma` (QAComment.pushedAt + index)
+- New: `app/api/admin/qa-push-fanout/route.ts`
+- Modified: `qa-state.json` (new item `qa-patch-push-fanout`)
+
+---
+
 ## QA pass · 2026-06-03 — 6-comment processing pass + click-anywhere profile preview (qa: chat-dm-per-message-avatars, workout-preview-without-start, group-leaderboard-row-clickable, group-clients-list-username-clickable, trainer-disown-client-modal, profile-preview-entry-points, wellness-sleep-tracking, trainer-request-pending-state)
 
 Six QA comments processed in one pass — 4 from @maaiz, 1 from @azim, 1 from @humaam — all actioned. Bumps to **v1.2.5**.

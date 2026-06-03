@@ -630,9 +630,15 @@ model QAComment {
   processed     Boolean   @default(false)
   processedAt   DateTime?
   processedSha  String?
+  // Set once a push notification has been delivered for this comment's
+  // patch confirmation. Used by /api/admin/qa-push-fanout to avoid
+  // duplicate pushes and to skip historic comments processed before
+  // the push-fanout feature shipped. (qa: qa-patch-push-fanout)
+  pushedAt      DateTime?
 
   @@index([itemId])
   @@index([itemId, stepIndex])
+  @@index([userId, pushedAt])
   @@index([processed, ts])
   @@index([userId])
 }
