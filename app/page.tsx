@@ -214,6 +214,14 @@ function ProfilePreviewModal({
       refresh();
     } finally { setActionPending(false); }
   };
+  const removeClient = async () => {
+    if (!confirm(`Disown @${data?.user?.username} as a client? They keep all their history; only the coaching link is severed. You can re-adopt later via the normal trainer-request flow.`)) return;
+    setActionPending(true);
+    try {
+      await fetch(`/api/trainer/clients/${userId}`, { method: "DELETE" });
+      refresh();
+    } finally { setActionPending(false); }
+  };
 
   const viewerIsTrainer = userHasRole(viewerUser, "trainer");
   const themedTiers = getAthleteTiers(tierTheme);
@@ -311,7 +319,10 @@ function ProfilePreviewModal({
                   <button disabled style={disabledStyle}>⏳ CLIENT REQUEST PENDING</button>
                 )}
                 {viewerIsTrainer && data.trainerRelation.isMyClient && (
-                  <div style={{ ...disabledStyle, background: "rgba(255,209,102,0.06)", border: "1px solid rgba(255,209,102,0.25)", color: "rgba(255,209,102,0.85)" }}>👑 YOUR CLIENT</div>
+                  <>
+                    <div style={{ ...disabledStyle, background: "rgba(255,209,102,0.06)", border: "1px solid rgba(255,209,102,0.25)", color: "rgba(255,209,102,0.85)" }}>👑 YOUR CLIENT</div>
+                    <button disabled={actionPending} onClick={removeClient} style={{ ...actionStyle("255,107,107", 0.06, 0.3), fontSize: 13, fontWeight: 600, color: "rgba(255,107,107,0.85)" }}>✕ DISOWN CLIENT</button>
+                  </>
                 )}
 
                 {data.user.role === "trainer" && data.trainerRelation.isMyTrainer && (
@@ -1295,6 +1306,15 @@ function WellnessCard() {
               {[5, 6, 7, 8, 9].map(h => (
                 <button key={h} onClick={() => updateSleep({ sleepHours: sleep.sleepHours === h ? null : h })} style={{ flex: 1, padding: "5px 0", background: sleep.sleepHours === h ? "rgba(162,155,254,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${sleep.sleepHours === h ? "#a29bfe" : "rgba(255,255,255,0.08)"}`, borderRadius: 5, color: sleep.sleepHours === h ? "#a29bfe" : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>{h}h</button>
               ))}
+            </div>
+            {/* Custom-hours input: full-row, clearly labelled. Per @azim
+                'Add custom sleep time. Sometimes due to situation, person
+                might be able to just sleep for like an hour too' — the
+                quick chips above only cover 5–9h, this captures anything
+                outside that range (1h nap, 4h rough night, 10h recovery).
+                (qa: wellness-sleep-tracking) */}
+            <div style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", width: 50 }}>or any</span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -1303,12 +1323,13 @@ function WellnessCard() {
                 max={24}
                 value={sleep.sleepHours != null && ![5,6,7,8,9].includes(sleep.sleepHours) ? sleep.sleepHours : ""}
                 onChange={e => setSleepHoursDirect(parseFloat(e.target.value || "0"))}
-                placeholder="7.5"
-                style={{ width: 46, padding: "5px 4px", background: "rgba(162,155,254,0.08)", border: `1px solid rgba(162,155,254,0.25)`, borderRadius: 5, color: "#a29bfe", fontSize: 11, fontWeight: 700, textAlign: "center", fontFamily: "'Space Mono', monospace", outline: "none" }}
-                title="Type a custom value (decimals OK) — useful for 7.5h or after a nap"
+                placeholder="e.g. 1, 4, 10 — decimals OK (7.5)"
+                style={{ flex: 1, padding: "6px 10px", background: "rgba(162,155,254,0.08)", border: `1px solid rgba(162,155,254,0.25)`, borderRadius: 5, color: "#a29bfe", fontSize: 11, fontWeight: 700, textAlign: "left", fontFamily: "'Space Mono', monospace", outline: "none", boxSizing: "border-box" }}
+                title="Less than 5h, more than 9h, or a half-hour like 7.5 — type any value"
               />
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>h</span>
             </div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 6, lineHeight: 1.4 }}>Update any time — add a nap to the total or change the value entirely.</div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 6, lineHeight: 1.4 }}>Update any time — naps add to the total or replace it entirely.</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", width: 50 }}>Energy</span>
               {[1, 2, 3, 4, 5].map(e => (
@@ -10867,6 +10888,25 @@ function HomePage() {
                   }}
                   style={{ marginTop: 32, padding: "16px 48px", background: d.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 14, fontWeight: 800, letterSpacing: 3, fontFamily: "'Space Mono', monospace", cursor: "pointer", boxShadow: `0 8px 28px ${d.color}55`, minWidth: 240, pointerEvents: "auto" }}
                 >▶ START WORKOUT</button>
+                {/* Per @humaam: "Immediately when user opens the workout
+                    if it starts it's an issue. What if user just wants
+                    to see what he is going to do before coming to gym?".
+                    Secondary VIEW WORKOUT button opens the same workout
+                    view WITHOUT auto-starting the session. User can
+                    inspect the exercises, customise the day (CUSTOMISE
+                    button in the workout view edits sets/reps without
+                    saving a session), and tap the explicit BEGIN button
+                    inside to actually start tracking when they're ready.
+                    (qa: workout-preview-without-start) */}
+                <button
+                  onClick={() => {
+                    openDay(d);
+                    setExpandingDay(null);
+                    // No begin() call — preview-only. The workout view
+                    // shows the START affordance for when they're ready.
+                  }}
+                  style={{ marginTop: 12, padding: "12px 36px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 12, color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: 700, letterSpacing: 2.5, fontFamily: "'Space Mono', monospace", cursor: "pointer", minWidth: 240, pointerEvents: "auto", backdropFilter: "blur(8px)" }}
+                >👁 VIEW WORKOUT</button>
               </motion.div>
             </motion.div>
           );
@@ -13894,14 +13934,14 @@ function HomePage() {
                                     const nameCell = (
                                       <>
                                         <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>}</div>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                                        <button onClick={() => { if (!isMe) openProfilePreview(m.userId); }} style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, background: "none", border: "none", padding: 0, textAlign: "left", cursor: isMe ? "default" : "pointer", color: "inherit" }}>
                                           <UserAvatarChip avatarId={m.avatarId} username={m.username} size={24} role={m.role} />
                                           <TierGlyph src={tier.iconPath} emoji={tier.icon} size={24} />
                                           <div style={{ minWidth: 0 }}>
                                             <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : `@${m.username}`}</div>
                                             <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.label}{m.role === "trainer" ? " · TRAINER" : ""}</div>
                                           </div>
-                                        </div>
+                                        </button>
                                       </>
                                     );
                                     if (lbMode === "sessions") {
@@ -14060,7 +14100,7 @@ function HomePage() {
                                   setActiveLbGroup((prev: any) => prev && prev.id === grp.id ? { ...prev, members: snapshotMembers } : prev);
                                 });
                             }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 8, marginBottom: 4, background: inGroup ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.02)", cursor: "pointer", border: `1px solid ${inGroup ? "rgba(78,205,196,0.2)" : "rgba(255,255,255,0.05)"}` }}>
-                              <span style={{ fontSize: 13, color: inGroup ? "#4ECDC4" : "rgba(255,255,255,0.6)" }}>@{c.username}</span>
+                              <button onClick={(e) => { e.stopPropagation(); openProfilePreview(c.id); }} style={{ fontSize: 13, color: inGroup ? "#4ECDC4" : "rgba(255,255,255,0.6)", background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer" }}>@{c.username}</button>
                               <span style={{ fontSize: 16 }}>{inGroup ? "✓" : "+"}</span>
                             </div>
                           );
@@ -14655,6 +14695,16 @@ function HomePage() {
           const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "💪", "🔥"];
           return (
             <div key={msg.id} style={{ alignSelf: isMine ? "flex-end" : "flex-start", position: "relative", maxWidth: "75%" }}>
+              {/* Per-message avatar chip on INCOMING bubbles — matches
+                  the group chat author chip pattern. Avatar + username
+                  are both tappable → opens the profile preview modal
+                  for the sender. (qa: chat-dm-per-message-avatars) */}
+              {!isMine && (
+                <button onClick={() => openProfilePreview(msg.from?.id)} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, paddingLeft: 2, background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 0 }}>
+                  <UserAvatarChip avatarId={(msg.from as any)?.profile?.avatarId ?? null} username={msg.from?.username} size={24} />
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>@{msg.from?.username ?? "—"}</span>
+                </button>
+              )}
               {/* Reply arrow removed per @maaiz — was rendered as a permanent
                   emoji glyph on every incoming message even though the comment
                   said "fades in as user swipes". Swipe-to-reply still works via

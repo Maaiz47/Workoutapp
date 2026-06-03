@@ -692,6 +692,86 @@
       "notes": "[2026-05-27 <sha7>] Root cause: the group chat's scroll container used an INLINE ref callback `(el) => { ref.current = el; if (el) el.scrollTop = el.scrollHeight }`. Inline callbacks get a new function reference every render, so React re-runs the cleanup/setup cycle and the `scrollTop = scrollHeight` line fired on EVERY render — every poll, every new message, every prop change destroyed the user's scroll position. Fix: stable `ref={groupChatScrollRef}` + a dedicated useEffect mirroring the DM convo pattern (lines ~7146): initial mount pin (one-shot, via groupChatInitialPinRef), then nearBottom-aware auto-scroll on subsequent message updates (within 150 px of bottom = auto-scroll, else respect user's position). Source: @maaiz 'On chat logs I'm still getting pulled to the bottom of the chat history if I scroll up, it's not letting me actually scroll to where I want'."
     },
     {
+      "id": "chat-dm-per-message-avatars",
+      "title": "DM chat bubbles show per-message avatar + tappable username (matches group chat author chip)",
+      "area": "Messages",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz report",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Open a DM thread with another user. Verify each INCOMING bubble has an avatar + @username chip above it (small, 24 px avatar). Tapping the chip opens the profile preview modal for the sender.",
+        "Outgoing (your own) bubbles do NOT show the author chip — they're you.",
+        "If the partner has no equipped avatar, the chip falls back to the default user/trainer placeholder (no broken image)."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz cmpsoemh20002vsvl6rvhgrkg 'Need profile avatar icons next to each message bubble in chatlogs both private chats and group chats'. Group chat already had the author chip (since 2026-05-23); DMs only had the partner header. Added a per-message avatar+username button above incoming DM bubbles using UserAvatarChip — same pattern as group chat. Tap → openProfilePreview(msg.from.id). The DM API /api/messages/[userId] was updated to include `from: { profile: { avatarId } }` so the avatar resolves correctly. Outgoing bubbles remain chip-less."
+    },
+    {
+      "id": "workout-preview-without-start",
+      "title": "Day card expand shows a VIEW WORKOUT secondary action — preview exercises without auto-starting the timer",
+      "area": "Workout",
+      "introduced": "2026-06-03",
+      "introducedBy": "@humaam report",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Open Home. Tap any day card → the hero expand animation runs and reveals the title + focus.",
+        "Verify TWO buttons are visible: the primary '▶ START WORKOUT' (begins the session with timer) AND a secondary '👁 VIEW WORKOUT' (opens the same workout view but does NOT start the timer).",
+        "Tap VIEW WORKOUT. Verify you land in the workout view with no active timer, no session committed. The existing prep / start affordance is visible so the user can BEGIN when they're ready.",
+        "Tap the back chevron from the preview. Verify nothing was saved (no half-finished session) and you return to Home.",
+        "Repeat with START WORKOUT to confirm the existing one-tap-to-begin flow is unchanged."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @humaam cmpxdjbhs0008psgv9iv09aul 'Immediately when user opens the workout if it starts it's an issue. What if user just wants to see what he is going to do before coming to gym?? So manual start on the workout is a good thought'. The expanding hero (~line 10808) previously had only the START WORKOUT button which auto-called begin() to skip the redundant prep screen (per maaiz's prior 'two start prompts' complaint). Now adds a secondary VIEW WORKOUT button below START WORKOUT: same openDay(d) call, but WITHOUT the begin() that auto-starts the timer + commits a session. Maaiz's per-user customise refinement ('in the view workout modal we can also let them customise the day via another button to activate editing') — the existing CUSTOMISE flow on the day-card row already covers editing; leaving that as the canonical customise path and not duplicating in the preview. Slice 1/N — if @humaam follow-ups ask for a dedicated 'CUSTOMISE FROM PREVIEW' affordance distinct from the home-row CUSTOMISE button, that ships next."
+    },
+    {
+      "id": "group-leaderboard-row-clickable",
+      "title": "Group rankings rows open the profile preview modal on tap",
+      "area": "Groups",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz consolidation",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Open Groups → tap into a group. Scroll to the RANKINGS section.",
+        "Tap the avatar/name area of any non-YOU member row. Verify the profile preview modal opens for that member.",
+        "Tapping YOUR own row does nothing (cursor stays default).",
+        "Action row in the modal reflects relationship: ADD FRIEND vs REMOVE FRIEND; ADD AS CLIENT vs YOUR CLIENT, etc."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz 'Clicking into users from anywhere should allow a quick profile view where users can add friend or trainers can adopt clients'. Wrapped the existing avatar+username column in the group leaderboard `ranked.map` (~line 13905 nameCell) in a `<button>` that calls `openProfilePreview(m.userId)`. Self rows skip the call (cursor: default). Applied to all four lbMode variants (sessions / weight / bf-change / bf-now) via the shared nameCell."
+    },
+    {
+      "id": "group-clients-list-username-clickable",
+      "title": "Trainer 'Clients in group' list opens the profile preview on username tap (row tap still toggles assignment)",
+      "area": "Groups",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz consolidation",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Logged in as a trainer, expand a group you own. Find the CLIENTS IN GROUP section.",
+        "Tap a client's @username text. Verify the profile preview modal opens — and the in-group assignment toggle does NOT fire (event propagation stopped).",
+        "Tap the row OUTSIDE the username (the + / ✓ side). Verify the assignment toggles as before."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz 'Clicking into users from anywhere should allow a quick profile view'. The row's onClick toggles assignment to the group — kept as the primary action. The @username text is now a separate `<button>` with `stopPropagation()` so tapping it opens the profile preview without flipping the in-group toggle. The avatar/visual-only area of the row still triggers the row's toggle."
+    },
+    {
+      "id": "trainer-disown-client-modal",
+      "title": "Profile preview offers DISOWN CLIENT action when a trainer is viewing one of their existing clients",
+      "area": "Profile",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz report on Amanii client management",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Logged in as a trainer, open the profile preview for one of YOUR clients (via chat, friends list, leaderboard, etc).",
+        "Verify the YOUR CLIENT chip is followed by a red ✕ DISOWN CLIENT button.",
+        "Tap it → confirm dialog: 'Disown @<username> as a client? They keep all their history; only the coaching link is severed. You can re-adopt later via the normal trainer-request flow.'",
+        "Confirm → DELETE /api/trainer/clients/<clientId> fires; modal refreshes; YOUR CLIENT chip + DISOWN button are replaced by ADD AS CLIENT.",
+        "Cancel the confirm → no API call, nothing changes."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz cmpsoi8a20000jsm57z199ntq 'open a profile view modal of her profile to be able to revoke/remove/add'. The DELETE endpoint already existed at /api/trainer/clients/[clientId] (qa: trainer-disown-client); the missing piece was a UI surface for it on the modal. Added a ✕ DISOWN CLIENT button below the YOUR CLIENT chip in the action row, with a confirm() to prevent accidental disowns. After disown, the modal `refresh()` re-fetches /api/users/[userId]/preview which now returns `trainerRelation.isMyClient: false`, so the action row flips to ADD AS CLIENT naturally. Companion to the separate Amanii-visibility investigation logged on trainer-request-pending-state."
+    },
+    {
       "id": "profile-preview-entry-points",
       "title": "Profile preview opens from chat header, chat-log avatar, friends list, and leaderboard rows (relationship gates the action row)",
       "area": "Profile",
@@ -2183,7 +2263,7 @@
         "Tap any chip \u2192 numeric input clears (chip-mode is exact integers). Tap the same chip again \u2192 it toggles off and sleep clears.",
         "Verify the `Update any time \u2014 add a nap to the total or change the value entirely` helper line is visible."
       ],
-      "notes": "[2026-05-23] Slice 1 shipped: added a numeric input next to the 5-9h chips. setSleepHoursDirect clamps to 0..24, rounds to 0.25-precision, and writes through updateSleep (which merges via writeSleepToday \u2014 latest input wins). Chips and input read from the same sleep.sleepHours so they stay in sync. Helper line documents the update-any-time behaviour. (Reported by @maaiz: 'sleep can also be updated after initial input as they have naps I guess'.)"
+      "notes": "[2026-06-03 <sha7>] Custom-hours input promoted to its own labelled row ('or any [____]h'). Previously the 46 px wide input was tucked at the end of the chip row and easy to miss \u2014 @azim cmpwoi2cx0006le2i3h85jvgf reported 'Add custom sleep time. Sometimes due to situation, person might be able to just sleep for like an hour too'. Quick chips (5-9h) kept; custom input now flex:1 with placeholder 'e.g. 1, 4, 10 \u2014 decimals OK (7.5)' so the affordance reads as the explicit out-for-the-range entry. Behaviour unchanged \u2014 setSleepHoursDirect still clamps 0..24 and round-trips through updateSleep.\\n\\n[2026-05-23] Slice 1 shipped: added a numeric input next to the 5-9h chips. setSleepHoursDirect clamps to 0..24, rounds to 0.25-precision, and writes through updateSleep (which merges via writeSleepToday \u2014 latest input wins). Chips and input read from the same sleep.sleepHours so they stay in sync. Helper line documents the update-any-time behaviour. (Reported by @maaiz: 'sleep can also be updated after initial input as they have naps I guess'.)"
     },
     {
       "id": "workout-rest-skipped-counter",
@@ -5276,7 +5356,7 @@
         "Same flow for a friend request - sender sees the PENDING chip without having to leave + come back.",
         "Decline a trainer request as a client. Verify the trainer gets a TRAINER REQUEST - DECLINED bubble in the thread."
       ],
-      "notes": "[2026-05-26] Recurring: Amanii reported accepted but not visible in client list. Likely root cause: cached /api/trainer/clients response (SW or browser). Three reinforcements: (a) GET route now sets Cache-Control: no-store + dynamic='force-dynamic' + revalidate=0, (b) frontend fetch uses cache:'no-store' + ?ts=Date.now() cache-bust query param, (c) new window-focus + visibilitychange handler force-refreshes the clients list whenever the trainer reopens the app from background. Existing view==='clientsHub' refresh kept. Per @maaiz 2026-05-26 'Says Amanii accepted my client request but don't see her on the client list'.\n\n[2026-05-26] @maaiz retest re:l1dhjm6j: 'Not sure if push notification working, just checked if Amanii accepted my request and she did but not showing under my clients'. Two separate concerns: (a) push delivery uncertain, (b) accepted trainer-request not surfacing in CLIENTS hub. Investigate /api/trainer/clients return path + the post-accept hook. (qa: trainer-request-pending-state, trainer-client-auto-friend)\n\n[2026-05-24] Shipped: /api/messages/[userId] joins TrainerRequest + Friendship status onto each request-typed message and returns it as requestStatus. Client renders a coloured chip on both sides. PATCH /api/trainer/request drops an in-app adoption_accepted / adoption_declined Message so the trainer aside reflects the outcome without push delivery."
+      "notes": "[2026-06-03 <sha7>] @maaiz cmpsoi8a20000jsm57z199ntq round 3 — same Amanii visibility issue STILL surfacing in the search results vs client list mismatch ('When I search Amanii I can see she accepted my client request but I can't see her in my client list'). Two separate code paths converge here: (a) the trainer search at /api/trainer/search reads from TrainerRequest + User tables directly and shows her with the 'accepted' status, (b) the Clients hub reads from /api/trainer/clients which joins via TrainerClient table — if her TrainerClient row exists but the GET response is stale, she's invisible. Mitigations from prior pass (cache-bust + window-focus refresh) addressed the cache angle. Outstanding investigation needed: confirm the PATCH /api/trainer/request handler is atomically creating BOTH the TrainerRequest.status update AND the TrainerClient insert in the same transaction — if the order is request-update-then-client-insert and the second fails silently, the search sees 'accepted' while the roster has nothing. Companion shipped: ✕ DISOWN CLIENT action in the profile preview modal (qa: trainer-disown-client-modal) so trainers can manage the relationship from the search/leaderboard/chat entry points once she IS visible. Slice 1/N; next slice: drop the response in a structured log when the TrainerClient insert path fires AND fails, plus add a maintenance endpoint that backfills missing TrainerClient rows from accepted TrainerRequests (admin-only).\\n\\n[2026-05-26] Recurring: Amanii reported accepted but not visible in client list. Likely root cause: cached /api/trainer/clients response (SW or browser). Three reinforcements: (a) GET route now sets Cache-Control: no-store + dynamic='force-dynamic' + revalidate=0, (b) frontend fetch uses cache:'no-store' + ?ts=Date.now() cache-bust query param, (c) new window-focus + visibilitychange handler force-refreshes the clients list whenever the trainer reopens the app from background. Existing view==='clientsHub' refresh kept. Per @maaiz 2026-05-26 'Says Amanii accepted my client request but don't see her on the client list'.\n\n[2026-05-26] @maaiz retest re:l1dhjm6j: 'Not sure if push notification working, just checked if Amanii accepted my request and she did but not showing under my clients'. Two separate concerns: (a) push delivery uncertain, (b) accepted trainer-request not surfacing in CLIENTS hub. Investigate /api/trainer/clients return path + the post-accept hook. (qa: trainer-request-pending-state, trainer-client-auto-friend)\n\n[2026-05-24] Shipped: /api/messages/[userId] joins TrainerRequest + Friendship status onto each request-typed message and returns it as requestStatus. Client renders a coloured chip on both sides. PATCH /api/trainer/request drops an in-app adoption_accepted / adoption_declined Message so the trainer aside reflects the outcome without push delivery."
     },
     {
       "id": "day-card-hero-routing",

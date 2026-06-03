@@ -22,7 +22,10 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
         ...(since ? { createdAt: { gt: new Date(since) } } : {}),
       },
       include: {
-        from: { select: { id: true, username: true } },
+        // avatarId pulled through `profile` so DM bubbles can render
+        // a per-message avatar chip (matching the group chat author
+        // chip). (qa: chat-dm-per-message-avatars)
+        from: { select: { id: true, username: true, profile: { select: { avatarId: true } } } },
         proposal: { select: { id: true, status: true, planJson: true } },
         replyTo: { select: { id: true, body: true, from: { select: { username: true } } } },
         reactions: { select: { emoji: true, userId: true } },

@@ -1,5 +1,29 @@
 {
   "processedIds": {
+    "cmpsoemh20002vsvl6rvhgrkg": {
+      "ts": "2026-06-03T13:00:00Z",
+      "summary": "@maaiz: 'Need profile avatar icons next to each message bubble in chatlogs both private chats and group chats'. Done — group chat already had it; added a per-message avatar + tappable @username chip above incoming DM bubbles using UserAvatarChip. Tap → opens the profile preview modal for the sender. /api/messages/[userId] now includes from.profile.avatarId so the chip renders correctly. (qa: chat-dm-per-message-avatars)"
+    },
+    "cmpsofpo70000pglkgv6npjjo": {
+      "ts": "2026-06-03T13:00:00Z",
+      "summary": "@maaiz: 'Can't open a friend profile view modal from friends list'. Verified the wiring IS present (FriendsCard rows 1659/1673/1744 all call openProfilePreview(f.friend.id) on tap) — likely you were on a pre-fix bundle. Once on v1.2.4+ this works on all three row types (accepted / pending sent / pending received). 'Am I seeing all friends correctly?' — friend list pulls from /api/friends GET which returns { accepted, pendingSent, pendingReceived } directly from the Friendship table; the only filter is the local search box. If anyone's missing, check whether the row is marked blocked (status='blocked' is hidden from the accepted bucket). (qa: profile-preview-entry-points)"
+    },
+    "cmpsogup600003xeb69z7fw5f": {
+      "ts": "2026-06-03T13:00:00Z",
+      "summary": "@maaiz: 'Not able to open a profile view from clicking username on leaderboard'. Re-enabled in v1.2.3 (commit 385f9c5). Verified onOpenProfile={openProfilePreview} is now passed to GlobalLeaderboardView and the row's clickable flag honours it. Refresh once to load the latest bundle if you're still on an older one. Also wired the GROUP rankings rows in groups view as part of the 'click users anywhere' consolidation. (qa: profile-preview-entry-points, group-leaderboard-row-clickable)"
+    },
+    "cmpsoi8a20000jsm57z199ntq": {
+      "ts": "2026-06-03T13:00:00Z",
+      "summary": "@maaiz: 'When I search Amanii I can see she accepted my client request but I can't see her in my client list or open a profile view modal to revoke/remove/add'. Shipped: ✕ DISOWN CLIENT action in the profile preview modal — appears under the YOUR CLIENT chip when a trainer views one of their existing clients. Calls the existing DELETE /api/trainer/clients/<clientId> endpoint. Companion Amanii-visibility investigation logged on the trainer-request-pending-state item — likely the PATCH /api/trainer/request handler isn't atomically creating both the request-status update AND the TrainerClient insert; next slice adds structured logging + an admin backfill endpoint. (qa: trainer-disown-client-modal, trainer-request-pending-state)"
+    },
+    "cmpwoi2cx0006le2i3h85jvgf": {
+      "ts": "2026-06-03T13:00:00Z",
+      "summary": "@azim: 'Add custom sleep time. Sometimes due to situation, person might be able to just sleep for like an hour too'. Done — the custom-hours input already existed but was tucked at the end of the chip row, only 46 px wide, and easy to miss. Promoted to its own labelled row ('or any [____]h') with flex:1 width, decimal placeholder 'e.g. 1, 4, 10 — decimals OK (7.5)', and full-row visibility. Quick chips (5/6/7/8/9 h) kept for one-tap entry. Existing 0..24 clamp + 0.25 step + updateSleep round-trip unchanged. (qa: wellness-sleep-tracking)"
+    },
+    "cmpxdjbhs0008psgv9iv09aul": {
+      "ts": "2026-06-03T13:00:00Z",
+      "summary": "@humaam: 'Immediately when user opens the workout if it starts it's an issue. What if user just wants to see what he is going to do before coming to gym?? So manual start on the workout is a good thought'. Done — added a 👁 VIEW WORKOUT secondary button to the day-card expanding hero, sitting below the primary ▶ START WORKOUT. VIEW WORKOUT calls openDay() WITHOUT begin() — no timer auto-starts, no session committed. User can inspect exercises, customise via the existing CUSTOMISE button on the home row, and use the start affordance inside the workout view when ready. (qa: workout-preview-without-start)"
+    },
     "cmpjcnqnr0000s21lpgkfi3bi": {
       "ts": "2026-05-24T07:05:00Z",
       "summary": "@maaiz idea: 'Change the tier unlocked images for athlete big dawg tier, they are too wolf like and less like muscle packed big dawg vibes'. Added Batch 12 to /image-prompts-v2.md spec'ing a stocky bulldog/pitbull replacement for /public/tier-icons/vivid/big-dawg.png. Generation pending. (qa: image-prompts-v2)"

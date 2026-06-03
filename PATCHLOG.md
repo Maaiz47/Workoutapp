@@ -2,6 +2,28 @@
 
 ---
 
+## QA pass · 2026-06-03 — 6-comment processing pass + click-anywhere profile preview (qa: chat-dm-per-message-avatars, workout-preview-without-start, group-leaderboard-row-clickable, group-clients-list-username-clickable, trainer-disown-client-modal, profile-preview-entry-points, wellness-sleep-tracking, trainer-request-pending-state)
+
+Six QA comments processed in one pass — 4 from @maaiz, 1 from @azim, 1 from @humaam — all actioned. Bumps to **v1.2.5**.
+
+### Addressed
+- **chat-dm-per-message-avatars** (@maaiz cmpsoemh20002vsvl6rvhgrkg): added a per-message avatar + tappable @username chip above every incoming DM bubble. Same `UserAvatarChip` pattern as group chat. `/api/messages/[userId]` updated to include `from.profile.avatarId` so the avatar resolves. Tap → opens the profile preview modal for the sender.
+- **workout-preview-without-start** (@humaam cmpxdjbhs0008psgv9iv09aul): added a 👁 VIEW WORKOUT secondary button to the day-card expanding hero, below the primary ▶ START WORKOUT. Calls `openDay(d)` WITHOUT `begin()` — no timer auto-start, no session committed. User can inspect exercises and start when ready. The existing CUSTOMISE on the home row remains the canonical edit path.
+- **trainer-disown-client-modal** (@maaiz cmpsoi8a20000jsm57z199ntq): added a ✕ DISOWN CLIENT button to the profile preview modal under the YOUR CLIENT chip. Confirm dialog before calling DELETE `/api/trainer/clients/<id>` (endpoint already existed). After disown, the modal `refresh()` re-fetches the preview which flips `isMyClient` to false, naturally showing ADD AS CLIENT.
+- **group-leaderboard-row-clickable** (@maaiz consolidation rule): wrapped the group rankings `nameCell` (avatar + tier glyph + @username) in a `<button>` that calls `openProfilePreview(m.userId)`. Self rows stay non-clickable. Applies across all four lbMode variants (sessions / weight / bf-change / bf-now).
+- **group-clients-list-username-clickable** (@maaiz consolidation rule): the trainer's "Clients in group" row was previously an all-or-nothing toggle. Username text now a separate `<button>` with `stopPropagation()` — tap username = profile preview, tap row body = assignment toggle.
+- **profile-preview-entry-points** verify (@maaiz cmpsofpo70000pglkgv6npjjo + cmpsogup600003xeb69z7fw5f): both reports pre-date the v1.2.3/v1.2.4 fixes that re-enabled the wiring on friends list (rows 1659/1673/1744) and leaderboard. Verified the props + handlers are present end-to-end. Likely root cause was stale bundle on @maaiz's phone; the auto-update banner (now actually rendering since the AppUpdateOverlay overlay-portal fix) should prevent this class of "report against an old bundle" loop.
+- **wellness-sleep-tracking** (@azim cmpwoi2cx0006le2i3h85jvgf): custom-hours input was already there but discoverability was poor (46 px wide tucked at the end of the chip row). Promoted to its own labelled row 'or any [____]h' with flex:1 width + decimal placeholder 'e.g. 1, 4, 10 — decimals OK (7.5)'. Quick chips kept for one-tap entry.
+- **trainer-request-pending-state** (Amanii investigation): logged the round-3 finding — search-API path vs Clients-API path are diverging on the same accepted relationship. Outstanding investigation: confirm PATCH `/api/trainer/request` atomically writes both the TrainerRequest status update AND the TrainerClient row. Next slice: structured log + admin backfill endpoint. The DISOWN-CLIENT shipping above unblocks management once she IS visible.
+
+### Files
+- Modified: `app/page.tsx` (DM avatar chip + group rankings tap + group clients username tap + DISOWN CLIENT action + VIEW WORKOUT button + sleep custom row)
+- Modified: `app/api/messages/[userId]/route.ts` (include `from.profile.avatarId`)
+- Modified: `qa-state.json` (6 new/updated items)
+- Modified: `qa-processed.json` (6 comment IDs marked processed)
+
+---
+
 ## QA pass · 2026-05-27 follow-up #15 — trainer tier on home rail uses canonical breakdown + Big Dawg avatar rework queued (qa: tier-trainer-home-rail-canonical, big-dawg-avatars-rework)
 
 Bumps to **v1.2.4**.
