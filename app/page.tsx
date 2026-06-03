@@ -4937,6 +4937,7 @@ function HomeGlobals({
   user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, trainerBreakdown, tierTheme,
   deGamified, milestoneQueue, onMilestoneAdvance, newPBs, onPBsDismiss, tierPromoToast, onTierPromoDismiss,
   onJumpToLeaderboard, onOpenGlobalLeaderboard, updateOverlayDisabled,
+  previewUserId, onClosePreview, onPreviewOpenDM, onPreviewFriendshipChanged, viewer, tierThemeForPreview,
 }: {
   user: { username: string; role: string; extraRoles?: string[] } | null;
   view: string;
