@@ -5,7 +5,7 @@
 // power — they don't change tier score, just give the user a
 // collectable to chase. (qa: profile-avatars, random-rare-rewards)
 
-export type AvatarSource = "tier" | "lucky" | "milestone-bonus";
+export type AvatarSource = "tier" | "lucky" | "milestone-bonus" | "admin";
 
 export type Avatar = {
   id: string;            // stable, never reused — used as filename: /avatars/<id>.png
@@ -95,7 +95,23 @@ const MILESTONE_BONUS_AVATARS: Avatar[] = [
   { id: "mb-bwsquat-elite", name: "500-Squat Titan",    source: "milestone-bonus", unlocksMilestoneId: "bwsquats-500", flavour: "Half a thousand reps. Iron mind, iron legs." },
 ];
 
-export const AVATARS: Avatar[] = [...TIER_AVATARS, ...LUCKY_AVATARS, ...MILESTONE_BONUS_AVATARS];
+// Admin-exclusive epic avatar. Unlocked automatically on /api/avatars
+// GET for users whose role === "admin" (or whose extraRoles includes
+// "admin"). One single ultra-rare cosmetic that no non-admin path can
+// ever surface. Image lives at /avatars/admin-eternal.png — prompt
+// in /image-prompts-v2.md Batch 15. Slice 1: catalogue + auto-unlock
+// pipeline ships now; the PNG follows when generated.
+// (qa: avatars-admin-exclusive)
+const ADMIN_AVATARS: Avatar[] = [
+  { id: "admin-eternal", name: "Eternal Admin", source: "admin", flavour: "Architect of the floor. Never to be unlocked by anyone else." },
+];
+
+export const AVATARS: Avatar[] = [...TIER_AVATARS, ...LUCKY_AVATARS, ...MILESTONE_BONUS_AVATARS, ...ADMIN_AVATARS];
+
+// The admin-only avatars, exposed as a list so the avatar mint
+// pipeline in /api/avatars can backfill them when the viewer is
+// admin. (qa: avatars-admin-exclusive)
+export const ADMIN_AVATAR_POOL: Avatar[] = ADMIN_AVATARS;
 
 // Lookup table for the avatar mint pipeline — for a given milestone id,
 // returns the bonus avatar (if any) the user should also receive.

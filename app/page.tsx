@@ -5185,6 +5185,18 @@ function TierInfoModal({
   // and navigates the parent. (qa: tier-global-leaderboard)
   onOpenGlobalLeaderboard?: () => void;
 }) {
+  // Body-scroll-lock — per @maaiz 'When this modal is open I'm still
+  // able to scroll the home page behind it, while it's open I should
+  // only be able scroll this modal'. Sets document.body.style.overflow
+  // = "hidden" while the modal is mounted; restores prior value on
+  // unmount. Same pattern the profile preview modal uses.
+  // (qa: tier-modal-body-scroll-lock)
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
   if (!open) return null;
 
   return (
@@ -11699,13 +11711,15 @@ function HomePage() {
                 >×</button>
               </div>
               {tipModalOpen && (
-                <div onClick={() => setTipModalOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9600, display: "flex", alignItems: "flex-end", justifyContent: "center", backdropFilter: "blur(8px)" }}>
-                  {/* Lift the panel above the floating bottom hub so
-                      the last line of the tip + the HIDE buttons
-                      aren't obscured. Hub height matches the spacer
-                      below the day cards (96px + safe-area).
-                      (qa: pro-tip-overlay-zindex) */}
-                  <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "calc(100dvh - 96px - env(safe-area-inset-bottom, 0px) - 24px)", overflowY: "auto", background: "#0a0a0f", borderTop: "1px solid rgba(78,205,196,0.3)", borderRadius: "18px 18px 0 0", padding: "20px 22px 28px", marginBottom: "calc(96px + env(safe-area-inset-bottom, 0px))", boxSizing: "border-box", WebkitOverflowScrolling: "touch" }}>
+                <div onClick={() => setTipModalOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9600, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}>
+                  {/* Centered panel — per @maaiz 'Maybe this can just
+                      come up in the middle not the bottom'. The bottom
+                      nav is portaled to document.body and the !tipModalOpen
+                      gate hides it while the modal is open
+                      (qa: pro-tip-hides-bottom-nav), so the previous
+                      bottom-anchor + marginBottom workaround is no
+                      longer needed. (qa: pro-tip-overlay-zindex) */}
+                  <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "calc(100dvh - 48px)", overflowY: "auto", background: "#0a0a0f", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 18, padding: "20px 22px 28px", boxSizing: "border-box", WebkitOverflowScrolling: "touch", boxShadow: "0 24px 60px rgba(0,0,0,0.7)" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                       <div style={{ fontSize: 11, color: "#4ECDC4", letterSpacing: 2, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>💡 PRO TIP · {tip.category.toUpperCase()}</div>
                       <button onClick={() => setTipModalOpen(false)} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 20, cursor: "pointer", padding: 0, lineHeight: 1 }}>×</button>
@@ -15214,10 +15228,15 @@ function HomePage() {
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.5, marginBottom: 14 }}>Both themes use the same six tiers (T1 → T6) and the same score thresholds. Only the names + icons change. Trainer ladder isn't affected.</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {([
-                { id: "vivid",  label: "Vivid",  preview: "🐱 🦊 🐕 🦁 🦍 🐻", desc: "Kitten → Bear" },
-                { id: "simple", label: "Simple", preview: "🥉 🥈 🥇 🏆 💎 👑", desc: "Bronze → Master" },
+                { id: "vivid",  label: "Vivid",  desc: "Kitten → Bear" },
+                { id: "simple", label: "Simple", desc: "Bronze → Master" },
               ] as const).map(t => {
                 const active = tierTheme === t.id;
+                // Render the custom tier badge PNGs from /tier-icons/<theme>/
+                // instead of the legacy emoji string. Each tier's
+                // AnimalTier carries `iconPath` + `icon` fallback so
+                // TierGlyph swaps automatically. (qa: tier-theme-preview-uses-badges)
+                const themedTiers = getAthleteTiers(t.id);
                 return (
                   <button
                     key={t.id}
@@ -15231,7 +15250,11 @@ function HomePage() {
                       <span style={{ fontSize: 12, fontWeight: 700, color: active ? "#f0c040" : "#fff" }}>{t.label}</span>
                       {active && <span style={{ fontSize: 10, color: "#f0c040" }}>✓</span>}
                     </div>
-                    <div style={{ fontSize: 13, marginBottom: 4 }}>{t.preview}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                      {themedTiers.map(tt => (
+                        <TierGlyph key={tt.tierNum} src={tt.iconPath} emoji={tt.icon} size={22} />
+                      ))}
+                    </div>
                     <div style={{ fontSize: 10, color: active ? "rgba(240,192,64,0.65)" : "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{t.desc}</div>
                   </button>
                 );
@@ -15244,8 +15267,8 @@ function HomePage() {
                 (qa: theme-bright-text) */}
             <div style={{ marginTop: 14, padding: "12px 14px", background: "rgba(255,230,109,0.04)", border: "1px solid rgba(255,230,109,0.18)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#FFE66D", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>💡 BRIGHT TEXT</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 3, lineHeight: 1.4 }}>Brightens fonts + chips when you&apos;re reading on low screen brightness (e.g. dimmed at the gym).</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#FFE66D", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>💡 EXTRA BRIGHT</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 3, lineHeight: 1.4 }}>The baseline already lifts contrast for gym-readability. Toggle ON for an EVEN stronger boost (brighter fonts, deeper backgrounds) when your phone is dimmed to near-minimum.</div>
               </div>
               <button onClick={() => updateBrightText(!brightText)} title={brightText ? "Disable bright text" : "Enable bright text"} style={{ flexShrink: 0, padding: "6px 14px", background: brightText ? "rgba(255,230,109,0.18)" : "rgba(255,255,255,0.04)", border: `1px solid ${brightText ? "rgba(255,230,109,0.45)" : "rgba(255,255,255,0.1)"}`, borderRadius: 14, color: brightText ? "#FFE66D" : "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{brightText ? "ON" : "OFF"}</button>
             </div>
@@ -19956,10 +19979,18 @@ function HomePage() {
           that lifts the perceived brightness/contrast so faint chips
           and 0.3-0.4 opacity greys stay legible on low screen
           brightness. Rendered as a style tag rather than a wrapper so
-          modals + portals also get the boost. (qa: theme-bright-text) */}
-      {brightText && (
-        <style>{`html, body { filter: brightness(1.16) contrast(1.06) saturate(1.05); }`}</style>
-      )}
+          modals + portals also get the boost. (qa: theme-bright-text)
+          Per @maaiz 2026-06-03 'The bright text function currently
+          should be default, and turning on bright text function should
+          make all text further readable in regards to font colour and
+          background': the previously OFF default now matches the old
+          ON filter (baseline contrast boost so every user gets the
+          gym-readable feel), and the toggle ON state applies a STRONGER
+          boost (~30% brightness, ~15% contrast, plus a small white-
+          shift) for low-brightness conditions. */}
+      <style>{brightText
+        ? `html, body { filter: brightness(1.30) contrast(1.15) saturate(1.05); }`
+        : `html, body { filter: brightness(1.16) contrast(1.06) saturate(1.05); }`}</style>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={_viewKey}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
-import { AVATARS, tierAvatarsAtOrBelow, findAvatar } from "../../../lib/avatars";
+import { AVATARS, ADMIN_AVATAR_POOL, tierAvatarsAtOrBelow, findAvatar } from "../../../lib/avatars";
 import { computeStatsForUsers } from "../../../lib/leaderboardStats";
 
 const COOKIE = "ironlog-uid";
@@ -24,11 +24,13 @@ export async function GET(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
   try {
-    const [profile, statsMap, existingUnlocks] = await Promise.all([
+    const [user, profile, statsMap, existingUnlocks] = await Promise.all([
+      prisma.user.findUnique({ where: { id: uid }, select: { role: true, extraRoles: true } }),
       prisma.userProfile.findUnique({ where: { userId: uid } }),
       computeStatsForUsers([uid]),
       (prisma as any).userAvatarUnlock.findMany({ where: { userId: uid } }),
     ]);
+    const isAdmin = user?.role === "admin" || (Array.isArray(user?.extraRoles) && user!.extraRoles.includes("admin"));
     const tier = statsMap.get(uid)?.tier;
     const tierIdx = (tier?.idx ?? 0) + 1;     // 1-based
     const qualifiedTier = tierAvatarsAtOrBelow(tierIdx);
@@ -71,13 +73,31 @@ export async function GET(req: NextRequest) {
       for (const a of toMint) ownedIds.add(a.id);
     }
 
+    // Admin-exclusive avatars — auto-minted whenever an admin viewer
+    // hits /api/avatars without owning them yet. Idempotent. Non-admin
+    // accounts NEVER touch this path, so the catalogue stays locked
+    // off for everyone else (the PATCH ownership check also rejects
+    // equipping an unowned avatar). (qa: avatars-admin-exclusive)
+    if (isAdmin) {
+      const adminToMint = ADMIN_AVATAR_POOL.filter(a => !ownedIds.has(a.id));
+      if (adminToMint.length > 0) {
+        await (prisma as any).userAvatarUnlock.createMany({
+          data: adminToMint.map(a => ({ userId: uid, avatarId: a.id, source: "admin" as any, tier: null })),
+          skipDuplicates: true,
+        });
+        for (const a of adminToMint) ownedIds.add(a.id);
+      }
+    }
+
     const luckyUnlocked = AVATARS.filter(a => a.source === "lucky" && ownedIds.has(a.id));
     const tierUnlocked = AVATARS.filter(a => a.source === "tier" && ownedIds.has(a.id));
+    const adminUnlocked = AVATARS.filter(a => a.source === "admin" && ownedIds.has(a.id));
 
     return json({
       selected,
       tierUnlocked,
       luckyUnlocked,
+      adminUnlocked,
       all: AVATARS,
       tier: tierIdx,
       tierScoreBonus: profile?.tierScoreBonus ?? 0,

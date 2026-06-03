@@ -57,6 +57,26 @@ Files: `app/api/trainer/request/route.ts`, `app/api/trainer/clients/route.ts`, `
 
 ---
 
+## QA pass · 2026-06-03 follow-up #7 — admin avatar + pro tip centered + tier modal scroll lock + theme badges + bright-text baseline (qa: avatars-admin-exclusive, pro-tip-modal-centered, tier-modal-body-scroll-lock, tier-theme-preview-uses-badges, theme-bright-text-baseline)
+
+Five small fixes bundled from rapid @maaiz feedback while testing the v1.2.10 deploy.
+
+### Addressed
+- **avatars-admin-exclusive (slice 1)**: per @maaiz "Add to image generations list to make a unique epic avatar exclusively for admin users to be unlocked and wire the code to do this when the image is made and put in git". Extended `AvatarSource` union with `"admin"`, added new `ADMIN_AVATAR_POOL` export with a single entry `admin-eternal`, extended `/api/avatars` GET to detect admin role and auto-mint missing `UserAvatarUnlock` rows for the admin pool (idempotent). Response now includes `adminUnlocked: Avatar[]`. Non-admin paths never touch the admin-mint code so the entry stays locked off — the existing PATCH ownership check also blocks equipping it. **Batch 15** prompt added to `image-prompts-v2.md` for the actual PNG (regal mythic athlete-king silhouette, transparent background, ≤80 KB). PNG drop is non-blocking; code is live.
+- **pro-tip-modal-centered**: per @maaiz "Maybe this can just come up in the middle not the bottom". Switched the pro tip modal container from `alignItems: 'flex-end'` to `alignItems: 'center'` + `padding: 24` (matches profile preview pattern). Removed the previous `marginBottom: calc(96px + safe-area)` workaround that was lifting the panel above the bottom nav — no longer needed because `pro-tip-hides-bottom-nav` already hides the nav while the modal is open.
+- **tier-modal-body-scroll-lock**: per @maaiz "When this modal is open I'm still able to scroll the home page behind it, while it's open I should only be able scroll this modal". Added a useEffect inside `TierInfoModal` that runs while `open === true`: sets `document.body.style.overflow = "hidden"` on enter, restores on cleanup. Same pattern the profile preview modal uses.
+- **tier-theme-preview-uses-badges**: per @maaiz screenshot of the Settings TIER NAMES card "These emojis need to be updated to the custom tier badges we have". Swapped the inline emoji string ('🐱 🦊 🐕 🦁 🦍 🐻' / '🥉 🥈 🥇 🏆 💎 👑') for a row of `TierGlyph` components rendering each tier's `iconPath` PNG with the emoji as fallback. Uses `getAthleteTiers(themeId)` so Vivid renders the Batch 12 Big Dawg pitbull bust + the other animal badges, Simple renders the medal/trophy/diamond/crown PNGs.
+- **theme-bright-text-baseline**: per @maaiz "The bright text function currently should be default, and turning on bright text function should make all text further readable in regards to font colour and background". Replaced the conditional bright filter with an unconditional `<style>` — OFF state now uses the previous ON values (`brightness(1.16) contrast(1.06) saturate(1.05)`) as baseline; ON state bumps to `brightness(1.30) contrast(1.15) saturate(1.05)`. Settings card renamed from "BRIGHT TEXT" to "EXTRA BRIGHT" with copy reflecting the new mental model.
+
+### Files
+- Modified: `lib/avatars.ts` (admin source + ADMIN_AVATAR_POOL export)
+- Modified: `app/api/avatars/route.ts` (admin role detection + auto-mint + adminUnlocked response field)
+- Modified: `image-prompts-v2.md` (Batch 15 prompt for admin-eternal.png)
+- Modified: `app/page.tsx` (pro tip centered + TierInfoModal body-scroll-lock + tier theme preview TierGlyph row + bright-text unconditional baseline + EXTRA BRIGHT copy)
+- Modified: `qa-state.json` (5 new items)
+
+---
+
 ## QA pass · 2026-06-03 follow-up #6 — trainer→client management slices (qa: profile-preview-your-client-tap, client-detail-equipment-right-aligned, trainer-proposed-body-metric, body-metric-edit-history)
 
 Four pieces from @maaiz with a screenshot of munchy's profile preview + client detail.

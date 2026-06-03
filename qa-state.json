@@ -746,6 +746,89 @@
       "notes": "[2026-06-03 <sha7>] Per @maaiz 'Instead of resolved it can say friend request cancelled'. RESOLVED was the catch-all pill rendered when requestStatus came back null (because cancel and decline both hard-deleted the Friendship row). Fix:\\n• DELETE /api/friends — for pending status, set status='cancelled' (audit-preserving). For accepted, still hard-delete (unfriend semantic).\\n• PATCH /api/friends action='decline' — set status='declined' instead of deleting.\\n• POST /api/friends against an existing cancelled or declined row — re-issue: bump status back to pending, swap sides so caller becomes userAId, refresh requestedAt, re-emit the friend_request message + push.\\n• Pill render — added explicit CANCELLED (neutral) and DECLINED (red) labels; RESOLVED kept only as legacy fallback when requestStatus is null (pre-soft-delete rows).\\nNo schema migration — status is a plain string. /api/messages/[userId] GET already joined Friendship.status into the message via requestId so the pill labels switched automatically once the API stopped hard-deleting."
     },
     {
+      "id": "theme-bright-text-baseline",
+      "title": "Baseline readability matches the previous BRIGHT TEXT 'ON' state; the toggle now adds an EXTRA boost on top",
+      "area": "Settings",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Open the app fresh (no brightText preference set). Verify the default appearance matches what the previous 'bright text ON' state looked like — faint chips at 0.3-0.4 opacity should already be legible without the toggle.",
+        "Open Settings → 💡 EXTRA BRIGHT card. Verify the copy reads 'The baseline already lifts contrast for gym-readability. Toggle ON for an EVEN stronger boost (brighter fonts, deeper backgrounds) when your phone is dimmed to near-minimum.'",
+        "Toggle ON. Verify the entire screen lifts another notch (~13 percentage points brighter, ~9 points more contrast). Text becomes noticeably whiter, backgrounds darker.",
+        "Toggle OFF. Verify it returns to the baseline (not to the pre-fix raw colors).",
+        "Reload the app — the baseline filter persists without any user preference; the OFF state IS the baseline."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz 'The bright text function currently should be default, and turning on bright text function should make all text further readable in regards to font colour and background'. Replaced the conditional `{brightText && <style>filter: brightness(1.16)...</style>}` with an unconditional `<style>` that always emits a CSS filter — the OFF state now uses the previous ON values (`brightness(1.16) contrast(1.06) saturate(1.05)`) as the baseline, and the ON state bumps to `brightness(1.30) contrast(1.15) saturate(1.05)`. Renamed the Settings card from 'BRIGHT TEXT' to 'EXTRA BRIGHT' so the label matches the new mental model — baseline already bright, toggle adds extra. Preference + storage shape unchanged so the old localStorage value still loads correctly."
+    },
+    {
+      "id": "tier-theme-preview-uses-badges",
+      "title": "Tier theme cards in Settings preview the custom tier-badge PNGs (not the legacy emoji fallback)",
+      "area": "Tiers",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Open Settings → 🏆 TIER NAMES card. Verify both theme cards (Vivid and Simple) show a row of SIX tier badge images (PNGs from /tier-icons/<theme>/) instead of the previous emoji string.",
+        "Vivid card: kitten / fox / big-dawg (the refreshed Batch 12 pitbull bust) / lion / gorilla / bear, in left→right order.",
+        "Simple card: bronze / silver / gold / platinum / diamond / master, in left→right order.",
+        "If an image fails to load (e.g. on first visit before the asset is cached), the TierGlyph fallback emoji shows in its place — no broken-image icon.",
+        "Tap a theme card → active border flips + PATCH /api/profile fires + the rest of the app's tier renders pick up the new theme on next read."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz screenshot of the Settings TIER NAMES preview cards: 'These emojis need to be updated to the custom tier badges we have'. Swapped the inline emoji string (e.g. '🐱 🦊 🐕 🦁 🦍 🐻') for a row of TierGlyph components rendering each tier's `iconPath` PNG (with the existing emoji as the fallback per TierGlyph's behaviour). Uses `getAthleteTiers(themeId)` to pull the canonical tier list per theme so the preview stays in sync with the live ladder — Vivid renders the Batch 12 Big Dawg pitbull bust, Simple renders the medal/trophy/diamond/crown PNGs from /public/tier-icons/simple/. No other layout change — just the preview row content. Trainer ladder unaffected (the description copy already noted that)."
+    },
+    {
+      "id": "avatars-admin-exclusive",
+      "title": "Admin-exclusive epic avatar in the catalogue (auto-unlocks for admin users only)",
+      "area": "Avatars",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Sign in as an admin user (role = 'admin' OR extraRoles includes 'admin'). GET /api/avatars. Verify the response includes a new `adminUnlocked` array containing the `admin-eternal` Avatar entry.",
+        "Idempotency: GET /api/avatars again — verify `adminUnlocked` still contains the entry with no duplicate UserAvatarUnlock rows being created on the DB.",
+        "Sign in as a regular user (role = 'user'). GET /api/avatars. Verify `adminUnlocked` is an empty array — no admin avatar is minted.",
+        "PATCH /api/avatars with avatarId='admin-eternal' as a non-admin: verify 403 'Avatar not unlocked yet' (the ownership check on UserAvatarUnlock blocks equipping it).",
+        "When the PNG art lands at public/avatars/admin-eternal.png (Batch 15 in image-prompts-v2.md), the Settings → IDENTITY picker should display the unlocked tile in a dedicated admin section. The picker UI styling for the admin section is a follow-up slice."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz 'Add to image generations list to make a unique epic avatar exclusively for admin users to be unlocked and wire the code to do this when the image is made and put in git'. Slice 1 ships the catalogue + auto-unlock pipeline: extended AvatarSource union to 'tier' | 'lucky' | 'milestone-bonus' | 'admin', added ADMIN_AVATAR_POOL export with a single entry `admin-eternal`, extended /api/avatars GET to detect admin role and auto-mint missing UserAvatarUnlock rows for the admin pool (idempotent, skipDuplicates). Response now includes `adminUnlocked: Avatar[]`. Non-admin accounts never touch the admin-mint path, so the entry stays locked off — the PATCH ownership check on UserAvatarUnlock also rejects equipping an unowned avatar. Batch 15 prompt added to image-prompts-v2.md with frame spec, color palette guidance, and registration steps. The PNG drop is non-blocking: code is live, art follows. UI slice (picker styling for the new section) follows once an admin actually has one."
+    },
+    {
+      "id": "pro-tip-modal-centered",
+      "title": "Pro tip overlay opens centered instead of bottom-anchored",
+      "area": "Home",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "On home, tap the Pro Tip chip to open the expanded modal. Verify the panel slides up CENTRED in the viewport — not anchored to the bottom.",
+        "The bottom nav remains hidden while the modal is open (pro-tip-hides-bottom-nav).",
+        "Long tip text: verify the panel internally scrolls within `maxHeight: calc(100dvh - 48px)`.",
+        "Tap outside the panel to dismiss. Verify it closes cleanly + the nav reappears."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz screenshot: 'Maybe this can just come up in the middle not the bottom'. Switched the modal container from `alignItems: 'flex-end'` to `alignItems: 'center'` + added `padding: 24` (matches the profile preview modal pattern). Removed the previous workaround `marginBottom: calc(96px + safe-area)` that was lifting the panel above the bottom nav — no longer needed because pro-tip-hides-bottom-nav portals the nav and hides it while the modal is open. Inner panel now has all four corners rounded (was border-radius: 18px 18px 0 0 for the bottom-sheet aesthetic), full border, and box-shadow to match the centered modal language."
+    },
+    {
+      "id": "tier-modal-body-scroll-lock",
+      "title": "'How Tiers Work' modal locks body scroll while open (no scroll-through to home behind it)",
+      "area": "Tiers",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Open the 'How Tiers Work' modal (tap the tier rail / sub-rank chip on Home).",
+        "Try to scroll the home page behind the modal — drag your finger on the modal's backdrop area. Verify the home page does NOT move.",
+        "Scroll within the modal — the panel itself should scroll normally (long sub-rank list).",
+        "Close the modal. Verify the home page returns to its prior scroll position (overflow style restored)."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz 'When this modal is open I'm still able to scroll the home page behind it, while it's open I should only be able scroll this modal'. Added a useEffect inside TierInfoModal that runs while `open === true`: sets document.body.style.overflow = 'hidden' on enter; restores the prior value on cleanup. Same pattern the profile preview modal already uses. No layout change — only the body-scroll-lock side effect is new."
+    },
+    {
       "id": "profile-preview-your-client-tap",
       "title": "Profile preview YOUR CLIENT chip navigates to the full client detail page",
       "area": "Profile",

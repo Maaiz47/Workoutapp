@@ -1001,6 +1001,59 @@ shipped in Batch 12 and reads correctly. Leave it alone unless
 
 ---
 
+## Batch 15 — Admin-exclusive epic avatar (1 image, 1024×1024)
+
+A single ultra-rare cosmetic that never unlocks for non-admin users.
+Per @maaiz: "Add to image generations list to make a unique epic
+avatar exclusively for admin users to be unlocked and wire the code
+to do this when the image is made and put in git". Code wiring
+already shipped in slice 1 (qa: avatars-admin-exclusive):
+
+- `lib/avatars.ts` — `AvatarSource` union extended with `"admin"`,
+  new `ADMIN_AVATAR_POOL` export, single entry: `{ id:
+  "admin-eternal", name: "Eternal Admin", source: "admin", flavour:
+  "Architect of the floor. Never to be unlocked by anyone else." }`.
+- `app/api/avatars/route.ts` GET — when the calling user's role is
+  `admin` (or `extraRoles` includes `admin`), auto-mints any missing
+  `ADMIN_AVATAR_POOL` rows into `UserAvatarUnlock` with
+  `source: "admin"`. Returns a new `adminUnlocked: Avatar[]` field
+  alongside `tierUnlocked` / `luckyUnlocked`. Non-admin accounts
+  NEVER touch this path so the entry stays locked off in the
+  catalogue (PATCH ownership check also rejects equipping an
+  unowned avatar). Idempotent — repeated GETs don't dupe.
+
+Compress to ≤ **80 KB** PNG via pngquant (README envelope).
+
+### `admin-eternal.png` — "Eternal Admin"
+> 1024×1024 square portrait, transparent background. A regal,
+> hooded silhouette of an athlete-king carrying a barbell across
+> the shoulders — but rendered as a stylised mythic figure, not a
+> literal photo. Iconography: glowing iridescent crown floating
+> above the hood, faint constellation-mapping inside the silhouette
+> instead of skin texture, the barbell glowing molten-gold along
+> its full length with violet sparks shedding from the plates.
+> Aura: a thin halo of purple-to-gold gradient + faint orbiting
+> light particles. Background: empty (transparent). Color palette:
+> deep obsidian black + iridescent violet rim + molten-gold core
+> highlights — distinct enough that no tier/lucky/milestone avatar
+> palette mirrors it. Photoreal-illustration hybrid style, slight
+> glow halo, ZERO text or letters anywhere in the image.
+> Avoid: any tier-specific animal motif (no lion / gorilla / bear
+> shapes), any visible faces, color palettes that overlap with the
+> tier-unlock avatars, watermarks.
+
+### Registration after generation
+
+1. Drop the PNG at `public/avatars/admin-eternal.png`.
+2. No code changes — `lib/avatars.ts` already references the id and
+   `findAvatar()` resolves it via `/avatars/{id}.png`.
+3. Sign in as an admin → open Settings → IDENTITY → avatar picker.
+   The Eternal Admin tile should appear unlocked in a dedicated
+   section (UI slice 2 — `adminUnlocked` array surfaced; picker
+   styling follow-up).
+
+---
+
 ## After all batches land
 
 Total: **63 images** (53 if Batch 9 deferred). Breakdown:
