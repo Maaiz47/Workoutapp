@@ -746,6 +746,71 @@
       "notes": "[2026-06-03 <sha7>] Per @maaiz 'Instead of resolved it can say friend request cancelled'. RESOLVED was the catch-all pill rendered when requestStatus came back null (because cancel and decline both hard-deleted the Friendship row). Fix:\\n• DELETE /api/friends — for pending status, set status='cancelled' (audit-preserving). For accepted, still hard-delete (unfriend semantic).\\n• PATCH /api/friends action='decline' — set status='declined' instead of deleting.\\n• POST /api/friends against an existing cancelled or declined row — re-issue: bump status back to pending, swap sides so caller becomes userAId, refresh requestedAt, re-emit the friend_request message + push.\\n• Pill render — added explicit CANCELLED (neutral) and DECLINED (red) labels; RESOLVED kept only as legacy fallback when requestStatus is null (pre-soft-delete rows).\\nNo schema migration — status is a plain string. /api/messages/[userId] GET already joined Friendship.status into the message via requestId so the pill labels switched automatically once the API stopped hard-deleting."
     },
     {
+      "id": "profile-preview-your-client-tap",
+      "title": "Profile preview YOUR CLIENT chip navigates to the full client detail page",
+      "area": "Profile",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Logged in as a trainer, open the profile preview for one of your existing clients (any entry point — leaderboard, chat header, friends list, etc).",
+        "Verify the 👑 YOUR CLIENT row is now a tappable button (cursor pointer, arrow chevron in label).",
+        "Tap it → modal closes, view navigates to clientDetail for that client. The full STATS / SPLIT / HISTORY / PROFILE tabs are visible.",
+        "Back-button from clientDetail goes to clientsHub (existing behaviour, unchanged).",
+        "Non-trainer viewers OR trainers viewing a non-client still see the existing action surfaces (MESSAGE / ADD AS CLIENT / etc) — unchanged."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz screenshot: 'Your client button should take me to this client page'. The previous chip was a non-tappable status indicator. Added an `onOpenClientDetail` callback prop to ProfilePreviewModal + plumbed it through HomeGlobals (`onPreviewOpenClientDetail`) and HomePage (which passes `(c) => openClientDetail(c)`). Tap fires the existing openClientDetail flow + closes the modal. Chip styling bumped from the neutral disabledStyle to an accent-colored button with a → chevron so it reads as actionable."
+    },
+    {
+      "id": "client-detail-equipment-right-aligned",
+      "title": "Client profile EQUIPMENT list right-aligned to match the rest of the spec sheet",
+      "area": "Trainer",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Open the client detail page → PROFILE tab. Scroll to EQUIPMENT.",
+        "Verify each item (Barbell / Dumbbell / Cable / Machine / Bench / Pull-up Bar / Dip Bar / Kettlebell) is right-aligned within its row, matching the value column of the rows above (GOAL / FITNESS LEVEL / LOCATION / FOCUS AREA).",
+        "Empty equipment list still shows the right-aligned '—' fallback."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz: 'The list of equipment can be right aligned instead of left'. Added `textAlign: 'right'` to the equipment item rows in the client detail render. Other PROFILE-tab rows use a label-left / value-right layout, so equipment now matches that pattern."
+    },
+    {
+      "id": "trainer-proposed-body-metric",
+      "title": "Trainer can propose a body-metric (weight / BF / date) edit to a client; applies with client approval",
+      "area": "Trainer",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Schema: verify BodyMetric has the new `recordedByUserId String?` and `editHistory Json?` columns (auto-applied via `prisma db push` on next deploy).",
+        "Endpoint slice 1: from a trainer account, `curl -X POST /api/trainer/clients/<clientId>/propose-metric -d '{\"weightKg\":75.5,\"bodyFatPct\":18}'` → 200 with the created message. The client receives a Message of `type=metric_proposal` whose body is the JSON-encoded proposal payload. Push notification fires.",
+        "Slice 2 (NOT yet shipped — follow-up): client-side UI to render the metric_proposal message bubble with APPROVE / DECLINE actions; an accept endpoint that creates a BodyMetric row with `recordedByUserId = trainer.id` so the body-trend chart can colour-code the point distinctly.",
+        "Slice 3 (NOT yet shipped): body-trend chart visual differentiation — trainer-recorded points render in the trainer accent colour with a label so the user can tell at a glance who entered what.",
+        "Slice 4 (NOT yet shipped): trainer-side UI affordance — a 'PROPOSE METRIC' button on the client detail page that opens a small form firing the propose-metric endpoint."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz: 'Maybe trainers should be able to \"edit\" the profile of clients just weight and body fat — can be approved by client before applying the new data record and also show somehow in the body trend graphs trainer recorded weights and user own recorded data should be identifiable'. Slice 1 ships the schema (`BodyMetric.recordedByUserId`) and the trainer-side propose endpoint that creates a Message of type=`metric_proposal` carrying the JSON payload in body. Push notification fires so the client knows to come check. Slices 2–4 (client approval UI + body-trend differentiation + trainer button) shipping in follow-ups. Schema change auto-applies via `prisma db push` on next Vercel build."
+    },
+    {
+      "id": "body-metric-edit-history",
+      "title": "Body-metric edits are audit-logged (date, who, before → after) on the BodyMetric row",
+      "area": "Wellness",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "PATCH /api/metrics/[id] with any subset of {weightKg, bodyFatPct, date, timeOfDay}. Verify the response's `metric.editHistory` is an array including a new entry `{ ts, editedByUserId, before: {...}, after: {...} }` covering only the fields that actually changed.",
+        "PATCH again. Verify the editHistory array grows (append-only). Existing entries are not mutated.",
+        "PATCH with no-op (e.g. omit all four fields). Verify no new history entry is added (hasChanges = false).",
+        "Slice 2 (NOT yet shipped): UI in the weight-recording history view to (a) inline-edit a row's date + values, (b) tap a row to view its editHistory as a small timeline."
+      ],
+      "notes": "[2026-06-03 <sha7>] Per @maaiz: 'Also should be in the weight recording history to manually edit the date and data later (must show edit history)'. Slice 1 ships the schema field `BodyMetric.editHistory Json?` (append-only array) and extends `PATCH /api/metrics/[id]` to capture before/after diffs and append one audit entry per non-no-op PATCH. The existing inline edit affordance already calls this endpoint, so no client change is needed for the audit to start accumulating. Slice 2 (UI to browse the audit log per row) is a follow-up."
+    },
+    {
       "id": "profile-preview-cross-view-mount",
       "title": "Profile preview modal actually opens from every view (was unreachable on early-return view branches)",
       "area": "Profile",

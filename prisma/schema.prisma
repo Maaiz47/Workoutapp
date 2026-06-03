@@ -379,6 +379,20 @@ model BodyMetric {
   // that morning-fasted readings are more reliable. Nullable for
   // backwards compat with historical entries. (qa: body-metric-timeofday)
   timeOfDay  String?
+  // Who originally logged this metric. Null = the user themselves
+  // (self-recorded — the historical default). Set to a trainer's
+  // user id when the metric was created via the trainer-proposes-
+  // and-client-approves flow. The body-trend chart uses this to
+  // colour-code trainer-recorded points distinctly so the user can
+  // see who entered what. (qa: trainer-proposed-body-metric)
+  recordedByUserId String?
+  // Append-only audit log of edits. Each entry:
+  //   { ts: ISO, editedByUserId: string, before: { weightKg, bodyFatPct, date, timeOfDay }, after: {...} }
+  // Lets users browse the edit history of a single weigh-in to see
+  // what changed and when. Powers @maaiz "should be in the weight
+  // recording history to manually edit the date and data later
+  // (must show edit history)". (qa: body-metric-edit-history)
+  editHistory Json?
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])

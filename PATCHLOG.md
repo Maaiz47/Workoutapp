@@ -57,6 +57,25 @@ Files: `app/api/trainer/request/route.ts`, `app/api/trainer/clients/route.ts`, `
 
 ---
 
+## QA pass · 2026-06-03 follow-up #6 — trainer→client management slices (qa: profile-preview-your-client-tap, client-detail-equipment-right-aligned, trainer-proposed-body-metric, body-metric-edit-history)
+
+Four pieces from @maaiz with a screenshot of munchy's profile preview + client detail.
+
+### Addressed
+- **profile-preview-your-client-tap**: the 👑 YOUR CLIENT row in the profile preview modal was a static chip. Now an actionable button that closes the modal + navigates to the full client detail page (STATS / SPLIT / HISTORY / PROFILE). Threaded `onOpenClientDetail` callback through ProfilePreviewModal → HomeGlobals (`onPreviewOpenClientDetail`) → HomePage (`(c) => openClientDetail(c)`). Chip restyled with accent color + → chevron so it reads as tappable.
+- **client-detail-equipment-right-aligned**: equipment items on the client PROFILE tab were left-aligned, breaking the label-left / value-right rhythm of the other rows (GOAL / FITNESS LEVEL / LOCATION). Added `textAlign: "right"` to the equipment item rows. Fallback "—" matches.
+- **trainer-proposed-body-metric (slice 1)**: per @maaiz "trainers should be able to 'edit' the profile of clients just weight and body fat — can be approved by client before applying the new data record". Schema field `BodyMetric.recordedByUserId String?` added + new endpoint `POST /api/trainer/clients/[clientId]/propose-metric` (trainer-only, requires existing TrainerClient link). Creates a Message of `type="metric_proposal"` carrying the proposal payload as JSON in the body; push notification to client. Slices 2–4 deferred: client-side APPROVE/DECLINE bubble UI + accept endpoint that materialises the BodyMetric with `recordedByUserId = trainer.id`; body-trend chart visual differentiation of trainer-recorded vs self-recorded points; trainer-side PROPOSE METRIC button on the client detail page.
+- **body-metric-edit-history (slice 1)**: per @maaiz "should be in the weight recording history to manually edit the date and data later (must show edit history)". Schema field `BodyMetric.editHistory Json?` added (append-only array of `{ ts, editedByUserId, before, after }`). `PATCH /api/metrics/[id]` extended to capture before/after diffs and append one audit entry per non-no-op PATCH. The existing inline-edit affordance already hits this endpoint, so audit history starts accumulating with zero client-side change. Slice 2 (UI to browse the audit log per row) deferred.
+
+### Files
+- Modified: `app/page.tsx` (ProfilePreviewModal `onOpenClientDetail` prop + YOUR CLIENT button + HomeGlobals plumbing + equipment right-align)
+- Modified: `prisma/schema.prisma` (`BodyMetric.recordedByUserId`, `BodyMetric.editHistory`)
+- Modified: `app/api/metrics/[id]/route.ts` (PATCH builds before/after diff and appends to editHistory)
+- New: `app/api/trainer/clients/[clientId]/propose-metric/route.ts`
+- Modified: `qa-state.json` (4 new items)
+
+---
+
 ## QA pass · 2026-06-03 follow-up #5 — DM gate + friend request cancel/decline labels + profile preview cross-view mount + modal opens at top (qa: dm-relationship-gate, friend-request-cancel-vs-decline, profile-preview-cross-view-mount, profile-preview-opens-at-top)
 
 ### Addressed

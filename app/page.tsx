@@ -154,6 +154,7 @@ function ProfilePreviewModal({
   onClose,
   onOpenDM,
   onFriendshipChanged,
+  onOpenClientDetail,
   tierTheme,
 }: {
   userId: string;
@@ -161,6 +162,7 @@ function ProfilePreviewModal({
   onClose: () => void;
   onOpenDM: (partner: { id: string; username: string }) => void;
   onFriendshipChanged?: () => void;
+  onOpenClientDetail?: (client: { id: string; username: string }) => void;
   tierTheme: string | null | undefined;
 }) {
   const [data, setData] = useState<any>(null);
@@ -343,7 +345,12 @@ function ProfilePreviewModal({
                 )}
                 {viewerIsTrainer && data.trainerRelation.isMyClient && (
                   <>
-                    <div style={{ ...disabledStyle, background: "rgba(255,209,102,0.06)", border: "1px solid rgba(255,209,102,0.25)", color: "rgba(255,209,102,0.85)" }}>👑 YOUR CLIENT</div>
+                    {/* YOUR CLIENT now navigates to the full client
+                        detail page (stats / split / history / profile)
+                        so trainers don't have to back out and find the
+                        client in the roster.
+                        (qa: profile-preview-your-client-tap) */}
+                    <button onClick={() => { if (onOpenClientDetail) { onOpenClientDetail({ id: data.user.id, username: data.user.username }); onClose(); } }} style={{ ...disabledStyle, background: "rgba(255,209,102,0.10)", border: "1px solid rgba(255,209,102,0.4)", color: "#FFD166", cursor: onOpenClientDetail ? "pointer" : "default" }}>👑 YOUR CLIENT →</button>
                     <button disabled={actionPending} onClick={removeClient} style={{ ...actionStyle("255,107,107", 0.06, 0.3), fontSize: 13, fontWeight: 600, color: "rgba(255,107,107,0.85)" }}>✕ DISOWN CLIENT</button>
                   </>
                 )}
@@ -4937,7 +4944,7 @@ function HomeGlobals({
   user, view, clients, tierModalOpen, setTierModalOpen, athleteBreakdown, trainerBreakdown, tierTheme,
   deGamified, milestoneQueue, onMilestoneAdvance, newPBs, onPBsDismiss, tierPromoToast, onTierPromoDismiss,
   onJumpToLeaderboard, onOpenGlobalLeaderboard, updateOverlayDisabled,
-  previewUserId, onClosePreview, onPreviewOpenDM, onPreviewFriendshipChanged, viewer, tierThemeForPreview,
+  previewUserId, onClosePreview, onPreviewOpenDM, onPreviewFriendshipChanged, onPreviewOpenClientDetail, viewer, tierThemeForPreview,
 }: {
   user: { username: string; role: string; extraRoles?: string[] } | null;
   view: string;
@@ -4987,6 +4994,7 @@ function HomeGlobals({
   onClosePreview?: () => void;
   onPreviewOpenDM?: (partner: { id: string; username: string }) => void;
   onPreviewFriendshipChanged?: () => void;
+  onPreviewOpenClientDetail?: (client: { id: string; username: string }) => void;
   viewer?: { id: string; role?: string; extraRoles?: string[] } | null;
   tierThemeForPreview?: string | null;
 }) {
@@ -5013,6 +5021,7 @@ function HomeGlobals({
           onClose={onClosePreview}
           onOpenDM={onPreviewOpenDM}
           onFriendshipChanged={onPreviewFriendshipChanged}
+          onOpenClientDetail={onPreviewOpenClientDetail}
           tierTheme={tierThemeForPreview ?? null}
         />
       )}
@@ -6436,6 +6445,7 @@ function HomePage() {
         onClosePreview={() => setPreviewUserId(null)}
         onPreviewOpenDM={(partner) => { openConversation(partner); }}
         onPreviewFriendshipChanged={() => { fetchPendingFriendCount(); }}
+        onPreviewOpenClientDetail={(client) => { openClientDetail(client); }}
         viewer={user}
         tierThemeForPreview={tierTheme}
         onOpenGlobalLeaderboard={() => {
@@ -13074,8 +13084,8 @@ function HomePage() {
                         <div style={{ padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>EQUIPMENT</div>
                           {equipItems.length ? equipItems.map((item, i) => (
-                            <div key={i} style={{ fontSize: 13, color: "#fff", lineHeight: 1.9 }}>{item}</div>
-                          )) : <div style={{ fontSize: 13, color: "#fff" }}>—</div>}
+                            <div key={i} style={{ fontSize: 13, color: "#fff", lineHeight: 1.9, textAlign: "right" }}>{item}</div>
+                          )) : <div style={{ fontSize: 13, color: "#fff", textAlign: "right" }}>—</div>}
                         </div>
                       </>
                     );
