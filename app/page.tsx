@@ -231,10 +231,26 @@ function ProfilePreviewModal({
   // this, on iOS the body could scroll behind the backdrop (Reported
   // as "Shouldn't be any scroll when viewing profile"). Restore the
   // previous overflow on close. (qa: profile-preview-modal)
+  //
+  // The inner panel ref + scrollTop=0 reset addresses @maaiz 2026-06-03
+  // 'When opening profile view from inside a chatlog, misalignment
+  // issues' — the modal would open scrolled past the headline (avatar
+  // + username + tier badge cut off, only action buttons visible) when
+  // triggered from a tap point near the bottom of the screen. iOS
+  // appears to auto-scroll the panel toward the originally-focused
+  // element. Forcing scrollTop=0 on mount kills that.
+  // (qa: profile-preview-modal)
+  const innerPanelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    // Defer one frame so the panel has been laid out before we reset
+    // the scroll position; without this iOS sometimes runs its own
+    // scroll-into-view AFTER our reset, undoing it.
+    const raf = requestAnimationFrame(() => {
+      if (innerPanelRef.current) innerPanelRef.current.scrollTop = 0;
+    });
+    return () => { document.body.style.overflow = prev; cancelAnimationFrame(raf); };
   }, []);
 
   const actionStyle = (color: string, fill: number = 0.12, border: number = 0.4): React.CSSProperties => ({
@@ -265,7 +281,7 @@ function ProfilePreviewModal({
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9050, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(10px)", cursor: "pointer", overscrollBehavior: "contain" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 360, width: "100%", maxHeight: "calc(100dvh - 48px)", overflowY: "auto", background: "linear-gradient(135deg, rgba(30,30,40,0.98), rgba(20,20,30,0.95))", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 28, position: "relative", cursor: "default", boxShadow: "0 24px 60px rgba(0,0,0,0.7)", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
+      <div ref={innerPanelRef} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 360, width: "100%", maxHeight: "calc(100dvh - 48px)", overflowY: "auto", background: "linear-gradient(135deg, rgba(30,30,40,0.98), rgba(20,20,30,0.95))", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 28, position: "relative", cursor: "default", boxShadow: "0 24px 60px rgba(0,0,0,0.7)", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
         <button onClick={onClose} aria-label="Close profile" style={{ position: "absolute", top: 10, right: 12, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 26, cursor: "pointer", lineHeight: 1, padding: 6 }}>×</button>
 
         {loading && <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.5)" }}>Loading…</div>}
@@ -16599,14 +16615,14 @@ function HomePage() {
                               const nameBlock = (
                                 <>
                                   <div style={{ fontSize: 13, display: "flex", alignItems: "center" }}>{medal ?? <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "'Space Mono', monospace" }}>{idx + 1}</span>}</div>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                                  <button onClick={() => { if (!isMe) openProfilePreview(entry.userId); }} style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, background: "none", border: "none", padding: 0, textAlign: "left", cursor: isMe ? "default" : "pointer", color: "inherit" }}>
                                     <UserAvatarChip avatarId={entry.avatarId} username={entry.username} size={24} role={entry.role} />
                                     <TierGlyph src={entry.tier?.iconPath} emoji={entry.tier?.icon ?? "🐱"} size={24} />
                                     <div style={{ minWidth: 0 }}>
                                       <div style={{ fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? "#FFE66D" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{entry.username}{isMe ? " (you)" : ""}</div>
                                       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier?.label ?? "Kitten"}</div>
                                     </div>
-                                  </div>
+                                  </button>
                                 </>
                               );
                               const rowBase: React.CSSProperties = { display: "grid", gap: 8, padding: "10px 12px", borderBottom: idx < sorted.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", background: isMe ? "rgba(255,230,109,0.04)" : "transparent" };

@@ -2,6 +2,20 @@
 
 ---
 
+## QA pass · 2026-06-03 follow-up #4 — My Leaderboards click + profile preview opens at top (qa: my-leaderboards-row-clickable, profile-preview-opens-at-top)
+
+Two small fixes from rapid @maaiz feedback while testing the click-anywhere profile preview consolidation.
+
+### Addressed
+- **my-leaderboards-row-clickable**: Progress → My Leaderboards rendered the avatar + tier glyph + @username inside a plain `<div>` with no click handler (`app/page.tsx` ~16599 `nameBlock`). Tapping a row did nothing. Group rankings + global leaderboard were already wired (v1.2.3 / v1.2.5); My Leaderboards on the Progress page was the third surface @maaiz screenshotted as "clicking did nothing". Fix: replaced the inner `<div>` with a `<button>` calling `openProfilePreview(entry.userId)` — self rows keep `cursor: default`. Single edit covers all four lbMode variants (SESSIONS / WEIGHT Δ / BF LOSS / BF NOW) since they share the same `nameBlock` JSX.
+- **profile-preview-opens-at-top**: @maaiz screenshot showed the profile preview modal opened with only the action buttons (MESSAGE / REMOVE FRIEND / YOUR CLIENT / DISOWN CLIENT) visible — the headline (avatar + tier + username + joined date) was scrolled past the top. Root cause: the inner panel has `overflowY: auto` (bounded by `maxHeight: calc(100dvh - 48px)` so it never extends past the safe area) and on iOS the panel was auto-scrolling toward the originally-focused element from the chat — a tap point near the bottom of the screen pulled the panel's scroll position down too. Fix: added an `innerPanelRef` to the panel + a `requestAnimationFrame` in the body-scroll-lock useEffect that sets `scrollTop = 0` after one paint. The RAF defer is needed because without it iOS's own scroll-into-view runs AFTER our reset and undoes it.
+
+### Files
+- Modified: `app/page.tsx` (My Leaderboards `nameBlock` button + modal `innerPanelRef` + RAF scroll reset)
+- Modified: `qa-state.json` (two new items)
+
+---
+
 ## QA pass · 2026-06-03 follow-up #3 — hydration shows mL/L + alt mL entry (qa: wellness-hydration-tracking)
 
 ### Addressed

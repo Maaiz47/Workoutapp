@@ -741,6 +741,23 @@
       "notes": "[2026-06-03 <sha7>] Per @humaam cmpxdjbhs0008psgv9iv09aul 'Immediately when user opens the workout if it starts it's an issue. What if user just wants to see what he is going to do before coming to gym?? So manual start on the workout is a good thought'. The expanding hero (~line 10808) previously had only the START WORKOUT button which auto-called begin() to skip the redundant prep screen (per maaiz's prior 'two start prompts' complaint). Now adds a secondary VIEW WORKOUT button below START WORKOUT: same openDay(d) call, but WITHOUT the begin() that auto-starts the timer + commits a session. Maaiz's per-user customise refinement ('in the view workout modal we can also let them customise the day via another button to activate editing') — the existing CUSTOMISE flow on the day-card row already covers editing; leaving that as the canonical customise path and not duplicating in the preview. Slice 1/N — if @humaam follow-ups ask for a dedicated 'CUSTOMISE FROM PREVIEW' affordance distinct from the home-row CUSTOMISE button, that ships next."
     },
     {
+      "id": "my-leaderboards-row-clickable",
+      "title": "Progress → My Leaderboards rows open the profile preview on tap (same as group rankings + global leaderboard)",
+      "area": "Profile",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz screenshot — clicking username did nothing on 'My Leaderboards' section",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Open Progress → scroll to MY LEADERBOARDS. Expand at least one group (Test group / The boys / etc).",
+        "Tap the avatar/name area of any row that's NOT YOU. Verify the profile preview modal opens for that user.",
+        "Tap your own row (@username (you)). Verify nothing happens (isMe path keeps cursor default).",
+        "Repeat with the SESSIONS / WEIGHT Δ / BF LOSS / BF NOW filter chips — all four lbMode variants share the same nameBlock so the tap should work in every mode.",
+        "Sanity-check the group rankings (Groups → into a group → RANKINGS) + global leaderboard rows still work the same way (no regression)."
+      ],
+      "notes": "[2026-06-03 <sha7>] @maaiz reported 'Clicking username did nothing on all of these pages' with three screenshots: (a) group rankings, (b) global athletes top 100, (c) My Leaderboards on Progress. Wiring for (a) shipped v1.2.5 and (b) shipped v1.2.3; both work once the user is on the latest bundle. (c) was NEVER wired — the nameBlock JSX at app/page.tsx ~16599 rendered the avatar + tier glyph + @username inside a plain <div> with no click handler. Fix: replaced the inner <div> with a <button> calling openProfilePreview(entry.userId), self rows skip (cursor: default), matching the group-rankings pattern. All four lbMode variants share nameBlock so a single edit covers SESSIONS / WEIGHT Δ / BF LOSS / BF NOW."
+    },
+    {
       "id": "group-leaderboard-row-clickable",
       "title": "Group rankings rows open the profile preview modal on tap",
       "area": "Groups",
@@ -805,6 +822,22 @@
         "Other entry points unchanged: DM conversation header, group chat per-message avatar/@username, Friends Hub rows."
       ],
       "notes": "[2026-05-27 <sha7>] Per @maaiz round 1: 'Clicking username on the message list opening profile is annoying, make it only from client or friend list, from the top of chat logs, from chat log message profile avatar icon' — removed the `onOpenProfile` prop from GlobalLeaderboardView. Per @maaiz round 2: 'Add profile view from clicking on users from leaderboards. Obviously access based on relationship not friends/friends/client/trainer' — re-passed `onOpenProfile={openProfilePreview}` to the GlobalLeaderboardView mount. Relationship gating is already baked into the modal's action row (driven by `/api/users/[userId]/preview` which returns friendship + trainer link state): ADD FRIEND vs FRIEND REQUEST PENDING vs ACCEPT FRIEND REQUEST vs REMOVE FRIEND; ADD AS CLIENT vs CLIENT REQUEST PENDING vs YOUR CLIENT; YOUR TRAINER. The headline (avatar, tier, username, joined date) is public info also visible on the leaderboard row itself, so no extra gating needed."
+    },
+    {
+      "id": "profile-preview-opens-at-top",
+      "title": "Profile preview modal always opens scrolled to the headline (no misalignment when triggered from a low tap point in a chatlog)",
+      "area": "Profile",
+      "introduced": "2026-06-03",
+      "introducedBy": "@maaiz screenshot",
+      "lastTested": "2026-06-03",
+      "status": "regression-retest",
+      "steps": [
+        "Open a DM thread with multiple messages. Scroll so the most recent incoming message is at the BOTTOM of the screen.",
+        "Tap the avatar/@username chip on that bottom-of-screen message. Verify the profile preview modal opens with the headline (big avatar + tier badge + username + joined date) FULLY visible — not scrolled past to the action buttons.",
+        "Same test on group chat (per-message author chip on a low message).",
+        "Same test on the various leaderboard rows — tapping a row near the bottom of a long list should still open the modal scrolled to the top."
+      ],
+      "notes": "[2026-06-03 <sha7>] @maaiz reported 'When opening profile view from inside a chatlog, misalignment issues' with a screenshot showing the modal opened with ONLY the action buttons (MESSAGE / REMOVE FRIEND / YOUR CLIENT / DISOWN CLIENT) visible — the headline (avatar + tier + username + joined date) was scrolled past the top of the modal. Root cause: the inner panel has overflowY:auto (bounded by maxHeight: calc(100dvh - 48px) so it never extends past the safe area) and on iOS the panel was auto-scrolling toward the originally-focused element from the chat — a tap point near the bottom of the screen pulls the panel's scroll position down too. Fix: added an `innerPanelRef` to the inner panel + a `requestAnimationFrame` in the body-scroll-lock useEffect that sets `scrollTop = 0` after one paint. The RAF defer is needed because without it iOS's own scroll-into-view runs AFTER our reset and undoes it."
     },
     {
       "id": "profile-preview-no-scroll",
