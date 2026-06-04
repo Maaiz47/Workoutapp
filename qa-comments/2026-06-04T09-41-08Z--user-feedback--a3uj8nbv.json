@@ -1,0 +1,10 @@
+{
+  "id": "cmpzb2bac0000691ga3uj8nbv",
+  "itemId": "user-feedback",
+  "tester": "humaam",
+  "userId": "cmp4zleel0000zisawhcu3eb7",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=workout] View workout should be able see what exact workouts there are. It's right now showing just overview of the day",
+  "screenshotUrl": null,
+  "ts": "2026-06-04T09:41:08.387Z"
+}
