@@ -30,11 +30,11 @@
     },
     "cmpjc13fq0000v37sop67itkd": {
       "ts": "2026-05-24T07:00:00Z",
-      "summary": "@maaiz: 'Qa links are opening to the general quick notes feedback history, I need those history items to be recommentable which should be the same as recommenting on an item in the your patches to test'. Done \u2014 added InlineRetestForm to /qa for the current tester's own processed comments. Same 3 chips + textarea + SUBMIT UX as the FAB list. Local ack via ironlog-qa-retests-responded-v1. (qa: qa-inline-retest-in-dashboard)"
+      "summary": "@maaiz: 'Qa links are opening to the general quick notes feedback history, I need those history items to be recommentable which should be the same as recommenting on an item in the your patches to test'. Done — added InlineRetestForm to /qa for the current tester's own processed comments. Same 3 chips + textarea + SUBMIT UX as the FAB list. Local ack via ironlog-qa-retests-responded-v1. (qa: qa-inline-retest-in-dashboard)"
     },
     "cmpjbzedp00043f4gnp12yoyc": {
       "ts": "2026-05-24T07:00:00Z",
-      "summary": "@maaiz: 'system notification chat works like normal other chats \u2014 latest message at the bottom, new unread starts from earlier with highlight, returning to fully-read just lands at bottom no highlight'. Refactored: on open if any unread \u2192 scroll first unread to top + highlight unread bubbles (NEW tag + brighter border/glow); else silent bottom-land. (qa: system-notifs-scroll-bottom, system-notifs-unread-highlight)"
+      "summary": "@maaiz: 'system notification chat works like normal other chats — latest message at the bottom, new unread starts from earlier with highlight, returning to fully-read just lands at bottom no highlight'. Refactored: on open if any unread → scroll first unread to top + highlight unread bubbles (NEW tag + brighter border/glow); else silent bottom-land. (qa: system-notifs-scroll-bottom, system-notifs-unread-highlight)"
     },
     "cmpjbxmpz0000spqxg9bxf3s8": {
       "ts": "2026-05-24T07:00:00Z",
@@ -50,15 +50,15 @@
     },
     "cmpjbup1z0000v4yl679gbxri": {
       "ts": "2026-05-24T07:00:00Z",
-      "summary": "@maaiz: 'System users don't need exact language models / detailed changes \u2014 just summary'. /api/qa/comments/mine now runs every summary through simplifyForUser() \u2014 strips (qa: ...) tags, commit shas, before/after arrows, parenthesised technical asides; truncates to ~2 sentences / 200 chars. (qa: qa-patch-summary-user-friendly)"
+      "summary": "@maaiz: 'System users don't need exact language models / detailed changes — just summary'. /api/qa/comments/mine now runs every summary through simplifyForUser() — strips (qa: ...) tags, commit shas, before/after arrows, parenthesised technical asides; truncates to ~2 sentences / 200 chars. (qa: qa-patch-summary-user-friendly)"
     },
     "cmpjbr04h00049rhn8rba0u6v": {
       "ts": "2026-05-24T07:00:00Z",
-      "summary": "@maaiz retest re:ptaahqon: 'Still showing top oldest. New messages can be highlighted too until after read once in system notifications only'. Addressed by the same scroll/highlight refactor \u2014 unread bubbles get NEW tag + brighter border/glow until acked. (qa: system-notifs-scroll-bottom, system-notifs-unread-highlight)"
+      "summary": "@maaiz retest re:ptaahqon: 'Still showing top oldest. New messages can be highlighted too until after read once in system notifications only'. Addressed by the same scroll/highlight refactor — unread bubbles get NEW tag + brighter border/glow until acked. (qa: system-notifs-scroll-bottom, system-notifs-unread-highlight)"
     },
     "cmpjbpt5g00021etdxsaj88a0": {
       "ts": "2026-05-24T07:00:00Z",
-      "summary": "@maaiz retest re:0748athh: 'Working but add a warning when going too fast before timer is done'. handleLog now confirms when LOG SET tapped with rest.seconds > 5s remaining: '\u23f1 Rest timer still has Ns left\u2026 log anyway?'. (qa: workout-rest-too-fast-warning)"
+      "summary": "@maaiz retest re:0748athh: 'Working but add a warning when going too fast before timer is done'. handleLog now confirms when LOG SET tapped with rest.seconds > 5s remaining: '⏱ Rest timer still has Ns left… log anyway?'. (qa: workout-rest-too-fast-warning)"
     },
     "cmpjbohf00000c9zb5fxamsnr": {
       "ts": "2026-05-24T07:00:00Z",
@@ -66,7 +66,7 @@
     },
     "cmpjbnhf50000r1yz71zoxcpv": {
       "ts": "2026-05-24T07:00:00Z",
-      "summary": "@maaiz: 'System notification whole button is tap to click, only the link part inside the message needs to be clickable'. Removed onClick from outer bubble div; moved navigation onto a dedicated '\u2192 VIEW IN /qa' footer button. (qa: qa-patch-notif-clickzone)"
+      "summary": "@maaiz: 'System notification whole button is tap to click, only the link part inside the message needs to be clickable'. Removed onClick from outer bubble div; moved navigation onto a dedicated '→ VIEW IN /qa' footer button. (qa: qa-patch-notif-clickzone)"
     },
     "cmpjbmo740000a3oew3oedkls": {
       "ts": "2026-05-24T07:00:00Z",
@@ -74,15 +74,15 @@
     },
     "cmpjb6ow50000m6oc0748athh": {
       "ts": "2026-05-24T06:00:00Z",
-      "summary": "@maaiz relaying @munchy: 'rest timers weren't showing in the next set button after skipping'. Dropped the rest.screenDismissed gate on the LOG SET ' \u00b7 REST 23s' suffix so the countdown shows whenever rest is ticking. Fullscreen overlay covers the button anyway during fullscreen; once dismissed, the suffix renders without depending on screenDismissed state propagation. (qa: workout-rest-skipped-counter)"
+      "summary": "@maaiz relaying @munchy: 'rest timers weren't showing in the next set button after skipping'. Dropped the rest.screenDismissed gate on the LOG SET ' · REST 23s' suffix so the countdown shows whenever rest is ticking. Fullscreen overlay covers the button anyway during fullscreen; once dismissed, the suffix renders without depending on screenDismissed state propagation. (qa: workout-rest-skipped-counter)"
     },
     "cmpjb5gr700008papptaahqon": {
       "ts": "2026-05-24T06:00:00Z",
-      "summary": "@maaiz: 'In system logs after old messages are read, always show last message in the chat so scrolled to the bottom'. System feed view now auto-scrolls to bottom on mount + re-scrolls when patch notifs load \u2014 matches chat conventions. (qa: system-notifs-scroll-bottom)"
+      "summary": "@maaiz: 'In system logs after old messages are read, always show last message in the chat so scrolled to the bottom'. System feed view now auto-scrolls to bottom on mount + re-scrolls when patch notifs load — matches chat conventions. (qa: system-notifs-scroll-bottom)"
     },
     "cmpjb45bl0002zfgqaojajeq0": {
       "ts": "2026-05-24T06:00:00Z",
-      "summary": "@maaiz: 'qa links open the qa page generally, not straight to the particular user feedback item. Show short summary of the feedback in the your patches to retest, on click open a text box to add another comment and mark as pass or retest after patch again'. Done: patch-notification bubbles + retest list now link to /qa?focus=<itemId>#comment-<commentId>; /qa expands the item + scrolls + flashes the specific comment. Retest list rows expanded inline to show YOU SAID (original note) + FIX (processed summary) + status chips (WORKS NOW / NEEDS RETEST / STILL BROKEN) + textarea + SUBMIT \u2014 posts via /api/qa/comment, drops the row after submit. (qa: qa-deep-link-to-comment, qa-pending-retests-list)"
+      "summary": "@maaiz: 'qa links open the qa page generally, not straight to the particular user feedback item. Show short summary of the feedback in the your patches to retest, on click open a text box to add another comment and mark as pass or retest after patch again'. Done: patch-notification bubbles + retest list now link to /qa?focus=<itemId>#comment-<commentId>; /qa expands the item + scrolls + flashes the specific comment. Retest list rows expanded inline to show YOU SAID (original note) + FIX (processed summary) + status chips (WORKS NOW / NEEDS RETEST / STILL BROKEN) + textarea + SUBMIT — posts via /api/qa/comment, drops the row after submit. (qa: qa-deep-link-to-comment, qa-pending-retests-list)"
     },
     "cmpjaz00y0002cdbhojd9bh1y": {
       "ts": "2026-05-24T06:00:00Z",
@@ -90,7 +90,7 @@
     },
     "cmpja3bwd0006uiwj1x0h4o1e": {
       "ts": "2026-05-24T05:30:00Z",
-      "summary": "@maaiz: 'profile modal UI looks amateur, make it modern/3d/premium even more so for power users (athlete+trainer)'. IDENTITY card redesigned with multi-stop gradient + glow + larger avatar (80px) + larger username. Power-user variant (any trainer) gets gold treatment + '\u26a1 POWER USER' chip + iridescent halo. (qa: profile-identity-premium)"
+      "summary": "@maaiz: 'profile modal UI looks amateur, make it modern/3d/premium even more so for power users (athlete+trainer)'. IDENTITY card redesigned with multi-stop gradient + glow + larger avatar (80px) + larger username. Power-user variant (any trainer) gets gold treatment + '⚡ POWER USER' chip + iridescent halo. (qa: profile-identity-premium)"
     },
     "cmpja0ktl000211och9xhkwnr": {
       "ts": "2026-05-24T05:30:00Z",
@@ -98,7 +98,7 @@
     },
     "cmpj9xqak0000tzb7pj8scp8z": {
       "ts": "2026-05-24T05:30:00Z",
-      "summary": "@maaiz: 'home page buttons float even on top of the pro tip overlay so can't see the pro tip'. Pro tip modal z-index bumped 9000 \u2192 9600 so it sits above the feedback tab (z-9500) + bottom hub. (qa: pro-tip-overlay-zindex)"
+      "summary": "@maaiz: 'home page buttons float even on top of the pro tip overlay so can't see the pro tip'. Pro tip modal z-index bumped 9000 → 9600 so it sits above the feedback tab (z-9500) + bottom hub. (qa: pro-tip-overlay-zindex)"
     },
     "cmpj9v0ra0001r43jllw0tjef": {
       "ts": "2026-05-24T05:30:00Z",
@@ -106,27 +106,27 @@
     },
     "cmpj9t3lj00003klc8ldwlv25": {
       "ts": "2026-05-24T05:30:00Z",
-      "summary": "@maaiz multi-part idea: (1) IRONLOG SYSTEM inbox row drop the 'N messages' count, show '${X} unread \u00b7 ' prefix only when there's unread. Done. (2) Push notification for patch notes summarised \u2014 deferred. In-app patch-notification bubbles ship in IRONLOG SYSTEM feed; browser-level push needs a deploy hook + per-user notify cursor \u2014 punted to follow-up. (3) Quick-link to pending retest items in quick-note overlay with search. Done \u2014 new 'YOUR PATCHES TO RETEST' collapsible list in the FAB; tap \u2192 opens /qa overlay focused on the item (auto-scrolls + flashes border). (qa: system-notifications-feed, qa-pending-retests-list)"
+      "summary": "@maaiz multi-part idea: (1) IRONLOG SYSTEM inbox row drop the 'N messages' count, show '${X} unread · ' prefix only when there's unread. Done. (2) Push notification for patch notes summarised — deferred. In-app patch-notification bubbles ship in IRONLOG SYSTEM feed; browser-level push needs a deploy hook + per-user notify cursor — punted to follow-up. (3) Quick-link to pending retest items in quick-note overlay with search. Done — new 'YOUR PATCHES TO RETEST' collapsible list in the FAB; tap → opens /qa overlay focused on the item (auto-scrolls + flashes border). (qa: system-notifications-feed, qa-pending-retests-list)"
     },
     "cmpj9plq400007rha69besur6": {
       "ts": "2026-05-24T05:30:00Z",
-      "summary": "@maaiz test: 'Checking if system notification includes a qa link to a retest of changing avatar \u2014 pretend just got patched'. Marking processed will trigger the patch-notification flow on your phone. Bubble carries 'TAP TO VIEW /qa' link in the IRONLOG SYSTEM feed. (qa: qa-patch-notification)"
+      "summary": "@maaiz test: 'Checking if system notification includes a qa link to a retest of changing avatar — pretend just got patched'. Marking processed will trigger the patch-notification flow on your phone. Bubble carries 'TAP TO VIEW /qa' link in the IRONLOG SYSTEM feed. (qa: qa-patch-notification)"
     },
     "cmpj9o7mg0000r43j45e2jgzv": {
       "ts": "2026-05-24T05:30:00Z",
-      "summary": "@maaiz test: 'Testing if I get the system notification when you mark this bug fixed \u2014 qa link in notification not needed because you're marking as fixed right'. Marking processed. Note about not needing the qa link captured but kept in v1 since other patches benefit from the deep-link; can hide for self-marked test reports in a follow-up if it becomes noisy. (qa: qa-patch-notification)"
+      "summary": "@maaiz test: 'Testing if I get the system notification when you mark this bug fixed — qa link in notification not needed because you're marking as fixed right'. Marking processed. Note about not needing the qa link captured but kept in v1 since other patches benefit from the deep-link; can hide for self-marked test reports in a follow-up if it becomes noisy. (qa: qa-patch-notification)"
     },
     "cmpj89g6o0000ygemxe00twpg": {
       "ts": "2026-05-24T05:30:00Z",
-      "summary": "@munchy: 'no where to delete a full day session. Editing is the only option.' Already shipped in bundle 2 (commit d513247): POST /api/plan {action:'delete-day'} + '\ud83d\uddd1 DELETE DAY' button in the day-editor header. (qa: customise-delete-day)"
+      "summary": "@munchy: 'no where to delete a full day session. Editing is the only option.' Already shipped in bundle 2 (commit d513247): POST /api/plan {action:'delete-day'} + '🗑 DELETE DAY' button in the day-editor header. (qa: customise-delete-day)"
     },
     "cmpj3lzzn0004bal6hbamxcwi": {
       "ts": "2026-05-24T05:30:00Z",
-      "summary": "@munchy: '@maaiz seems to be cheating. He got a higher IP than me'. Investigated this morning \u2014 NOT cheating. Both have 0 stored IP; the gap is entirely RPE-tagging frequency: maaiz tags effort on 90%+ of sets, munchy on ~30%. Mechanism is intentional (RPE 8/9/10 adds +1/+2/+3 IP per set). Action shipped: 'recommended RPE chip' glowing underline (commit 2d60555) so the suggested effort is easier to pick at a glance. Munchy can close the gap by tapping the EFFORT chip each set. (qa: workout-effort-recommended-chip)"
+      "summary": "@munchy: '@maaiz seems to be cheating. He got a higher IP than me'. Investigated this morning — NOT cheating. Both have 0 stored IP; the gap is entirely RPE-tagging frequency: maaiz tags effort on 90%+ of sets, munchy on ~30%. Mechanism is intentional (RPE 8/9/10 adds +1/+2/+3 IP per set). Action shipped: 'recommended RPE chip' glowing underline (commit 2d60555) so the suggested effort is easier to pick at a glance. Munchy can close the gap by tapping the EFFORT chip each set. (qa: workout-effort-recommended-chip)"
     },
     "cmpj723dz0002tk53tq3080f3": {
       "ts": "2026-05-24T03:30:00Z",
-      "summary": "@munchy: 'When customizing the exercises dragging to reorder exercises doesn't work. Probably due to scroll issues'. Addressed by the queued iOS hardening \u2014 touch-action:'none' on SortableExerciseItem (was 'manipulation' which loses the touch race to scroll on iOS Safari), 500ms\u2192350ms activation delay (beats iOS context menu at ~550ms), tolerance 5px\u219210px (iOS touch jitter). Munchy diagnosis was correct \u2014 scroll was winning the gesture race. (qa: workout-exercise-reorder)"
+      "summary": "@munchy: 'When customizing the exercises dragging to reorder exercises doesn't work. Probably due to scroll issues'. Addressed by the queued iOS hardening — touch-action:'none' on SortableExerciseItem (was 'manipulation' which loses the touch race to scroll on iOS Safari), 500ms→350ms activation delay (beats iOS context menu at ~550ms), tolerance 5px→10px (iOS touch jitter). Munchy diagnosis was correct — scroll was winning the gesture race. (qa: workout-exercise-reorder)"
     },
     "cmphqronw0008frouiah11umr": {
       "ts": "2026-05-23T03:00:00Z",
@@ -134,27 +134,27 @@
     },
     "cmphnt24i0002z9q55072kezp": {
       "ts": "2026-05-23T02:00:00Z",
-      "summary": "@maaiz: 'stretches/warm-ups don't let me mark each set done'. Per-set chip panel always renders (single + multi set) with explicit \u2713 DONE / \u21b7 SKIP buttons replacing the hidden tap-cycle. (qa: workout-warmup-skip + workout-warmup-mark-each-set)"
+      "summary": "@maaiz: 'stretches/warm-ups don't let me mark each set done'. Per-set chip panel always renders (single + multi set) with explicit ✓ DONE / ↷ SKIP buttons replacing the hidden tap-cycle. (qa: workout-warmup-skip + workout-warmup-mark-each-set)"
     },
     "cmphnteme0003z9q5exghwtsw": {
       "ts": "2026-05-23T02:00:00Z",
-      "summary": "@maaiz: 'can't mark stretch or warm ups skip'. Same fix \u2014 explicit SKIP button per set, plus the \u21b7 SKIP ALL bulk action on multi-set rows. (qa: workout-warmup-skip)"
+      "summary": "@maaiz: 'can't mark stretch or warm ups skip'. Same fix — explicit SKIP button per set, plus the ↷ SKIP ALL bulk action on multi-set rows. (qa: workout-warmup-skip)"
     },
     "cmphnu3uk00024bl2kqkuoexf": {
       "ts": "2026-05-23T02:00:00Z",
-      "summary": "@maaiz: 'scap push ups animations is wrong'. Frames showed a man standing (not a plank-position scap push-up). Removed wu-scap-shrugs from LOCAL_STRETCH_IDS so users see the emoji fallback. CLAUDE.md pending reminder added for proper regeneration. (qa: exercise-local-images \u2014 slice 1/2)"
+      "summary": "@maaiz: 'scap push ups animations is wrong'. Frames showed a man standing (not a plank-position scap push-up). Removed wu-scap-shrugs from LOCAL_STRETCH_IDS so users see the emoji fallback. CLAUDE.md pending reminder added for proper regeneration. (qa: exercise-local-images — slice 1/2)"
     },
     "cmphnx8bh00074bl2h46f8n22": {
       "ts": "2026-05-23T02:00:00Z",
-      "summary": "@maaiz: 'effort scale 1 and 2 not readable'. Were rgba(255,255,255,0.3) / 0.4 \u2014 near-invisible text & border. Bumped to slate (#94a3b8, #a3b3c1) for proper contrast. (qa: workout-set-logging)"
+      "summary": "@maaiz: 'effort scale 1 and 2 not readable'. Were rgba(255,255,255,0.3) / 0.4 — near-invisible text & border. Bumped to slate (#94a3b8, #a3b3c1) for proper contrast. (qa: workout-set-logging)"
     },
     "cmphnxtwe00084bl2s7txfu0u": {
       "ts": "2026-05-23T02:00:00Z",
-      "summary": "@maaiz: 'session restored notice is annoying \u2014 can be silent'. Removed the resumeOverlay state + render. Restoration is silent now; the home active-session card already telegraphs the resumed workout. (qa: session-autoresume-silent)"
+      "summary": "@maaiz: 'session restored notice is annoying — can be silent'. Removed the resumeOverlay state + render. Restoration is silent now; the home active-session card already telegraphs the resumed workout. (qa: session-autoresume-silent)"
     },
     "cmpho0olj0002ibg7hpexzw5y": {
       "ts": "2026-05-23T02:00:00Z",
-      "summary": "@maaiz: 'need a way to mark assisted exercises'. Slice 1/2 shipped: \u2212 ASSISTED button alongside + ADD WEIGHT for BW exercises. Weight input becomes ASSISTANCE (kg); sets store `assistance: N`. Slice 2 (next): wire bodyweight-aware volume math. (qa: workout-assisted-exercise)"
+      "summary": "@maaiz: 'need a way to mark assisted exercises'. Slice 1/2 shipped: − ASSISTED button alongside + ADD WEIGHT for BW exercises. Weight input becomes ASSISTANCE (kg); sets store `assistance: N`. Slice 2 (next): wire bodyweight-aware volume math. (qa: workout-assisted-exercise)"
     },
     "cmpho48dh000059xsahe189ca": {
       "ts": "2026-05-23T02:00:00Z",
@@ -174,7 +174,7 @@
     },
     "cmpgf4my90018z2kpu2os0rv6": {
       "ts": "2026-05-22T08:00:00Z",
-      "summary": "@munchy: 'Adding new exercise in splits editing doesn't do anything'. Root cause: customise was editing WORKOUT_DATA fallback days whose IDs don't exist in DB \u2192 PUT 404'd silently. New POST action clone-fallback-day on /api/plan upserts (bootstraps WorkoutPlan + creates PlanDay with fresh cuid + sets exercises). saveDay client falls back on 404 + replaces the fallback row. (qa: plan-customise-add-remove)"
+      "summary": "@munchy: 'Adding new exercise in splits editing doesn't do anything'. Root cause: customise was editing WORKOUT_DATA fallback days whose IDs don't exist in DB → PUT 404'd silently. New POST action clone-fallback-day on /api/plan upserts (bootstraps WorkoutPlan + creates PlanDay with fresh cuid + sets exercises). saveDay client falls back on 404 + replaces the fallback row. (qa: plan-customise-add-remove)"
     },
     "cmpgl1ov20000o3rpyt95a3qb": {
       "ts": "2026-05-22T08:00:00Z",
@@ -196,19 +196,19 @@
     },
     "cmpettf57000012tc6hoflssb": {
       "ts": "2026-05-21T02:30:00Z",
-      "summary": "Slice 1/N \u2014 in-session superset: added a \u27f3 PAIR button in the active-workout header that jumps directly into the customise screen with multi-select pre-enabled for the current day. User picks two+ exercises, taps \u27f3 SUPERSET, comes back to the workout. Slice 2/N (next pass): in-session multi-select without exiting to customise."
+      "summary": "Slice 1/N — in-session superset: added a ⟳ PAIR button in the active-workout header that jumps directly into the customise screen with multi-select pre-enabled for the current day. User picks two+ exercises, taps ⟳ SUPERSET, comes back to the workout. Slice 2/N (next pass): in-session multi-select without exiting to customise."
     },
     "cmpetwrb200001449vjxdat6z": {
       "ts": "2026-05-21T02:30:00Z",
-      "summary": "First-time exercises now pre-fill with a computed SUGGESTED weight \u00d7 reps based on user bodyweight + a pattern table covering compound lifts, isolations, and bodyweight movements. A \u2605 SUGGESTED badge sits next to the inputs so the user knows to adjust. Already-logged exercises still use the historical lastSessionBest() pre-fill."
+      "summary": "First-time exercises now pre-fill with a computed SUGGESTED weight × reps based on user bodyweight + a pattern table covering compound lifts, isolations, and bodyweight movements. A ★ SUGGESTED badge sits next to the inputs so the user knows to adjust. Already-logged exercises still use the historical lastSessionBest() pre-fill."
     },
     "cmpeuo2ch0002ezwr2zs0zd0x": {
       "ts": "2026-05-21T02:30:00Z",
-      "summary": "Rest-timer scroll-jump bug fixed (scroll-y stashed in useRef so the unlock branch can restore the position after React fires the cleanup). Plus: new opt-in 'Auto-advance to next exercise after rest' setting in Settings \u2192 Workout Behaviour \u2014 default off, when on the next incomplete exercise auto-expands once rest ends. Otherwise stay-in-place is now the correct default behaviour."
+      "summary": "Rest-timer scroll-jump bug fixed (scroll-y stashed in useRef so the unlock branch can restore the position after React fires the cleanup). Plus: new opt-in 'Auto-advance to next exercise after rest' setting in Settings → Workout Behaviour — default off, when on the next incomplete exercise auto-expands once rest ends. Otherwise stay-in-place is now the correct default behaviour."
     },
     "cmpewcs3o0000vh3mw3at8fqw": {
       "ts": "2026-05-21T03:00:00Z",
-      "summary": "Removed the auto-advance Settings toggle per user feedback. Behaviour is now unconditional: stay on current exercise while incomplete sets remain, then auto-advance to next incomplete exercise once sets are done (or user skips/manually picks another). Deleted the \u2699 WORKOUT BEHAVIOUR card and the ironlog-auto-advance localStorage key."
+      "summary": "Removed the auto-advance Settings toggle per user feedback. Behaviour is now unconditional: stay on current exercise while incomplete sets remain, then auto-advance to next incomplete exercise once sets are done (or user skips/manually picks another). Deleted the ⚙ WORKOUT BEHAVIOUR card and the ironlog-auto-advance localStorage key."
     },
     "cmpf74zdk000014bil8eji34j": {
       "ts": "2026-05-21T08:10:00Z",
@@ -216,7 +216,7 @@
     },
     "cmpf76c900000rbocnbdnbdfi": {
       "ts": "2026-05-21T08:10:00Z",
-      "summary": "QA dashboard item card shows TESTED \u00d7N + LAST <date time> in the status row (replaces the previous date-only). The notes blob is now rendered as a \ud83d\udcdc PATCH HISTORY list \u2014 each [date] line becomes its own row with the date tag highlighted. Latest activity is computed as max(item.lastTested, last comment ts) so a fresh submission moves the line forward even before the next QA pass."
+      "summary": "QA dashboard item card shows TESTED ×N + LAST <date time> in the status row (replaces the previous date-only). The notes blob is now rendered as a 📜 PATCH HISTORY list — each [date] line becomes its own row with the date tag highlighted. Latest activity is computed as max(item.lastTested, last comment ts) so a fresh submission moves the line forward even before the next QA pass."
     },
     "cmpf77zl200005voyruidq5iz": {
       "ts": "2026-05-21T08:10:00Z",
@@ -224,7 +224,7 @@
     },
     "cmpfhrafa0002ia3kom2bomak": {
       "ts": "2026-05-21T19:00:00Z",
-      "summary": "auth-register DOB box overflow fix \u2014 date input now strips WebkitAppearance + sets minWidth:0 + maxWidth:100% so iOS Safari's native picker chrome can't push the control past the form column."
+      "summary": "auth-register DOB box overflow fix — date input now strips WebkitAppearance + sets minWidth:0 + maxWidth:100% so iOS Safari's native picker chrome can't push the control past the form column."
     },
     "cmpfhxexe0000tu25nol6i5tm": {
       "ts": "2026-05-21T19:00:00Z",
@@ -240,7 +240,7 @@
     },
     "cmpflbdxk0000twp8lmz97l94": {
       "ts": "2026-05-21T19:00:00Z",
-      "summary": "/qa improvements: (1) sticky search box at top of viewport \u2014 stays accessible while scrolling. (2) RETEST status label renamed to 'PATCHED \u00b7 RETEST' with the select option as 'Patched \u00b7 please retest' so testers know an item flagged retest means 'attended, pending re-verification'. (3) Per-step comment threads deferred to next slice \u2014 currently each test gets one thread; surfacing per-step requires a richer comment schema."
+      "summary": "/qa improvements: (1) sticky search box at top of viewport — stays accessible while scrolling. (2) RETEST status label renamed to 'PATCHED · RETEST' with the select option as 'Patched · please retest' so testers know an item flagged retest means 'attended, pending re-verification'. (3) Per-step comment threads deferred to next slice — currently each test gets one thread; surfacing per-step requires a richer comment schema."
     },
     "cmpflemsg0000c3wg69m1q3ji": {
       "ts": "2026-05-21T19:00:00Z",
@@ -248,39 +248,39 @@
     },
     "cmpflv1h20000no0c3pc8ldt7": {
       "ts": "2026-05-21T19:00:00Z",
-      "summary": "/qa item-card title no longer ellipsis-clipped \u2014 wraps with wordBreak so long titles like 'Trainers see their athlete tier on Progress dashboard too' are fully readable on narrow phones."
+      "summary": "/qa item-card title no longer ellipsis-clipped — wraps with wordBreak so long titles like 'Trainers see their athlete tier on Progress dashboard too' are fully readable on narrow phones."
     },
     "cmpft67ov000014ir3w65jlri": {
       "ts": "2026-05-21T19:00:00Z",
-      "summary": "Welcome card tier pills rebuilt: Trainer + Athlete pills now sit on their own row beneath the username, each with a mini gradient progress bar to the next tier + '+N \u2192 NEXT' remaining-points readout. Top tier reads '\u2605 TOP' instead. Score is the canonical headlineScore from computeAthleteTier."
+      "summary": "Welcome card tier pills rebuilt: Trainer + Athlete pills now sit on their own row beneath the username, each with a mini gradient progress bar to the next tier + '+N → NEXT' remaining-points readout. Top tier reads '★ TOP' instead. Score is the canonical headlineScore from computeAthleteTier."
     },
     "cmpft7dwz000114irazgjg9ez": {
       "ts": "2026-05-21T19:00:00Z",
-      "summary": "Volume \u00d7 Muscle 'core skipped' fix shipped earlier in 0e6722c (default-plan short ids like 'a7' for Hanging Leg Raises were silently failing the muscle lookup). The muscleMap now bridges WORKOUT_DATA short ids \u2192 primaryMuscles via lookupExMuscles(name). Hanging Leg Raises credits 'core' via fuzzy match on 'Hanging Leg Raise'."
+      "summary": "Volume × Muscle 'core skipped' fix shipped earlier in 0e6722c (default-plan short ids like 'a7' for Hanging Leg Raises were silently failing the muscle lookup). The muscleMap now bridges WORKOUT_DATA short ids → primaryMuscles via lookupExMuscles(name). Hanging Leg Raises credits 'core' via fuzzy match on 'Hanging Leg Raise'."
     },
     "cmpftk95500005l8al7u3wrgk": {
       "ts": "2026-05-21T19:00:00Z",
-      "summary": "Settings \u2192 edit profile DOB input: stripped iOS's native appearance, added minWidth:0 + maxWidth:100% + textAlign:left so it renders flush with the Height field above and never overflows the card."
+      "summary": "Settings → edit profile DOB input: stripped iOS's native appearance, added minWidth:0 + maxWidth:100% + textAlign:left so it renders flush with the Height field above and never overflows the card."
     },
     "cmpftlhti00015l8a5wx7qz3a": {
       "ts": "2026-05-21T19:00:00Z",
-      "summary": "Settings IDENTITY card 'Member since registration' \u2192 computed duration from User.createdAt. Shows 'Member for Xd / Xmo / Xy [Xmo]' or 'Joined today' for brand-new users."
+      "summary": "Settings IDENTITY card 'Member since registration' → computed duration from User.createdAt. Shows 'Member for Xd / Xmo / Xy [Xmo]' or 'Joined today' for brand-new users."
     },
     "cmpftonrn000011pawydh9g4i": {
       "ts": "2026-05-21T19:00:00Z",
-      "summary": "TierInfoModal now ships a '\u26a1 HOW TO EARN ATHLETE POINTS' section listing each of the 5 sub-ranks (Consistency, Strength, Volume, Mastery, Habits) with what feeds it AND the rough input that gets it to ~80. Plus a footnote on the diminishing-returns curve so the '+N PTS \u2192 next' number reads correctly."
+      "summary": "TierInfoModal now ships a '⚡ HOW TO EARN ATHLETE POINTS' section listing each of the 5 sub-ranks (Consistency, Strength, Volume, Mastery, Habits) with what feeds it AND the rough input that gets it to ~80. Plus a footnote on the diminishing-returns curve so the '+N PTS → next' number reads correctly."
     },
     "cmpfu8ha10000nrnuy87cagh2": {
       "ts": "2026-05-21T19:00:00Z",
-      "summary": "Deferred IDEA: form previews + help text on warmup/cooldown/stretches AND treadmill incline % support. Logged for the next slice \u2014 current pass focused on the bug + critical UX items."
+      "summary": "Deferred IDEA: form previews + help text on warmup/cooldown/stretches AND treadmill incline % support. Logged for the next slice — current pass focused on the bug + critical UX items."
     },
     "cmpfu9tb40000blb2zkfgvhs2": {
       "ts": "2026-05-21T19:00:00Z",
-      "summary": "Duplicate START workout prompts fix: tapping \u25b6 START WORKOUT on the home day-card expand now calls openDay() AND begin() immediately, skipping the workout-prep middle screen. The single intent = one tap to active workout."
+      "summary": "Duplicate START workout prompts fix: tapping ▶ START WORKOUT on the home day-card expand now calls openDay() AND begin() immediately, skipping the workout-prep middle screen. The single intent = one tap to active workout."
     },
     "cmpi8tcbs0002hh0yfwqbb4ah": {
       "ts": "2026-05-23T11:30:00Z",
-      "summary": "@maaiz: 'Close button on tier modal needs to be floating or allow swipe to go back or both. Also need to stop apple password'. Header bar now position:sticky top:0 with backdrop blur \u2014 \u00d7 close stays pinned while content scrolls. Bumped weight + reps inputs with autoComplete=off + autoCorrect=off + spellCheck=false + explicit name= to stop iOS Safari from suggesting password/autofill on numeric workout fields. Swipe-back gesture deferred to a separate slice \u2014 main pain point (button not accessible) solved by the sticky header. (qa: tier-modal-sticky-close)"
+      "summary": "@maaiz: 'Close button on tier modal needs to be floating or allow swipe to go back or both. Also need to stop apple password'. Header bar now position:sticky top:0 with backdrop blur — × close stays pinned while content scrolls. Bumped weight + reps inputs with autoComplete=off + autoCorrect=off + spellCheck=false + explicit name= to stop iOS Safari from suggesting password/autofill on numeric workout fields. Swipe-back gesture deferred to a separate slice — main pain point (button not accessible) solved by the sticky header. (qa: tier-modal-sticky-close)"
     },
     "cmpi8va1j000gc4qfh03wlu5h": {
       "ts": "2026-05-23T11:30:00Z",
@@ -288,7 +288,7 @@
     },
     "cmpi8y0j90004atccnoxarz4t": {
       "ts": "2026-05-23T11:30:00Z",
-      "summary": "@maaiz: 'Roles in profile look like they are toggle selectable because the athlete one is grey. Just make it say athlete'. The ATHLETE chip was styled with the inactive-grey treatment (rgba(255,255,255,0.55) + 5% bg) while TRAINER and ADMIN had saturated colour. Now ATHLETE matches: red FF6B6B color + 10% red bg + 30% red border \u2014 reads as a label, not a toggleable control. (qa: profile-role-chip-not-toggle)"
+      "summary": "@maaiz: 'Roles in profile look like they are toggle selectable because the athlete one is grey. Just make it say athlete'. The ATHLETE chip was styled with the inactive-grey treatment (rgba(255,255,255,0.55) + 5% bg) while TRAINER and ADMIN had saturated colour. Now ATHLETE matches: red FF6B6B color + 10% red bg + 30% red border — reads as a label, not a toggleable control. (qa: profile-role-chip-not-toggle)"
     },
     "cmpjd49mu0000hmukbaqpgds6": {
       "ts": "2026-05-24T06:30:00Z",
@@ -296,7 +296,7 @@
     },
     "cmpjd8gqf00003xzsbs3p8be1": {
       "ts": "2026-05-24T06:30:00Z",
-      "summary": "@maaiz: 'Sort your patches to retest by priority which should be visibly identifiable'. /api/qa/comments/mine now joins qa-state.json to attach itemPriority to each comment; FAB sort wrapper orders critical \u2192 high \u2192 medium \u2192 low (then recency); each row gets a coloured 3px left border + CRIT/HIGH/MED/LOW chip next to the item id. (qa: qa-retest-list-priority-sort)"
+      "summary": "@maaiz: 'Sort your patches to retest by priority which should be visibly identifiable'. /api/qa/comments/mine now joins qa-state.json to attach itemPriority to each comment; FAB sort wrapper orders critical → high → medium → low (then recency); each row gets a coloured 3px left border + CRIT/HIGH/MED/LOW chip next to the item id. (qa: qa-retest-list-priority-sort)"
     },
     "cmpjd95kq00013xzs3zo6s1l4": {
       "ts": "2026-05-24T06:30:00Z",
@@ -304,7 +304,7 @@
     },
     "cmpjd9hvc00023xzsyfle4mtx": {
       "ts": "2026-05-24T06:30:00Z",
-      "summary": "@maaiz retest: 'Verified working' \u2014 FAB list persistence confirmed. Item flips back to passing. (qa: qa-retest-persistence)"
+      "summary": "@maaiz retest: 'Verified working' — FAB list persistence confirmed. Item flips back to passing. (qa: qa-retest-persistence)"
     },
     "cmpjdamtm00053xzsgyeoo19t": {
       "ts": "2026-05-24T06:30:00Z",
@@ -312,19 +312,19 @@
     },
     "cmpjdb1ie00063xzsm9uwb0lx": {
       "ts": "2026-05-24T06:30:00Z",
-      "summary": "@maaiz retest: 'Still broken on retest'. Same root cause as cmpjd95kq \u2014 fixed by the snapshot pattern + useEffect-driven scroll above. (qa: system-notifs-scroll-bottom, system-notifs-unread-highlight)"
+      "summary": "@maaiz retest: 'Still broken on retest'. Same root cause as cmpjd95kq — fixed by the snapshot pattern + useEffect-driven scroll above. (qa: system-notifs-scroll-bottom, system-notifs-unread-highlight)"
     },
     "cmpjdbc5m00023pfl8c14gfgl": {
       "ts": "2026-05-24T06:30:00Z",
-      "summary": "@maaiz retest: 'Still broken on retest'. Same root cause \u2014 system feed scroll + highlight. Fixed by the snapshot pattern + mascot gate. (qa: system-notifs-scroll-bottom, qa-deep-link-mascot-race)"
+      "summary": "@maaiz retest: 'Still broken on retest'. Same root cause — system feed scroll + highlight. Fixed by the snapshot pattern + mascot gate. (qa: system-notifs-scroll-bottom, qa-deep-link-mascot-race)"
     },
     "cmpjdbwec00033pfleuglpf2n": {
       "ts": "2026-05-24T06:30:00Z",
-      "summary": "@maaiz retest: 'Verified working' \u2014 duplicate confirmation of FAB list persistence. (qa: qa-retest-persistence)"
+      "summary": "@maaiz retest: 'Verified working' — duplicate confirmation of FAB list persistence. (qa: qa-retest-persistence)"
     },
     "cmpjddc2d0004dmbzw5vtngm9": {
       "ts": "2026-05-24T06:30:00Z",
-      "summary": "@maaiz: 'Old system messages with qa links not opening the old comment, we can make those links resolve away in the chat log after it is fixed'. /api/qa/comments/mine now scans the users own retest comments (note matches [\ud83d\udd04 RETEST \u00b7 re:XXXX]) and excludes the matching original from the response. fetchPatchNotifications also filters on the server retested flag, so patches resolve away from the feed once retested via either FAB list or /qa directly. (qa: qa-resolve-away-old-links)"
+      "summary": "@maaiz: 'Old system messages with qa links not opening the old comment, we can make those links resolve away in the chat log after it is fixed'. /api/qa/comments/mine now scans the users own retest comments (note matches [🔄 RETEST · re:XXXX]) and excludes the matching original from the response. fetchPatchNotifications also filters on the server retested flag, so patches resolve away from the feed once retested via either FAB list or /qa directly. (qa: qa-resolve-away-old-links)"
     },
     "cmpjgieeo0000inuul1dhjm6j": {
       "ts": "2026-05-24T08:00:00Z",
@@ -412,7 +412,7 @@
     },
     "cmpjpopxe0002102jnkf46ywg": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz retest re:pj8scp8z: 'Verified working'. (Note: a later ATTEND in this batch says 'I have this too' \u2014 see notes; flagged for re-investigation but latest retest before that was passing.) (qa: pro-tip-overlay-zindex)"
+      "summary": "@maaiz retest re:pj8scp8z: 'Verified working'. (Note: a later ATTEND in this batch says 'I have this too' — see notes; flagged for re-investigation but latest retest before that was passing.) (qa: pro-tip-overlay-zindex)"
     },
     "cmpjt8cpv0000oim2vtgruxxh": {
       "ts": "2026-05-26T01:13:44Z",
@@ -480,11 +480,11 @@
     },
     "cmpjpdevb0000z21735mzw4dj": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: re:m9uwb0lx \u2014 summary too cryptic. (qa: qa-pending-retests-list)"
+      "summary": "@maaiz: re:m9uwb0lx — summary too cryptic. (qa: qa-pending-retests-list)"
     },
     "cmpjpdx9d00001136pzw7xnzz": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: re:yfle4mtx \u2014 simplifyForUser stripped too aggressively. (qa: qa-patch-summary-user-friendly)"
+      "summary": "@maaiz: re:yfle4mtx — simplifyForUser stripped too aggressively. (qa: qa-patch-summary-user-friendly)"
     },
     "cmpjpgpch0001hgni0wjm73wr": {
       "ts": "2026-05-26T01:13:44Z",
@@ -552,99 +552,99 @@
     },
     "cmpjv56br000b10f30isfrzht": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'I don't think deadlift reps count is working for daily mission'. New item progress-daily-mission-counters \u2014 slice fixes deadlift keyword match. (qa: progress-daily-mission-counters)"
+      "summary": "@maaiz: 'I don't think deadlift reps count is working for daily mission'. New item progress-daily-mission-counters — slice fixes deadlift keyword match. (qa: progress-daily-mission-counters)"
     },
     "cmpjv6lh3000ai09atwjor71u": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Pull-ups count for daily mission unclear, assisted pull-ups should contribute as half/etc.; let user know when assisted'. Same item progress-daily-mission-counters \u2014 slice adds 0.5x for ASSISTED + on-card hint. (qa: progress-daily-mission-counters)"
+      "summary": "@maaiz: 'Pull-ups count for daily mission unclear, assisted pull-ups should contribute as half/etc.; let user know when assisted'. Same item progress-daily-mission-counters — slice adds 0.5x for ASSISTED + on-card hint. (qa: progress-daily-mission-counters)"
     },
     "cmpjvbseb00041qhx6ctwbtcv": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Hint to work on consistency not appropriate when user hasn't been on app long enough'. New item progress-consistency-hint-gating \u2014 slice gates on accountAgeDays>=14 OR daysLogged>=7. (qa: progress-consistency-hint-gating)"
+      "summary": "@maaiz: 'Hint to work on consistency not appropriate when user hasn't been on app long enough'. New item progress-consistency-hint-gating — slice gates on accountAgeDays>=14 OR daysLogged>=7. (qa: progress-consistency-hint-gating)"
     },
     "cmpjvd9cc0005jyd46x5lznld": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Habits subrank should be hit-the-target focused, with consistency bonus'. New item progress-habits-subrank-target-aware \u2014 slice multiplies by target-hit ratio + streak bonus. (qa: progress-habits-subrank-target-aware)"
+      "summary": "@maaiz: 'Habits subrank should be hit-the-target focused, with consistency bonus'. New item progress-habits-subrank-target-aware — slice multiplies by target-hit ratio + streak bonus. (qa: progress-habits-subrank-target-aware)"
     },
     "cmpjvemcu0006wsi1mnhxt14z": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Technique subrank copy says supersets/drop-sets for IP but RPE per set too \u2014 make it make sense'. New item progress-technique-subrank-copy \u2014 slice updates copy. (qa: progress-technique-subrank-copy)"
+      "summary": "@maaiz: 'Technique subrank copy says supersets/drop-sets for IP but RPE per set too — make it make sense'. New item progress-technique-subrank-copy — slice updates copy. (qa: progress-technique-subrank-copy)"
     },
     "cmpjvfz4c0000vm9scfkifz3d": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Mastery subrank 80 from one routine seems wrong, working right?'. New item progress-mastery-subrank-audit \u2014 slice divides by distinct exercises + caps at 60 when \u22641 routine. (qa: progress-mastery-subrank-audit)"
+      "summary": "@maaiz: 'Mastery subrank 80 from one routine seems wrong, working right?'. New item progress-mastery-subrank-audit — slice divides by distinct exercises + caps at 60 when ≤1 routine. (qa: progress-mastery-subrank-audit)"
     },
     "cmpjvgq0c0001vm9s4013fovd": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Progression subrank says no weekly volume yet - working right?'. New item progress-progression-subrank-copy \u2014 slice clarifies copy. (qa: progress-progression-subrank-copy)"
+      "summary": "@maaiz: 'Progression subrank says no weekly volume yet - working right?'. New item progress-progression-subrank-copy — slice clarifies copy. (qa: progress-progression-subrank-copy)"
     },
     "cmpjvi3630000ej12q16s5uv9": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Strength subrank says log >4 sets of an exercise to unlock - unclear, user has done more'. New item progress-strength-subrank-copy \u2014 slice names compounds explicitly. (qa: progress-strength-subrank-copy)"
+      "summary": "@maaiz: 'Strength subrank says log >4 sets of an exercise to unlock - unclear, user has done more'. New item progress-strength-subrank-copy — slice names compounds explicitly. (qa: progress-strength-subrank-copy)"
     },
     "cmpjvjrkr0001ej12165g640t": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Don't show log a session today if they've already done a session for how to get more points tips'. New item progress-tip-hide-when-session-logged \u2014 slice filters in tipsForUser(). (qa: progress-tip-hide-when-session-logged)"
+      "summary": "@maaiz: 'Don't show log a session today if they've already done a session for how to get more points tips'. New item progress-tip-hide-when-session-logged — slice filters in tipsForUser(). (qa: progress-tip-hide-when-session-logged)"
     },
     "cmpjvl9am0000wgoco9x2t4p5": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'PB list in progression is not closed by default, and does not show every PB for every exercise done'. New item progress-pb-list-collapsed-and-complete \u2014 slice collapses + removes top-3 filter. (qa: progress-pb-list-collapsed-and-complete)"
+      "summary": "@maaiz: 'PB list in progression is not closed by default, and does not show every PB for every exercise done'. New item progress-pb-list-collapsed-and-complete — slice collapses + removes top-3 filter. (qa: progress-pb-list-collapsed-and-complete)"
     },
     "cmpjvlt3p0001wgocn3bxofzy": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Don't need my leaderboards in progression if we have the ranks page right?'. New item progress-leaderboards-section-rework \u2014 slice swaps content to weight/bf deltas + group-scoped top-5 + 'view in /ranks' link. (qa: progress-leaderboards-section-rework)"
+      "summary": "@maaiz: 'Don't need my leaderboards in progression if we have the ranks page right?'. New item progress-leaderboards-section-rework — slice swaps content to weight/bf deltas + group-scoped top-5 + 'view in /ranks' link. (qa: progress-leaderboards-section-rework)"
     },
     "cmpjvpk2l0000zjpjt6l0oran": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'There should be a trainer your rank page like the athlete your rank page'. New item trainer-rank-page. Subsequent ATTEND from same user 'sorry looks like it is there' \u2014 flipped to passing. (qa: trainer-rank-page)"
+      "summary": "@maaiz: 'There should be a trainer your rank page like the athlete your rank page'. New item trainer-rank-page. Subsequent ATTEND from same user 'sorry looks like it is there' — flipped to passing. (qa: trainer-rank-page)"
     },
     "cmpjw2ek10000i77pw9z3m2jv": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Watermark animated motivational phrases not animated on progress page'. New item progress-watermark-animation \u2014 slice applies missing animation class. (qa: progress-watermark-animation)"
+      "summary": "@maaiz: 'Watermark animated motivational phrases not animated on progress page'. New item progress-watermark-animation — slice applies missing animation class. (qa: progress-watermark-animation)"
     },
     "cmpjw6pok0005i77pxxrp92bh": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Photo storage isn't confirmed for body photos'. New item progress-body-photos-storage \u2014 slice persists Vercel blob URL into BodyMeasurement.photoUrl on save. (qa: progress-body-photos-storage)"
+      "summary": "@maaiz: 'Photo storage isn't confirmed for body photos'. New item progress-body-photos-storage — slice persists Vercel blob URL into BodyMeasurement.photoUrl on save. (qa: progress-body-photos-storage)"
     },
     "cmpjwdxfn0007d7phvkmus07p": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'What's the point of public groups? Groups can be open list by default'. New item groups-public-vs-open-rework \u2014 slice collapses visibility enum to OPEN | INVITE_ONLY + migrates 'public' \u2192 'open'. (qa: groups-public-vs-open-rework)"
+      "summary": "@maaiz: 'What's the point of public groups? Groups can be open list by default'. New item groups-public-vs-open-rework — slice collapses visibility enum to OPEN | INVITE_ONLY + migrates 'public' → 'open'. (qa: groups-public-vs-open-rework)"
     },
     "cmpjwi7uk00061414pwn4xs03": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Profile avatar + tier badges + online status + last active in chat bubbles and message logs'. New item conversation-bubble-rich \u2014 slice introduces <ChatBubbleAvatar/> + presence chip. (qa: conversation-bubble-rich)"
+      "summary": "@maaiz: 'Profile avatar + tier badges + online status + last active in chat bubbles and message logs'. New item conversation-bubble-rich — slice introduces <ChatBubbleAvatar/> + presence chip. (qa: conversation-bubble-rich)"
     },
     "cmpjwj8x20000o22d75g6edvl": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Push notification working for friend requests received?'. New item friend-request-push-notif \u2014 slice wires notifyPush() in /api/friends/request POST. (qa: friend-request-push-notif)"
+      "summary": "@maaiz: 'Push notification working for friend requests received?'. New item friend-request-push-notif — slice wires notifyPush() in /api/friends/request POST. (qa: friend-request-push-notif)"
     },
     "cmpkj0efi000013e77d947um4": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Edit button on exercises in active session is vague and can't click into done set boxes to edit them now'. New item workout-active-edit-set-tap \u2014 slice restores handleSetBoxTap. (qa: workout-active-edit-set-tap)"
+      "summary": "@maaiz: 'Edit button on exercises in active session is vague and can't click into done set boxes to edit them now'. New item workout-active-edit-set-tap — slice restores handleSetBoxTap. (qa: workout-active-edit-set-tap)"
     },
     "cmpkj5cj40000uz5stgv0sw74": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Drag to reorder starts dragging but can't place it where I want. Bonus exercise issue?'. New item workout-active-drag-reorder-bonus \u2014 slice removes sessionOnly filter from reorder. (qa: workout-active-drag-reorder-bonus)"
+      "summary": "@maaiz: 'Drag to reorder starts dragging but can't place it where I want. Bonus exercise issue?'. New item workout-active-drag-reorder-bonus — slice removes sessionOnly filter from reorder. (qa: workout-active-drag-reorder-bonus)"
     },
     "cmpkj9eax000e35vwizlqa6ml": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Want top part of active session to stay floating instead of scrolling away'. New item workout-active-header-pinned \u2014 slice adds sticky compact header. (qa: workout-active-header-pinned)"
+      "summary": "@maaiz: 'Want top part of active session to stay floating instead of scrolling away'. New item workout-active-header-pinned — slice adds sticky compact header. (qa: workout-active-header-pinned)"
     },
     "cmpkom4vj0000bamk56hfoxly": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Online and last seen functions exist and work, but the online status needs to be updated live on the chat log, not on chat log reopen'. New item messaging-online-status-live \u2014 slice adds 15s poll in open DM view. (qa: messaging-online-status-live)"
+      "summary": "@maaiz: 'Online and last seen functions exist and work, but the online status needs to be updated live on the chat log, not on chat log reopen'. New item messaging-online-status-live — slice adds 15s poll in open DM view. (qa: messaging-online-status-live)"
     },
     "cmpkta0k70000jpw8e4l3632j": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Adding group challenges doesn't seem to be working'. New item groups-add-challenges-fix \u2014 slice audits POST /api/groups/[id]/challenges. (qa: groups-add-challenges-fix)"
+      "summary": "@maaiz: 'Adding group challenges doesn't seem to be working'. New item groups-add-challenges-fix — slice audits POST /api/groups/[id]/challenges. (qa: groups-add-challenges-fix)"
     },
     "cmpkw0qbw0002pdvn5cnpebgr": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Links sent in both group chats and normal chats must be clickable with a preview and hyperlink both'. New item chat-link-preview-and-hyperlink \u2014 slice 1: linkify + OG preview endpoint. (qa: chat-link-preview-and-hyperlink)"
+      "summary": "@maaiz: 'Links sent in both group chats and normal chats must be clickable with a preview and hyperlink both'. New item chat-link-preview-and-hyperlink — slice 1: linkify + OG preview endpoint. (qa: chat-link-preview-and-hyperlink)"
     },
     "cmpkw2jzk0002mnizran6on2r": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz: 'Is next up checking just my split order or actually checking if I'm due for a leg day or other too? Can also suggest cardio days where applicable'. New item home-next-up-smart \u2014 slice scans days-since-muscle-group + cardio. (qa: home-next-up-smart)"
+      "summary": "@maaiz: 'Is next up checking just my split order or actually checking if I'm due for a leg day or other too? Can also suggest cardio days where applicable'. New item home-next-up-smart — slice scans days-since-muscle-group + cardio. (qa: home-next-up-smart)"
     },
     "cmpjuzylx0000nm1wr7v4e23w": {
       "ts": "2026-05-26T01:13:44Z",
@@ -656,7 +656,7 @@
     },
     "cmpjvzcfn0004uy4hcnjwhw0p": {
       "ts": "2026-05-26T01:13:44Z",
-      "summary": "@maaiz idea: 'Tier numbers can change to tier labels like newbie for kitten, quick learner for fox, etc. Same for trainer rank tier numbers'. Same idea-tier-name-labels item \u2014 duplicate consolidated. (qa: idea-tier-name-labels)"
+      "summary": "@maaiz idea: 'Tier numbers can change to tier labels like newbie for kitten, quick learner for fox, etc. Same for trainer rank tier numbers'. Same idea-tier-name-labels item — duplicate consolidated. (qa: idea-tier-name-labels)"
     },
     "cmpjw0ltu0002d7phfg8d93ay": {
       "ts": "2026-05-26T01:13:44Z",
@@ -676,15 +676,15 @@
     },
     "cmplywiol0005rrw9u2w4siyu": {
       "ts": "2026-05-26T02:10:53Z",
-      "summary": "@maaiz retest re:lmz97l94 (passing): 'Verified working.' Sticky search + PATCHED\u00b7RETEST chip confirmed. Item /qa-improvements stays improved; new follow-up items added for 'summarised original issue + auto-scroll to newest' asks below. (qa: qa-thread-summarised-view)"
+      "summary": "@maaiz retest re:lmz97l94 (passing): 'Verified working.' Sticky search + PATCHED·RETEST chip confirmed. Item /qa-improvements stays improved; new follow-up items added for 'summarised original issue + auto-scroll to newest' asks below. (qa: qa-thread-summarised-view)"
     },
     "cmplyx7c50006rrw9ipt9it59": {
       "ts": "2026-05-26T02:10:53Z",
-      "summary": "@maaiz retest re:lmz97l94 (failing follow-up): 'I marked this working but the original comment stays showing untested which isn't right'. New item qa-retest-flips-parent-status \u2014 slice 1 placeholder; needs /api/qa/comment to optionally patch the parent comment's status on retest. (qa: qa-retest-flips-parent-status)"
+      "summary": "@maaiz retest re:lmz97l94 (failing follow-up): 'I marked this working but the original comment stays showing untested which isn't right'. New item qa-retest-flips-parent-status — slice 1 placeholder; needs /api/qa/comment to optionally patch the parent comment's status on retest. (qa: qa-retest-flips-parent-status)"
     },
     "cmplyyg4y0008am1jbkb56h0t": {
       "ts": "2026-05-26T02:10:53Z",
-      "summary": "@maaiz retest re:lmz97l94 (failing follow-up): 'Can't see most recent comments added to this - want to see all comments before patch, when it should show the summarised original issue, whether patched and to retest if working now'. Two new items: qa-thread-summarised-view (top-of-thread summary card) + qa-thread-newest-at-bottom-autoscroll (chat-convention scroll on expand). Also shipped this pass: qa-thread-action-on-any-own-comment \u2014 UPDATE / RETEST action now appears on EVERY own comment in the thread, not just processed ones. (qa: qa-thread-action-on-any-own-comment, qa-thread-summarised-view, qa-thread-newest-at-bottom-autoscroll)"
+      "summary": "@maaiz retest re:lmz97l94 (failing follow-up): 'Can't see most recent comments added to this - want to see all comments before patch, when it should show the summarised original issue, whether patched and to retest if working now'. Two new items: qa-thread-summarised-view (top-of-thread summary card) + qa-thread-newest-at-bottom-autoscroll (chat-convention scroll on expand). Also shipped this pass: qa-thread-action-on-any-own-comment — UPDATE / RETEST action now appears on EVERY own comment in the thread, not just processed ones. (qa: qa-thread-action-on-any-own-comment, qa-thread-summarised-view, qa-thread-newest-at-bottom-autoscroll)"
     },
     "cmpm4s3p10002bgfe9z2awfsh": {
       "ts": "2026-05-26T04:36:23Z",
@@ -692,11 +692,11 @@
     },
     "cmpm4t5nf0000uyue900lgj9j": {
       "ts": "2026-05-26T04:36:23Z",
-      "summary": "@maaiz retest re:bkb56h0t: 'Fix: doesn't show what action you took and advise to retest'. New item qa-retest-list-show-fix-and-how-to \u2014 FAB list now shows qa-state item TITLE as FIX headline + \ud83e\uddea HOW TO RETEST steps[] list. (qa: qa-retest-list-show-fix-and-how-to)"
+      "summary": "@maaiz retest re:bkb56h0t: 'Fix: doesn't show what action you took and advise to retest'. New item qa-retest-list-show-fix-and-how-to — FAB list now shows qa-state item TITLE as FIX headline + 🧪 HOW TO RETEST steps[] list. (qa: qa-retest-list-show-fix-and-how-to)"
     },
     "cmpm4vqpj0002qlqmzm46ijte": {
       "ts": "2026-05-26T04:36:23Z",
-      "summary": "@maaiz: 'Exercises like treadmill or rowing machine don't need sets or rest, just the time/speed/distance'. New item workout-cardio-time-distance-exercise \u2014 placeholder this slice, needs exercise-type flag + variant input row next pass. (qa: workout-cardio-time-distance-exercise)"
+      "summary": "@maaiz: 'Exercises like treadmill or rowing machine don't need sets or rest, just the time/speed/distance'. New item workout-cardio-time-distance-exercise — placeholder this slice, needs exercise-type flag + variant input row next pass. (qa: workout-cardio-time-distance-exercise)"
     },
     "cmpm65ekw0000j9x128d4bk5s": {
       "ts": "2026-05-26",
@@ -704,7 +704,7 @@
     },
     "cmpm6avqx0000bd156ovuypxz": {
       "ts": "2026-05-26",
-      "summary": "Confirmed working \u2014 /qa search bar is floating, per-step comments live, retest button labelled. Thanks for retesting."
+      "summary": "Confirmed working — /qa search bar is floating, per-step comments live, retest button labelled. Thanks for retesting."
     },
     "cmpm6bc5f0001bd15swwo8abh": {
       "ts": "2026-05-26",
@@ -712,7 +712,7 @@
     },
     "cmpm6e4y50002bd15tdqhu8q8": {
       "ts": "2026-05-26",
-      "summary": "Clarification needed \u2014 the floating search bar I addressed is the one in /qa. Tracked as qa-search-which-bar-clarification \u2014 if you meant a different search bar, please reply with which screen."
+      "summary": "Clarification needed — the floating search bar I addressed is the one in /qa. Tracked as qa-search-which-bar-clarification — if you meant a different search bar, please reply with which screen."
     },
     "cmpm6gvsl0004mfk9qkb28txq": {
       "ts": "2026-05-26",
@@ -720,7 +720,7 @@
     },
     "cmpm6io0k000013ng4zhhg0a5": {
       "ts": "2026-05-26",
-      "summary": "New \u21c4 SWAP button on every active-session exercise card opens a same-primary-muscle picker with + JUST TODAY (one-off) and \u21bb REPLACE (saves to your routine) options per candidate."
+      "summary": "New ⇄ SWAP button on every active-session exercise card opens a same-primary-muscle picker with + JUST TODAY (one-off) and ↻ REPLACE (saves to your routine) options per candidate."
     },
     "cmpm6kv0j0005mfk9ytnrm127": {
       "ts": "2026-05-26",
@@ -732,19 +732,23 @@
     },
     "cmpm6lgqa000213ngp0ht7dpx": {
       "ts": "2026-05-26",
-      "summary": "Confirmed working \u2014 exercise form-cue summaries are now populated. Thanks for the retest."
+      "summary": "Confirmed working — exercise form-cue summaries are now populated. Thanks for the retest."
     },
     "cmpm6n4hp0000yf4u9sn8qgu8": {
       "ts": "2026-05-26",
-      "summary": "Tap + SUPERSET on any active-session exercise \u2192 the picker now shows a FROM THIS SESSION block at the top listing every other in-session exercise with + JUST TODAY / + ADD TO SPLIT buttons."
+      "summary": "Tap + SUPERSET on any active-session exercise → the picker now shows a FROM THIS SESSION block at the top listing every other in-session exercise with + JUST TODAY / + ADD TO SPLIT buttons."
     },
     "cmpm6nqor000313ngnja61hdu": {
       "ts": "2026-05-26",
-      "summary": "Confirmed working \u2014 weight/reps now pre-fill from last logged session. Thanks for the retest."
+      "summary": "Confirmed working — weight/reps now pre-fill from last logged session. Thanks for the retest."
     },
     "cmpmmyvry0004vr4pjpy16052": {
       "ts": "2026-05-26",
-      "summary": "RETEST comments no longer reappear in your patches-to-retest list \u2014 server now filters them out. The previous deploy marked your verdict comments as processed which surfaced them back asking you to retest your own retest."
+      "summary": "RETEST comments no longer reappear in your patches-to-retest list — server now filters them out. The previous deploy marked your verdict comments as processed which surfaced them back asking you to retest your own retest."
+    },
+    "cmpzb2bac0000691ga3uj8nbv": {
+      "ts": "2026-06-05T00:00:00Z",
+      "summary": "@humaam: VIEW WORKOUT preview only showed the day overview (EXERCISES / TOTAL SETS counts), not the exact exercises. Added an exact-exercise rundown to the workout prep/preview screen — sections + every exercise with its sets × reps (warmup/cooldown show set count, supersets marked ⇄); screen now scrolls so START WORKOUT stays reachable. (qa: workout-preview-without-start)"
     }
   }
 }

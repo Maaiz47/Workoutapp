@@ -2,6 +2,18 @@
 
 ---
 
+## Bugfix · 2026-06-05 — VIEW WORKOUT preview now lists the exact exercises (qa: workout-preview-without-start)
+
+@humaam (cmpzb2bac0000691ga3uj8nbv): *"View workout should be able see what exact workouts there are. It's right now showing just overview of the day."*
+
+The VIEW WORKOUT button lands on the workout **prep screen** (the START WORKOUT card auto-calls `begin()` and skips it, so prep === the preview surface). That screen only rendered the aggregate **EXERCISES / TOTAL SETS** counts — never the exercise names. Added an exact-exercise rundown below the counts: each section header followed by every exercise with its `sets × reps`. Warmup/cooldown rows (`trackable === false`) show just the set count; superset members are prefixed with `⇄`. The prep container switched from `justify-content: center` / `overflow: hidden` to `flex-start` + `overflowY: auto` + top padding so a long list scrolls and the START WORKOUT button stays reachable.
+
+No data-model change — reads `activeDay.sections[].exercises` (name/sets/reps/groupType/trackable) already in state. Tutorial: enhancement to an existing surface (the preview shipped 2026-06-03), not a new route — no `TUTORIAL_STEPS` entry.
+
+File: `app/page.tsx` (workout-prep render block ~17182).
+
+---
+
 ## Bugfix · 2026-06-05 — accepted client invisible in roster: backfill + idempotent accept + consistent disown (qa: trainer-request-pending-state)
 
 @maaiz: "Amanii has accepted my client request but still not showing in my client list." Recurring since 2026-05-24; every prior pass patched caching only.

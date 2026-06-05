@@ -17180,7 +17180,7 @@ function HomePage() {
       const tEx = activeDay.sections.reduce((t, s) => t + s.exercises.filter(e => e.trackable !== false).length, 0);
       const tSets = activeDay.sections.reduce((t, s) => t + s.exercises.filter(e => e.trackable !== false).reduce((a, e) => a + e.sets, 0), 0);
       return (
-        <div key="workout-prep" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", position: "relative", overflow: "hidden" }}>
+        <div key="workout-prep" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: 32, paddingTop: 56, textAlign: "center", position: "relative", overflowX: "hidden", overflowY: "auto" }}>
           <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: "80vw", height: "80vw", borderRadius: "50%", background: `radial-gradient(circle, ${activeDay.color}12 0%, transparent 60%)`, pointerEvents: "none", animation: "breathe 4s ease infinite" }} />
           <WatermarkBackdrop phrase={watermarkPhrase} opacity={0.03} visible={watermarkVisible} />
           <div className="slide-up" style={{ zIndex: 1 }}>
@@ -17193,7 +17193,31 @@ function HomePage() {
               <div style={{ width: 1, background: "rgba(255,255,255,0.08)" }} />
               <div style={{ textAlign: "center" }}><div style={{ fontSize: 28, fontWeight: 700, color: "#fff", fontFamily: "'Space Mono', monospace" }}>{tSets}</div><div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginTop: 2 }}>TOTAL SETS</div></div>
             </div>
-            <button onClick={begin} style={{ marginTop: 48, padding: "18px 56px", background: activeDay.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 15, fontWeight: 600, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 8px 32px ${activeDay.color}30` }}>START WORKOUT</button>
+            {/* Exact-exercise rundown on the preview screen. Per @humaam
+                (qa: workout-preview-without-start): VIEW WORKOUT only
+                showed the day overview (counts) — the user wants to see
+                exactly which exercises they're in for before heading to
+                the gym. List every exercise grouped by section with its
+                sets × reps; supersets get a ⇄ marker; warmup/cooldown
+                (trackable === false) show just the set count. */}
+            <div style={{ marginTop: 28, width: "100%", maxWidth: 360, textAlign: "left" }}>
+              {activeDay.sections.map((sec, si) => (
+                <div key={si} style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 9, letterSpacing: 3, color: "rgba(255,255,255,0.3)", fontWeight: 700, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>{sec.name.toUpperCase()}</div>
+                  {sec.exercises.map((ex, ei) => (
+                    <div key={ex.id ?? ei} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "9px 12px", marginBottom: 4, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 9 }}>
+                      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {ex.groupType === "superset" ? "⇄ " : ""}{ex.name}
+                      </div>
+                      <div style={{ fontSize: 11, color: activeDay.color, fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {ex.trackable === false ? `${ex.sets} set${ex.sets === 1 ? "" : "s"}` : `${ex.sets} × ${ex.reps ?? "—"}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <button onClick={begin} style={{ marginTop: 28, marginBottom: 16, padding: "18px 56px", background: activeDay.gradient, border: "none", borderRadius: 14, color: "#fff", fontSize: 15, fontWeight: 600, letterSpacing: 3, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: `0 8px 32px ${activeDay.color}30` }}>START WORKOUT</button>
           </div>
         </div>
       );
