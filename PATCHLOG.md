@@ -2,6 +2,23 @@
 
 ---
 
+## Bugfix · 2026-06-05 — accepted client invisible in roster: backfill + idempotent accept + consistent disown (qa: trainer-request-pending-state)
+
+@maaiz: "Amanii has accepted my client request but still not showing in my client list." Recurring since 2026-05-24; every prior pass patched caching only.
+
+**Root cause (finally pinned down):** a `TrainerRequest.status = "accepted"` can exist with **no `TrainerClient` row**. The client list reads solely from `TrainerClient`, so the athlete is invisible no matter how fresh the fetch. How the desync arises:
+- Pre-2026-05-24 accepts committed the status update *before* the `TrainerClient` insert; a failed insert left "accepted" with no roster row (Amanii's row is from this era).
+- Even post-atomic, `trainerClient.create()` throws on the **global** `clientId @unique` whenever the athlete already has any trainer link, and inside `$transaction` that throw rolls back the status update too.
+
+**Fix (3 parts):**
+- **Accept PATCH** (`app/api/trainer/request/route.ts`): `create()` → `upsert()` keyed on the unique `clientId`, reassigning to the accepting trainer. Idempotent; the accept can no longer roll back on a pre-existing row.
+- **Client-list GET** (`app/api/trainer/clients/route.ts`): self-heals before reading — backfills `TrainerClient` rows for any `accepted` request of this trainer that lacks one, via `createMany` + `skipDuplicates`. Honours the `clientId` unique, so a client rostered to another trainer is left untouched (fills gaps, never steals). **This is what makes Amanii reappear with zero user action.**
+- **Disown DELETE** (`app/api/trainer/clients/[clientId]/route.ts`): also deletes the `TrainerRequest`, making "accepted request ⟺ rostered client" a hard invariant so the backfill can't resurrect a disowned client. `Message.requestId` has no FK, so chat history is untouched (join degrades to `requestStatus: null`).
+
+Files: `app/api/trainer/request/route.ts`, `app/api/trainer/clients/route.ts`, `app/api/trainer/clients/[clientId]/route.ts`. No UI/tutorial surface (backend reliability only).
+
+---
+
 ## QA pass · 2026-06-03 follow-up #5 — DM gate + friend request cancel/decline labels + profile preview cross-view mount + modal opens at top (qa: dm-relationship-gate, friend-request-cancel-vs-decline, profile-preview-cross-view-mount, profile-preview-opens-at-top)
 
 ### Addressed

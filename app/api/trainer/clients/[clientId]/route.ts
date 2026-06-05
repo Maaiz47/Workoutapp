@@ -124,7 +124,19 @@ export async function DELETE(req: NextRequest, { params }: { params: { clientId:
     });
     if (!rel) return json({ error: "Not your client" }, 403);
 
-    await prisma.trainerClient.delete({ where: { id: rel.id } });
+    // Severing the roster row must ALSO clear the accepted request, or
+    // we leave a "accepted" TrainerRequest with no TrainerClient row —
+    // the same desync that hides accepted clients, and which the
+    // self-healing backfill in GET /api/trainer/clients would otherwise
+    // resurrect on the next fetch. Deleting the request makes "accepted
+    // request ⟺ rostered client" a hard invariant; re-adoption just
+    // creates a fresh request. Message.requestId has no FK so chat
+    // history is untouched (the join degrades to requestStatus: null).
+    // (qa: trainer-request-pending-state)
+    await prisma.$transaction([
+      prisma.trainerClient.delete({ where: { id: rel.id } }),
+      prisma.trainerRequest.deleteMany({ where: { trainerId: uid, userId: params.clientId } }),
+    ]);
     return json({ ok: true });
   } catch (e: any) {
     return json({ error: e?.message ?? "Failed" }, 500);

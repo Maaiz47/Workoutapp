@@ -23,6 +23,34 @@ export async function GET(req: NextRequest) {
     const trainer = await prisma.user.findUnique({ where: { id: uid }, select: { role: true } });
     if (!trainer || trainer.role !== "trainer") return json({ error: "Forbidden" }, 403);
 
+    // Self-heal: reconcile accepted requests into roster rows. Older
+    // accepts (pre-atomic-transaction) and any accept whose insert was
+    // rolled back left "accepted" TrainerRequests with no TrainerClient
+    // row, so the athlete accepted but never appeared here — the
+    // recurring Amanii report. Backfill the missing rows before reading.
+    // createMany + skipDuplicates honours the clientId unique, so a
+    // client already rostered to ANOTHER trainer is left untouched (we
+    // fill genuine gaps, never silently steal). (qa: trainer-request-pending-state)
+    const acceptedReqs = await prisma.trainerRequest.findMany({
+      where: { trainerId: uid, status: "accepted" },
+      select: { userId: true },
+    });
+    if (acceptedReqs.length > 0) {
+      const acceptedClientIds = acceptedReqs.map(r => r.userId);
+      const existingRows = await prisma.trainerClient.findMany({
+        where: { clientId: { in: acceptedClientIds } },
+        select: { clientId: true },
+      });
+      const rostered = new Set(existingRows.map(r => r.clientId));
+      const missing = acceptedClientIds.filter(id => !rostered.has(id));
+      if (missing.length > 0) {
+        await prisma.trainerClient.createMany({
+          data: missing.map(clientId => ({ trainerId: uid, clientId })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
     const records = await prisma.trainerClient.findMany({
       where: { trainerId: uid },
       include: {

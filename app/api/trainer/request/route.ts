@@ -120,8 +120,20 @@ export async function PATCH(req: NextRequest) {
           ],
         },
       });
+      // Idempotent insert: TrainerClient.clientId is GLOBALLY unique
+      // (one trainer per client), so a blind create() throws — and
+      // because this runs inside $transaction, that throw rolls back
+      // the status update too, leaving an "accepted" request with NO
+      // roster row (the exact Amanii desync). upsert reassigns the
+      // client to the accepting trainer instead: the athlete explicitly
+      // chose this trainer, so switching is the correct semantics.
+      // (qa: trainer-request-pending-state)
       const txns: any[] = [
-        prisma.trainerClient.create({ data: { trainerId: request.trainerId, clientId: uid } }),
+        prisma.trainerClient.upsert({
+          where: { clientId: uid },
+          create: { trainerId: request.trainerId, clientId: uid },
+          update: { trainerId: request.trainerId },
+        }),
         prisma.trainerRequest.update({ where: { id: requestId }, data: { status: "accepted" } }),
       ];
       if (existingFriendship) {
