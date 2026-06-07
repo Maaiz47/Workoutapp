@@ -862,6 +862,22 @@
       "notes": "[2026-06-03 <sha7>] Per @maaiz 'Clicking into users from anywhere should allow a quick profile view'. The row's onClick toggles assignment to the group — kept as the primary action. The @username text is now a separate `<button>` with `stopPropagation()` so tapping it opens the profile preview without flipping the in-group toggle. The avatar/visual-only area of the row still triggers the row's toggle."
     },
     {
+      "id": "trainer-client-add-friend",
+      "title": "Client detail view can open the client's profile (to add as friend / manage relationship)",
+      "area": "Trainer",
+      "introduced": "2026-06-05",
+      "introducedBy": "@maaiz report 'opened her profile from my clients and there's no way to add her as a friend'",
+      "lastTested": "2026-06-05",
+      "status": "regression-retest",
+      "steps": [
+        "As a trainer, open Clients hub → tap a client to open their detail view.",
+        "Verify the header now has a '👤 PROFILE' button (next to MESSAGE / DISOWN) AND that tapping the @username also opens the profile preview modal.",
+        "In the opened preview, if you are NOT currently friends with the client, verify a '👥 ADD FRIEND' button is present and works (sends/re-issues the request).",
+        "Set up the repro: send the client a friend request, then revoke it (cancel) while they remain your client. Open their detail → PROFILE. Verify ADD FRIEND is offered (a revoked/cancelled request leaves no friendship, so the preview shows status 'none')."
+      ],
+      "notes": "[2026-06-05 <sha7>] Per @maaiz 'There was a pending friend request to Amanii which I revoked but she's still a client. I opened her profile from my clients and there's no way to add her as a friend.' Root cause: the clientDetail header (view==='clientDetail') only had MESSAGE + DISOWN — no friendship affordance and no entry point to the ProfilePreviewModal, which is where ADD/REMOVE FRIEND live. (A client is auto-friended on adoption, but revoking the friend request — DELETE /api/friends soft-marks a pending row 'cancelled' — leaves the client with no friendship and no way to re-add from this surface.) Fix: made the @username a button + added an explicit '👤 PROFILE' button, both calling openProfilePreview(activeClient.id). The preview already maps cancelled/declined/no-row → friendship status 'none' → shows ADD FRIEND, and also carries DISOWN CLIENT, so the trainer can manage the whole relationship from one place. Enhancement to an existing surface — no new route, no TUTORIAL_STEPS entry."
+    },
+    {
       "id": "trainer-disown-client-modal",
       "title": "Profile preview offers DISOWN CLIENT action when a trainer is viewing one of their existing clients",
       "area": "Profile",

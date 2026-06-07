@@ -12384,13 +12384,31 @@ function HomePage() {
           <button onClick={() => setView("home")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}>← Back</button>
         </div>
         <div style={{ padding: "0 20px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>@{activeClient.username}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <button
+              onClick={() => openProfilePreview(activeClient.id)}
+              style={{ background: "none", border: "none", padding: 0, fontSize: 22, fontWeight: 700, color: "#fff", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+              title="Open profile — add as friend, view tier, manage the relationship"
+            >@{activeClient.username}</button>
             <button
               onClick={() => openConversation({ id: activeClient.id, username: activeClient.username })}
               style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, padding: "5px 10px", color: "#4ECDC4", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
             >
               MESSAGE
+            </button>
+            {/* Profile — opens the canonical preview modal which carries
+                the friendship actions (ADD / REMOVE FRIEND). A client is
+                auto-friended on adoption, but if that friendship was
+                later revoked/removed the clientDetail header otherwise
+                had NO way to re-add them. Per @maaiz: "I opened her
+                profile from my clients and there's no way to add her as
+                a friend." (qa: trainer-client-add-friend) */}
+            <button
+              onClick={() => openProfilePreview(activeClient.id)}
+              style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(162,155,254,0.12)", border: "1px solid rgba(162,155,254,0.3)", borderRadius: 8, padding: "5px 10px", color: "#A29BFE", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}
+              title="Open profile — add as friend, view tier"
+            >
+              👤 PROFILE
             </button>
             {/* Disown — severs the trainer-client link. Client keeps
                 all data; only the coaching relationship ends. Either

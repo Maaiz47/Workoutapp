@@ -2,6 +2,18 @@
 
 ---
 
+## Bugfix · 2026-06-05 — add-friend from a client's detail view (qa: trainer-client-add-friend)
+
+@maaiz: *"There was a pending friend request to Amanii which I revoked but she's still a client. I opened her profile from my clients and there's no way to add her as a friend."*
+
+A client is auto-friended on adoption, but revoking the friend request (`DELETE /api/friends` soft-marks a pending row `"cancelled"`) leaves the client with **no friendship** — and the `clientDetail` header only had MESSAGE + DISOWN, with no friendship action and no entry point to the `ProfilePreviewModal` (where ADD/REMOVE FRIEND live). So there was genuinely no way to re-add a client as a friend.
+
+Fix (`app/page.tsx`, clientDetail header): the client's `@username` is now a button, and an explicit **👤 PROFILE** button was added — both open `openProfilePreview(activeClient.id)`. The preview already maps a cancelled/declined/missing friendship to status `"none"` → shows **👥 ADD FRIEND**, and also carries DISOWN CLIENT, so the trainer manages the whole relationship from one surface.
+
+Enhancement to an existing surface — no new route, no `TUTORIAL_STEPS` entry. Typecheck clean.
+
+---
+
 ## Feat · 2026-06-05 — admins get push + system-notification for every other user's submission (qa: admin-submission-notifications)
 
 @maaiz: *"Admins aren't getting qa comments or bugs or idea submissions by other users. I want admins to always get a push notification and see the submission in system notifications when someone submits anything except themselves."*
