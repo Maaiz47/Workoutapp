@@ -6,7 +6,7 @@ import { MarketingNav } from "../_components/MarketingNav";
 import { MarketingFooter } from "../_components/MarketingFooter";
 import { Reveal, Stagger, StaggerItem } from "../_components/Reveal";
 import { AnimatedCounter } from "../_components/AnimatedCounter";
-import { Tilt3D } from "../_components/Tilt3D";
+import { Tilt3D, MouseTilt3D } from "../_components/Tilt3D";
 import { Expandable } from "../_components/Expandable";
 
 const WA_LINK =
@@ -110,7 +110,8 @@ export default function TrainerPage() {
               ))}
             </ul>
           </StaggerItem>
-          <StaggerItem className="solution-card">
+          <StaggerItem>
+            <MouseTilt3D className="solution-card">
             <h4>✓ THE IRONLOG WAY</h4>
             <ul>
               {[
@@ -124,6 +125,7 @@ export default function TrainerPage() {
                 <li key={i}><span>{e}</span>{t}</li>
               ))}
             </ul>
+            </MouseTilt3D>
           </StaggerItem>
         </Stagger>
       </section>
