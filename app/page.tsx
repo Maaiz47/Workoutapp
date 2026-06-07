@@ -23,7 +23,7 @@ import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel
 import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward, TIER_NUM_BY_ID } from "../lib/milestones";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, syncWellnessFromServer, syncWellnessToServerOnce, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
-import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead, fetchPatchNotifications, markPatchNotifsRead, markRetestResponded, readRetestRespondedIds, PatchNotification } from "../lib/systemNotifications";
+import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead, fetchPatchNotifications, markPatchNotifsRead, markRetestResponded, readRetestRespondedIds, PatchNotification, fetchAdminSubmissionNotifications, markAdminSubNotifsRead, AdminSubmissionNotification } from "../lib/systemNotifications";
 import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState, resolveMissionTarget, resolveMissionBody } from "../lib/challenges";
 import { computeExerciseRecencies, recencyForExercise, recencyDotColor, ExerciseRecency } from "../lib/adaptiveRewards";
 import { findAvatar, AVATARS, Avatar } from "../lib/avatars";
@@ -6111,12 +6111,17 @@ function HomePage() {
   const [systemNotifUnread, setSystemNotifUnread] = useState(0);
   const [patchNotifs, setPatchNotifs] = useState<PatchNotification[]>([]);
   const [patchAcks, setPatchAcksState] = useState<Set<string>>(new Set());
+  // Admin-only feed of OTHER users' submissions (bug/idea/feedback/
+  // retest), merged into the system-notifications log. Empty for
+  // non-admins (the endpoint returns nothing). (qa: admin-submission-notifications)
+  const [adminSubNotifs, setAdminSubNotifs] = useState<AdminSubmissionNotification[]>([]);
+  const [adminSubAcks, setAdminSubAcksState] = useState<Set<string>>(new Set());
   // Snapshot of which notifications were unread WHEN the system feed
   // view was opened. Survives the in-view mark-read so the scroll +
   // highlight UX reads correctly. Cleared (and the underlying acks
   // written) when the view unmounts.
   // (qa: system-notifs-scroll-bottom, system-notifs-unread-highlight)
-  const [systemViewSnapshot, setSystemViewSnapshot] = useState<{ bundled: Set<string>; patch: Set<string> } | null>(null);
+  const [systemViewSnapshot, setSystemViewSnapshot] = useState<{ bundled: Set<string>; patch: Set<string>; adminSub: Set<string> } | null>(null);
   const systemFeedScrollRef = useRef<HTMLDivElement | null>(null);
   // Always land at the bottom (newest message) when opening the system
   // feed — chat convention. Unread highlighting still happens via the
@@ -6140,7 +6145,8 @@ function HomePage() {
       if (!el) return;
       const bundledUnread = systemViewSnapshot?.bundled ?? new Set<string>();
       const patchUnread = systemViewSnapshot?.patch ?? new Set<string>();
-      const hasUnread = bundledUnread.size > 0 || patchUnread.size > 0;
+      const adminUnread = systemViewSnapshot?.adminSub ?? new Set<string>();
+      const hasUnread = bundledUnread.size > 0 || patchUnread.size > 0 || adminUnread.size > 0;
       if (hasUnread) {
         // Match the render-side sort (newest at TOP). The first
         // unread walking top-down = newest unread = the row closest
@@ -6150,6 +6156,7 @@ function HomePage() {
         const entries = [
           ...SYSTEM_NOTIFICATIONS.map(n => ({ ts: n.publishedAt, unread: bundledUnread.has(n.id) })),
           ...patchNotifs.map(p => ({ ts: p.publishedAt, unread: patchUnread.has(p.id) })),
+          ...adminSubNotifs.map(s => ({ ts: s.publishedAt, unread: adminUnread.has(s.id) })),
         ].sort((a, b) => b.ts.localeCompare(a.ts));
         const firstUnreadIdx = entries.findIndex(e => e.unread);
         if (firstUnreadIdx >= 0) {
@@ -6165,7 +6172,7 @@ function HomePage() {
     const t1 = setTimeout(stamp, 120);
     const t2 = setTimeout(stamp, 260);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [view, systemViewSnapshot, patchNotifs]);
+  }, [view, systemViewSnapshot, patchNotifs, adminSubNotifs]);
   // Snapshot unread state when entering systemNotifs view (so the
   // first-unread scroll + highlight render correctly), then mark
   // them read when leaving so the next visit knows about it.
@@ -6176,7 +6183,9 @@ function HomePage() {
       if (systemViewSnapshot) {
         markSystemNotifsRead(Array.from(systemViewSnapshot.bundled));
         markPatchNotifsRead(Array.from(systemViewSnapshot.patch));
+        markAdminSubNotifsRead(Array.from(systemViewSnapshot.adminSub));
         setPatchAcksState(prev => { const next = new Set(prev); Array.from(systemViewSnapshot.patch).forEach(id => next.add(id)); return next; });
+        setAdminSubAcksState(prev => { const next = new Set(prev); Array.from(systemViewSnapshot.adminSub).forEach(id => next.add(id)); return next; });
         setSystemViewSnapshot(null);
         setSystemNotifUnread(0);
       }
@@ -6195,15 +6204,18 @@ function HomePage() {
     } catch {}
     const bundledUnread = new Set(SYSTEM_NOTIFICATIONS.filter(n => !bundledRead.has(n.id)).map(n => n.id));
     const patchUnread = new Set(patchNotifs.filter(p => !patchAcks.has(p.id)).map(p => p.id));
+    const adminUnread = new Set(adminSubNotifs.filter(s => !adminSubAcks.has(s.id)).map(s => s.id));
     setSystemViewSnapshot(prev => {
-      if (!prev) return { bundled: bundledUnread, patch: patchUnread };
-      // Extend (never shrink) the patch snapshot. Bundled set is
+      if (!prev) return { bundled: bundledUnread, patch: patchUnread, adminSub: adminUnread };
+      // Extend (never shrink) the dynamic snapshots. Bundled set is
       // already finalised on first capture.
-      const next = new Set(prev.patch);
-      Array.from(patchUnread).forEach(id => next.add(id));
-      return { bundled: prev.bundled, patch: next };
+      const nextPatch = new Set(prev.patch);
+      Array.from(patchUnread).forEach(id => nextPatch.add(id));
+      const nextAdmin = new Set(prev.adminSub);
+      Array.from(adminUnread).forEach(id => nextAdmin.add(id));
+      return { bundled: prev.bundled, patch: nextPatch, adminSub: nextAdmin };
     });
-  }, [view, patchNotifs, patchAcks]);
+  }, [view, patchNotifs, patchAcks, adminSubNotifs, adminSubAcks]);
 
   useEffect(() => {
     if (view !== "messages" && view !== "home" && view !== "systemNotifs") return;
@@ -6216,18 +6228,34 @@ function HomePage() {
       const arr = raw ? JSON.parse(raw) : [];
       setPatchAcksState(new Set(Array.isArray(arr) ? arr.filter((x: any): x is string => typeof x === "string") : []));
     } catch {}
+    try {
+      const raw = localStorage.getItem("ironlog-admin-sub-acks-v1");
+      const arr = raw ? JSON.parse(raw) : [];
+      setAdminSubAcksState(new Set(Array.isArray(arr) ? arr.filter((x: any): x is string => typeof x === "string") : []));
+    } catch {}
     let cancelled = false;
-    fetchPatchNotifications().then(list => {
+    // Fetch patch (own-report) + admin (others' submissions) feeds in
+    // parallel, then recompute the badge from BOTH. (qa: admin-submission-notifications)
+    Promise.all([fetchPatchNotifications(), fetchAdminSubmissionNotifications()]).then(([list, adminList]) => {
       if (cancelled) return;
       setPatchNotifs(list);
-      const acks = new Set<string>();
+      setAdminSubNotifs(adminList);
+      const patchAcksLocal = new Set<string>();
+      const adminAcksLocal = new Set<string>();
       try {
         const raw = localStorage.getItem("ironlog-qa-patch-acks-v1");
-        if (raw) JSON.parse(raw).forEach((x: string) => acks.add(x));
+        if (raw) JSON.parse(raw).forEach((x: string) => patchAcksLocal.add(x));
       } catch {}
-      const unread = SYSTEM_NOTIFICATIONS.filter(n => {
+      try {
+        const raw = localStorage.getItem("ironlog-admin-sub-acks-v1");
+        if (raw) JSON.parse(raw).forEach((x: string) => adminAcksLocal.add(x));
+      } catch {}
+      const bundledUnread = SYSTEM_NOTIFICATIONS.filter(n => {
         try { return !((JSON.parse(localStorage.getItem("ironlog-system-notif-reads-v1") ?? "[]") as string[]).includes(n.id)); } catch { return true; }
-      }).length + list.filter(p => !acks.has(p.id)).length;
+      }).length;
+      const unread = bundledUnread
+        + list.filter(p => !patchAcksLocal.has(p.id)).length
+        + adminList.filter(s => !adminAcksLocal.has(s.id)).length;
       setSystemNotifUnread(unread);
     });
     return () => { cancelled = true; };
@@ -14355,6 +14383,7 @@ function HomePage() {
         // highlight' actually fire on re-entry.
         const bundledUnreadIds = systemViewSnapshot?.bundled ?? new Set<string>();
         const patchUnreadIds = systemViewSnapshot?.patch ?? new Set<string>();
+        const adminUnreadIds = systemViewSnapshot?.adminSub ?? new Set<string>();
         // Newest at TOP (per @maaiz 2026-05-26: "when all system
         // notifications are read, it's opening still at the top
         // instead of bottom to show latest first. Maybe you can just
@@ -14368,9 +14397,10 @@ function HomePage() {
         const entries = [
           ...SYSTEM_NOTIFICATIONS.map(n => ({ kind: "bundled" as const, n, unread: bundledUnreadIds.has(n.id) })),
           ...patchNotifs.map(p => ({ kind: "patch" as const, p, unread: patchUnreadIds.has(p.id) })),
+          ...adminSubNotifs.map(s => ({ kind: "adminSub" as const, s, unread: adminUnreadIds.has(s.id) })),
         ].sort((a, b) => {
-          const aTs = a.kind === "bundled" ? a.n.publishedAt : a.p.publishedAt;
-          const bTs = b.kind === "bundled" ? b.n.publishedAt : b.p.publishedAt;
+          const aTs = a.kind === "bundled" ? a.n.publishedAt : a.kind === "patch" ? a.p.publishedAt : a.s.publishedAt;
+          const bTs = b.kind === "bundled" ? b.n.publishedAt : b.kind === "patch" ? b.p.publishedAt : b.s.publishedAt;
           return bTs.localeCompare(aTs);
         });
         return (
@@ -14405,6 +14435,31 @@ function HomePage() {
                   </div>
                 );
               }
+            // Admin submission notification — someone else filed a
+            // bug / idea / feedback / retest. Admins only (the feed is
+            // empty for non-admins). Tint by kind so the log scans:
+            // red = bug, teal = idea, purple = feedback/retest.
+            // (qa: admin-submission-notifications)
+            if (entry.kind === "adminSub") {
+              const s = entry.s;
+              const tint = s.kind === "bug" ? "#FF6B6B" : s.kind === "idea" ? "#4ECDC4" : s.kind === "retest" ? "#FFD166" : "#A29BFE";
+              const sevLabel = s.kind === "bug" ? "🐞 NEW BUG" : s.kind === "idea" ? "💡 NEW IDEA" : s.kind === "retest" ? "🔄 RETEST" : "📝 FEEDBACK";
+              return (
+                <div key={`a:${s.id}`} data-unread-idx={entry.unread ? idx : undefined} style={{ alignSelf: "flex-start", maxWidth: "92%", background: `linear-gradient(135deg, ${tint}1f, ${tint}0a)`, border: `1px solid ${entry.unread ? tint : tint + "55"}`, borderRadius: 14, padding: "14px 16px", boxShadow: entry.unread ? `0 0 0 1px ${tint}66, 0 0 16px ${tint}44` : undefined }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, color: tint, fontFamily: "'Space Mono', monospace" }}>{sevLabel}{entry.unread ? " · NEW" : ""}</span>
+                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{s.publishedAt.slice(0, 10)}</span>
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.3 }}>{s.title}</div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", lineHeight: 1.5, whiteSpace: "pre-line" }}>{s.body}</div>
+                  <button
+                    onClick={() => { try { window.location.href = `/qa?focus=${encodeURIComponent(s.itemId)}#comment-${s.id}`; } catch {} }}
+                    style={{ marginTop: 10, padding: "6px 10px", background: `${tint}22`, border: `1px solid ${tint}66`, borderRadius: 6, color: tint, fontSize: 10, fontWeight: 700, fontFamily: "'Space Mono', monospace", letterSpacing: 1.5, cursor: "pointer", display: "inline-block" }}
+                    title="Open the QA dashboard focused on this submission"
+                  >→ VIEW IN /qa</button>
+                </div>
+              );
+            }
             // Patch notification — user's own QA comment was processed.
             // Tint = teal (update) for ideas, gold for bug fixes.
             // (qa: qa-patch-notification)

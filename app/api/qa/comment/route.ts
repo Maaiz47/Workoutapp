@@ -1,8 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mirrorCommentToRepo } from "@/lib/qaGitMirror";
+import { sendPushToUser } from "@/lib/push";
 import fs from "fs/promises";
 import path from "path";
+
+// Classify a submission from its note prefix so admin notifications
+// read naturally. Note bodies are tagged client-side with a prefix
+// like "[🐞 BUG · area · view=foo]", "[💡 IDEA · …]" or
+// "[🔄 RETEST · re:XXXX]". (qa: admin-submission-notifications)
+function classifySubmission(note: string): { emoji: string; label: string } {
+  if (/\[🔄\s*RETEST/i.test(note)) return { emoji: "🔄", label: "retest" };
+  if (/\[💡\s*IDEA/i.test(note) || /💡/.test(note)) return { emoji: "💡", label: "idea" };
+  if (/\[🐞\s*BUG/i.test(note) || /🐞/.test(note)) return { emoji: "🐞", label: "bug report" };
+  return { emoji: "📝", label: "feedback" };
+}
+
+// Strip the client-side "[🐞 BUG · area · view=foo]" / "[💡 IDEA · …]"
+// / "[🔄 RETEST · re:XYZ]" / bare-area marker from a note so the
+// notification body surfaces only the user's real words.
+function stripNotePrefix(note: string): string {
+  return note
+    .replace(/^\s*\[(?:🐞\s*BUG|💡\s*IDEA|🔄\s*RETEST[^\]]*|Other|Workout|Progress|Trainer|Profile|Onboarding|Auth)[^\]]*\]\s*/i, "")
+    .trim();
+}
 
 async function readProcessedManifest(): Promise<Record<string, { ts: string; sha?: string; summary?: string }>> {
   try {
@@ -85,6 +106,42 @@ export async function POST(req: NextRequest) {
     // loop becomes reliable. Mirror failures are swallowed so a GitHub
     // outage never fails a user-facing submit.
     try { await mirrorCommentToRepo(row); } catch (e) { console.error("mirror failed:", e); }
+
+    // Notify every admin (push + the admin system-notifications feed
+    // reads the same QAComment rows) whenever ANYONE other than the
+    // admin themselves submits a bug / idea / feedback / retest. Per
+    // @maaiz: "I want admins to always get a push notification and see
+    // the submission in system notifications when someone submits
+    // anything except themselves." Awaited like the mirror so Vercel
+    // doesn't kill the serverless function before the push flushes.
+    // Failures are swallowed — a push hiccup must never fail a submit.
+    // (qa: admin-submission-notifications)
+    try {
+      const admins = await prisma.user.findMany({
+        where: {
+          OR: [{ role: "admin" }, { extraRoles: { has: "admin" } }],
+          // Exclude the submitter so an admin filing their own report
+          // doesn't ping themselves. Anonymous submits (uid null) ping
+          // all admins.
+          ...(uid ? { NOT: { id: uid } } : {}),
+        },
+        select: { id: true },
+      });
+      if (admins.length > 0) {
+        const { emoji, label } = classifySubmission(row.note);
+        const snippetRaw = stripNotePrefix(row.note);
+        const snippet = snippetRaw.length > 120 ? snippetRaw.slice(0, 117).trimEnd() + "…" : snippetRaw;
+        const who = row.tester?.trim() || "Someone";
+        const payload = {
+          title: `${emoji} New ${label} from ${who}`,
+          body: snippet || `${who} submitted ${label}.`,
+          url: `/qa?focus=${encodeURIComponent(row.itemId)}#comment-${row.id}`,
+        };
+        await Promise.all(admins.map(a => sendPushToUser(a.id, payload).catch(() => {})));
+      }
+    } catch (e) {
+      console.error("admin submission notify failed:", e);
+    }
 
     // Detect retest references and flip the parent comment's status to
     // match. Note format is "[🔄 RETEST · re:XXXXXXXX] …" where XXXXXXXX

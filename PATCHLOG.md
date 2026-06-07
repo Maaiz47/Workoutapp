@@ -2,6 +2,20 @@
 
 ---
 
+## Feat · 2026-06-05 — admins get push + system-notification for every other user's submission (qa: admin-submission-notifications)
+
+@maaiz: *"Admins aren't getting qa comments or bugs or idea submissions by other users. I want admins to always get a push notification and see the submission in system notifications when someone submits anything except themselves."*
+
+All bug/idea/feedback/retest submissions flow through `POST /api/qa/comment`, which previously notified no one. Now:
+
+- **Push to admins** (`app/api/qa/comment/route.ts`): after the comment is created + mirrored, finds every admin (`role === "admin"` OR `extraRoles` has `"admin"`), **excludes the submitter**, and awaits `sendPushToUser` for each. Title is type-aware (🐞 New bug report / 💡 New idea / 📝 New feedback / 🔄 Retest) + submitter name; body is the note; tap deep-links to `/qa?focus=<item>#comment-<id>`. Awaited like the repo mirror so Vercel doesn't kill the function before the push flushes; failures swallowed so a push hiccup never fails a submit.
+- **Admin feed endpoint** (`app/api/qa/comments/admin-feed/route.ts`, new): admin-gated; returns the last 30 days / 50 most-recent submissions from *others* (includes anonymous `userId=null`, excludes the admin's own), enriched with submitter username. Returns `{ submissions: [] }` for non-admins so the client can call it unconditionally.
+- **System-notifications feed** (`lib/systemNotifications.ts` + `app/page.tsx`): new `fetchAdminSubmissionNotifications` + ack tracking (`ironlog-admin-sub-acks-v1`), merged into the 📢 IRONLOG SYSTEM log as a third bubble kind (red=bug, teal=idea, gold=retest, purple=feedback) alongside bundled + patch notifications, with matching unread snapshot / scroll / inbox-badge wiring.
+
+Admin-only surface reusing the existing system feed — no new route, so no `TUTORIAL_STEPS` entry. Push delivery still requires the admin to have granted notification permission (existing `PushSubscription` infra); the in-app feed is the always-on fallback. Typecheck clean.
+
+---
+
 ## Bugfix · 2026-06-05 — VIEW WORKOUT preview now lists the exact exercises (qa: workout-preview-without-start)
 
 @humaam (cmpzb2bac0000691ga3uj8nbv): *"View workout should be able see what exact workouts there are. It's right now showing just overview of the day."*

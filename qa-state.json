@@ -416,6 +416,24 @@
       "notes": "[2026-05-26] Passing: 8ldwlv25: 'Verified working'. Passing.\n\n[2026-05-24] Shipped: lib/systemNotifications.ts bundled list + localStorage read tracking. Pinned row in inbox + view='systemNotifs' chat-style display."
     },
     {
+      "id": "admin-submission-notifications",
+      "title": "Admins get a push + system-notification when any other user submits a bug / idea / feedback / retest",
+      "area": "Messages",
+      "introduced": "2026-06-05",
+      "introducedBy": "@maaiz report 'Admins aren't getting qa comments or bugs or idea submissions by other users'",
+      "lastTested": "2026-06-05",
+      "status": "regression-retest",
+      "steps": [
+        "As a non-admin user (and with push enabled on a separate admin device), submit a bug via the in-app QA panel. Verify each ADMIN receives a push notification titled like '🐞 New bug report from <username>' with the report text as the body, and tapping it deep-links to /qa focused on the item.",
+        "Repeat with an idea (💡) and a plain feedback submission — verify the push title reflects the type (💡 New idea / 📝 New feedback).",
+        "As an admin, open Messages → 📢 IRONLOG SYSTEM. Verify the other user's submission appears as a bubble (red=bug, teal=idea, gold=retest, purple=feedback) with the submitter name + note + a → VIEW IN /qa button.",
+        "Verify the inbox unread badge counted the new submission, and that opening + leaving the system feed clears it (read state persists in localStorage).",
+        "Submit something AS the admin themselves. Verify the admin does NOT get a push for their own submission and it does NOT appear in their own admin feed.",
+        "As a NON-admin, open the system feed. Verify NO other-user submissions appear (the /api/qa/comments/admin-feed endpoint returns nothing for non-admins)."
+      ],
+      "notes": "[2026-06-05 <sha7>] Per @maaiz 'I want admins to always get a push notification and see the submission in system notifications when someone submits anything except themselves'. Three pieces: (1) POST /api/qa/comment now finds every admin (role==='admin' OR extraRoles has 'admin'), excludes the submitter, and awaits sendPushToUser for each with a type-aware title (🐞/💡/📝/🔄) + note snippet + deep-link; awaited like the repo mirror so Vercel doesn't kill the function early. (2) New GET /api/qa/comments/admin-feed returns the last 30d / 50 most-recent QAComments from OTHERS (includes anonymous userId=null; excludes the admin's own) enriched with submitter username; returns [] for non-admins so the client can call it unconditionally. (3) lib/systemNotifications.ts fetchAdminSubmissionNotifications + ack tracking (ironlog-admin-sub-acks-v1); page.tsx merges them into the systemNotifs feed as a third bubble kind alongside bundled + patch notifs, with matching unread snapshot/scroll/badge wiring. Admin-only surface reusing the existing system feed — no new route, so no TUTORIAL_STEPS entry. Note: push delivery still requires the admin to have granted notification permission (existing PushSubscription infra); the in-app feed is the always-on fallback."
+    },
+    {
       "id": "message-soft-delete",
       "title": "Long-press own message bubble to delete for everyone",
       "area": "Messages",

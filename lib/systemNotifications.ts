@@ -225,13 +225,89 @@ export async function fetchPatchNotifications(): Promise<PatchNotification[]> {
   }
 }
 
-// Combined unread count (bundled + dynamic patches the user hasn't
-// ack'd yet). Used by the Messages inbox badge.
+// ── ADMIN SUBMISSION NOTIFICATIONS (admins only) ─────────────────────
+//
+// Per @maaiz: "I want admins to always get a push notification and see
+// the submission in system notifications when someone submits anything
+// except themselves." Fetched from /api/qa/comments/admin-feed (which
+// returns [] for non-admins, so this is safe to call for everyone) and
+// merged into the system-notifications feed alongside the bundled +
+// patch notifications. Acks tracked separately so they don't pollute
+// the other feeds' read state. (qa: admin-submission-notifications)
+
+const ADMIN_SUB_ACK_KEY = "ironlog-admin-sub-acks-v1";
+
+export type AdminSubmissionNotification = {
+  id: string;            // qa-comment id — used as the dynamic notif id
+  itemId: string;        // QA item the submission was filed against
+  title: string;         // synthesised from the submission type + submitter
+  body: string;          // submitter + the submitted note
+  publishedAt: string;   // submission ts ISO
+  kind: "bug" | "idea" | "retest" | "feedback";
+  submitter: string;
+};
+
+function readAdminSubAcks(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(ADMIN_SUB_ACK_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function markAdminSubNotifsRead(ids: string[] | "all", allDynamicIds?: string[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const current = readAdminSubAcks();
+    if (ids === "all") {
+      for (const id of allDynamicIds ?? []) current.add(id);
+    } else {
+      for (const id of ids) current.add(id);
+    }
+    localStorage.setItem(ADMIN_SUB_ACK_KEY, JSON.stringify(Array.from(current)));
+  } catch {}
+}
+
+export async function fetchAdminSubmissionNotifications(): Promise<AdminSubmissionNotification[]> {
+  try {
+    const r = await fetch("/api/qa/comments/admin-feed", { credentials: "same-origin", cache: "no-store" });
+    if (!r.ok) return [];
+    const data = await r.json();
+    const list: Array<{ id: string; itemId: string; status: string; note: string; ts: string; submitter: string }> = data?.submissions ?? [];
+    return list.map(c => {
+      const note = c.note ?? "";
+      const isRetest = /\[🔄\s*RETEST/i.test(note);
+      const isIdea = /\[💡\s*IDEA/i.test(note) || /💡/.test(note);
+      const isBug = /\[🐞\s*BUG/i.test(note) || /🐞/.test(note);
+      const kind: AdminSubmissionNotification["kind"] = isRetest ? "retest" : isIdea ? "idea" : isBug ? "bug" : "feedback";
+      const heading = kind === "retest" ? "🔄 Retest submitted" : kind === "idea" ? "💡 New idea" : kind === "bug" ? "🐞 New bug report" : "📝 New feedback";
+      const submitter = c.submitter || "Someone";
+      const stripped = note
+        .replace(/^\s*\[(?:🐞\s*BUG|💡\s*IDEA|🔄\s*RETEST[^\]]*|Other|Workout|Progress|Trainer|Profile|Onboarding|Auth)[^\]]*\]\s*/i, "")
+        .trim();
+      const snippet = stripped.length > 180 ? stripped.slice(0, 177).trimEnd() + "…" : stripped;
+      const body = `👤 ${submitter}\n\n${snippet || "(no description provided)"}\n\nTap to open in /qa.`;
+      return { id: c.id, itemId: c.itemId, title: `${heading} from ${submitter}`, body, publishedAt: c.ts, kind, submitter };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// Combined unread count (bundled + dynamic patches + admin submissions
+// the user hasn't ack'd yet). Used by the Messages inbox badge.
 export async function combinedSystemNotifUnreadCount(): Promise<number> {
   const bundledRead = readSystemNotifReadIds();
   const bundledUnread = SYSTEM_NOTIFICATIONS.filter(n => !bundledRead.has(n.id)).length;
   const patches = await fetchPatchNotifications();
   const patchAcks = readPatchAcks();
   const patchUnread = patches.filter(p => !patchAcks.has(p.id)).length;
-  return bundledUnread + patchUnread;
+  const adminSubs = await fetchAdminSubmissionNotifications();
+  const adminAcks = readAdminSubAcks();
+  const adminUnread = adminSubs.filter(s => !adminAcks.has(s.id)).length;
+  return bundledUnread + patchUnread + adminUnread;
 }
