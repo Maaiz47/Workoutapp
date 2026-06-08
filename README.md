@@ -105,11 +105,13 @@ No ads. No subscriptions. No fluff. Just your lifts.
 - **History tab:** full session log grouped by training day, expandable per session (with a monthly intensity-heatmap calendar — colour ramps coral-red 0.18→0.73 opacity based on `volume × avgRpe/10`)
 - **Body tab:** log weight and body fat % over time, set target goals, trend chart, progress-to-goal bars
 
-### Achievements + Milestones
-- ~80 milestones spanning anniversaries, consistency, strength benchmarks, HIIT, cardio (incl. distance estimator), volume, behaviour, tier reaches, bodyweight benchmarks (push-ups / pull-ups / sit-ups / dips / BW squats / curls), and warmup/cooldown habit goals
-- **Premium tier** of bodyweight milestones (200 push-ups, 30 pull-ups, 200 sit-ups, 50 dips, 500 BW squats) unlocks a bonus avatar reserved for that single feat
-- Celebration overlay fires per milestone with a "+ AVATAR UNLOCKED" line for premium tiers
-- Achievements wall lives on Progress → Dashboard with locked/unlocked tile states
+### Achievements
+- ~80 achievements spanning anniversaries, consistency, strength benchmarks, HIIT, cardio (incl. distance estimator), volume, behaviour, tier reaches, bodyweight benchmarks (push-ups / pull-ups / sit-ups / dips / BW squats / curls), and warmup/cooldown habit goals
+- **Server-persisted** — earned achievements save to your account (`UserAchievement` table via `/api/achievements`), so they follow you across devices; localStorage is just a cache. The engine lives in `lib/achievements.ts` (formerly `lib/milestones.ts` — "milestones" and "achievements" were the same system, now merged)
+- **Premium tier** of bodyweight achievements (200 push-ups, 30 pull-ups, 200 sit-ups, 50 dips, 500 BW squats) unlocks a bonus avatar reserved for that single feat
+- **Forge avatars** — your *total* achievement count unlocks a separate blacksmith avatar set (spark → eternal forge at 3 / 6 / 10 / 15 / 20 / 25 / 35 earned), minted server-side in `/api/avatars`
+- Celebration overlay fires per achievement with a "+ AVATAR UNLOCKED" line for premium tiers
+- Achievements wall lives in one place — Progress → Dashboard — with locked/unlocked tile states and a footer showing the next forge-avatar threshold
 
 ### Body Metrics
 - Log weight (kg) and body fat % with a date stamp
@@ -166,7 +168,7 @@ No ads. No subscriptions. No fluff. Just your lifts.
 - Tier breakdown modal shows a chunky 82px headline badge + full 6-tier ladder strip + per-sub-rank progress bars + a `⚡ EARN MORE POINTS` tip card with 2-3 concrete actions targeted at the user's weakest sub-rank
 - All tier-icon render surfaces (modal, ladder grid, promo toast, leaderboards, member lists, chat headers) use the PNG badges; emoji is kept only as an `<img onError>` fallback
 - Veterans no longer regress — Strength `max(rate, absolute)` means slow-but-strong lifters keep their score
-- **Premium milestone-bonus avatars** unlock when users hit the elite tier of a bodyweight benchmark (200 push-ups, 30 pull-ups, 200 sit-ups, 50 dips, 500 BW squats)
+- **Premium milestone-bonus avatars** unlock when users hit the elite tier of a bodyweight benchmark (200 push-ups, 30 pull-ups, 200 sit-ups, 50 dips, 500 BW squats); a separate set of **forge avatars** unlocks by total achievement count (3 / 6 / 10 / 15 / 20 / 25 / 35)
 - Monthly challenges are now a deterministic rotation — 21-entry library + a `getMonthChallenges(monthIso)` selector that picks one MODEST + one SOLID + one HARD challenge per month, same 3 for every user worldwide
 
 ### Push Notifications
