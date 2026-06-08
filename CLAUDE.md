@@ -135,6 +135,32 @@ architecture each session.
    `TUTORIAL_VERSION` only for major arcs. If a slice is purely internal
    (no UI), say so in the PATCHLOG entry.
 
+## The in-app version number is derived from PATCHLOG — keep it ticking
+
+Settings → 🔄 APP VERSION shows `v{MAJOR_MINOR}.{patch}` (e.g. `v1.2.15`).
+That patch number is computed at request time by `app/api/version/route.ts`,
+which counts **every top-level `^## ` section in `PATCHLOG.md`** and
+subtracts `PRE_V1_2_PATCH_OFFSET`. The git SHA (`build <sha>`) is the
+canonical key the update-prompt compares; the `v…` number is what the user
+*sees* and uses to confirm a deploy landed.
+
+- **Every deploy that adds a `## ` PATCHLOG section bumps the version by
+  one.** Since the forcing rules already require a PATCHLOG entry per push,
+  this is automatic — *as long as you don't break the count*.
+- **The header word does NOT matter** (`## Feat`, `## Bugfix`, `## Fix`,
+  `## Chore`, `## QA pass` all count). It used to match only a fixed list
+  (`QA pass|Feature|Fix|Polish`); the vocabulary drifted and silently
+  **froze the version at v1.2.14 across several deploys** (the bug @maaiz
+  caught 2026-06-08: *"hasn't prompted to update… same v number before
+  too"*). Counting all `## ` sections makes that impossible — don't
+  reintroduce a header-word allowlist.
+- **If you bump `MAJOR_MINOR`,** reset `PRE_V1_2_PATCH_OFFSET` to the
+  current `## ` count so the patch restarts near `.0`.
+- The update prompt is SHA-based: the cyan "NEW VERSION AVAILABLE" banner
+  only shows when the app is **open across** a deploy; a cold PWA start
+  gets the green "UPDATED TO v…" toast instead (it already has the new
+  bundle). Both rely on the version number changing to read meaningfully.
+
 ## Repo basics
 
 - Framework: Next.js 14 (App Router, TypeScript, ES5 target)

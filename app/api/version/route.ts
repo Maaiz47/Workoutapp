@@ -17,13 +17,23 @@ export const dynamic = "force-dynamic";
 // catalogue audit + cardio muscle reclassification, achievements
 // expansion (+15), form-cue longest-match. (qa: version-bump-v1.2)
 const MAJOR_MINOR = "1.2";
-// Number of PATCHLOG section headers that existed at-or-before the v1.2
-// reset. Same mechanic as the v1.1 reset: subtract this from the live
-// section count so the patch number starts at .1 for the v1.2 cohort
-// and increments per shipped PATCHLOG section. Per @maaiz "Reset it to
-// v1.2.1 to move sequentially from there so I can test the update
-// prompt is working". (qa: version-bump-v1.2)
-const PRE_V1_2_PATCH_OFFSET = 142;
+// Number of PATCHLOG `## ` sections that existed up to v1.2.14, minus 15,
+// so the live count maps to the continuous patch number. We subtract this
+// from the live section count so the patch increments per shipped section.
+//
+// IMPORTANT: the patch number is now derived from EVERY top-level `## `
+// PATCHLOG header (see the count below) — NOT a fixed list of header
+// words. It used to match only `## (QA pass|Feature|Fix|Polish)`, but the
+// header vocabulary drifted (`## Feat`, `## Bugfix`, `## Chore`, `## Hotfix`
+// stopped matching), which silently froze the version at v1.2.14 across
+// several deploys. Counting all `## ` sections makes drift impossible:
+// any PATCHLOG entry bumps the version. (qa: version-bump-v1.2)
+//
+// Recalibrated 2026-06-08: 258 sections at this commit → v1.2.15
+// (offset 243). The prior build read v1.2.14, so the number stays
+// continuous. If you ever bump MAJOR_MINOR, reset this offset to the
+// current section count so the patch restarts near .0/.1.
+const PRE_V1_2_PATCH_OFFSET = 243;
 
 export async function GET() {
   const sha = process.env.VERCEL_GIT_COMMIT_SHA || "dev";
@@ -32,13 +42,13 @@ export async function GET() {
   const message = process.env.VERCEL_GIT_COMMIT_MESSAGE || "";
   const title = message.split("\n")[0].slice(0, 200);
 
-  // Count PATCHLOG sections to derive the user-facing patch number. The
-  // SHA above is still the canonical compare key — two pushes can share a
-  // patch count, but their SHAs always differ.
+  // Count EVERY top-level PATCHLOG section to derive the user-facing patch
+  // number. The SHA above is still the canonical compare key — two pushes
+  // can share a patch count, but their SHAs always differ.
   let patchCount = 0;
   try {
     const md = await fs.readFile(path.join(process.cwd(), "PATCHLOG.md"), "utf-8");
-    const matches = md.match(/^## (QA pass|Feature|Fix|Polish)\b/gm);
+    const matches = md.match(/^## /gm);
     patchCount = matches ? matches.length : 0;
   } catch {}
   // Subtract the v1.0 baseline so the patch number resets when MAJOR_MINOR

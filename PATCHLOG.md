@@ -2,6 +2,17 @@
 
 ---
 
+## Fix · 2026-06-08 — app version was frozen at v1.2.14; patch number now counts every PATCHLOG section (qa: version-bump-v1.2)
+
+@maaiz noticed a deploy *"hasn't prompted to update the app"* and that it was *"the same v number before too."* Two findings:
+
+1. **The update prompt is SHA-based and works** — the cyan "NEW VERSION AVAILABLE · REFRESH" banner fires when the app is **open across** a deploy (it polls `/api/version` every 5 min / on focus). On a **cold start** (reopening the installed PWA) you instead get the green "UPDATED TO v…" toast, because the new bundle is already loaded — there's nothing to refresh. That's working as designed.
+2. **The real bug: the user-facing version number was frozen.** `app/api/version/route.ts` derived the patch number by counting only PATCHLOG headers matching `/^## (QA pass|Feature|Fix|Polish)\b/`. The header vocabulary had since drifted — `## Feat` (23×), `## Bugfix` (5×), `## Chore`, `## Hotfix` are **not** matched — so the last several deploys (all "Bugfix"/"Feat"/"Chore") left the count at 156 → `v1.2.14` every time. The green "updated" toast still fired (SHA changed) but read "UPDATED TO v1.2.14", indistinguishable from before.
+
+**Fix:** the counter now matches **every** top-level `^## ` PATCHLOG section, so any header word increments the version — drift is impossible going forward. Recalibrated `PRE_V1_2_PATCH_OFFSET` so the number stays continuous (the previous build read v1.2.14; this build reads v1.2.15) and ticks up by one per shipped section. Documented the mechanic in `CLAUDE.md` so future sessions verify the bump. No client logic changed; `npx tsc --noEmit` clean.
+
+---
+
 ## Bugfix · 2026-06-08 — substitute picker: swap in ANY exercise, suggestions first, never empty (qa: session-substitute-exercise)
 
 @maaiz (with a screenshot of the SUBSTITUTE modal for **Face Pulls** showing only *"No same-muscle alternates in the library"*): *"Maybe the buttons are out of sight on UI here?"* → then *"They should be able to substitute with any exercise, but with suggested exercises shown first as priority."*
