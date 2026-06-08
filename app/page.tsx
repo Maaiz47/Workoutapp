@@ -7168,8 +7168,12 @@ function HomePage() {
     }
     if (Notification.permission === "denied") { setNotifStatus("denied"); return; }
     if (Notification.permission === "granted") {
-      // Re-register subscription silently on every app open (handles cache-cleared subscriptions)
-      subscribeToPush().then(s => setNotifStatus(s));
+      // Don't (re)subscribe here — refreshUser() re-registers under the
+      // CURRENT user when a session exists, and purges the subscription
+      // when the device is logged out. Subscribing unconditionally here
+      // would re-create a subscription on a logged-out device (the source
+      // of admin pushes reaching logged-out phones). Just reflect status.
+      setNotifStatus("granted");
     } else if (Notification.permission === "default") {
       // Always show banner until user explicitly allows or blocks via native prompt
       setShowNotifBanner(true);
@@ -7211,6 +7215,27 @@ function HomePage() {
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           subscribeToPush().then(s => setNotifStatus(s));
         }
+      } else {
+        // No session on this device — purge any lingering push subscription
+        // so notifications for a previously-logged-in user (e.g. an admin
+        // who logged in here, then logged out without cleanup) stop arriving
+        // on a logged-out phone. (qa: admin-submission-notifications)
+        (async () => {
+          try {
+            if ("serviceWorker" in navigator && "PushManager" in window) {
+              const reg = await navigator.serviceWorker.getRegistration();
+              const sub = await reg?.pushManager.getSubscription();
+              if (sub) {
+                await fetch("/api/push/subscribe", {
+                  method: "DELETE",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ endpoint: sub.endpoint }),
+                }).catch(() => {});
+                await sub.unsubscribe().catch(() => {});
+              }
+            }
+          } catch {}
+        })();
       }
       setAuthLoading(false);
     }).catch(() => setAuthLoading(false));
@@ -8544,6 +8569,11 @@ function HomePage() {
       }
     }
 
+    // Cancel any rest timer still counting down — finishing the workout
+    // means there is no "next set", so its "Rest over — time for your next
+    // set" push must not fire. stop() clears the interval before finish()
+    // (which sends that notification) can run. (qa: session-finish-cancels-rest-push)
+    rest.stop();
     setShowCompleteAnim(true);
 
     if (activeDay) {

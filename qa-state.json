@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "session-finish-cancels-rest-push",
+      "title": "Finishing a workout cancels the pending rest-timer push",
+      "area": "Workouts",
+      "introduced": "2026-06-08",
+      "introducedBy": "QA pass 2026-06-08 (re:clenh5c4)",
+      "lastTested": "2026-06-08",
+      "status": "regression-retest",
+      "steps": [
+        "Start a session. Log the LAST set of the workout while the rest timer is still counting down.",
+        "Immediately finish/complete the workout before the rest timer reaches 0.",
+        "Verify you do NOT receive a 'Rest over - time for your next set' push afterwards (there is no next set).",
+        "Sanity: log a non-last set, let the rest timer run out normally, and verify the rest push STILL fires as before."
+      ],
+      "notes": "[2026-06-08] @maaiz: 'I finished a workout after entering the last set before the rest timer was finished but I still got the rest timer push which is useless'. The countdown's finish() (beep + REST_DONE push) kept firing because doSaveWorkout didn't cancel the running rest timer. Fix: call rest.stop() at the top of the workout-complete path - stop() clears the interval so finish() never runs, suppressing the push. Normal rest-end pushes (non-final sets) are unaffected. (qa: session-finish-cancels-rest-push)"
+    },
+    {
       "id": "home-messages-unread-count",
       "title": "Home Messages button badge combines DM + group + system unread",
       "area": "UI",
@@ -431,7 +447,7 @@
         "Submit something AS the admin themselves. Verify the admin does NOT get a push for their own submission and it does NOT appear in their own admin feed.",
         "As a NON-admin, open the system feed. Verify NO other-user submissions appear (the /api/qa/comments/admin-feed endpoint returns nothing for non-admins)."
       ],
-      "notes": "[2026-06-05 <sha7>] Per @maaiz 'I want admins to always get a push notification and see the submission in system notifications when someone submits anything except themselves'. Three pieces: (1) POST /api/qa/comment now finds every admin (role==='admin' OR extraRoles has 'admin'), excludes the submitter, and awaits sendPushToUser for each with a type-aware title (🐞/💡/📝/🔄) + note snippet + deep-link; awaited like the repo mirror so Vercel doesn't kill the function early. (2) New GET /api/qa/comments/admin-feed returns the last 30d / 50 most-recent QAComments from OTHERS (includes anonymous userId=null; excludes the admin's own) enriched with submitter username; returns [] for non-admins so the client can call it unconditionally. (3) lib/systemNotifications.ts fetchAdminSubmissionNotifications + ack tracking (ironlog-admin-sub-acks-v1); page.tsx merges them into the systemNotifs feed as a third bubble kind alongside bundled + patch notifs, with matching unread snapshot/scroll/badge wiring. Admin-only surface reusing the existing system feed — no new route, so no TUTORIAL_STEPS entry. Note: push delivery still requires the admin to have granted notification permission (existing PushSubscription infra); the in-app feed is the always-on fallback."
+      "notes": "[2026-06-08] LEAK FIX. @maaiz: a QA submission pushed to Amanii's logged-OUT phone 'like she was an admin'. Cause: push is device-bound - sendPushToUser(adminId) hits every PushSubscription row under an admin's userId, and a row is only removed when the user taps Log out (doLogout -> DELETE /api/push/subscribe). An admin who logged in on her phone and ended the session WITHOUT logging out left a stale {userId:admin, endpoint:herPhone} row, so admin pushes kept landing there. Fix: (a) DELETE /api/push/subscribe no longer requires a session - deletes by endpoint alone so a logged-out device can purge a stale row; (b) on app load with no session the client unsubscribes + DELETEs this device's subscription; (c) the mount effect no longer auto-subscribes a possibly-logged-out device. Recipient query (role=admin OR extraRoles has admin) was already correct. (qa: admin-submission-notifications)\n\n[2026-06-05 <sha7>] Per @maaiz 'I want admins to always get a push notification and see the submission in system notifications when someone submits anything except themselves'. Three pieces: (1) POST /api/qa/comment now finds every admin (role==='admin' OR extraRoles has 'admin'), excludes the submitter, and awaits sendPushToUser for each with a type-aware title (🐞/💡/📝/🔄) + note snippet + deep-link; awaited like the repo mirror so Vercel doesn't kill the function early. (2) New GET /api/qa/comments/admin-feed returns the last 30d / 50 most-recent QAComments from OTHERS (includes anonymous userId=null; excludes the admin's own) enriched with submitter username; returns [] for non-admins so the client can call it unconditionally. (3) lib/systemNotifications.ts fetchAdminSubmissionNotifications + ack tracking (ironlog-admin-sub-acks-v1); page.tsx merges them into the systemNotifs feed as a third bubble kind alongside bundled + patch notifs, with matching unread snapshot/scroll/badge wiring. Admin-only surface reusing the existing system feed — no new route, so no TUTORIAL_STEPS entry. Note: push delivery still requires the admin to have granted notification permission (existing PushSubscription infra); the in-app feed is the always-on fallback."
     },
     {
       "id": "message-soft-delete",

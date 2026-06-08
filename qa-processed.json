@@ -749,6 +749,14 @@
     "cmpzb2bac0000691ga3uj8nbv": {
       "ts": "2026-06-05T00:00:00Z",
       "summary": "@humaam: VIEW WORKOUT preview only showed the day overview (EXERCISES / TOTAL SETS counts), not the exact exercises. Added an exact-exercise rundown to the workout prep/preview screen — sections + every exercise with its sets × reps (warmup/cooldown show set count, supersets marked ⇄); screen now scrolls so START WORKOUT stays reachable. (qa: workout-preview-without-start)"
+    },
+    "cmq5m3hkb0000x7g2yoq40agk": {
+      "ts": "2026-06-08T19:36:36.012Z",
+      "summary": "@maaiz: QA submission pushed to a logged-out/non-admin phone (Amanii). Stale admin PushSubscription row on a device that logged in then out without cleanup. Fixed: logged-out devices purge their subscription on load; DELETE-by-endpoint works without a session. (qa: admin-submission-notifications)"
+    },
+    "cmq5m0jsv0000109tclenh5c4": {
+      "ts": "2026-06-08T19:34:18.941Z",
+      "summary": "@maaiz: got the 'rest over - time for next set' push after finishing the workout on the last set. Fixed: workout-complete now cancels the running rest timer (rest.stop()) so its push can't fire. (qa: session-finish-cancels-rest-push)"
     }
   }
 }

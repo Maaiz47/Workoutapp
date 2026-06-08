@@ -31,14 +31,17 @@ export async function POST(req: NextRequest) {
 }
 
 // DELETE — remove the specific device subscription on logout
+// Deliberately does NOT require a session: a logged-OUT device must be
+// able to purge a stale subscription left under a PREVIOUS user (e.g. an
+// admin who logged in on this phone then logged out without cleanup),
+// otherwise that admin's pushes keep landing here. The endpoint is a long
+// device-local token, so deleting by it only affects this device.
+// (qa: admin-submission-notifications)
 export async function DELETE(req: NextRequest) {
-  const uid = req.cookies.get(COOKIE)?.value;
-  if (!uid) return json({ error: "Unauthorized" }, 401);
-
   try {
     const { endpoint } = await req.json();
     if (endpoint) {
-      await prisma.pushSubscription.deleteMany({ where: { userId: uid, endpoint } });
+      await prisma.pushSubscription.deleteMany({ where: { endpoint } });
     }
     return json({ ok: true });
   } catch (e: any) {

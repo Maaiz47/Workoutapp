@@ -2,6 +2,18 @@
 
 ---
 
+## Fix · 2026-06-08 — QA pass: stop admin pushes reaching logged-out phones + cancel rest push on workout finish (qa: admin-submission-notifications, session-finish-cancels-rest-push)
+
+Two QA reports from @maaiz.
+
+**1. Admin QA-submission push landed on a logged-out, non-admin phone (Amanii's).** Push is device-bound: `sendPushToUser(adminId)` fans out to **every `PushSubscription` row** under an admin's userId, and a row is only removed when that user taps **Log out** (`doLogout` → `DELETE /api/push/subscribe`). An admin who logged in on her phone and ended the session *without* logging out left a stale `{userId: admin, endpoint: herPhone}` row, so admin pushes kept arriving there. Fixes (`app/api/push/subscribe/route.ts` + `app/page.tsx`): (a) `DELETE /api/push/subscribe` no longer requires a session — it deletes by `endpoint` alone, so a **logged-out device can purge a stale row** (the endpoint is a device-local token); (b) on app load with **no session**, the client now unsubscribes + DELETEs this device's subscription; (c) the mount effect no longer auto-subscribes a possibly-logged-out device — `refreshUser()` re-registers under the *current* user when a session exists. The recipient query (`role=admin OR extraRoles has admin`) was already correct.
+
+**2. "Rest over — time for your next set" push fired after finishing a workout.** Logging the final set starts a rest countdown; finishing the workout before it elapsed didn't cancel it, so `finish()` still fired the push. Fix: `doSaveWorkout` now calls `rest.stop()` (clears the interval before `finish()` runs). Normal rest-end pushes on non-final sets are unaffected.
+
+`npx tsc --noEmit` clean. No tutorial change (bug fixes to existing surfaces). New `qa-state.json` item `session-finish-cancels-rest-push`; both comment ids marked in `qa-processed.json`.
+
+---
+
 ## Fix · 2026-06-08 — update banner now fires on a stale PWA bundle (bake build SHA into the client) (qa: app-update-overlay-cross-view)
 
 @maaiz: a deploy *"didn't prompt to update… I had to force close the app to make the updates live."*
