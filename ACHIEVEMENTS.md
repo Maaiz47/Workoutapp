@@ -1,8 +1,22 @@
 # Achievements system — design doc (v1)
 
-Planning artefact for the achievements feature. NO code shipped yet —
-this is the spec the next slice will build against. Tracked in
-`qa-state.json` as `achievements-v1` (untested / planning).
+> **✅ SHIPPED 2026-06-08 — read this first.** The big realisation while
+> building: the existing **`lib/milestones.ts`** engine (~85 achievements,
+> detection on session-save, the Progress wall, celebration overlay,
+> premium bonus avatars) ALREADY WAS the achievements system this doc
+> describes. So instead of building the separate `lib/achievements.ts`
+> proposed below, we **merged**: renamed `lib/milestones.ts` →
+> `lib/achievements.ts` (+ exports + storage key), added the
+> `UserAchievement` table + `/api/achievements` for server persistence,
+> wired the 7 Batch-5 count avatars into `/api/avatars`, and de-duped the
+> wall to live only on Progress. The sections below are the original
+> planning spec and are kept for historical context — where they say
+> "build a new module / new sub-tab", read it as "the milestones engine
+> already did this." See `qa-state.json` → `achievements-v1` for the
+> as-shipped summary.
+
+Planning artefact for the achievements feature (now implemented via the
+merge above). Tracked in `qa-state.json` as `achievements-v1`.
 
 **2026-05-26 update:** all 7 count-milestone avatars (Batch 5) are now
 on disk at `/public/avatars/ach-{spark,hammer,anvil,phoenix,crucible,

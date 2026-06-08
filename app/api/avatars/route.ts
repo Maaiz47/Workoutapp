@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
-import { AVATARS, ADMIN_AVATAR_POOL, tierAvatarsAtOrBelow, findAvatar } from "../../../lib/avatars";
+import { AVATARS, ADMIN_AVATAR_POOL, ACHIEVEMENT_AVATAR_POOL, tierAvatarsAtOrBelow, findAvatar } from "../../../lib/avatars";
 import { computeStatsForUsers } from "../../../lib/leaderboardStats";
 
 const COOKIE = "ironlog-uid";
@@ -24,11 +24,12 @@ export async function GET(req: NextRequest) {
   const uid = req.cookies.get(COOKIE)?.value;
   if (!uid) return json({ error: "Unauthorized" }, 401);
   try {
-    const [user, profile, statsMap, existingUnlocks] = await Promise.all([
+    const [user, profile, statsMap, existingUnlocks, achievementCount] = await Promise.all([
       prisma.user.findUnique({ where: { id: uid }, select: { role: true, extraRoles: true } }),
       prisma.userProfile.findUnique({ where: { userId: uid } }),
       computeStatsForUsers([uid]),
       (prisma as any).userAvatarUnlock.findMany({ where: { userId: uid } }),
+      prisma.userAchievement.count({ where: { userId: uid } }),
     ]);
     const isAdmin = user?.role === "admin" || (Array.isArray(user?.extraRoles) && user!.extraRoles.includes("admin"));
     const tier = statsMap.get(uid)?.tier;
@@ -89,17 +90,38 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Achievement-count avatars — mint any whose threshold the user's
+    // total earned-achievement count has crossed. Idempotent via the
+    // unique (userId, avatarId) constraint. Source persisted as
+    // "achievement"; never relocked (achievements are permanent).
+    // (qa: achievements-v1)
+    const achToMint = ACHIEVEMENT_AVATAR_POOL.filter(
+      a => (a.achievementCount ?? Infinity) <= achievementCount && !ownedIds.has(a.id),
+    );
+    if (achToMint.length > 0) {
+      await (prisma as any).userAvatarUnlock.createMany({
+        data: achToMint.map(a => ({ userId: uid, avatarId: a.id, source: "achievement" as any, tier: null })),
+        skipDuplicates: true,
+      });
+      for (const a of achToMint) ownedIds.add(a.id);
+    }
+
     const luckyUnlocked = AVATARS.filter(a => a.source === "lucky" && ownedIds.has(a.id));
     const tierUnlocked = AVATARS.filter(a => a.source === "tier" && ownedIds.has(a.id));
     const adminUnlocked = AVATARS.filter(a => a.source === "admin" && ownedIds.has(a.id));
+    const milestoneUnlocked = AVATARS.filter(a => a.source === "milestone-bonus" && ownedIds.has(a.id));
+    const achievementUnlocked = AVATARS.filter(a => a.source === "achievement" && ownedIds.has(a.id));
 
     return json({
       selected,
       tierUnlocked,
       luckyUnlocked,
       adminUnlocked,
+      milestoneUnlocked,
+      achievementUnlocked,
       all: AVATARS,
       tier: tierIdx,
+      achievementCount,
       tierScoreBonus: profile?.tierScoreBonus ?? 0,
     });
   } catch (e: any) {

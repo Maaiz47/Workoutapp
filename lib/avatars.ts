@@ -5,7 +5,7 @@
 // power — they don't change tier score, just give the user a
 // collectable to chase. (qa: profile-avatars, random-rare-rewards)
 
-export type AvatarSource = "tier" | "lucky" | "milestone-bonus" | "admin";
+export type AvatarSource = "tier" | "lucky" | "milestone-bonus" | "achievement" | "admin";
 
 export type Avatar = {
   id: string;            // stable, never reused — used as filename: /avatars/<id>.png
@@ -20,13 +20,18 @@ export type Avatar = {
   // Rarity weight when rolling lucky drops. Higher = more common.
   // Only consulted for source="lucky" rows. Default 10.
   luckyWeight?: number;
-  // For source="milestone-bonus": the milestone id whose unlock also
+  // For source="milestone-bonus": the achievement id whose unlock also
   // grants this avatar. Premium bonus avatars are tied 1-to-1 with the
-  // hardest milestones (e.g. 200 push-ups, 30 pull-ups). When the user
-  // crosses the milestone the server-side avatar mint pipeline reads
+  // hardest achievements (e.g. 200 push-ups, 30 pull-ups). When the user
+  // crosses the achievement the server-side avatar mint pipeline reads
   // this field and grants the avatar.
   // (qa: achievements-premium-bonus-avatars)
   unlocksMilestoneId?: string;
+  // For source="achievement": the number of TOTAL achievements the user
+  // must have earned to unlock this avatar (3/6/10/…). Minted in
+  // /api/avatars once the earned-achievement count crosses the
+  // threshold. Pure cosmetic — no tier-score effect. (qa: achievements-v1)
+  achievementCount?: number;
 };
 
 // 20 tier-unlocked avatars — 3-4 per tier so users have a few to
@@ -84,8 +89,12 @@ const LUCKY_AVATARS: Avatar[] = [
 ];
 
 // Premium milestone-bonus avatars. Each ties 1-to-1 to a hard
-// milestone in lib/milestones.ts via `unlocksMilestoneId`. Images live
-// at /avatars/mb-<id>.png — prompts in /image-prompts-v2.md Batch 10.
+// achievement in lib/achievements.ts via `unlocksMilestoneId`. Images
+// live at /avatars/mb-<id>.png — prompts in /image-prompts-v2.md Batch
+// 10. (The "milestone-bonus" source string + `unlocksMilestoneId` field
+// keep their legacy names: they're persisted in UserAvatarUnlock.source
+// rows, so renaming them would strand existing data for zero user
+// benefit. The catalogue this points at is now lib/achievements.ts.)
 // (qa: achievements-premium-bonus-avatars)
 const MILESTONE_BONUS_AVATARS: Avatar[] = [
   { id: "mb-pushup-elite",  name: "200-Push-Up Crown",  source: "milestone-bonus", unlocksMilestoneId: "pushups-200",  flavour: "200 in a row. The floor remembers." },
@@ -93,6 +102,21 @@ const MILESTONE_BONUS_AVATARS: Avatar[] = [
   { id: "mb-situp-elite",   name: "200-Sit-Up Sovereign", source: "milestone-bonus", unlocksMilestoneId: "situps-200",   flavour: "Endurance core. Iron breath." },
   { id: "mb-dip-elite",     name: "50-Dip Phenom",      source: "milestone-bonus", unlocksMilestoneId: "dips-50",      flavour: "Half a hundred dips. Calisthenics elite." },
   { id: "mb-bwsquat-elite", name: "500-Squat Titan",    source: "milestone-bonus", unlocksMilestoneId: "bwsquats-500", flavour: "Half a thousand reps. Iron mind, iron legs." },
+];
+
+// Achievement-count avatars — unlock by TOTAL achievements earned, not
+// by any single one. A blacksmithing arc (spark → eternal forge) that
+// rewards breadth of progress. Images live at /avatars/ach-*.png —
+// prompts in /image-prompts-v2.md Batch 5. Minted in /api/avatars from
+// the UserAchievement row count. (qa: achievements-v1)
+const ACHIEVEMENT_AVATARS: Avatar[] = [
+  { id: "ach-spark",         name: "Forging Spark",     source: "achievement", achievementCount: 3,  flavour: "Three down. The forge is lit." },
+  { id: "ach-hammer",        name: "Smith's Hammer",    source: "achievement", achievementCount: 6,  flavour: "Six unlocked. You're crafting yourself." },
+  { id: "ach-anvil",         name: "Forged Anvil",      source: "achievement", achievementCount: 10, flavour: "Ten in. Tested and holding." },
+  { id: "ach-phoenix",       name: "Rising Phoenix",    source: "achievement", achievementCount: 15, flavour: "Fifteen. Comeback fuel in the fire." },
+  { id: "ach-crucible",      name: "Glowing Crucible",  source: "achievement", achievementCount: 20, flavour: "Twenty. Refined under heat." },
+  { id: "ach-blacksmith",    name: "Master Blacksmith", source: "achievement", achievementCount: 25, flavour: "Twenty-five. Apex craft." },
+  { id: "ach-forge-eternal", name: "Eternal Forge",     source: "achievement", achievementCount: 35, flavour: "Thirty-five. The all-rounder's ceiling." },
 ];
 
 // Admin-exclusive epic avatar. Unlocked automatically on /api/avatars
@@ -106,7 +130,14 @@ const ADMIN_AVATARS: Avatar[] = [
   { id: "admin-eternal", name: "Eternal Admin", source: "admin", flavour: "Architect of the floor. Never to be unlocked by anyone else." },
 ];
 
-export const AVATARS: Avatar[] = [...TIER_AVATARS, ...LUCKY_AVATARS, ...MILESTONE_BONUS_AVATARS, ...ADMIN_AVATARS];
+export const AVATARS: Avatar[] = [...TIER_AVATARS, ...LUCKY_AVATARS, ...MILESTONE_BONUS_AVATARS, ...ACHIEVEMENT_AVATARS, ...ADMIN_AVATARS];
+
+// Achievement-count avatars, exposed so the /api/avatars mint pipeline
+// can grant any whose `achievementCount` ≤ the user's earned count.
+// Sorted ascending so the mint loop is deterministic. (qa: achievements-v1)
+export const ACHIEVEMENT_AVATAR_POOL: Avatar[] = [...ACHIEVEMENT_AVATARS].sort(
+  (a, b) => (a.achievementCount ?? 0) - (b.achievementCount ?? 0),
+);
 
 // The admin-only avatars, exposed as a list so the avatar mint
 // pipeline in /api/avatars can backfill them when the viewer is

@@ -20,7 +20,7 @@ import { TUTORIAL_STEPS, TUTORIAL_STORAGE_KEY, TutorialStep } from "../lib/tutor
 import { estimate1RM, EFFORT_SCALE, buildHistoryCSV, suggestProgression, parseTargetReps, detectPlateau, shouldSuggestDeload } from "../lib/performance";
 import { computeAthleteTier, computeTrainerTier, ATHLETE_TIERS, TRAINER_TIERS as TRAINER_TIERS_NEW, AthleteStatsForTier, TierBreakdown, AnimalTier, getAthleteTiers, displayTierNum, TIER_COUNT, tierFlavor } from "../lib/tiers";
 import { effectiveExperience, experienceMeta, experienceProfile, ExperienceLevel, monthsUntilExpRecordedExpires } from "../lib/experience";
-import { MILESTONES, detectNewMilestones, MILESTONE_STORAGE_KEY, MilestoneState, Milestone, MilestoneAward, TIER_NUM_BY_ID } from "../lib/milestones";
+import { ACHIEVEMENTS, detectNewAchievements, ACHIEVEMENT_STORAGE_KEY, LEGACY_MILESTONE_STORAGE_KEY, AchievementState, Achievement, AchievementAward, TIER_NUM_BY_ID } from "../lib/achievements";
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, syncWellnessFromServer, syncWellnessToServerOnce, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
 import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead, fetchPatchNotifications, markPatchNotifsRead, markRetestResponded, readRetestRespondedIds, PatchNotification, fetchAdminSubmissionNotifications, markAdminSubNotifsRead, AdminSubmissionNotification } from "../lib/systemNotifications";
@@ -1985,7 +1985,7 @@ function ChallengesCard({ history, bodyMetrics, gender }: { history: Record<stri
                       <div style={{ height: "100%", width: `${pct}%`, background: state.achieved ? "#2ecc71" : "#A29BFE", borderRadius: 2, transition: "width 0.5s" }} />
                     </div>
                     <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5 }}>
-                      Goal body fat set to {target}%. {state.achieved ? "Milestone earned." : "No deadline — keep logging your BF readings, the bar fills as you progress."}
+                      Goal body fat set to {target}%. {state.achieved ? "Achievement earned." : "No deadline — keep logging your BF readings, the bar fills as you progress."}
                     </div>
                   </>
                 )}
@@ -4970,7 +4970,7 @@ function HomeGlobals({
   // messages or some where not everywhere on screen'.
   // (qa: celebration-overlays-everywhere)
   deGamified: boolean;
-  milestoneQueue: MilestoneAward[];
+  milestoneQueue: AchievementAward[];
   onMilestoneAdvance: () => void;
   newPBs: Array<{ name: string; weight: number; reps: number }>;
   onPBsDismiss: () => void;
@@ -6028,6 +6028,12 @@ function AvatarPickerView({
   const unlockedIds = new Set<string>([
     ...(avatarInventory?.tierUnlocked ?? []).map((a: any) => a.id),
     ...(avatarInventory?.luckyUnlocked ?? []).map((a: any) => a.id),
+    // Also surface achievement-count, milestone-bonus and admin unlocks
+    // so minted avatars render as owned (not locked silhouettes).
+    // (qa: achievements-v1)
+    ...(avatarInventory?.achievementUnlocked ?? []).map((a: any) => a.id),
+    ...(avatarInventory?.milestoneUnlocked ?? []).map((a: any) => a.id),
+    ...(avatarInventory?.adminUnlocked ?? []).map((a: any) => a.id),
   ]);
   const all: Avatar[] = avatarInventory?.all ?? AVATARS;
   return (
@@ -6314,7 +6320,7 @@ function HomePage() {
   // Celebration overlay state — fires when a new milestone crosses on
   // session save. Stacks newly-achieved entries in a queue so multiple
   // hitting in one session each get their moment.
-  const [milestoneQueue, setMilestoneQueue] = useState<MilestoneAward[]>([]);
+  const [milestoneQueue, setMilestoneQueue] = useState<AchievementAward[]>([]);
   // Profile preview modal — tapping any username/avatar across the
   // app (chat headers, group message author chips, leaderboard rows,
   // friends list, etc) sets previewUserId, which renders the modal
@@ -6350,8 +6356,12 @@ function HomePage() {
     selected: string | null;
     tierUnlocked: Avatar[];
     luckyUnlocked: Avatar[];
+    adminUnlocked?: Avatar[];
+    milestoneUnlocked?: Avatar[];
+    achievementUnlocked?: Avatar[];
     all: Avatar[];
     tier: number;
+    achievementCount?: number;
     tierScoreBonus: number;
   } | null>(null);
   // Weekly recap — shown on the first home open on/after Sunday. Modal
@@ -6372,7 +6382,7 @@ function HomePage() {
   // Tap-into milestone info modal. Shows full body + earned status OR
   // the unlock requirement for locked entries. Triggered from the
   // achievements wall in Settings.
-  const [milestoneInfo, setMilestoneInfo] = useState<{ milestone: Milestone; earned: boolean } | null>(null);
+  const [milestoneInfo, setMilestoneInfo] = useState<{ milestone: Achievement; earned: boolean } | null>(null);
   // Daily Quest info modal — shows the full body + a context-aware
   // "OPEN" deep-link to wherever the quest is actually completed
   // (Wellness card for hydration / sleep / energy quests, etc).
@@ -8103,14 +8113,21 @@ function HomePage() {
         // session-save milestone pipeline. (qa: mission-unlock-abs)
         if (data.metric.bodyFatPct != null) {
           try {
-            const achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
-            for (const m of MILESTONES) {
+            const achieved = new Set<string>(JSON.parse(localStorage.getItem(ACHIEVEMENT_STORAGE_KEY) ?? "[]"));
+            for (const m of ACHIEVEMENTS) {
               if (m.id !== "abs-unlocked") continue;
               if (achieved.has(m.id)) continue;
               if (m.check({ joinedDaysAgo: 0, totalSessions: 0, longestStreakDays: 0, prCount: 0, hasUsedSuperset: false, hasUsedDropSet: false, hasAcceptedDeload: false, athleteTierLabel: "", athleteTierNum: 1, currentBodyFatPct: data.metric.bodyFatPct })) {
                 achieved.add(m.id);
-                localStorage.setItem(MILESTONE_STORAGE_KEY, JSON.stringify(Array.from(achieved)));
-                setMilestoneQueue(q => [...q, m as MilestoneAward]);
+                localStorage.setItem(ACHIEVEMENT_STORAGE_KEY, JSON.stringify(Array.from(achieved)));
+                setMilestoneQueue(q => [...q, m as AchievementAward]);
+                // Persist to the server + invalidate avatar cache, same
+                // as the session-save pipeline. (qa: achievements-v1)
+                try {
+                  fetch("/api/achievements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [m.id] }) })
+                    .then(() => setAvatarInventory(null))
+                    .catch(() => {});
+                } catch {}
               }
             }
           } catch {}
@@ -8651,7 +8668,7 @@ function HomePage() {
               }
             }
 
-            const mState: MilestoneState = {
+            const mState: AchievementState = {
               joinedDaysAgo,
               totalSessions,
               longestStreakDays: longestStreak,
@@ -8679,11 +8696,21 @@ function HomePage() {
               warmupSessionCount,
               cooldownSessionCount,
             };
-            const achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
-            const newOnes = detectNewMilestones(mState, achieved);
+            const achieved = new Set<string>(JSON.parse(localStorage.getItem(ACHIEVEMENT_STORAGE_KEY) ?? "[]"));
+            const newOnes = detectNewAchievements(mState, achieved);
             if (newOnes.length > 0) {
               for (const m of newOnes) achieved.add(m.id);
-              localStorage.setItem(MILESTONE_STORAGE_KEY, JSON.stringify(Array.from(achieved)));
+              localStorage.setItem(ACHIEVEMENT_STORAGE_KEY, JSON.stringify(Array.from(achieved)));
+              // Persist newly-earned achievements server-side (source of
+              // truth) and invalidate the cached avatar inventory so any
+              // achievement-count avatars that just crossed their
+              // threshold get minted on the next /api/avatars fetch.
+              // Fire-and-forget. (qa: achievements-v1)
+              try {
+                fetch("/api/achievements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: newOnes.map(m => m.id) }) })
+                  .then(() => setAvatarInventory(null))
+                  .catch(() => {});
+              } catch {}
               // Tier milestones ordered low→high so the celebration
               // queue feels like a ladder climb — Monkey (PASSED) →
               // Fox (PASSED) → Tiger (CURRENT) — leaving the user
@@ -9283,15 +9310,60 @@ function HomePage() {
       // session-save will re-detect the milestone and queue it.
       // (qa: tier-newuser-ramp)
       try {
-        const ach = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]"));
+        const ach = new Set<string>(JSON.parse(localStorage.getItem(ACHIEVEMENT_STORAGE_KEY) ?? "[]"));
         let changed = false;
+        const relocked: string[] = [];
         for (const [mid, requiredTier] of Object.entries(TIER_NUM_BY_ID)) {
-          if (requiredTier > currentTier && ach.has(mid)) { ach.delete(mid); changed = true; }
+          if (requiredTier > currentTier && ach.has(mid)) { ach.delete(mid); changed = true; relocked.push(mid); }
         }
-        if (changed) localStorage.setItem(MILESTONE_STORAGE_KEY, JSON.stringify(Array.from(ach)));
+        if (changed) {
+          localStorage.setItem(ACHIEVEMENT_STORAGE_KEY, JSON.stringify(Array.from(ach)));
+          // Mirror the relock server-side so re-hydrate-on-load doesn't
+          // re-add them and a real re-climb fires the celebration again.
+          // (qa: achievements-v1)
+          try {
+            fetch("/api/achievements", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: relocked }) }).catch(() => {});
+          } catch {}
+        }
       } catch {}
     }
   }, [user, myAthleteBreakdown, history, serverCanonicalTier]);
+
+  // One-time hydrate + backfill of earned achievements. The server
+  // (UserAchievement) is the source of truth; localStorage is a cache.
+  // On mount: read the local cache (new key + legacy milestone key),
+  // fetch the server's earned set, union them, write the union back to
+  // the new local key, and backfill the server with any ids that only
+  // existed locally — migrating users from before server persistence /
+  // the key rename. (qa: achievements-v1)
+  const achievementsHydrated = useRef(false);
+  useEffect(() => {
+    if (!user || achievementsHydrated.current) return;
+    achievementsHydrated.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const readKey = (k: string): string[] => { try { const v = JSON.parse(localStorage.getItem(k) ?? "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
+        const local = new Set<string>([...readKey(ACHIEVEMENT_STORAGE_KEY), ...readKey(LEGACY_MILESTONE_STORAGE_KEY)]);
+        const res = await fetch("/api/achievements");
+        if (cancelled) return;
+        const data = await res.json().catch(() => ({}));
+        const server = new Set<string>(Array.isArray(data?.earned) ? data.earned : []);
+        // Local-only ids → backfill to the server (idempotent).
+        const localOnly = Array.from(local).filter(id => !server.has(id));
+        if (localOnly.length > 0) {
+          fetch("/api/achievements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: localOnly }) })
+            .then(() => setAvatarInventory(null))
+            .catch(() => {});
+        }
+        // Union → new local cache; drop the legacy key once migrated.
+        const union = Array.from(new Set<string>(Array.from(local).concat(Array.from(server))));
+        localStorage.setItem(ACHIEVEMENT_STORAGE_KEY, JSON.stringify(union));
+        try { localStorage.removeItem(LEGACY_MILESTONE_STORAGE_KEY); } catch {}
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
 
   // Balanced-fortnight celebration — counterpart to the Balance
   // sub-rank's neglect penalty. Fires a one-shot toast when the user
@@ -16144,43 +16216,10 @@ function HomePage() {
             <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>{deGamified ? "tap to re-enable game UI" : "tap for minimal UI"}</span>
           </button>
 
-          {/* Achievements wall — expandable list of every milestone (achieved
-              + locked). Hidden in de-gamify mode. */}
-          {!deGamified && (() => {
-            let achieved = new Set<string>();
-            try { achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]")); } catch {}
-            const total = MILESTONES.length;
-            const got = MILESTONES.filter(m => achieved.has(m.id)).length;
-            return (
-              <button
-                onClick={() => setShowAchievements(s => !s)}
-                style={{ width: "100%", marginTop: 8, padding: "14px", background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.25)", borderRadius: 12, color: "#f0c040", fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-              ><span>🏆 ACHIEVEMENTS ({got}/{total})</span><span style={{ fontSize: 10, color: "rgba(240,192,64,0.6)" }}>{showAchievements ? "▲" : "▼"}</span></button>
-            );
-          })()}
-          {showAchievements && !deGamified && (() => {
-            let achieved = new Set<string>();
-            try { achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]")); } catch {}
-            return (
-              <div className="fade-in" style={{ marginTop: 8, marginBottom: 8, background: "rgba(240,192,64,0.03)", border: "1px solid rgba(240,192,64,0.12)", borderRadius: 12, padding: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                {MILESTONES.map(m => {
-                  const got = achieved.has(m.id);
-                  return (
-                    <button
-                      key={m.id}
-                      onClick={() => setMilestoneInfo({ milestone: m, earned: got })}
-                      style={{ padding: "10px 8px", background: got ? "rgba(240,192,64,0.1)" : "rgba(255,255,255,0.02)", border: `1px solid ${got ? "rgba(240,192,64,0.35)" : "rgba(255,255,255,0.06)"}`, borderRadius: 8, textAlign: "center", opacity: got ? 1 : 0.55, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
-                      title={got ? "Tap for details" : "Tap to see how to unlock"}
-                    >
-                      <div style={{ fontSize: 24, filter: got ? "none" : "grayscale(1) opacity(0.4)" }}>{m.icon}</div>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: got ? "#f0c040" : "rgba(255,255,255,0.4)", marginTop: 4, lineHeight: 1.2 }}>{m.label}</div>
-                      {got && <div style={{ fontSize: 8, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{m.body.slice(0, 60)}{m.body.length > 60 ? "…" : ""}</div>}
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })()}
+          {/* Achievements wall lives on the Progress dashboard now (single
+              source of truth) — the duplicate Settings copy was removed
+              on 2026-06-08 per the de-dup pass. Find it under Progress →
+              🏆 ACHIEVEMENTS. (qa: achievements-discoverability-progress) */}
 
           {/* Pro Tips library — browse the full catalogue grouped by
               category. Always visible (not gated by de-gamify) because
@@ -16316,14 +16355,15 @@ function HomePage() {
                 @maaiz: 'cant find milestones/achievements anywhere
                 — they should be in progress tab'. Surfaces above
                 Wellness so the gamification surface is the FIRST
-                thing on the dashboard. Same toggle state as the
-                Settings copy so tapping either expands both.
+                thing on the dashboard. This is now the SINGLE home for
+                the wall — the old Settings duplicate was removed in the
+                2026-06-08 de-dup pass.
                 (qa: achievements-discoverability-progress) */}
             {!deGamified && (() => {
               let achieved = new Set<string>();
-              try { achieved = new Set<string>(JSON.parse(localStorage.getItem(MILESTONE_STORAGE_KEY) ?? "[]")); } catch {}
-              const total = MILESTONES.length;
-              const got = MILESTONES.filter(m => achieved.has(m.id)).length;
+              try { achieved = new Set<string>(JSON.parse(localStorage.getItem(ACHIEVEMENT_STORAGE_KEY) ?? "[]")); } catch {}
+              const total = ACHIEVEMENTS.length;
+              const got = ACHIEVEMENTS.filter(m => achieved.has(m.id)).length;
               return (
                 <>
                   <button
@@ -16331,8 +16371,9 @@ function HomePage() {
                     style={{ width: "100%", marginBottom: 8, padding: "14px", background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.25)", borderRadius: 12, color: "#f0c040", fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: "pointer", fontFamily: "'Space Mono', monospace", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                   ><span>🏆 ACHIEVEMENTS ({got}/{total})</span><span style={{ fontSize: 10, color: "rgba(240,192,64,0.6)" }}>{showAchievements ? "▲" : "▼"}</span></button>
                   {showAchievements && (
-                    <div className="fade-in" style={{ marginBottom: 12, background: "rgba(240,192,64,0.03)", border: "1px solid rgba(240,192,64,0.12)", borderRadius: 12, padding: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                      {MILESTONES.map(m => {
+                    <>
+                    <div className="fade-in" style={{ marginBottom: 8, background: "rgba(240,192,64,0.03)", border: "1px solid rgba(240,192,64,0.12)", borderRadius: 12, padding: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                      {ACHIEVEMENTS.map(m => {
                         const isGot = achieved.has(m.id);
                         return (
                           <button
@@ -16348,6 +16389,21 @@ function HomePage() {
                         );
                       })}
                     </div>
+                    {/* Reward hook — the achievement COUNT unlocks the
+                        blacksmith forge avatars (Batch 5). Surfaces the
+                        next threshold so the collectable is discoverable
+                        from the wall. (qa: achievements-v1) */}
+                    {(() => {
+                      const thresholds = [3, 6, 10, 15, 20, 25, 35];
+                      const next = thresholds.find(t => got < t);
+                      return (
+                        <div style={{ marginBottom: 12, fontSize: 10, color: "rgba(255,255,255,0.45)", fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, lineHeight: 1.5, padding: "0 2px" }}>
+                          🔨 Earning achievements forges bonus profile avatars.{" "}
+                          {next ? <>Next at <span style={{ color: "#f0c040" }}>{next}</span> ({got}/{next}) — see the AVATAR picker.</> : <>All 7 forge avatars unlocked. Legend.</>}
+                        </div>
+                      );
+                    })()}
+                    </>
                   )}
                 </>
               );

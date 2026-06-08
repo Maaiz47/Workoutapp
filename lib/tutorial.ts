@@ -138,9 +138,9 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "milestones-v2",
     icon: "🏆",
-    title: "More milestones — including ELITE-only bonus avatars",
-    body: "The Achievements grid now includes bodyweight benchmarks (push-ups 20/50/100/200, pull-ups 5/10/20/30, sit-ups, dips, BW squats, curls) and warmup/cooldown habit goals. The hardest tier of each — 200 push-ups, 30 pull-ups, etc. — unlocks a PREMIUM bonus avatar reserved for that single feat.",
-    where: "Progress → Achievements",
+    title: "Achievements — earn them, unlock forge avatars",
+    body: "The Achievements wall (Progress → 🏆 ACHIEVEMENTS) tracks 80+ unlocks: streaks, PRs, strength benchmarks, bodyweight feats, cardio, volume and more. Your earned achievements now save to your account, so they follow you across devices. The hardest single feats (200 push-ups, 30 pull-ups…) unlock a PREMIUM bonus avatar — and your TOTAL count unlocks a separate set of blacksmith 'forge' avatars (3 / 6 / 10 / 15 / 20 / 25 / 35 earned).",
+    where: "Progress → Achievements · Profile → Avatar",
   },
   {
     id: "monthly-challenges",
@@ -174,7 +174,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "profile-settings",
     icon: "👤",
     title: "Profile, Settings, Avatar",
-    body: "Tap your avatar at the top-left of home to open your profile. From there, the floating ⚙ SETTINGS pill at the top-right gets you to APP PREFERENCES, FEEDBACK & QA, account, and the AVATAR PICKER (tier-unlocked, lucky-drop, and the new milestone-bonus premium avatars).",
+    body: "Tap your avatar at the top-left of home to open your profile. From there, the floating ⚙ SETTINGS pill at the top-right gets you to APP PREFERENCES, FEEDBACK & QA, account, and the AVATAR PICKER (tier-unlocked, lucky-drop, milestone-bonus premium, and the achievement-count 'forge' avatars).",
     where: "Home top-left avatar → Profile · ⚙ SETTINGS top-right",
   },
   {

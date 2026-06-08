@@ -1,13 +1,20 @@
-// Milestones — pre-defined achievement triggers fired on each session
-// save. Each is checked against a `MilestoneState` snapshot of the user's
-// training history; the ones that newly cross are added to the user's
-// achieved-list (stored in localStorage under `ironlog-milestones`).
+// Achievements — pre-defined unlock triggers fired on each session
+// save. Each is checked against an `AchievementState` snapshot of the
+// user's training history; the ones that newly cross are recorded for
+// the user (server-side in the UserAchievement table via
+// /api/achievements, with a localStorage cache under
+// `ironlog-achievements-v1`).
 //
-// Adding a new milestone: append to the `MILESTONES` array. ids are
-// stable — never reuse them. Removing one is fine (existing achievements
+// (Historically called "milestones" — same concept; the module was
+// renamed to "achievements" on 2026-06-08 to match the user-facing
+// 🏆 ACHIEVEMENTS surface. Stable ids are unchanged so no earned
+// unlocks were lost.)
+//
+// Adding a new achievement: append to the `ACHIEVEMENTS` array. ids are
+// stable — never reuse them. Removing one is fine (existing unlocks
 // just become unreachable orphans, no data loss).
 
-export type MilestoneState = {
+export type AchievementState = {
   joinedDaysAgo: number;      // calendar days since the user's account was created
   totalSessions: number;      // lifetime
   longestStreakDays: number;
@@ -68,7 +75,7 @@ export type MilestoneState = {
 // Returns 0 if no matching exercise has been logged. Multiple names
 // let one milestone catch synonyms ("OHP" / "overhead press" /
 // "shoulder press"). (qa: achievements-strength-benchmarks)
-export function bestForNames(state: MilestoneState, names: string[]): number {
+export function bestForNames(state: AchievementState, names: string[]): number {
   const map = state.maxByName ?? {};
   let best = 0;
   for (const exName in map) {
@@ -86,7 +93,7 @@ export function bestForNames(state: MilestoneState, names: string[]): number {
 // single set across any matching exercise. Used by bodyweight
 // milestones (push-ups / pull-ups / sit-ups / dips / BW squats).
 // (qa: achievements-bodyweight-benchmarks)
-export function bestRepsForNames(state: MilestoneState, names: string[]): number {
+export function bestRepsForNames(state: AchievementState, names: string[]): number {
   const map = state.maxRepsByName ?? {};
   let best = 0;
   for (const exName in map) {
@@ -100,7 +107,7 @@ export function bestRepsForNames(state: MilestoneState, names: string[]): number
   return best;
 }
 
-export type Milestone = {
+export type Achievement = {
   id: string;
   label: string;       // headline shown on the celebration overlay
   body: string;        // 1-2 sentence flavour text
@@ -116,10 +123,10 @@ export type Milestone = {
   // locked milestones so users know what to work toward. New ids should
   // always include one; missing falls back to body.
   requirement: string;
-  check: (s: MilestoneState) => boolean;
+  check: (s: AchievementState) => boolean;
 };
 
-export const MILESTONES: Milestone[] = [
+export const ACHIEVEMENTS: Achievement[] = [
   // ── Anniversary milestones (calendar-based, not effort-based) ─────────
   { id: "first-day",     label: "Welcome to IRONLOG",       body: "Day 1. The streak starts now.",                       icon: "🎉", category: "anniversary", requirement: "Log your first session.",                                                  check: s => s.joinedDaysAgo >= 1   && s.totalSessions >= 1 },
   { id: "week-one",      label: "One week in",              body: "Seven days on the app. Most people quit before this.", icon: "🌅", category: "anniversary", requirement: "Stay active on IRONLOG for 7 days from your join date.",                  check: s => s.joinedDaysAgo >= 7 },
@@ -311,25 +318,25 @@ export const TIER_NUM_BY_ID: Record<string, number> = {
   "tier-gorilla": 6,   // → Tier 6 (Bear / Master)
 };
 
-// Milestone returned from detectNewMilestones with an optional badge
-// for tier ranks. `tierBadge: "current"` = this is the tier the user
-// is at RIGHT NOW. `tierBadge: "passed"` = the user is above this
+// Achievement returned from detectNewAchievements with an optional
+// badge for tier ranks. `tierBadge: "current"` = this is the tier the
+// user is at RIGHT NOW. `tierBadge: "passed"` = the user is above this
 // tier (retroactive unlock — they earned it on the way up but never
-// celebrated it). Non-tier milestones have no badge.
-export type MilestoneAward = Milestone & { tierBadge?: "current" | "passed" };
+// celebrated it). Non-tier achievements have no badge.
+export type AchievementAward = Achievement & { tierBadge?: "current" | "passed" };
 
-// Walk the milestone list against the current state. Returns every
-// milestone that newly crossed since the last check — INCLUDING all
+// Walk the achievement list against the current state. Returns every
+// achievement that newly crossed since the last check — INCLUDING all
 // lower-tier ranks for a user who jumped straight to a higher tier
 // (each gets a "passed" tag so the celebration is clearly retroactive
 // and the actual current rank is also surfaced). Caller persists the
 // achieved ids.
-export function detectNewMilestones(
-  state: MilestoneState,
+export function detectNewAchievements(
+  state: AchievementState,
   alreadyAchieved: Set<string>
-): MilestoneAward[] {
-  const out: MilestoneAward[] = [];
-  for (const m of MILESTONES) {
+): AchievementAward[] {
+  const out: AchievementAward[] = [];
+  for (const m of ACHIEVEMENTS) {
     if (alreadyAchieved.has(m.id)) continue;
     if (!m.check(state)) continue;
     if (m.category === "tier") {
@@ -344,5 +351,12 @@ export function detectNewMilestones(
 }
 
 // localStorage key — bump if the schema of stored entries ever changes
-// (currently just an array of ids, so this can stay v1 forever).
-export const MILESTONE_STORAGE_KEY = "ironlog-milestones-v1";
+// (currently just an array of ids, so this can stay v1 forever). This
+// is now a client-side CACHE; the server (UserAchievement table) is the
+// source of truth — see /api/achievements. Renamed from the legacy
+// `ironlog-milestones-v1` key on 2026-06-08; the old key is still read
+// once on load to migrate existing users' local data. (qa: achievements-v1)
+export const ACHIEVEMENT_STORAGE_KEY = "ironlog-achievements-v1";
+// Legacy key — read-only, for one-time migration into the new key + the
+// server backfill. Do not write to it.
+export const LEGACY_MILESTONE_STORAGE_KEY = "ironlog-milestones-v1";

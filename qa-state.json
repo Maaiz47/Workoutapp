@@ -2355,24 +2355,22 @@
     },
     {
       "id": "achievements-v1",
-      "title": "Achievements system \u2014 full design captured (planning, no code shipped)",
+      "title": "Achievements system \u2014 milestones engine merged + server-persisted + count avatars wired",
       "area": "Achievements",
       "introduced": "2026-05-23",
       "introducedBy": "QA pass achievements-planning",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-06-08",
+      "status": "regression-retest",
       "steps": [
-        "(Planning slice \u2014 NO code shipped yet.) Read /ACHIEVEMENTS.md end-to-end. Confirm the 48 achievements (or the 55 with my suggestions) feel right before any catalogue lock-in.",
-        "Decide on the open questions at the bottom of /ACHIEVEMENTS.md before Slice 1: (a) do locked tiles hint at their title, (b) trainer-specific achievements in v1 or defer, (c) cardio-input polish slice as a dependency or fold in, (d) wellness-trigger endpoint for non-workout achievements.",
-        "Verify the count-milestone avatar plan (3/6/10/15/20/25) in /image-prompts-v2.md Batch 5 matches the catalogue size \u2014 if we add the 7 'suggested' achievements bumping to 55 total, add a 7th milestone (35 unlocks \u2192 7th avatar).",
-        "Confirm Progress tab is the right home (vs Profile / dedicated page). The doc argues yes; flag if disagree.",
-        "Slice 1 implementation: lib/achievements.ts catalogue + UserAchievement Prisma model + workout-save POST hook to mint newly-met rows. Backfill on first GET.",
-        "Slice 2 implementation: Progress \u2192 Achievements sub-tab UI (grid + tile modal + locked/in-progress/unlocked states).",
-        "Slice 3 implementation: unlock toast + localStorage suppression for initial backfill day.",
-        "Slice 4 implementation: 6 count-milestone avatars wired into /api/avatars minting via source: 'achievement'.",
-        "QA each slice independently \u2014 see notes in /ACHIEVEMENTS.md per-slice."
+        "Open Progress \u2192 \ud83c\udfc6 ACHIEVEMENTS. Verify the wall lists every achievement (earned highlighted, locked greyed) and there is NO duplicate wall in Settings anymore.",
+        "Expand the wall: verify the footer reads '\ud83d\udd28 Earning achievements forges bonus profile avatars. Next at N (got/N)'.",
+        "Complete a session that crosses a new achievement \u2014 verify the unlock celebration overlay fires (unchanged).",
+        "Cross the 3rd achievement, then open Profile \u2192 AVATAR: verify the 'Forging Spark' (ach-spark) avatar now shows as UNLOCKED (minted server-side from the earned count).",
+        "Server persistence: earn an achievement on one device/browser, then load the app in another with the same account \u2014 verify the earned set + minted avatars carry over (GET /api/achievements / /api/avatars).",
+        "Migration: an existing user with localStorage 'ironlog-milestones-v1' should keep all earned achievements (backfilled to the server on first load; old key removed).",
+        "Tier relock: if a user drops below a tier, the tier achievements relock locally AND server-side so a genuine re-climb re-fires the celebration."
       ],
-      "notes": "[2026-05-23 update] @maaiz answered 2 of 4 open questions: locked-tile UX (title only on tile + full mystery in click overlay) and trainer achievements (YES, in v1). Added new \ud83e\udd1d Trainer category with 7 achievements (first-client / five-roster / fifteen-roster / pr-coach / pr-coach-25 / pro-tier / legend-tier). Catalogue grew to 55 total (48 athlete-visible + 7 trainer-only). Still open: wellness re-evaluate frequency, cardio-input polish fold-in.\n[2026-05-23] Slice 0 (PLANNING ONLY): /ACHIEVEMENTS.md captures the full system design \u2014 placement (Progress tab sub-tab), category breakdown (now 11 categories, 55 achievements), criteria function shape, data model (new UserAchievement table), UI + notification UX, integration with count-milestone avatars, and 4 open questions waiting on @maaiz's call. /image-prompts-v2.md Batch 5 carries the 6 avatar prompts (spark / hammer / anvil / phoenix / crucible / blacksmith). Cardio distance estimator (time \u00d7 speed) is specified inline alongside 3 distance-based achievements. NO code shipped \u2014 this slice is design capture only. Subsequent slices ship in the order described above."
+      "notes": "[2026-06-08] SHIPPED. Key finding: the 'milestones' engine (lib/milestones.ts, ~85 achievements, detection, wall, celebration overlay, premium bonus avatars) was ALREADY the achievements system \u2014 the planned separate lib/achievements.ts would have duplicated it. Per @maaiz ('is there milestones which is also same thing meaning needs to be merged?' + 'persist to DB + server mint' + 'rename + de-dup the wall'): (1) renamed lib/milestones.ts \u2192 lib/achievements.ts and its exports (MILESTONES\u2192ACHIEVEMENTS, detectNewMilestones\u2192detectNewAchievements, MilestoneState\u2192AchievementState, etc.); storage key ironlog-milestones-v1 \u2192 ironlog-achievements-v1 with one-time migration. Avatar 'milestone-bonus' source string + mb-* ids + unlocksMilestoneId kept (persisted data; renaming would strand rows). (2) Added UserAchievement Prisma table + /api/achievements (GET/POST/DELETE); client POSTs newly-earned ids on session-save + BF-log, hydrates+backfills on load, DELETEs on tier relock. Server is now the source of truth; localStorage is a cache. (3) Wired the 7 Batch-5 count avatars (source:'achievement', achievementCount 3/6/10/15/20/25/35) in lib/avatars.ts + /api/avatars mint (earned-count gated). Also fixed the picker's unlockedIds to include achievement/milestone/admin unlocks (latent gap). (4) De-duped the wall: removed the Settings copy, Progress is the single home; added the forge-avatar footer hook. tsc clean; full next build not run (no DB in session).\n[2026-05-23] Slice 0 (planning) \u2014 see /ACHIEVEMENTS.md for the original design + catalogue."
     },
     {
       "id": "image-gen-plan-v2",

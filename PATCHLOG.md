@@ -2,6 +2,22 @@
 
 ---
 
+## Feat · 2026-06-08 — finish achievements: merge the milestones engine, persist server-side, wire count avatars, de-dup the wall (qa: achievements-v1, achievements-discoverability-progress, achievements-premium-bonus-avatars)
+
+@maaiz: *"Finish achievements — is there milestones which is also same thing meaning needs to be merged?"* — yes. The `lib/milestones.ts` engine (~85 achievements, detection, the Progress wall, celebration overlay, premium bonus avatars) already **was** the achievements system the `ACHIEVEMENTS.md` doc planned to build from scratch. Building the proposed separate `lib/achievements.ts` would have duplicated it. Per @maaiz's two calls — *persist to DB + server mint*, and *rename + de-dup the wall* — this slice merges and finishes it.
+
+**1. Rename / merge (engine).** `lib/milestones.ts` → `lib/achievements.ts`; exports renamed (`MILESTONES`→`ACHIEVEMENTS`, `detectNewMilestones`→`detectNewAchievements`, `MilestoneState`→`AchievementState`, `MilestoneAward`→`AchievementAward`, `Milestone`→`Achievement`). Storage key `ironlog-milestones-v1` → `ironlog-achievements-v1` with a one-time read-old-key migration. The avatar `"milestone-bonus"` source string, `mb-*` ids and `unlocksMilestoneId` field are **kept** — they're persisted in `UserAvatarUnlock` rows, so renaming would strand data for no user benefit (noted in code).
+
+**2. Server persistence.** New `UserAchievement` Prisma table (`@@unique [userId, achievementId]`) + `/api/achievements` (GET earned / POST record / DELETE relock). The client now POSTs newly-earned ids on session-save and on BF-log, hydrates+backfills from the server on load (migrating pre-server/localStorage users, then dropping the legacy key), and DELETEs relocked tier achievements so a tier demotion→re-climb still re-fires the celebration. Server is the source of truth; localStorage is a cache.
+
+**3. Count-milestone avatars (the actual remaining gap).** Added `source: "achievement"` + `achievementCount` to `lib/avatars.ts` and the 7 Batch-5 forge avatars (`ach-spark`…`ach-forge-eternal`, thresholds 3/6/10/15/20/25/35). `/api/avatars` GET now counts the user's `UserAchievement` rows and mints any whose threshold is crossed (idempotent, never relocked). Also fixed the avatar picker's `unlockedIds` — it only unioned `tier`+`lucky`, so minted achievement/milestone/admin avatars rendered as locked silhouettes (latent bug); now includes all unlock lists.
+
+**4. De-dup the wall.** The 🏆 ACHIEVEMENTS wall rendered in BOTH Settings and the Progress dashboard. Removed the Settings copy — Progress is the single home (per @maaiz "they should be in progress tab"). Added a footer to the wall surfacing the next forge-avatar threshold so the new reward is discoverable.
+
+Tutorial: updated the `milestones-v2` + avatar steps (no `TUTORIAL_VERSION` bump — copy refresh, not a new arc). `npx tsc --noEmit` clean. Full `next build` not run (no DB/`DATABASE_URL` in this session); the Prisma schema change (`UserAchievement`) deploys via the standard `prisma db push` build step.
+
+---
+
 ## Chore · 2026-06-08 — wire the unused day-card alt hero to "strength" (qa: home-day-card-heroes)
 
 @maaiz chose to repurpose the previously-unwired Batch-11 alt hero

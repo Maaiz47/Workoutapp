@@ -283,11 +283,11 @@ detail below, then re-add each id to `lib/exerciseImages.ts`.
 ## Batch 5 — Achievement-unlock avatars (7 images, ✅ SHIPPED 2026-05-26)
 
 All 7 PNGs landed at `/public/avatars/ach-*.png`. Quality 60-85 pngquant
-pass got each under the 25 KB envelope. Files won't be surfaced in the
-avatar picker until **achievements-v1** ships — that's the gating slice
-in `/ACHIEVEMENTS.md`. Once the system lands, add an `ACHIEVEMENT_AVATARS`
-array to `lib/avatars.ts` (similar shape to `MILESTONE_BONUS_AVATARS`)
-keyed by `unlocksAchievementCount`, and the mint pipeline can grant them.
+pass got each under the 25 KB envelope. **Wired live 2026-06-08** as part
+of achievements-v1: `ACHIEVEMENT_AVATARS` array in `lib/avatars.ts`
+(`source: "achievement"`, `achievementCount` 3/6/10/15/20/25/35), minted
+in `/api/avatars` GET from the user's `UserAchievement` row count.
+(qa: achievements-v1)
 
 New profile avatars that unlock by **achievement count** (see
 `ACHIEVEMENTS.md` for the catalogue + criteria). The unlock thresholds:

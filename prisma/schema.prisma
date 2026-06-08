@@ -57,6 +57,25 @@ model User {
   receivedGroupInvites LeaderboardGroupInvite[] @relation("ReceivedGroupInvites")
   friendshipsA      Friendship[]             @relation("FriendshipUserA")
   friendshipsB      Friendship[]             @relation("FriendshipUserB")
+  achievements      UserAchievement[]
+}
+
+// Earned achievements (a.k.a. "milestones" in the legacy engine —
+// lib/achievements.ts). One row per (user, achievement) the user has
+// unlocked. The client detects newly-crossed achievements on session
+// save and POSTs the ids to /api/achievements, which upserts rows here.
+// This is the source of truth (localStorage is a cache); the earned
+// COUNT also gates the achievement-count avatars in /api/avatars.
+// (qa: achievements-v1)
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
 }
 
 // Athlete-to-athlete (or any-user-to-any-user) social connection.

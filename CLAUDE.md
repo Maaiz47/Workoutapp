@@ -19,14 +19,14 @@ item more than once per session — gentle nudge, not nag.
   - Batch 7: 12 trainer tier-unlock avatars
   - Batch 8: 11 tier sub-rank icons
   - Batch 9: 11 achievement category icons (OPTIONAL)
-  - The 7 Batch 5 achievement avatars are on disk but await
-    achievements-v1 to surface.
-- [ ] **Achievements system v1** (flagged 2026-05-23 by @maaiz). Full
-  design + 55-achievement catalogue in `/ACHIEVEMENTS.md`. New Progress
-  sub-tab, unlock toasts, gating for Batch 5 avatars. 4 slices to ship.
-  All 4 design questions are now user-confirmed (2026-06-08): wellness
-  re-checks fire on every wellness log; cardio achievements fold into v1.
-  No design blockers remain — ready to build when @maaiz green-lights.
+  - ~~The 7 Batch 5 achievement avatars await achievements-v1 to
+    surface.~~ DONE 2026-06-08 — wired + minting via `/api/avatars`.
+- [x] **Achievements system v1** — SHIPPED 2026-06-08. Discovered the
+  `lib/milestones.ts` engine WAS the achievements system; merged rather
+  than duplicated: renamed → `lib/achievements.ts`, added server
+  persistence (`UserAchievement` + `/api/achievements`), wired the 7
+  Batch-5 count avatars, de-duped the wall to Progress only. (qa:
+  achievements-v1)
 - [x] **Day-card hero alt** — RESOLVED 2026-06-08. @maaiz: repurpose for
   "strength". `day-bw-strength.jpg` now wired to a `strength` keyword
   (last check in `workoutImageFor`). (qa: home-day-card-heroes)
