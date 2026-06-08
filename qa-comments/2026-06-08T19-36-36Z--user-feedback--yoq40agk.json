@@ -1,0 +1,10 @@
+{
+  "id": "cmq5m3hkb0000x7g2yoq40agk",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · UI · view=home] The latest qa submission I just did sent a push notification to Amanii’s phone like she was an admin getting notified but seems her phone wasn’t logged in and I’m not sure her account even is an admin?",
+  "screenshotUrl": null,
+  "ts": "2026-06-08T19:36:36.012Z"
+}
