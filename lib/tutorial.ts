@@ -115,6 +115,13 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     where: "Active session · Customise routine",
   },
   {
+    id: "substitute-exercise",
+    icon: "⇄",
+    title: "Swap any exercise mid-session",
+    body: "Tap ⇄ SUBSTITUTE on any exercise card to swap it out. The best same-muscle matches surface under ✨ SUGGESTED, but you can search and pick literally any exercise in the library. + JUST TODAY swaps for this session only; ↻ REPLACE also updates your saved routine going forward. Any sets you'd already logged stay under the original exercise.",
+    where: "Active session — exercise card",
+  },
+  {
     id: "message-delete",
     icon: "🗑",
     title: "Delete your own messages",

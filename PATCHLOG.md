@@ -2,6 +2,20 @@
 
 ---
 
+## Bugfix · 2026-06-08 — substitute picker: swap in ANY exercise, suggestions first, never empty (qa: session-substitute-exercise)
+
+@maaiz (with a screenshot of the SUBSTITUTE modal for **Face Pulls** showing only *"No same-muscle alternates in the library"*): *"Maybe the buttons are out of sight on UI here?"* → then *"They should be able to substitute with any exercise, but with suggested exercises shown first as priority."*
+
+The buttons weren't hidden — they render **per candidate**, so an empty pool means no buttons (the footer text is just a legend). The pool was empty because the active-session card passes its **instance id**, which for some entries doesn't resolve via `getExerciseById`, so `suggestSubstitutions` returned `[]` (the prior `ignoreEquipment` fix only addressed the equipment hard-filter, not this). `suggestSubstitutions("face-pull")` actually returns 8 — confirming the id-resolution gap, not a library gap.
+
+**Fix** (`lib/exercises.ts` + `app/page.tsx`):
+- New `rankExercisesForSwap(exerciseId, available)` returns the **entire library** (never empty), ranked: same primary muscle (+100), cross/secondary overlap, type/difficulty/location, with owned-equipment a minor tiebreak (+5) so relevant suggestions outrank merely-doable ones. Falls back to owned-equipment ordering when the target id doesn't resolve. Plus `sharesPrimaryMuscle()` for the grouping.
+- User-mode SUBSTITUTE modal now: a **search box** (filter the whole library by name/muscle), a **✨ SUGGESTED** group (same-muscle, top 6) above an **ALL EXERCISES** list, each row keeping the **+ JUST TODAY** / **↻ REPLACE** buttons. Auto-substitute (can't-do-today) mode is unchanged.
+
+Tutorial: added a `substitute-exercise` step (no `TUTORIAL_VERSION` bump — single step, not a new arc). `npx tsc --noEmit` clean; ranking verified against `face-pull` (8 suggested, 131 total) and an unresolvable id (132 total, never empty) via a scratch script.
+
+---
+
 ## Feat · 2026-06-08 — finish achievements: merge the milestones engine, persist server-side, wire count avatars, de-dup the wall (qa: achievements-v1, achievements-discoverability-progress, achievements-premium-bonus-avatars)
 
 @maaiz: *"Finish achievements — is there milestones which is also same thing meaning needs to be merged?"* — yes. The `lib/milestones.ts` engine (~85 achievements, detection, the Progress wall, celebration overlay, premium bonus avatars) already **was** the achievements system the `ACHIEVEMENTS.md` doc planned to build from scratch. Building the proposed separate `lib/achievements.ts` would have duplicated it. Per @maaiz's two calls — *persist to DB + server mint*, and *rename + de-dup the wall* — this slice merges and finishes it.

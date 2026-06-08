@@ -9,7 +9,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { createPortal } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
-import { EXERCISES, missingEquipmentFor, suggestSubstitutions, inferEquipmentFromName } from "../lib/exercises";
+import { EXERCISES, missingEquipmentFor, suggestSubstitutions, rankExercisesForSwap, sharesPrimaryMuscle, inferEquipmentFromName } from "../lib/exercises";
 import { suggestDayTitle, suggestRoutineName } from "../lib/splitNaming";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
 import { lookupMuscleDetail } from "../lib/muscleDetail";
@@ -6538,6 +6538,8 @@ function HomePage() {
   // BOTH "JUST TODAY" and "REPLACE PERMANENTLY" buttons per candidate
   // (the auto path is session-only). Slice B (qa: session-substitute-exercise).
   const [subModal, setSubModal] = useState<{ exerciseId: string; name: string; missing: string[]; mode?: "auto" | "user" } | null>(null);
+  // Search query for the user-initiated SUBSTITUTE picker (full library).
+  const [subSearch, setSubSearch] = useState("");
   // Deload-week state. When `deloadActive` is true, the set-input
   // pre-fill scales last-session weights by 0.7 to give the user a
   // recovery week. Toggled from a banner on the session view when the
@@ -17410,7 +17412,26 @@ function HomePage() {
           // first, the rest show a "needs X" flag (computed below). Auto
           // mode keeps the equipment hard-filter so every swap actually
           // solves "can't do this today".
-          const subs = suggestSubstitutions(subModal.exerciseId, (ob.equipment ?? []) as any, isUserMode ? 8 : 4, { ignoreEquipment: isUserMode });
+          // USER substitute = full library, suggestions first, never
+          // empty (so any exercise is swappable). AUTO substitute keeps
+          // the equipment-doable same-muscle shortlist.
+          const subs = isUserMode
+            ? rankExercisesForSwap(subModal.exerciseId, (ob.equipment ?? []) as any)
+            : suggestSubstitutions(subModal.exerciseId, (ob.equipment ?? []) as any, 4, { ignoreEquipment: false });
+          // Split the user-mode ranked list into a SUGGESTED group
+          // (same primary muscle) and the rest of the library, honouring
+          // the search box.
+          const subQ = subSearch.trim().toLowerCase();
+          const subMatch = (e: any) =>
+            !subQ ||
+            e.name.toLowerCase().includes(subQ) ||
+            (e.primaryMuscles ?? []).some((m: string) => m.toLowerCase().includes(subQ));
+          const subFiltered = isUserMode ? subs.filter(subMatch) : subs;
+          const subSuggested = (isUserMode && !subQ)
+            ? subFiltered.filter((e: any) => sharesPrimaryMuscle(subModal.exerciseId, e)).slice(0, 6)
+            : [];
+          const subSuggestedIds = new Set(subSuggested.map((e: any) => e.id));
+          const subRest = subFiltered.filter((e: any) => !subSuggestedIds.has(e.id));
           const replaceInActiveDay = (newEx: any) => {
             setActiveDay(d => {
               if (!d) return d;
@@ -17458,6 +17479,29 @@ function HomePage() {
             replaceInActiveDay(newEx);
             setSubModal(null);
           };
+          // One user-mode candidate row (used by both SUGGESTED and ALL
+          // groups). Equipment isn't a hard filter here — flag any gear
+          // the user doesn't own so the choice is informed, not blind.
+          const userSubRow = (s: any) => {
+            const missingEq = missingEquipmentFor(s, (ob.equipment ?? []) as any);
+            return (
+              <div key={s.id} style={{ padding: "10px 12px", marginBottom: 6, background: "rgba(255,140,66,0.04)", border: "1px solid rgba(255,140,66,0.18)", borderRadius: 8 }}>
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{s.name}</div>
+                    {missingEq.length > 0 && (
+                      <span style={{ fontSize: 8, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>NEEDS {missingEq.map((m: string) => m.toUpperCase().replace(/_/g, " ")).join(" + ")}</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{(s.primaryMuscles ?? []).slice(0, 2).join(" · ").toUpperCase()} · {(s.equipment ?? []).join(" + ").toUpperCase()}</div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => acceptSession(s)} style={{ flex: 1, padding: "7px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ JUST TODAY</button>
+                  <button onClick={() => acceptPermanent(s)} style={{ flex: 1, padding: "7px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>↻ REPLACE</button>
+                </div>
+              </div>
+            );
+          };
           return (
             <div onClick={() => setSubModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 330, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}>
               <div onClick={e => e.stopPropagation()} style={{ maxWidth: 380, width: "100%", maxHeight: "82vh", overflowY: "auto", background: "#0a0a0a", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 16, padding: 20, position: "relative" }}>
@@ -17466,38 +17510,38 @@ function HomePage() {
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 6 }}>{subModal.name}</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>
                   {isUserMode
-                    ? "Same primary muscle group — gear you own listed first:"
+                    ? "Swap in any exercise — best same-muscle matches are suggested first:"
                     : <>Needs <strong>{subModal.missing.join(", ")}</strong> — pick something you can actually do today:</>}
                 </div>
-                {subs.length === 0 ? (
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
-                    {isUserMode
-                      ? "No same-muscle alternates in the library."
-                      : "No close alternatives in the library with your current equipment. Add the missing equipment in Settings → 🛠 MY EQUIPMENT or skip this exercise today."}
-                  </div>
-                ) : isUserMode ? (
-                  subs.map((s: any) => {
-                    // Same-muscle pool is shown in full (equipment isn't a
-                    // hard filter in user mode) — flag any gear the user
-                    // doesn't own so the choice is informed, not blind.
-                    const missingEq = missingEquipmentFor(s, (ob.equipment ?? []) as any);
-                    return (
-                    <div key={s.id} style={{ padding: "10px 12px", marginBottom: 6, background: "rgba(255,140,66,0.04)", border: "1px solid rgba(255,140,66,0.18)", borderRadius: 8 }}>
-                      <div style={{ marginBottom: 8 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{s.name}</div>
-                          {missingEq.length > 0 && (
-                            <span style={{ fontSize: 8, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>NEEDS {missingEq.map((m: string) => m.toUpperCase().replace(/_/g, " ")).join(" + ")}</span>
-                          )}
+                {isUserMode && (
+                  <input
+                    value={subSearch}
+                    onChange={e => setSubSearch(e.target.value)}
+                    placeholder="Search all exercises…"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#fff", fontSize: 13, fontFamily: "'DM Sans', sans-serif", padding: "10px 14px", width: "100%", outline: "none", boxSizing: "border-box", marginBottom: 14 }}
+                  />
+                )}
+                {isUserMode ? (
+                  <>
+                    {subSuggested.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 9, color: "rgba(255,140,66,0.7)", letterSpacing: 2, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>✨ SUGGESTED</div>
+                        {subSuggested.map((s: any) => userSubRow(s))}
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", letterSpacing: 2, margin: "16px 0 8px", fontFamily: "'Space Mono', monospace" }}>ALL EXERCISES</div>
+                      </>
+                    )}
+                    {subRest.length > 0
+                      ? subRest.map((s: any) => userSubRow(s))
+                      : (
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                          No exercises match “{subSearch.trim()}”.
                         </div>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{(s.primaryMuscles ?? []).slice(0, 2).join(" · ").toUpperCase()} · {(s.equipment ?? []).join(" + ").toUpperCase()}</div>
-                      </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <button onClick={() => acceptSession(s)} style={{ flex: 1, padding: "7px", background: "rgba(78,205,196,0.12)", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 8, color: "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>+ JUST TODAY</button>
-                        <button onClick={() => acceptPermanent(s)} style={{ flex: 1, padding: "7px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>↻ REPLACE</button>
-                      </div>
-                    </div>
-                  ); })
+                      )}
+                  </>
+                ) : subs.length === 0 ? (
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                    No close alternatives in the library with your current equipment. Add the missing equipment in Settings → 🛠 MY EQUIPMENT or skip this exercise today.
+                  </div>
                 ) : (
                   subs.map((s: any) => (
                     <button key={s.id} onClick={() => acceptSession(s)} style={{ display: "flex", width: "100%", textAlign: "left", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 6, background: "rgba(255,140,66,0.06)", border: "1px solid rgba(255,140,66,0.2)", borderRadius: 8, color: "#fff", cursor: "pointer" }}>
@@ -18453,6 +18497,7 @@ function HomePage() {
                                 const ok = window.confirm(`You've logged ${done} set(s) for "${ex.name}". Substituting won't delete those — they stay in your session history under this exercise. Continue?`);
                                 if (!ok) return;
                               }
+                              setSubSearch("");
                               setSubModal({ exerciseId: ex.id, name: ex.name, missing: [], mode: "user" });
                             }} style={{ background: "rgba(255,140,66,0.08)", border: "1px solid rgba(255,140,66,0.28)", borderRadius: 6, color: "#FF8C42", fontSize: 10, padding: "3px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>⇄ SWAP</button>
                           )}

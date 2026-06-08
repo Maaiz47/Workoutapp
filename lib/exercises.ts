@@ -333,6 +333,57 @@ export function suggestSubstitutions(
     .slice(0, limit);
 }
 
+// Full-library ranking for the user-initiated SUBSTITUTE picker. Unlike
+// suggestSubstitutions (which narrows to a same-muscle, optionally
+// equipment-doable shortlist and can come back empty), this returns
+// EVERY other exercise — never empty — with the best same-muscle matches
+// ranked first so suggestions surface at the top while the user can
+// still swap in literally anything. Robust when `exerciseId` doesn't
+// resolve to a library entry (e.g. a custom/planner instance id): the
+// muscle-based weights just drop out and ranking falls back to
+// owned-equipment ordering.
+export function rankExercisesForSwap(
+  exerciseId: string,
+  available: Equipment[],
+): Exercise[] {
+  const target = getExerciseById(exerciseId);
+  const score = (e: Exercise): number => {
+    let s = 0;
+    if (target) {
+      // Same primary muscle is the dominant signal — these are the
+      // "suggested" picks the UI groups at the top.
+      if (target.primaryMuscles.some(m => e.primaryMuscles.includes(m))) s += 100;
+      // Cross overlap: this exercise's primary hits one of the target's
+      // secondaries (or vice-versa) — still a solid functional match.
+      const cross =
+        e.primaryMuscles.filter(m => target.secondaryMuscles?.includes(m)).length +
+        (e.secondaryMuscles ?? []).filter(m => target.primaryMuscles.includes(m)).length;
+      s += cross * 10;
+      const secOverlap = (e.secondaryMuscles ?? []).filter(m => target.secondaryMuscles?.includes(m)).length;
+      s += secOverlap * 3;
+      if (e.type === target.type) s += 4;
+      if (e.difficulty === target.difficulty) s += 2;
+      if (e.location === target.location || e.location === "both") s += 1;
+    }
+    // Owned-gear nudge — kept well below the muscle weights so relevant
+    // suggestions outrank merely-doable ones.
+    if (missingEquipmentFor(e, available).length === 0) s += 5;
+    return s;
+  };
+  return EXERCISES
+    .filter(e => e.id !== exerciseId)
+    .sort((a, b) => score(b) - score(a));
+}
+
+// Does this exercise share a primary muscle with the swap target? Used by
+// the SUBSTITUTE picker to split the ranked list into a "suggested" group
+// (true) and the rest of the library (false).
+export function sharesPrimaryMuscle(exerciseId: string, candidate: Exercise): boolean {
+  const target = getExerciseById(exerciseId);
+  if (!target) return false;
+  return target.primaryMuscles.some(m => candidate.primaryMuscles.includes(m));
+}
+
 export function filterExercises(opts: {
   primaryMuscle?: MuscleGroup;
   equipment?: Equipment[];
