@@ -2,6 +2,18 @@
 
 ---
 
+## Fix · 2026-06-08 — update banner now fires on a stale PWA bundle (bake build SHA into the client) (qa: app-update-overlay-cross-view)
+
+@maaiz: a deploy *"didn't prompt to update… I had to force close the app to make the updates live."*
+
+Root cause: `runningSha` was read from `/api/version` on mount — i.e. the **server's current** SHA, not the SHA of the **bundle actually loaded**. So when iOS served a stale cached PWA bundle on reopen, the app set `runningSha = latestSha = server` → `updateAvailable` was always false → no banner, and the Settings card even showed the *new* version while running old code. Only a force-close busted the cache.
+
+**Fix:** `next.config.js` now bakes `NEXT_PUBLIC_BUILD_SHA` (from `VERCEL_GIT_COMMIT_SHA`) + `NEXT_PUBLIC_BUILD_VERSION` into the client bundle at build time. `runningSha` comes from that baked value (the real loaded build); `latestSha` still comes from `/api/version` (the server). When the server is ahead of the baked bundle, the cyan "NEW VERSION AVAILABLE · REFRESH" banner fires reliably — one tap reloads (cache-busted), no force-close. The green "UPDATED TO v…" toast now keys off the baked SHA changing (a genuinely new bundle). Local dev (no Vercel git env) falls back to the old `/api/version` behaviour.
+
+`buildVersion()` in `next.config.js` mirrors `app/api/version/route.ts` (count `## ` PATCHLOG sections; `MAJOR_MINOR`/offset kept in sync, noted in both + CLAUDE.md). `npx tsc --noEmit` clean; `next.config.js` evaluates and bakes the expected version. No tutorial change (internal mechanic; the existing APP VERSION step still applies).
+
+---
+
 ## Fix · 2026-06-08 — substitute suggestions: resolve the target by name + rank by shared-muscle count (qa: session-substitute-exercise)
 
 @maaiz (screenshot of the Face Pulls SUBSTITUTE picker showing all **chest** exercises up top): *"Doesn't seem like face pulls are getting the right suggestions… rear flies would be a substitute."*

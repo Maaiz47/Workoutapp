@@ -38,6 +38,14 @@ import { TIPS, pickDailyTip, TipContext, ProTip } from "../lib/proTips";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
+// SHA + version baked into THIS bundle at build time (see next.config.js).
+// These describe the build that's actually loaded — unlike /api/version,
+// which reports the server's current build. Comparing the two is what lets
+// the update banner fire when a stale PWA bundle is running. Empty in local
+// dev (no Vercel git env) → the version UI falls back to /api/version.
+const BUILD_SHA = (process.env.NEXT_PUBLIC_BUILD_SHA || "").slice(0, 7);
+const BUILD_VERSION = process.env.NEXT_PUBLIC_BUILD_VERSION || "";
+
 const SUB_MUSCLE_LABELS: Record<string, string> = {
   "chest-upper": "Upper Chest", "chest-mid": "Mid Chest", "chest-lower": "Lower Chest", "chest-inner": "Inner Chest",
   "shoulders-front": "Anterior Delt", "shoulders-side": "Lateral Delt", "shoulders-rear": "Posterior Delt",
@@ -3460,9 +3468,16 @@ function VersionCheckCard() {
   const [checking, setChecking] = useState(false);
   const [status, setStatus] = useState<"idle" | "uptodate" | "stale">("idle");
 
-  // Snapshot the version we're running on mount. Even if the server
-  // redeploys to a newer one, this stays put so the comparison still works.
+  // The version we're running = the SHA baked into THIS bundle (not the
+  // server's current SHA), so a stale PWA bundle is correctly detected as
+  // behind. Falls back to /api/version in local dev where the baked value
+  // is empty.
   useEffect(() => {
+    if (BUILD_SHA) {
+      setRunningSha(BUILD_SHA);
+      if (BUILD_VERSION) setRunningVer(BUILD_VERSION);
+      return;
+    }
     fetch("/api/version", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
       .then((d: any) => {
@@ -4838,21 +4853,30 @@ function AppUpdateOverlay({ disabled }: { disabled: boolean }) {
   const [justUpdatedTo, setJustUpdatedTo] = useState<string | null>(null);
 
   useEffect(() => {
+    // runningSha = the SHA baked into THIS loaded bundle. The green
+    // "UPDATED TO v…" toast fires when that differs from the last build we
+    // saw (i.e. this open is a freshly-loaded new bundle).
+    const baked = BUILD_SHA || null;
+    if (baked) {
+      setRunningSha(baked);
+      try {
+        const lastSeen = localStorage.getItem("ironlog.lastSeenSha");
+        if (lastSeen && lastSeen !== baked) {
+          setJustUpdatedTo(BUILD_VERSION || baked);
+          setTimeout(() => setJustUpdatedTo(null), 4500);
+        }
+        localStorage.setItem("ironlog.lastSeenSha", baked);
+      } catch {}
+    }
+    // latestSha = the server's current build. If it's ahead of the baked
+    // bundle, `updateAvailable` flips true and the refresh banner shows.
     fetch("/api/version", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
       .then((d: any) => {
         if (d?.shortSha) {
-          setRunningSha(d.shortSha);
+          if (!baked) setRunningSha(d.shortSha); // dev fallback
           setLatestSha(d.shortSha);
           if (d?.appVersion) setLatestVer(d.appVersion);
-          try {
-            const lastSeen = localStorage.getItem("ironlog.lastSeenSha");
-            if (lastSeen && lastSeen !== d.shortSha) {
-              setJustUpdatedTo(d.appVersion || d.shortSha);
-              setTimeout(() => setJustUpdatedTo(null), 4500);
-            }
-            localStorage.setItem("ironlog.lastSeenSha", d.shortSha);
-          } catch {}
         }
       })
       .catch(() => {});
