@@ -1,0 +1,10 @@
+{
+  "id": "cmq5m0jsv0000109tclenh5c4",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Progress · view=progress] I finished a workout after entering the last set done before the rest timer was finished but I still got the rest timer up time for next set push notification which is useless",
+  "screenshotUrl": null,
+  "ts": "2026-06-08T19:34:18.941Z"
+}
