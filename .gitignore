@@ -17,4 +17,10 @@ tsconfig.tsbuildinfo
 .DS_Store
 *.pem
 npm-debug.log*
-.claude/
+
+# Claude Code: ignore local/personal settings, but commit the shared
+# session-start hook config so web sessions pick it up on a fresh clone.
+.claude/*
+!.claude/settings.json
+!.claude/hooks
+!.claude/hooks/**

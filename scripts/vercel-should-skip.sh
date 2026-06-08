@@ -57,7 +57,7 @@ fi
 # conservative — qa-state.json, qa-processed.json, PATCHLOG.md, prisma
 # schema, app/, lib/, public/* binaries, package.json, etc. all DO
 # trigger a deploy.
-SAFE_PATTERN='^(qa-comments/|scripts/|docs/|CLAUDE\.md$|README\.md$|image-prompts(-v2)?\.md$|public/stretches/README\.md$|public/avatars/README\.md$|\.gitignore$)'
+SAFE_PATTERN='^(qa-comments/|scripts/|docs/|\.claude/|CLAUDE\.md$|README\.md$|image-prompts(-v2)?\.md$|public/stretches/README\.md$|public/avatars/README\.md$|\.gitignore$)'
 
 echo "vercel-should-skip: files changed since $VERCEL_GIT_PREVIOUS_SHA:"
 echo "$CHANGES" | sed 's/^/  /'

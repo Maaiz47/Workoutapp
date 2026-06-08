@@ -158,6 +158,7 @@ qa-state.json                         # canonical test-item list
 qa-processed.json                     # processed comment IDs
 PATCHLOG.md                           # append a section every push
 docs/qa-processing.md                 # full QA processing procedure (offloaded from this file)
+docs/dev-database.md                  # Neon dev branch + session-start hook → runtime testing in web sessions
 docs/feature-forcing-rules.md         # full forcing-rules text (offloaded from this file)
 image-prompts-v2.md                   # per-batch image-gen plan (batches 1-12), prompts, wire-up
 ACHIEVEMENTS.md                       # achievements-v1 design + 55-item catalogue
