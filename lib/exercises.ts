@@ -292,20 +292,31 @@ export function missingEquipmentFor(exercise: Exercise, available: Equipment[]):
   return nonBW;
 }
 
-// Pick up to N substitution candidates for an exercise the user can't do
-// with their current equipment. Same primary muscle group, equipment the
-// user owns, similar difficulty. Sorted: same type → same difficulty →
-// bodyweight first if available.
+// Pick up to N substitution candidates for an exercise. Same primary
+// muscle group, similar difficulty. Sorted: gear the user owns first →
+// same type → same difficulty → secondary-muscle overlap.
+//
+// `opts.ignoreEquipment` controls whether candidates needing gear the
+// user doesn't own are *excluded* or merely *ranked lower*. Auto-swaps
+// (can't-do-this-today) hard-filter by equipment so every suggestion is
+// actually doable. User-initiated swaps keep equipment as a ranking
+// signal but still surface everything in the same-muscle pool — the
+// caller flags the missing gear inline — so the user always gets a
+// menu to choose from instead of an empty modal.
 export function suggestSubstitutions(
   exerciseId: string,
   available: Equipment[],
   limit = 4,
+  opts: { ignoreEquipment?: boolean } = {},
 ): Exercise[] {
   const target = getExerciseById(exerciseId);
   if (!target) return [];
   const targetMuscles = target.primaryMuscles;
   const score = (e: Exercise): number => {
     let s = 0;
+    // Owned-equipment picks rank above ones the user would have to
+    // acquire — dominant signal so doable swaps float to the top.
+    if (missingEquipmentFor(e, available).length === 0) s += 10;
     if (e.type === target.type) s += 4;
     if (e.difficulty === target.difficulty) s += 2;
     if (e.location === target.location || e.location === "both") s += 1;
@@ -317,7 +328,7 @@ export function suggestSubstitutions(
   return EXERCISES
     .filter(e => e.id !== exerciseId)
     .filter(e => targetMuscles.some(m => e.primaryMuscles.includes(m)))
-    .filter(e => missingEquipmentFor(e, available).length === 0)
+    .filter(e => opts.ignoreEquipment || missingEquipmentFor(e, available).length === 0)
     .sort((a, b) => score(b) - score(a))
     .slice(0, limit);
 }

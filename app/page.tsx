@@ -6918,6 +6918,12 @@ function HomePage() {
   const [replyingTo, setReplyingTo] = useState<{ id: string; body: string; username: string } | null>(null);
   const [reactingToMsgId, setReactingToMsgId] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Persistent latch for the active-session set-box press. Lives in a
+  // ref (not a per-render local) so the "long-press fired" flag survives
+  // the re-render triggered by opening the note modal — otherwise the
+  // synthetic click that follows a long-press would also fire the edit
+  // modal. (qa: workout-active-edit-set-tap)
+  const setBoxPress = useRef<{ timer: ReturnType<typeof setTimeout> | null; longFired: boolean }>({ timer: null, longFired: false });
   const [partnerLastSeen, setPartnerLastSeen] = useState<string | null>(null);
   const lastMsgCreatedAtRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -17337,12 +17343,13 @@ function HomePage() {
             suggestion swaps the exercise in the active session. */}
         {subModal && (() => {
           const isUserMode = subModal.mode === "user";
-          // User-initiated SUBSTITUTE pulls more candidates and ignores
-          // equipment filtering (showing 8 same-primary-muscle picks)
-          // so the user can explore alternates even when they own all
-          // the gear. Auto mode keeps the equipment-aware filter so
-          // the swap actually solves "can't do this today".
-          const subs = suggestSubstitutions(subModal.exerciseId, (ob.equipment ?? []) as any, isUserMode ? 8 : 4);
+          // User-initiated SUBSTITUTE pulls more candidates (8) and
+          // ignores the equipment hard-filter so the same-muscle pool
+          // always surfaces — picks the user owns the gear for rank
+          // first, the rest show a "needs X" flag (computed below). Auto
+          // mode keeps the equipment hard-filter so every swap actually
+          // solves "can't do this today".
+          const subs = suggestSubstitutions(subModal.exerciseId, (ob.equipment ?? []) as any, isUserMode ? 8 : 4, { ignoreEquipment: isUserMode });
           const replaceInActiveDay = (newEx: any) => {
             setActiveDay(d => {
               if (!d) return d;
@@ -17398,7 +17405,7 @@ function HomePage() {
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 6 }}>{subModal.name}</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>
                   {isUserMode
-                    ? "Same primary muscle group — pick an alternate:"
+                    ? "Same primary muscle group — gear you own listed first:"
                     : <>Needs <strong>{subModal.missing.join(", ")}</strong> — pick something you can actually do today:</>}
                 </div>
                 {subs.length === 0 ? (
@@ -17408,10 +17415,20 @@ function HomePage() {
                       : "No close alternatives in the library with your current equipment. Add the missing equipment in Settings → 🛠 MY EQUIPMENT or skip this exercise today."}
                   </div>
                 ) : isUserMode ? (
-                  subs.map((s: any) => (
+                  subs.map((s: any) => {
+                    // Same-muscle pool is shown in full (equipment isn't a
+                    // hard filter in user mode) — flag any gear the user
+                    // doesn't own so the choice is informed, not blind.
+                    const missingEq = missingEquipmentFor(s, (ob.equipment ?? []) as any);
+                    return (
                     <div key={s.id} style={{ padding: "10px 12px", marginBottom: 6, background: "rgba(255,140,66,0.04)", border: "1px solid rgba(255,140,66,0.18)", borderRadius: 8 }}>
                       <div style={{ marginBottom: 8 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{s.name}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{s.name}</div>
+                          {missingEq.length > 0 && (
+                            <span style={{ fontSize: 8, fontWeight: 700, color: "#FF8C42", background: "rgba(255,140,66,0.12)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: "1px 5px", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>NEEDS {missingEq.map((m: string) => m.toUpperCase().replace(/_/g, " ")).join(" + ")}</span>
+                          )}
+                        </div>
                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{(s.primaryMuscles ?? []).slice(0, 2).join(" · ").toUpperCase()} · {(s.equipment ?? []).join(" + ").toUpperCase()}</div>
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
@@ -17419,7 +17436,7 @@ function HomePage() {
                         <button onClick={() => acceptPermanent(s)} style={{ flex: 1, padding: "7px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 8, color: "#FF6B6B", fontSize: 10, fontWeight: 700, letterSpacing: 1.2, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>↻ REPLACE</button>
                       </div>
                     </div>
-                  ))
+                  ); })
                 ) : (
                   subs.map((s: any) => (
                     <button key={s.id} onClick={() => acceptSession(s)} style={{ display: "flex", width: "100%", textAlign: "left", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 6, background: "rgba(255,140,66,0.06)", border: "1px solid rgba(255,140,66,0.2)", borderRadius: 8, color: "#fff", cursor: "pointer" }}>
@@ -18534,38 +18551,48 @@ function HomePage() {
                             const skipped = entry?.skipped;
                             const hasNote = !!entry?.note;
                             // Long-press → open the set-note modal so the
-                            // user can attach context. Tap (release < 450ms)
-                            // on a logged set opens the edit modal so the
-                            // user can correct the set's weight/reps/RPE
-                            // without hunting for the EDIT button.
+                            // user can attach context. A short tap on a
+                            // logged set opens the EDIT modal so the user
+                            // can correct weight/reps/RPE without hunting
+                            // for the EDIT button. The press latch lives in
+                            // the `setBoxPress` ref so the long-press flag
+                            // survives the note-modal re-render; the tap is
+                            // resolved on touchend (with preventDefault to
+                            // suppress the emulated click) so it fires
+                            // reliably on iOS, where the previous
+                            // closure-based handler was getting dropped.
+                            // stopPropagation keeps the tap from bubbling
+                            // to the card's expand/collapse toggle.
                             // (qa: workout-active-edit-set-tap)
-                            let pressTimer: any = null;
-                            let didLongPress = false;
-                            const onPressStart = () => {
+                            const startPress = () => {
                               if (!d || skipped) return;
-                              didLongPress = false;
-                              pressTimer = setTimeout(() => {
-                                didLongPress = true;
+                              setBoxPress.current.longFired = false;
+                              if (setBoxPress.current.timer) clearTimeout(setBoxPress.current.timer);
+                              setBoxPress.current.timer = setTimeout(() => {
+                                setBoxPress.current.longFired = true;
+                                setBoxPress.current.timer = null;
                                 setNoteModal({ key: k, current: entry?.note ?? "" });
                               }, 450);
                             };
-                            const onPressEnd = () => {
-                              if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+                            const cancelPress = () => {
+                              if (setBoxPress.current.timer) { clearTimeout(setBoxPress.current.timer); setBoxPress.current.timer = null; }
                             };
-                            const onClick = () => {
-                              if (didLongPress) return;
-                              if (d && !skipped) openEditModal(ex.id);
+                            const resolveTap = (e: React.SyntheticEvent) => {
+                              if (setBoxPress.current.timer) { clearTimeout(setBoxPress.current.timer); setBoxPress.current.timer = null; }
+                              if (setBoxPress.current.longFired) { setBoxPress.current.longFired = false; return; }
+                              if (!d || skipped) return;
+                              e.stopPropagation();
+                              openEditModal(ex.id);
                             };
                             return (
                               <button
                                 key={i}
-                                onMouseDown={onPressStart}
-                                onMouseUp={onPressEnd}
-                                onMouseLeave={onPressEnd}
-                                onTouchStart={onPressStart}
-                                onTouchEnd={onPressEnd}
-                                onTouchCancel={onPressEnd}
-                                onClick={onClick}
+                                onMouseDown={startPress}
+                                onMouseLeave={cancelPress}
+                                onTouchStart={startPress}
+                                onTouchEnd={(e) => { e.preventDefault(); resolveTap(e); }}
+                                onTouchCancel={cancelPress}
+                                onClick={resolveTap}
                                 disabled={!d}
                                 style={{ position: "relative", width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, fontFamily: "'Space Mono', monospace", background: skipped ? "rgba(255,107,107,0.08)" : d ? "#2ecc7120" : c ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)", color: skipped ? "rgba(255,107,107,0.5)" : d ? "#2ecc71" : c ? "#fff" : "rgba(255,255,255,0.25)", border: c ? "1px solid rgba(255,255,255,0.15)" : skipped ? "1px solid rgba(255,107,107,0.2)" : "1px solid transparent", cursor: d ? "pointer" : "default", padding: 0 }}
                                 title={d && !skipped ? "Tap to edit · long-press to add a note" : ""}

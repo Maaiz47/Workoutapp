@@ -6085,14 +6085,16 @@
       "area": "Workout",
       "introduced": "2026-05-26",
       "introducedBy": "QA pass 2026-05-26",
-      "lastTested": "2026-05-26",
-      "status": "failing",
+      "lastTested": "2026-06-08",
+      "status": "regression-retest",
       "steps": [
         "In active session, complete at least 2 sets of an exercise.",
         "Tap one of the done set boxes (the W/R/E summary).",
-        "Verify the edit overlay opens with that set's values pre-filled, editable, with SAVE."
+        "Verify the edit overlay opens with that set's values pre-filled, editable, with SAVE.",
+        "Verify a long-press (hold ~0.5s) on a done set box still opens the set-NOTE modal, NOT the edit overlay.",
+        "On iOS Safari specifically: confirm a single tap reliably opens the edit overlay every time."
       ],
-      "notes": "[2026-05-26] Slice 1: handleSetBoxTap restored \u2014 was removed during the EDIT button rework. Source: @maaiz cmpkj0efi 7d947um4."
+      "notes": "[2026-06-08] FIXED. @maaiz reported tapping a logged set did nothing \u2014 only the EDIT button worked. Root cause: the tap/long-press latch lived in per-render `let` closures, so the note-modal re-render reset it, and the tap was resolved on a synthetic `onClick` that iOS Safari dropped. Rewrote: latch now lives in a `setBoxPress` ref (survives re-render); the tap resolves on `onTouchEnd` with preventDefault (suppresses the emulated click) so it fires reliably on iOS; mouse path keeps `onClick`. Added stopPropagation so the tap no longer bubbles to the card expand/collapse toggle. (qa: workout-active-edit-set-tap)\n\n[2026-05-26] Slice 1: handleSetBoxTap restored \u2014 was removed during the EDIT button rework. Source: @maaiz cmpkj0efi 7d947um4."
     },
     {
       "id": "workout-active-drag-reorder-bonus",
@@ -6414,15 +6416,16 @@
       "area": "Workouts",
       "introduced": "2026-05-26",
       "introducedBy": "QA pass 2026-05-26 (re:vj07gfbj)",
-      "lastTested": "2026-05-26",
+      "lastTested": "2026-06-08",
       "status": "regression-retest",
       "steps": [
         "Start an active session.",
         "On any exercise card, find a SUBSTITUTE action.",
-        "Verify the picker only shows exercises targeting the same primary muscle group.",
+        "Verify the picker shows exercises targeting the same primary muscle group (NOT an empty 'No same-muscle alternates' message when alternates exist).",
+        "Verify candidates whose gear you own are listed first, and ones needing gear you don't own show a 'NEEDS X' flag.",
         "Verify the alternate exercise replaces the original in the day's split going forward (or is a one-off swap \u2014 TBD)."
       ],
-      "notes": "[2026-05-26] SHIPPED: new \u21c4 SWAP button on every trackable exercise card in active session (next to EDIT). Opens the subModal in 'user' mode (new field on subModal state) which: (a) bumps suggestions to 8 same-primary-muscle picks, (b) ignores the equipment-missing filter so any same-muscle exercise can be chosen, (c) renders per-candidate + JUST TODAY / \u21bb REPLACE buttons. JUST TODAY mutates activeDay only. REPLACE additionally PUTs /api/plan + patches customPlan so the swap sticks across future sessions of this day (per user choice 'Ask each time'). Confirms before swapping if any sets are already logged for the original exercise \u2014 logged sets are preserved under the original exercise id in session history. Source: @maaiz 'Introduce a substitute function for active sessions instead of manually skipping or adding a new exercise'.\n\n[2026-05-26] OPEN. @maaiz: 'Introduce a substitute function for active sessions instead of manually skipping or adding a new exercise, can choose to substitute the exercise from a selection of exercises that are targeting similar muscle areas and identify the alternate exercise down that split'. Punted from 2026-05-26 deploy \u2014 needs the muscle-overlap query + the one-off-vs-permanent UX call."
+      "notes": "[2026-06-08] FIXED. @maaiz reported the SWAP picker just showed 'No same-muscle alternates in the library' (e.g. Face Pulls) instead of choices. Root cause: despite the notes/comment claiming user-mode 'ignores the equipment-missing filter', suggestSubstitutions still hard-filtered by owned equipment, so a user with little gear got an empty pool. Added an `{ ignoreEquipment }` option (set in user mode) so the full same-muscle pool surfaces; equipment is now a ranking signal (owned gear scores +10 \u2192 listed first) rather than a hard filter, and the modal flags candidates needing gear the user doesn't own with a 'NEEDS X' badge. Auto mode (can't-do-today) still hard-filters. (qa: session-substitute-exercise)\n\n[2026-05-26] SHIPPED: new \u21c4 SWAP button on every trackable exercise card in active session (next to EDIT). Opens the subModal in 'user' mode (new field on subModal state) which: (a) bumps suggestions to 8 same-primary-muscle picks, (b) ignores the equipment-missing filter so any same-muscle exercise can be chosen, (c) renders per-candidate + JUST TODAY / \u21bb REPLACE buttons. JUST TODAY mutates activeDay only. REPLACE additionally PUTs /api/plan + patches customPlan so the swap sticks across future sessions of this day (per user choice 'Ask each time'). Confirms before swapping if any sets are already logged for the original exercise \u2014 logged sets are preserved under the original exercise id in session history. Source: @maaiz 'Introduce a substitute function for active sessions instead of manually skipping or adding a new exercise'.\n\n[2026-05-26] OPEN. @maaiz: 'Introduce a substitute function for active sessions instead of manually skipping or adding a new exercise, can choose to substitute the exercise from a selection of exercises that are targeting similar muscle areas and identify the alternate exercise down that split'. Punted from 2026-05-26 deploy \u2014 needs the muscle-overlap query + the one-off-vs-permanent UX call."
     },
     {
       "id": "session-combine-existing-exercises",

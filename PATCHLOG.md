@@ -2,6 +2,20 @@
 
 ---
 
+## Bugfix · 2026-06-08 — tap-to-edit logged sets + non-empty exercise-swap picker (qa: workout-active-edit-set-tap, session-substitute-exercise)
+
+@maaiz: *"I couldn't click into previous sets to edit them, I could only do it via the edit button on the exercise during the session. I also couldn't swap exercise because it just shows this page, not actually letting me choose which exercise to swap to with suggestions based on available equipment and target muscle."*
+
+Two active-session bugs, both fixed in `app/page.tsx` (+ `lib/exercises.ts`):
+
+- **Tapping a logged set box did nothing** (only the EDIT button worked). The tap/long-press latch (`pressTimer` / `didLongPress`) lived in per-render `let` closures, so the re-render from opening the note modal reset the flag, and the tap was resolved on a synthetic `onClick` that iOS Safari was dropping. Fix: the latch now lives in a component-level `setBoxPress` ref (survives re-render); the tap resolves on `onTouchEnd` with `preventDefault()` (suppresses the emulated click → fires reliably on iOS), while the mouse path keeps `onClick`. Added `stopPropagation()` so the tap no longer bubbles to the card's expand/collapse toggle. Long-press (~0.5s) still opens the set-NOTE modal.
+
+- **The ⇄ SWAP picker showed "No same-muscle alternates in the library"** even when alternates clearly exist (e.g. Face Pulls → shoulders/back). Despite the code comment + qa-state notes claiming user-mode "ignores the equipment-missing filter", `suggestSubstitutions` still hard-filtered by owned equipment — so a user with little gear got an empty pool. Added an `{ ignoreEquipment }` option (`lib/exercises.ts`), passed in user mode, so the full same-muscle pool surfaces. Equipment is now a **ranking** signal (owned gear scores +10 → floats to the top) instead of a hard filter, and each candidate the user lacks gear for shows a small **NEEDS X** badge. Auto-swaps ("can't do this today") still hard-filter so every suggestion stays doable.
+
+Enhancements to existing active-session surfaces — no new route, so no `TUTORIAL_STEPS` entry. `npm run qa:scan` clean. (Full typecheck not run — `node_modules` not installed in this session; edits reviewed by hand and are JSX/TS-balanced.)
+
+---
+
 ## Bugfix · 2026-06-05 — add-friend from a client's detail view (qa: trainer-client-add-friend)
 
 @maaiz: *"There was a pending friend request to Amanii which I revoked but she's still a client. I opened her profile from my clients and there's no way to add her as a friend."*
