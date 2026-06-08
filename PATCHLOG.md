@@ -2,6 +2,20 @@
 
 ---
 
+## Fix · 2026-06-08 — substitute suggestions: resolve the target by name + rank by shared-muscle count (qa: session-substitute-exercise)
+
+@maaiz (screenshot of the Face Pulls SUBSTITUTE picker showing all **chest** exercises up top): *"Doesn't seem like face pulls are getting the right suggestions… rear flies would be a substitute."*
+
+Root cause (the deeper version of the earlier empty-picker bug): the session card passes an **instance id** that doesn't resolve via `getExerciseById`, *and* the name "Face Pulls" (plural) didn't match the library "Face Pull" — so `rankExercisesForSwap` had **no target muscles**, scored everything 0, and returned the library in default array order (chest leads it). The "never empty" change masked it with junk suggestions.
+
+**Fixes** (`lib/exercises.ts` + `app/page.tsx`):
+- New `resolveExercise(id, name)` — tries the id, then a normalized, plural-/punctuation-tolerant **name** match (same approach as `lookupMuscleDetail`, which other surfaces already use). "Face Pulls" → `face-pull`. The picker now ranks against the resolved target; the original `subModal.exerciseId` is still used for the actual swap/replace.
+- Ranking now weights by the **count** of shared primary muscles (`sharedPrimary * 60`) instead of a flat bonus for sharing any — so Rear Delt Fly (shoulders+back, like Face Pull) outranks single-muscle matches like Lateral Raise. Face Pulls SUGGESTED now leads: **Rear Delt Fly**, Wall Slide, Upright Row, Barbell Row, Dumbbell Shrugs, Lateral Raise.
+
+**Audit** (scripted, per @maaiz "check all exercises are identified right"): all 132 library names round-trip to themselves (0 failures); 0 exercises have an empty same-muscle pool; plurals/variants resolve ("Pull Ups"→Pull-Ups, "Rear Delt Flyes"→Rear Delt Fly); bare generic plurals resolve to a same-muscle variant ("Squats"→quads, "Rows"→back) so suggestion quality stays muscle-correct. `npx tsc --noEmit` clean. No tutorial change (same surface).
+
+---
+
 ## Fix · 2026-06-08 — app version was frozen at v1.2.14; patch number now counts every PATCHLOG section (qa: version-bump-v1.2)
 
 @maaiz noticed a deploy *"hasn't prompted to update the app"* and that it was *"the same v number before too."* Two findings:

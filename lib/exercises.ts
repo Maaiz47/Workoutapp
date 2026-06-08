@@ -350,9 +350,12 @@ export function rankExercisesForSwap(
   const score = (e: Exercise): number => {
     let s = 0;
     if (target) {
-      // Same primary muscle is the dominant signal — these are the
-      // "suggested" picks the UI groups at the top.
-      if (target.primaryMuscles.some(m => e.primaryMuscles.includes(m))) s += 100;
+      // Weight by the NUMBER of shared primary muscles so an exercise
+      // matching ALL of the target's primaries (e.g. Rear Delt Fly vs
+      // Face Pull — both shoulders+back) outranks one sharing just one
+      // (e.g. Lateral Raise — shoulders only).
+      const sharedPrimary = target.primaryMuscles.filter(m => e.primaryMuscles.includes(m)).length;
+      s += sharedPrimary * 60;
       // Cross overlap: this exercise's primary hits one of the target's
       // secondaries (or vice-versa) — still a solid functional match.
       const cross =
@@ -382,6 +385,47 @@ export function sharesPrimaryMuscle(exerciseId: string, candidate: Exercise): bo
   const target = getExerciseById(exerciseId);
   if (!target) return false;
   return target.primaryMuscles.some(m => candidate.primaryMuscles.includes(m));
+}
+
+// Normalize an exercise name for fuzzy matching: lowercase, strip
+// everything but letters/digits. "Face Pulls" / "Face-Pull" → "facepull(s)".
+function normName(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+// Resolve a session/plan exercise to its library entry. Tries the id
+// first (the common case), then falls back to the NAME — active-session
+// and custom-plan cards can carry an instance id that isn't a library id
+// (that's why the SUBSTITUTE picker for "Face Pulls" found no target and
+// dumped the library in default order). The name match is plural- and
+// punctuation-tolerant ("Face Pulls" → "Face Pull") and, for substring
+// hits, prefers the most specific (longest) library name.
+export function resolveExercise(id?: string, name?: string): Exercise | undefined {
+  if (id) {
+    const byId = getExerciseById(id);
+    if (byId) return byId;
+  }
+  if (!name) return undefined;
+  const key = normName(name);
+  if (key.length < 3) return undefined;
+  // Exact normalized match first.
+  const exact = EXERCISES.find(e => normName(e.name) === key);
+  if (exact) return exact;
+  // Singularized key too, so a bare plural ("Squats", "Bicep Curls")
+  // still matches a specific library name ("Barbell Squat", "Dumbbell
+  // Curl") that contains the singular word.
+  const keySing = key.replace(/s$/, "");
+  const subs = EXERCISES.filter(e => {
+    const k = normName(e.name);
+    if (k.length < 4) return false;
+    return key.includes(k) || k.includes(key) || k.includes(keySing) || keySing.includes(k);
+  });
+  if (subs.length) {
+    // Prefer the most specific (longest) library name so a generic word
+    // doesn't swallow a specific one.
+    return subs.sort((a, b) => normName(b.name).length - normName(a.name).length)[0];
+  }
+  return undefined;
 }
 
 export function filterExercises(opts: {

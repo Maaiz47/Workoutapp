@@ -9,7 +9,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { createPortal } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { WORKOUT_DATA, WorkoutDay } from "../lib/workouts";
-import { EXERCISES, missingEquipmentFor, suggestSubstitutions, rankExercisesForSwap, sharesPrimaryMuscle, inferEquipmentFromName } from "../lib/exercises";
+import { EXERCISES, missingEquipmentFor, suggestSubstitutions, rankExercisesForSwap, sharesPrimaryMuscle, resolveExercise, inferEquipmentFromName } from "../lib/exercises";
 import { suggestDayTitle, suggestRoutineName } from "../lib/splitNaming";
 import { getExerciseImageUrls } from "../lib/exerciseImages";
 import { lookupMuscleDetail } from "../lib/muscleDetail";
@@ -17415,9 +17415,16 @@ function HomePage() {
           // USER substitute = full library, suggestions first, never
           // empty (so any exercise is swappable). AUTO substitute keeps
           // the equipment-doable same-muscle shortlist.
+          // Resolve the target to a library entry by id THEN name — the
+          // session card can carry an instance id that isn't a library id
+          // (e.g. "Face Pulls"), which would otherwise leave ranking with
+          // no muscles to work from. Keep subModal.exerciseId for the
+          // actual swap/replace (it must match the session/plan row).
+          const subTarget = resolveExercise(subModal.exerciseId, subModal.name);
+          const subTargetId = subTarget?.id ?? subModal.exerciseId;
           const subs = isUserMode
-            ? rankExercisesForSwap(subModal.exerciseId, (ob.equipment ?? []) as any)
-            : suggestSubstitutions(subModal.exerciseId, (ob.equipment ?? []) as any, 4, { ignoreEquipment: false });
+            ? rankExercisesForSwap(subTargetId, (ob.equipment ?? []) as any)
+            : suggestSubstitutions(subTargetId, (ob.equipment ?? []) as any, 4, { ignoreEquipment: false });
           // Split the user-mode ranked list into a SUGGESTED group
           // (same primary muscle) and the rest of the library, honouring
           // the search box.
@@ -17428,7 +17435,7 @@ function HomePage() {
             (e.primaryMuscles ?? []).some((m: string) => m.toLowerCase().includes(subQ));
           const subFiltered = isUserMode ? subs.filter(subMatch) : subs;
           const subSuggested = (isUserMode && !subQ)
-            ? subFiltered.filter((e: any) => sharesPrimaryMuscle(subModal.exerciseId, e)).slice(0, 6)
+            ? subFiltered.filter((e: any) => sharesPrimaryMuscle(subTargetId, e)).slice(0, 6)
             : [];
           const subSuggestedIds = new Set(subSuggested.map((e: any) => e.id));
           const subRest = subFiltered.filter((e: any) => !subSuggestedIds.has(e.id));
