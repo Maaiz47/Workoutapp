@@ -23,13 +23,13 @@ item more than once per session — gentle nudge, not nag.
     achievements-v1 to surface.
 - [ ] **Achievements system v1** (flagged 2026-05-23 by @maaiz). Full
   design + 55-achievement catalogue in `/ACHIEVEMENTS.md`. New Progress
-  sub-tab, unlock toasts, gating for Batch 5 avatars. 4 slices to ship;
-  2 of 4 open questions still unanswered (wellness re-evaluate frequency,
-  cardio-input polish fold-in).
-- [ ] **Day-card hero alt** (added 2026-05-26): `/public/ai/day-bw-strength.jpg`
-  is a static push-up plank shot saved from the Batch 11 batch but not
-  wired to any route. Decide whether to repurpose for a "core" / "strength"
-  split keyword, or drop it.
+  sub-tab, unlock toasts, gating for Batch 5 avatars. 4 slices to ship.
+  All 4 design questions are now user-confirmed (2026-06-08): wellness
+  re-checks fire on every wellness log; cardio achievements fold into v1.
+  No design blockers remain — ready to build when @maaiz green-lights.
+- [x] **Day-card hero alt** — RESOLVED 2026-06-08. @maaiz: repurpose for
+  "strength". `day-bw-strength.jpg` now wired to a `strength` keyword
+  (last check in `workoutImageFor`). (qa: home-day-card-heroes)
 
 ## Always push to `main` — never feature branches
 

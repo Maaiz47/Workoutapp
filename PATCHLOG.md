@@ -2,6 +2,21 @@
 
 ---
 
+## Chore · 2026-06-08 — wire the unused day-card alt hero to "strength" (qa: home-day-card-heroes)
+
+@maaiz chose to repurpose the previously-unwired Batch-11 alt hero
+(`/public/ai/day-bw-strength.jpg`, a static push-up plank) for a
+**strength** split. Added a single `t.includes("strength")` check to
+`workoutImageFor()` (`app/page.tsx`), placed **last** — after every
+muscle/movement keyword — so a plain "Strength" / "Strength Training" day
+gets the photo while "Push Strength", "Leg Strength" etc. still route to
+their specific movement hero. ("core" already had `/ai/workout-core.jpg`,
+so strength was the natural home for this shot.) Resolves the long-open
+day-card-hero reminder. Closes the loose end; reuses an on-disk asset, no
+new image gen. Updated `qa-state.json`, `image-prompts-v2.md`, `CLAUDE.md`.
+
+---
+
 ## Bugfix · 2026-06-08 — tap-to-edit logged sets + non-empty exercise-swap picker (qa: workout-active-edit-set-tap, session-substitute-exercise)
 
 @maaiz: *"I couldn't click into previous sets to edit them, I could only do it via the edit button on the exercise during the session. I also couldn't swap exercise because it just shows this page, not actually letting me choose which exercise to swap to with suggestions based on available equipment and target muscle."*

@@ -2536,6 +2536,11 @@ function workoutImageFor(title: string): string | null {
   if (t.startsWith("upper"))                              return "/ai/workout-upper.jpg";
   if (t.startsWith("lower"))                              return "/ai/workout-lower.jpg";
   if (t.startsWith("leg"))                                return "/ai/workout-legs.jpg";
+  // Generic "Strength" days (no muscle/movement keyword above matched)
+  // get the Batch-11 alt hero — a static push-up plank. Kept LAST so
+  // "Push Strength" / "Leg Strength" etc. still route to their specific
+  // movement hero above. (qa: home-day-card-heroes)
+  if (t.includes("strength"))                             return "/ai/day-bw-strength.jpg";
   return null;
 }
 

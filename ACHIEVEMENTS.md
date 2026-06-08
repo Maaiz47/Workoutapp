@@ -600,3 +600,18 @@ qa-state items to `regression-retest`.
 ### Still open
 
 (none — all v1 questions answered as of 2026-05-23)
+
+### Sign-off ✅ (2026-06-08)
+
+@maaiz confirmed the two outstanding recommendations verbatim:
+- **Wellness re-evaluate frequency → "On each wellness log."** Locks in
+  the `/api/achievements/recheck` fire-on-every-wellness-write design
+  above (toast the second the entry saves, train-or-not).
+- **Cardio → "Fold cardio in now."** Cardio achievements ship inside the
+  v1 catalogue (the inline `cardioSetDistanceKm` helper makes the 3
+  distance-based ones work end-to-end). The separate `cardio-input-polish`
+  slice (manual-distance field + Outdoor Run type + dashboard/leaderboard
+  surfacing) still lands later as its own qa item.
+
+All four v1 design questions are now user-confirmed — no design blockers
+remain for Slice 1.

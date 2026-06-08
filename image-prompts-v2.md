@@ -16,7 +16,7 @@ to the wishlist since:
 | 8. Tier sub-rank icons | 11 | `/public/sub-rank-icons/<id>.png` | ⏳ 0/11 pending |
 | 9. Achievement category icons (OPTIONAL) | 11 | `/public/cat-icons/<id>.png` | ⏳ 0/11 deferred |
 | 10. Premium milestone-bonus avatars | 5 | `/public/avatars/mb-<id>.png` | ✅ shipped 2026-05-26 |
-| 11. Day-card hero backgrounds | 6 + 1 alt | `/public/ai/day-<flavour>.jpg` | ✅ shipped 2026-05-26 (6 wired + bw-strength alt unused) |
+| 11. Day-card hero backgrounds | 6 + 1 alt | `/public/ai/day-<flavour>.jpg` | ✅ shipped 2026-05-26 (6 wired); bw-strength alt wired to `strength` 2026-06-08 |
 | 12. Big Dawg (T3) tier-icon refresh | 1 | `/public/tier-icons/vivid/big-dawg.png` | ✅ shipped 2026-05-26 |
 | **Total** | **75** | (65 if Batch 9 deferred) | 42/75 shipped |
 
@@ -800,8 +800,8 @@ Flagged 2026-05-24 by @maaiz: 'Might be missing images for cardio days,
 hiit days, only body weight movement splits etc, add to image generation
 list'.
 
-Shipped 6 spec'd heroes + 1 alt (`day-bw-strength.jpg`, saved but not
-wired — see below). Routing lives in `workoutImageFor()` in
+Shipped 6 spec'd heroes + 1 alt (`day-bw-strength.jpg`, wired to the
+`strength` keyword on 2026-06-08 — see below). Routing lives in `workoutImageFor()` in
 `app/page.tsx` ~line 2120 (search "day-cardio-hiit.jpg" to find it).
 
 | Slot | File | Routed keywords | What shipped |
@@ -812,7 +812,7 @@ wired — see below). Routing lives in `workoutImageFor()` in
 | Mobility | `/public/ai/day-mobility.jpg` | `mobility` / `stretch` / `yoga` | Side-lunge stretch on mat, side-bend overhead reach. (Split from recovery — was bundled before.) |
 | Recovery | `/public/ai/day-recovery.jpg` | `recovery` / `foam` / `rest day` | Foam roller under calf, athlete seated leaning over. |
 | Cardio + HIIT | `/public/ai/day-cardio-hiit.jpg` | `cardio` + `hiit` together / `metcon` | Tuck jump mid-air shirtless, chalk cloud below. |
-| **Alt** | `/public/ai/day-bw-strength.jpg` | (unwired) | Shirted push-up plank, static side view. Saved as alt — open question whether to repurpose for a "core" / "strength" split or drop. |
+| **Alt** | `/public/ai/day-bw-strength.jpg` | `strength` (last check, after all muscle/movement keywords) | Shirted push-up plank, static side view. Repurposed 2026-06-08 per @maaiz for generic "Strength" days. |
 
 Existing `/ai/workout-{cardio,hiit,recovery}.jpg` files remain on disk
 unused, in case @maaiz wants to revert. Routing was swapped from

@@ -5679,9 +5679,11 @@
         "Workouts titled with 'mobility' / 'stretch' / 'yoga' should now show /ai/day-mobility.jpg (lunge-stretch on mat) \u2014 separated from recovery.",
         "Workouts titled with 'recovery' / 'foam' / 'rest day' should show /ai/day-recovery.jpg (foam roller on calf).",
         "Hybrid splits containing both 'cardio' AND 'hiit' (or 'metcon') should show /ai/day-cardio-hiit.jpg (tuck-jump shirtless).",
+        "A workout titled with 'strength' (and no push/pull/leg/etc. keyword) should show /ai/day-bw-strength.jpg (static push-up plank).",
+        "A 'Push Strength' / 'Leg Strength' title should still route to its movement hero (workout-push.jpg / workout-legs.jpg), NOT the strength alt.",
         "Other splits (push/pull/legs/etc.) should be unchanged \u2014 still routing to /ai/workout-*.jpg."
       ],
-      "notes": "[2026-05-26] Batch 11 day-card heroes shipped (6 wired + 1 alt unused). Routing swap: hiit/cardio/recovery now point at /ai/day-*.jpg (new images) instead of /ai/workout-*.jpg (old). Mobility split from recovery \u2014 was bundled, now has its own keyword route. Old workout-*.jpg files remain on disk for easy revert.\n[2026-05-26] Open question for @maaiz: keep /public/ai/day-bw-strength.jpg (static push-up plank, 7th image) unwired, repurpose for a 'core'/'strength' route, or delete?"
+      "notes": "[2026-06-08] RESOLVED the open question. @maaiz: repurpose day-bw-strength.jpg for a 'core'/'strength' split. Wired the previously-unused 7th hero to a `strength` keyword as the LAST check in workoutImageFor (after every muscle/movement keyword) so plain 'Strength'/'Strength Training' days get it while 'Push Strength' etc. keep their specific hero. ('core' already had /ai/workout-core.jpg, so strength was the clean home for this shot.)\n[2026-05-26] Batch 11 day-card heroes shipped (6 wired + 1 alt unused). Routing swap: hiit/cardio/recovery now point at /ai/day-*.jpg (new images) instead of /ai/workout-*.jpg (old). Mobility split from recovery \u2014 was bundled, now has its own keyword route. Old workout-*.jpg files remain on disk for easy revert."
     },
     {
       "id": "achievement-avatars-assets",
