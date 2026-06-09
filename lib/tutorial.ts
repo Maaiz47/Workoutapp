@@ -62,7 +62,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "warmup-cooldown",
     icon: "🔥",
     title: "Warm-up + cool-down baked in",
-    body: "Every session opens with a focus-aware warm-up and ends with matching cool-down stretches. Tap any stretch row to see form cues. Customise from the routine editor.",
+    body: "Every session opens with a focus-aware warm-up and ends with matching cool-down stretches. Tap any stretch row to see form cues. Don't fancy one? Hit ⇄ SWAP to switch it for another warm-up or stretch — or skip it. Customise from the routine editor.",
     where: "Active session · Customise routine",
   },
   {

@@ -6606,6 +6606,12 @@ function HomePage() {
   // stretch or cool down, want to be able to mark each set done
   // or skip")
   const [warmupSetState, setWarmupSetState] = useState<Record<string, "done" | "skipped">>({});
+  // Swap-a-warmup/cooldown DURING a session. The muscle-based substitute
+  // modal pulls from the strength library, which is wrong for warm-ups —
+  // this picks from ALL_WARMUPS / ALL_COOLDOWNS instead. Session-scoped
+  // (just-today) — replaces the row in activeDay only.
+  // (qa: session-swap-warmup)
+  const [swapWarmupTarget, setSwapWarmupTarget] = useState<{ id: string; name: string; kind: "warmup" | "cooldown" } | null>(null);
   const [pendingDrop, setPendingDrop] = useState<{ exId: string; setNum: number; dropNum: number } | null>(null);
   const [dropWInput, setDropWInput] = useState("");
   const [dropRInput, setDropRInput] = useState("");
@@ -10731,6 +10737,66 @@ function HomePage() {
                     <span style={{ color: themeColor, fontSize: 16 }}>+</span>
                   </button>
                 ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Session warm-up / cool-down SWAP — replaces a warm-up or
+            cooldown row in the ACTIVE session with another from the same
+            pool. Unlike the strength substitute modal (which muscle-ranks
+            the lifting library), this lists ALL_WARMUPS / ALL_COOLDOWNS,
+            so swapping a warm-up offers warm-ups, not bench-press.
+            Session-scoped (just-today) — touches activeDay only, not the
+            saved routine. (qa: session-swap-warmup) */}
+        {swapWarmupTarget && (() => {
+          const isWu = swapWarmupTarget.kind === "warmup";
+          const library = isWu ? ALL_WARMUPS : ALL_COOLDOWNS;
+          const themeColor = isWu ? "#FFE66D" : "#4ECDC4";
+          const themeBg = isWu ? "rgba(255,230,109,0.04)" : "rgba(78,205,196,0.04)";
+          const themeBorder = isWu ? "rgba(255,230,109,0.22)" : "rgba(78,205,196,0.22)";
+          const doSwap = (s: StretchExercise) => {
+            if (s.id !== swapWarmupTarget.id) {
+              setActiveDay(d => d ? {
+                ...d,
+                sections: d.sections.map(sec => ({
+                  ...sec,
+                  exercises: sec.exercises.map(x => x.id === swapWarmupTarget.id ? { ...x, id: s.id, name: s.name, reps: s.reps } : x),
+                })),
+              } : d);
+              // Drop any done/skip state tied to the old row id so the new
+              // warm-up starts fresh (keys are `${id}-${setNum}`).
+              setWarmupSetState(prev => {
+                const next = { ...prev };
+                for (const k in next) if (k.startsWith(swapWarmupTarget.id + "-")) delete next[k];
+                return next;
+              });
+            }
+            setSwapWarmupTarget(null);
+          };
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 250, display: "flex", flexDirection: "column", padding: 20, backdropFilter: "blur(16px)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>{isWu ? "SWAP WARM-UP" : "SWAP COOL-DOWN"}</div>
+                  <div style={{ fontSize: 13, color: themeColor, marginTop: 4 }}>Replace <strong>{swapWarmupTarget.name}</strong> for this session</div>
+                </div>
+                <button onClick={() => setSwapWarmupTarget(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                {library.map(s => {
+                  const isCurrent = s.id === swapWarmupTarget.id;
+                  return (
+                    <button key={s.id} onClick={() => doSwap(s)} disabled={isCurrent} style={{ width: "100%", textAlign: "left", padding: "12px 14px", marginBottom: 6, background: isCurrent ? "rgba(255,255,255,0.02)" : themeBg, border: `1px solid ${isCurrent ? "rgba(255,255,255,0.08)" : themeBorder}`, borderRadius: 10, color: "#fff", display: "flex", alignItems: "center", gap: 10, cursor: isCurrent ? "default" : "pointer", opacity: isCurrent ? 0.5 : 1 }}>
+                      <span style={{ fontSize: 22, width: 32, textAlign: "center" }}>{s.icon ?? (isWu ? "🔥" : "🧘")}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}{isCurrent ? "  · CURRENT" : ""}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{s.reps.toUpperCase()} · {s.primaryMuscles.slice(0,2).join(" · ").toUpperCase()}</div>
+                      </div>
+                      {!isCurrent && <span style={{ color: themeColor, fontSize: 16 }}>⇄</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           );
@@ -18842,9 +18908,14 @@ function HomePage() {
                     {isExp && !trackable && !wuDone && (() => {
                       return (
                         <div className="fade-in" style={{ padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, gap: 8 }}>
                             <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{wuSetsCount > 1 ? "SETS · TAP ✓ DONE OR ↷ SKIP" : "TAP ✓ DONE OR ↷ SKIP"}</span>
-                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace" }}>{wuDoneCount}/{wuSetsCount} DONE{wuSkipCount > 0 ? ` · ${wuSkipCount} SKIPPED` : ""}</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                              {/* Swap out this warm-up / cooldown for another from the
+                                  same pool — not just skip it. (qa: session-swap-warmup) */}
+                              <button onClick={() => setSwapWarmupTarget({ id: ex.id, name: ex.name, kind: ex.kind === "cooldown" ? "cooldown" : "warmup" })} style={{ background: "none", border: "none", padding: 0, color: "#FFE66D", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer", whiteSpace: "nowrap" }}>⇄ SWAP</button>
+                              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace" }}>{wuDoneCount}/{wuSetsCount} DONE{wuSkipCount > 0 ? ` · ${wuSkipCount} SKIPPED` : ""}</span>
+                            </div>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                             {Array.from({ length: wuSetsCount }).map((_, i) => {

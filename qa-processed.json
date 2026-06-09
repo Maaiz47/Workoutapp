@@ -757,6 +757,10 @@
     "cmq5m0jsv0000109tclenh5c4": {
       "ts": "2026-06-08T19:34:18.941Z",
       "summary": "@maaiz: got the 'rest over - time for next set' push after finishing the workout on the last set. Fixed: workout-complete now cancels the running rest timer (rest.stop()) so its push can't fire. (qa: session-finish-cancels-rest-push)"
+    },
+    "cmq5yg62z0000y5xlq30naz25": {
+      "ts": "2026-06-09T01:22:23.052Z",
+      "summary": "@maaiz: 'Can't change out warm ups during session only skip'. Added a session-scoped warm-up/cooldown swap (⇄ SWAP in the warm-up DONE/SKIP panel) that picks from ALL_WARMUPS/ALL_COOLDOWNS. (qa: session-swap-warmup)"
     }
   }
 }

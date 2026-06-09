@@ -2,6 +2,12 @@
 
 ---
 
+## Feat · 2026-06-09 — Swap a warm-up / cool-down mid-session (not just skip) (qa: session-swap-warmup)
+
+@maaiz: *"Can't change out warm ups during session only skip."* Warm-up and cool-down rows in an active session only offered mark-done / skip. The strength substitute modal was the wrong tool (it muscle-ranks the *lifting* library, so swapping a warm-up would suggest bench press). Added a session-scoped swap: a **⇄ SWAP** button in the warm-up DONE/SKIP panel header opens a picker drawn from `ALL_WARMUPS` / `ALL_COOLDOWNS` (mobility/cardio primers for warm-ups, stretches for cool-downs). Picking one replaces the row in `activeDay` in place — name + reps update and its done/skip state resets. Session-only (just-today); the saved routine is untouched (persisting is a possible follow-up). New `swapWarmupTarget` state + modal in `app/page.tsx`; tutorial `warmup-cooldown` step updated. `tsc` clean.
+
+---
+
 ## Fix · 2026-06-08 — QA pass: stop admin pushes reaching logged-out phones + cancel rest push on workout finish (qa: admin-submission-notifications, session-finish-cancels-rest-push)
 
 Two QA reports from @maaiz.

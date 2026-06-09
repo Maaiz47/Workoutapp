@@ -1,6 +1,24 @@
 {
   "items": [
     {
+      "id": "session-swap-warmup",
+      "title": "Swap a warm-up / cool-down for another mid-session (not just skip)",
+      "area": "Workouts",
+      "introduced": "2026-06-09",
+      "introducedBy": "QA pass 2026-06-09 (re:q30naz25)",
+      "lastTested": "2026-06-09",
+      "status": "regression-retest",
+      "steps": [
+        "Start a session and expand a warm-up row (the DONE/SKIP panel shows).",
+        "Tap the '⇄ SWAP' control in the panel header.",
+        "Pick a different warm-up from the sheet (lists ALL_WARMUPS - mobility/cardio primers, NOT strength lifts). Verify the row name + reps update in place and its done/skip state resets.",
+        "Repeat for a cool-down row - the sheet should list cool-down stretches (ALL_COOLDOWNS) and theme teal.",
+        "Confirm the swap is session-only: it does NOT alter the saved routine for future sessions.",
+        "Confirm the currently-shown move is marked CURRENT/disabled in the sheet."
+      ],
+      "notes": "[2026-06-09] @maaiz: 'Can't change out warm ups during session only skip'. Warm-up/cooldown rows previously offered only mark-done / skip. The strength substitute modal was unsuitable (it muscle-ranks the lifting library). Added a session-scoped swap that lists ALL_WARMUPS / ALL_COOLDOWNS via a new swapWarmupTarget modal, triggered by a '⇄ SWAP' button in the warm-up DONE/SKIP panel header. Replaces the row in activeDay only (just-today); persisting to the saved routine is a possible follow-up. (qa: session-swap-warmup)"
+    },
+    {
       "id": "session-finish-cancels-rest-push",
       "title": "Finishing a workout cancels the pending rest-timer push",
       "area": "Workouts",
