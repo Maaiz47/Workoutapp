@@ -122,10 +122,14 @@ The flow is **TWO STEPS**:
    does NOT send an OS push. The push is a separate admin endpoint:
    `POST https://ironlogmv.vercel.app/api/admin/qa-push-fanout`
    (`x-admin-key: $ADMIN_SECRET`, body `{"since":"<earliest comment ts>"}`).
-   It's idempotent (marks `pushedAt`, never double-sends). If this
-   session's env has no `ADMIN_SECRET`, you can't run it — give @maaiz the
-   exact curl in your reply. **Skipping this silently drops every patch
-   push** (the recurring papercut: 2026-06-03, 2026-06-09). (qa: qa-patch-push-fanout)
+   It's idempotent (marks `pushedAt`, never double-sends). `ADMIN_SECRET`
+   is **expected to be set in the Claude Code environment config** (cloud
+   environment → Environment variables, `.env` format, no quotes) — same
+   value as the Vercel project's `ADMIN_SECRET` — so a session can fire
+   this directly. If it's genuinely absent from the session env, you can't
+   run it — give @maaiz the exact curl in your reply. **Skipping this
+   silently drops every patch push** (the recurring papercut: 2026-06-03,
+   2026-06-09). (qa: qa-patch-push-fanout)
 
 Full procedure with examples, security review checklist, and PATCHLOG
 format in `docs/qa-processing.md`. The user shouldn't have to repeat
@@ -177,7 +181,9 @@ canonical key the update-prompt compares; the `v…` number is what the user
 - Hosting: Vercel — `prisma db push && prisma generate && next build` runs
   every deploy, so schema changes go live automatically
 - Admin secret: env var `ADMIN_SECRET`, gates `/api/admin*`,
-  `/api/qa/admin*`, `/api/qa/comments*` endpoints
+  `/api/qa/admin*`, `/api/qa/comments*` endpoints. Expected to be present
+  in the Claude Code cloud environment config (Environment variables) so
+  sessions can call admin endpoints (e.g. the QA patch-push fanout) directly.
 - The user runs the app on iPhone — keep all UI mobile-first
 
 ## File map (the bits Claude touches most)
