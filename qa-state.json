@@ -3534,18 +3534,19 @@
       "area": "Trainer",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-06-09",
+      "status": "regression-retest",
       "steps": [
         "Log in as a trainer",
-        "Navigate to the custom exercises section in the trainer dashboard",
-        "Tap 'Create exercise'",
-        "Fill in: name, primary muscles, secondary muscles, equipment, type, difficulty",
-        "Optionally upload a photo URL",
-        "Save \u2014 the exercise should appear in the trainer's custom exercise list",
+        "On home, expand the 'MY EXERCISES' section",
+        "Tap '+ NEW', fill in name, muscles, equipment, type, difficulty, weight-input convention, optional photos, then SAVE EXERCISE",
+        "The new exercise appears in the list",
+        "Tap an existing exercise row (or its EDIT button) \u2014 the form opens pre-filled in EDIT mode",
+        "Change a field and tap SAVE CHANGES \u2014 the row updates in place",
+        "Tap DEL on a row to delete it (confirm prompt)",
         "Open a client's plan and verify the custom exercise is available in the exercise browser"
       ],
-      "notes": ""
+      "notes": "[2026-06-09 PENDING] Fixed: saved 'My Exercises' rows are now tappable + have an EDIT button that opens the creator form pre-filled in edit mode (was DELETE-only \u2014 @maaiz couldn't open an existing custom exercise). Saves via new PATCH /api/trainer/exercises/[id] (owner-checked, same validation as POST). Next retest: confirm edit round-trips on device. (qa: trainer-custom-exercises)"
     },
     {
       "id": "trainer-leaderboard",

@@ -6709,6 +6709,30 @@ function HomePage() {
   const [exCreatorWeightInputType, setExCreatorWeightInputType] = useState<string | null>(null);
   const [exCreatorUploading, setExCreatorUploading] = useState(false);
   const [exCreatorSaving, setExCreatorSaving] = useState(false);
+  // When set, the creator form is in EDIT mode for this existing
+  // custom exercise — pre-filled from the row + saves via PATCH
+  // instead of POST. Previously the saved rows only had a DELETE
+  // button so a trainer couldn't open/edit one. (qa: trainer-custom-exercises)
+  const [editingExId, setEditingExId] = useState<string | null>(null);
+  const resetExCreator = useCallback(() => {
+    setExCreatorName(""); setExCreatorPrimary([]); setExCreatorSecondary([]);
+    setExCreatorEquip([]); setExCreatorPhotos([]); setExCreatorType("compound");
+    setExCreatorDiff("intermediate"); setExCreatorWeightInputType(null);
+    setEditingExId(null);
+  }, []);
+  const openExerciseForEdit = useCallback((ex: any) => {
+    setEditingExId(ex.id);
+    setExCreatorName(ex.name ?? "");
+    setExCreatorPrimary(Array.isArray(ex.primaryMuscles) ? ex.primaryMuscles : []);
+    setExCreatorSecondary(Array.isArray(ex.secondaryMuscles) ? ex.secondaryMuscles : []);
+    setExCreatorEquip(Array.isArray(ex.equipment) ? ex.equipment : []);
+    setExCreatorType(ex.type ?? "compound");
+    setExCreatorDiff(ex.difficulty ?? "intermediate");
+    setExCreatorPhotos(Array.isArray(ex.photoUrls) ? ex.photoUrls : []);
+    setExCreatorWeightInputType(ex.weightInputType ?? null);
+    setShowExCreator(true);
+    setShowCustomExList(true);
+  }, []);
 
   // ── Trainer search ──
   const [trainerSearch, setTrainerSearch] = useState("");
@@ -12319,7 +12343,7 @@ function HomePage() {
               <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace" }}>{showCustomExList ? "▲" : "▼"}</span>
             </div>
-            <button onClick={() => { setShowExCreator(s => !s); if (!showCustomExList) setShowCustomExList(true); }} style={{ padding: "5px 12px", background: showExCreator ? "rgba(255,107,107,0.16)" : "rgba(78,205,196,0.16)", border: `1px solid ${showExCreator ? "rgba(255,107,107,0.4)" : "rgba(78,205,196,0.4)"}`, borderRadius: 14, color: showExCreator ? "#FF6B6B" : "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
+            <button onClick={() => { if (showExCreator) { setShowExCreator(false); resetExCreator(); } else { resetExCreator(); setShowExCreator(true); if (!showCustomExList) setShowCustomExList(true); } }} style={{ padding: "5px 12px", background: showExCreator ? "rgba(255,107,107,0.16)" : "rgba(78,205,196,0.16)", border: `1px solid ${showExCreator ? "rgba(255,107,107,0.4)" : "rgba(78,205,196,0.4)"}`, borderRadius: 14, color: showExCreator ? "#FF6B6B" : "#4ECDC4", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>
               {showExCreator ? "CANCEL" : "+ NEW"}
             </button>
           </div>{showCustomExList && (<div>
@@ -12347,14 +12371,25 @@ function HomePage() {
               if (!exCreatorName.trim()) return;
               setExCreatorSaving(true);
               try {
-                const res = await fetch("/api/trainer/exercises", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: exCreatorName.trim(), primaryMuscles: exCreatorPrimary, secondaryMuscles: exCreatorSecondary, equipment: exCreatorEquip, type: exCreatorType, difficulty: exCreatorDiff, photoUrls: exCreatorPhotos, weightInputType: exCreatorWeightInputType }) });
+                const payload = { name: exCreatorName.trim(), primaryMuscles: exCreatorPrimary, secondaryMuscles: exCreatorSecondary, equipment: exCreatorEquip, type: exCreatorType, difficulty: exCreatorDiff, photoUrls: exCreatorPhotos, weightInputType: exCreatorWeightInputType };
+                // EDIT existing → PATCH /[id]; NEW → POST. (qa: trainer-custom-exercises)
+                const res = editingExId
+                  ? await fetch(`/api/trainer/exercises/${editingExId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+                  : await fetch("/api/trainer/exercises", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
                 const data = await res.json();
-                if (data.exercise) { setCustomExercises(p => [data.exercise, ...p]); setShowExCreator(false); setExCreatorName(""); setExCreatorPrimary([]); setExCreatorSecondary([]); setExCreatorEquip([]); setExCreatorPhotos([]); setExCreatorType("compound"); setExCreatorDiff("intermediate"); setExCreatorWeightInputType(null); }
+                if (data.exercise) {
+                  setCustomExercises(p => editingExId ? p.map(e => e.id === editingExId ? data.exercise : e) : [data.exercise, ...p]);
+                  setShowExCreator(false);
+                  resetExCreator();
+                }
                 else alert(data.error ?? "Save failed");
               } catch { alert("Save failed"); } finally { setExCreatorSaving(false); }
             };
             return (
               <div className="fade-in" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px", marginBottom: 12 }}>
+                {editingExId && (
+                  <div style={{ fontSize: 10, color: "#4ECDC4", letterSpacing: 2, marginBottom: 14, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>✎ EDITING EXERCISE</div>
+                )}
                 {/* Name */}
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 2, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>EXERCISE NAME</div>
@@ -12428,7 +12463,7 @@ function HomePage() {
                 </div>
                 {/* Save */}
                 <button onClick={saveExercise} disabled={!exCreatorName.trim() || exCreatorSaving} style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg,#4ECDC4,#26a69a)", border: "none", borderRadius: 10, color: "#000", fontSize: 12, fontWeight: 700, letterSpacing: 2, cursor: exCreatorName.trim() ? "pointer" : "not-allowed", opacity: exCreatorName.trim() ? 1 : 0.4, fontFamily: "'Space Mono', monospace" }}>
-                  {exCreatorSaving ? "SAVING…" : "SAVE EXERCISE"}
+                  {exCreatorSaving ? "SAVING…" : editingExId ? "SAVE CHANGES" : "SAVE EXERCISE"}
                 </button>
               </div>
             );
@@ -12438,20 +12473,29 @@ function HomePage() {
           {customExercises.length === 0 && !showExCreator && (
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontStyle: "italic", padding: "8px 0" }}>No custom exercises yet — create one above</div>
           )}
-          {customExercises.map(ex => (
-            <div key={ex.id} style={{ position: "relative", background: "linear-gradient(90deg, rgba(78,205,196,0.04), rgba(255,255,255,0.02))", border: "1px solid rgba(78,205,196,0.15)", borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px -4px rgba(78,205,196,0.18)" }}>
+          {customExercises.map(ex => {
+            const isEditing = editingExId === ex.id && showExCreator;
+            return (
+            <div key={ex.id} style={{ position: "relative", background: isEditing ? "linear-gradient(90deg, rgba(78,205,196,0.1), rgba(255,255,255,0.02))" : "linear-gradient(90deg, rgba(78,205,196,0.04), rgba(255,255,255,0.02))", border: `1px solid ${isEditing ? "rgba(78,205,196,0.45)" : "rgba(78,205,196,0.15)"}`, borderRadius: 14, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 2px 8px -4px rgba(78,205,196,0.18)" }}>
               <div aria-hidden style={{ position: "absolute", left: 0, top: 8, bottom: 8, width: 2, background: "linear-gradient(180deg, #4ECDC4, transparent)", borderRadius: 1 }} />
-              {ex.photoUrls?.[0] && <img src={ex.photoUrls[0]} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "rgba(255,255,255,0.06)" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />}
-              {!ex.photoUrls?.[0] && <div style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(255,255,255,0.06)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🏋️</div>}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
-                  {ex.primaryMuscles?.join(" · ").toUpperCase() || "—"}
+              {/* Tap the body (photo + name) to OPEN the exercise for
+                  editing — previously only a DELETE button existed so
+                  there was no way in. (qa: trainer-custom-exercises) */}
+              <div onClick={() => openExerciseForEdit(ex)} style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0, cursor: "pointer" }}>
+                {ex.photoUrls?.[0] && <img src={ex.photoUrls[0]} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "rgba(255,255,255,0.06)" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+                {!ex.photoUrls?.[0] && <div style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(255,255,255,0.06)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🏋️</div>}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.name}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+                    {ex.primaryMuscles?.join(" · ").toUpperCase() || "—"}
+                  </div>
                 </div>
               </div>
-              <button onClick={async () => { if (!confirm(`Delete "${ex.name}"?`)) return; const res = await fetch(`/api/trainer/exercises/${ex.id}`, { method: "DELETE" }); if ((await res.json()).ok) setCustomExercises(p => p.filter(e => e.id !== ex.id)); }} style={{ background: "none", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "rgba(255,107,107,0.5)", fontSize: 9, padding: "4px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}>DEL</button>
+              <button onClick={() => openExerciseForEdit(ex)} style={{ background: "none", border: "1px solid rgba(78,205,196,0.3)", borderRadius: 6, color: "#4ECDC4", fontSize: 9, padding: "4px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0, fontWeight: 700 }}>EDIT</button>
+              <button onClick={async () => { if (!confirm(`Delete "${ex.name}"?`)) return; const res = await fetch(`/api/trainer/exercises/${ex.id}`, { method: "DELETE" }); if ((await res.json()).ok) { setCustomExercises(p => p.filter(e => e.id !== ex.id)); if (editingExId === ex.id) { setShowExCreator(false); resetExCreator(); } } }} style={{ background: "none", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 6, color: "rgba(255,107,107,0.5)", fontSize: 9, padding: "4px 8px", cursor: "pointer", fontFamily: "'Space Mono', monospace", letterSpacing: 1, flexShrink: 0 }}>DEL</button>
             </div>
-          ))}
+            );
+          })}
           </div>)}
         </div>
       )}

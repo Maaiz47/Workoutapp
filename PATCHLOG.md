@@ -2,6 +2,14 @@
 
 ---
 
+## Fix · 2026-06-09 — Open & edit an existing custom exercise (was DELETE-only) (qa: trainer-custom-exercises)
+
+@maaiz: *"Can't open my existing custom exercise, only shows a delete button."* The home **MY EXERCISES** list rendered each saved custom exercise with a single **DEL** button — there was no way to open one and change a field. Adding it via the **+ NEW** creator and then spotting a typo meant deleting and re-creating from scratch.
+
+**Fix:** the saved rows are now an **open affordance**. Tapping the row body (photo + name) or the new **EDIT** chip loads that exercise into the existing creator form, pre-filled and in **edit mode** (header reads *✎ EDITING EXERCISE*, the save button reads **SAVE CHANGES**, the active row is highlighted). Saving issues `PATCH /api/trainer/exercises/[id]` — a new handler that mirrors the POST validation exactly (name length, weight-input convention allowlist, muscle/equipment array caps, type/difficulty enums, Cloudinary-only photo URLs) and is **owner-checked** (404 if missing, 403 unless the row's `trainerId` matches the caller). The list updates the edited row in place; **+ NEW** / **CANCEL** / deleting the row currently being edited all reset the form cleanly. No schema change. `npx tsc --noEmit` clean. Tutorial `trainer-custom-exercises` surface already exists (edit reuses the same form), so no `TUTORIAL_STEPS` change.
+
+---
+
 ## Feat · 2026-06-09 — Swap a warm-up / cool-down mid-session (not just skip) (qa: session-swap-warmup)
 
 @maaiz: *"Can't change out warm ups during session only skip."* Warm-up and cool-down rows in an active session only offered mark-done / skip. The strength substitute modal was the wrong tool (it muscle-ranks the *lifting* library, so swapping a warm-up would suggest bench press). Added a session-scoped swap: a **⇄ SWAP** button in the warm-up DONE/SKIP panel header opens a picker drawn from `ALL_WARMUPS` / `ALL_COOLDOWNS` (mobility/cardio primers for warm-ups, stretches for cool-downs). Picking one replaces the row in `activeDay` in place — name + reps update and its done/skip state resets. Session-only (just-today); the saved routine is untouched (persisting is a possible follow-up). New `swapWarmupTarget` state + modal in `app/page.tsx`; tutorial `warmup-cooldown` step updated. `tsc` clean.

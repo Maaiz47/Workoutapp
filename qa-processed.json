@@ -1,5 +1,9 @@
 {
   "processedIds": {
+    "cmq6de8060002i81udsslj1ot": {
+      "ts": "2026-06-09T08:20:46Z",
+      "summary": "@maaiz: 'Can't open my existing custom exercise, only shows a delete button'. Done — saved MY EXERCISES rows are now tappable + have an EDIT button that opens the creator form pre-filled in edit mode; saves via new owner-checked PATCH /api/trainer/exercises/[id]. (qa: trainer-custom-exercises)"
+    },
     "cmpsoemh20002vsvl6rvhgrkg": {
       "ts": "2026-06-03T13:00:00Z",
       "summary": "@maaiz: 'Need profile avatar icons next to each message bubble in chatlogs both private chats and group chats'. Done — group chat already had it; added a per-message avatar + tappable @username chip above incoming DM bubbles using UserAvatarChip. Tap → opens the profile preview modal for the sender. /api/messages/[userId] now includes from.profile.avatarId so the chip renders correctly. (qa: chat-dm-per-message-avatars)"
