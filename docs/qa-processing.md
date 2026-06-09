@@ -150,11 +150,31 @@ present a summary, wait for explicit go-ahead, then execute.
    The legacy admin endpoint `POST /api/qa/comments/mark-processed` still
    exists but you should NOT need it — only useful if the network allowlist
    ever opens up.
-7. **Reply to the user** with a concise summary:
+7. **Fire the patch-push fanout — REQUIRED, do not skip.** Marking comments
+   processed only updates the in-app IRONLOG SYSTEM feed (built client-side
+   from `/api/qa/comments/mine`). It does **NOT** send an OS push. The push is
+   a separate admin-triggered endpoint that must be called **after the deploy
+   lands** (so the deployed `qa-processed.json` carries the new entries):
+   ```bash
+   curl -X POST https://ironlogmv.vercel.app/api/admin/qa-push-fanout \
+     -H "x-admin-key: $ADMIN_SECRET" \
+     -H "Content-Type: application/json" \
+     -d '{"since":"<ISO ts at or just before the earliest comment ts in this pass>"}'
+   ```
+   It pushes one notification per (user, processed-but-unpushed comment) with
+   `ts >= since`, and marks each row `pushedAt` so it never double-sends — so an
+   over-broad `since` is safe (already-pushed rows are skipped). Expect
+   `{"sent":N,...}`. If the agent's environment has no `ADMIN_SECRET`, it
+   **cannot** run this — surface the exact curl to @maaiz in the reply and tell
+   him to run it once the deploy is live. This step was missing from the flow
+   and silently dropped pushes on 2026-06-03 and 2026-06-09 — never omit it.
+   (qa: qa-patch-push-fanout)
+8. **Reply to the user** with a concise summary:
    - Number of comments processed
    - List of items now passing
    - List of items still failing (and why)
    - List of deferred features
+   - The fanout result (or the curl for @maaiz to run, if the env lacks the key)
 
 ## Things to remember when actioning notes
 

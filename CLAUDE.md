@@ -117,6 +117,15 @@ The flow is **TWO STEPS**:
 2. **Execute on confirmation.** Fix code, update `qa-state.json`, write
    a `PATCHLOG.md` entry tagged with `(qa: …)`, mark processed IDs in
    `qa-processed.json`.
+3. **After the deploy lands, fire the patch-push fanout — REQUIRED.**
+   Marking comments processed only populates the in-app SYSTEM feed; it
+   does NOT send an OS push. The push is a separate admin endpoint:
+   `POST https://ironlogmv.vercel.app/api/admin/qa-push-fanout`
+   (`x-admin-key: $ADMIN_SECRET`, body `{"since":"<earliest comment ts>"}`).
+   It's idempotent (marks `pushedAt`, never double-sends). If this
+   session's env has no `ADMIN_SECRET`, you can't run it — give @maaiz the
+   exact curl in your reply. **Skipping this silently drops every patch
+   push** (the recurring papercut: 2026-06-03, 2026-06-09). (qa: qa-patch-push-fanout)
 
 Full procedure with examples, security review checklist, and PATCHLOG
 format in `docs/qa-processing.md`. The user shouldn't have to repeat
