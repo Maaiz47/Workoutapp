@@ -1,0 +1,10 @@
+{
+  "id": "cmq6de8060002i81udsslj1ot",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · UI · view=home] Can’t open my existing custom exercise, only shows a delete button",
+  "screenshotUrl": null,
+  "ts": "2026-06-09T08:20:46.470Z"
+}
