@@ -2,6 +2,18 @@
 
 ---
 
+## Feat · 2026-06-10 — Phase 5: tutorial catch-up batch (v8) + automatic coverage scanner (qa: tutorial-coverage-v8)
+
+Fifth slice of the full-audit backlog. The audit found tutorial coverage at ~55% — 10+ user-visible surfaces had shipped with no step. This closes the gap and adds a guard so it can't silently happen again.
+
+**Catch-up batch (9 new steps in `lib/tutorial.ts`).** Added TUTORIAL_STEPS entries for: effort/RPE logging (feeds scoring + deload), the rest-timer behaviour, cardio logging inputs, body-weight/body-fat logging, the Daily Quest, deload weeks, weekly recap + PB celebrations, themes/display options, and a trainer-tools overview (Clients hub, custom exercises, propose-metrics, trainer tier). `TUTORIAL_VERSION` bumped v7→v8 so existing users re-see the tour once.
+
+**Automatic coverage guard (the "keep it updated" mechanism @maaiz asked for).** New `scripts/tutorial-scan.ts` + `npm run tutorial:scan`: it scans the most-recent `## Feat…` PATCHLOG sections and flags any whose body never mentions the tutorial — i.e. a feature that shipped without either adding a step or stating why none was needed — and sanity-checks `lib/tutorial.ts` (version present, every step well-formed). Warn-only by default, `--strict` fails for CI. Documented as step 5 of the tutorial forcing rule in `docs/feature-forcing-rules.md`. Going forward this catches the drift the audit found.
+
+`npx tsc --noEmit`, `npm run qa:scan`, and `npm run tutorial:scan` all clean for HEAD. This entry mentions the tutorial, so it passes its own scanner. 🙂
+
+---
+
 ## Fix · 2026-06-10 — Phase 4 plan builder: min-exercise guard + overhead-press home eligibility (qa: plan-min-exercises)
 
 Continues the Phase 4 plan-builder pass.

@@ -2932,6 +2932,22 @@
       "notes": "[2026-06-10] Phase 3. Server: computeStatsForUsers now returns sessions30d / volume30d / intensityPoints30d (single-pass). /api/leaderboard/global accepts window=all|30d (30d sorts by sessions30d\u2192volume30d) and both boards got a deterministic userId tie-break. Global already ranked by tier headline score. UI: group rankings (trainer view) + My Leaderboards (Progress) SESSIONS mode gained a LAST 30 DAYS / ALL-TIME toggle, defaulting to 30d per @maaiz so a strong newcomer catches up fast; tier fallback shows '\u2014' not 'Kitten'. STILL PENDING (next slice): backport the trainer-tier badge to group/my-leaderboards/trainer-client rows (needs trainer-tier computed in the groups/mine routes); unify mode-button accent to teal; explicit My-Leaderboards header row. tsc clean. (qa: leaderboard-30d-lens)"
     },
     {
+      "id": "tutorial-coverage-v8",
+      "title": "Tutorial catch-up batch (v8) + automatic coverage scanner",
+      "area": "Onboarding",
+      "introduced": "2026-06-10",
+      "introducedBy": "Phase 5 tutorial pass",
+      "lastTested": "2026-06-10",
+      "status": "regression-retest",
+      "steps": [
+        "Replay the tutorial (Settings → restart tour). Verify the new steps appear: effort/RPE, rest timer, cardio logging, body metrics, Daily Quest, deload weeks, weekly recap + PBs, themes, trainer tools.",
+        "As an existing user on an older bundle, confirm the tutorial re-shows once after the v8 version bump.",
+        "Dev: run `npm run tutorial:scan` — it should pass for the current head (every recent Feat mentions the tutorial) and warn on older untouched feature sections.",
+        "Dev: temporarily add a `## Feat` PATCHLOG section with no tutorial mention → `npm run tutorial:scan --strict` exits non-zero."
+      ],
+      "notes": "[2026-06-10] Phase 5. Added 9 catch-up steps to lib/tutorial.ts for surfaces that had shipped with no tutorial coverage (effort/RPE, rest timer, cardio logging, body metrics, Daily Quest, deload, weekly recap + PB, themes, trainer tools); bumped TUTORIAL_VERSION v7→v8 so existing users re-see it. NEW automatic guard: scripts/tutorial-scan.ts + `npm run tutorial:scan` flags any recent `## Feat` PATCHLOG section whose body never mentions the tutorial (forgot a step) and sanity-checks the steps file; warn by default, --strict for CI. Documented in docs/feature-forcing-rules.md. (qa: tutorial-coverage-v8)"
+    },
+    {
       "id": "plan-min-exercises",
       "title": "Every generated strength day has at least 3 movements (bodyweight top-up guard)",
       "area": "Plan builder",

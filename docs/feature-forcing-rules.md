@@ -49,3 +49,12 @@ Workflow each pass:
 4. If a slice legitimately doesn't change any user-facing surface
    (e.g. pure internal refactor, infra change), no step needed —
    just say so in the PATCHLOG entry so the next reviewer knows.
+5. Before pushing, run `npm run tutorial:scan` (the automatic guard).
+   It looks at the most-recent `## Feat…` PATCHLOG sections and flags
+   any whose body never mentions the tutorial — i.e. a feature shipped
+   without either adding a step OR explaining why none was needed. It
+   also sanity-checks `lib/tutorial.ts` (TUTORIAL_VERSION present, every
+   step has id/title/body). Warn-only by default; `--strict` fails for
+   CI. This is what keeps tutorial coverage from silently drifting as
+   the app grows (the audit found 10+ surfaces that had shipped with no
+   step — hence the v8 catch-up batch + this scanner).

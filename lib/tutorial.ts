@@ -34,7 +34,14 @@ export type TutorialStep = {
 //   · Pinned 📢 IRONLOG SYSTEM feed in the Messages inbox
 //   · Fresh Legs IP bonus + recovery cap (deters IP farming)
 //   · Visible 'Lucky' sub-rank surfaces lifetime drop bonus
-export const TUTORIAL_VERSION = "v7";
+// v8 bump (2026-06-10): catch-up batch for surfaces that shipped
+// without a tutorial step (audit finding), so coverage matches the app:
+//   · RPE / effort logging  · rest-timer behaviour  · cardio logging
+//   · body-metric logging   · Daily Quest           · deload weeks
+//   · weekly recap + PB celebrations  · themes/display  · trainer tools
+// Going forward, `npm run tutorial:scan` flags any recent PATCHLOG
+// feature that didn't touch this file (see scripts/tutorial-scan.ts).
+export const TUTORIAL_VERSION = "v8";
 export const TUTORIAL_STORAGE_KEY = `ironlog-tutorial-seen-${TUTORIAL_VERSION}`;
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -204,5 +211,70 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Tap a done set to edit",
     body: "In an active session, tap any DONE set box (the ✓ ones) to open the EDIT modal for that exercise — fix the weight / reps / RPE without hunting for the EDIT button. Long-press still drops a per-set note like before. (qa: workout-active-edit-set-tap)",
     where: "Active session → tap any ✓ set box",
+  },
+  // ── v8 catch-up batch (2026-06-10) — surfaces that shipped without a
+  //    tutorial step. See PATCHLOG + docs/feature-forcing-rules.md.
+  {
+    id: "effort-rpe",
+    icon: "🎯",
+    title: "Tag your effort (RPE)",
+    body: "After logging a set, pick how hard it felt on the 1–10 effort scale. It's optional but worth it: hard sets (RPE 8–10) earn bonus intensity points, and your effort trend is what tells IronLog when to suggest a recovery week. Skip a few and it'll nudge you.",
+    where: "Active session → effort chips under each set",
+  },
+  {
+    id: "rest-timer",
+    icon: "⏱️",
+    title: "Rest timer runs itself",
+    body: "Log a set and a rest timer starts automatically — full-screen so you can glance at it from across the gym. Tap SKIP when you're ready early; if you dismiss it, a small countdown rides along on the next-set button so you never lose track.",
+    where: "Active session → after LOG SET",
+  },
+  {
+    id: "cardio-logging",
+    icon: "🏃",
+    title: "Logging cardio",
+    body: "Cardio moves (treadmill, bike, rower, intervals) swap the weight/reps inputs for what actually matters — minutes, and where relevant incline, speed or distance. Fill what your machine shows; it all feeds your volume and streak.",
+    where: "Active session → any cardio exercise",
+  },
+  {
+    id: "body-metrics",
+    icon: "⚖️",
+    title: "Log weight & body fat",
+    body: "Add your bodyweight (and body-fat % if you track it) from the Progress dashboard. It powers the Body Comp tier sub-rank, the WEIGHT/BF leaderboards, and your goal-reached celebrations — and trainers can propose updates for their clients.",
+    where: "Progress → Dashboard → log metrics",
+  },
+  {
+    id: "daily-quest",
+    icon: "🎯",
+    title: "Daily Quest",
+    body: "Each day Home shows a Daily Quest — a small bonus objective (hydrate, tag effort, hit a volume target, sneak in cardio…). Complete it for extra intensity points. It refreshes every day, so there's always a fresh one.",
+    where: "Home → DAILY QUEST card",
+  },
+  {
+    id: "deload-week",
+    icon: "🛟",
+    title: "Deload weeks — recover smart",
+    body: "If your recent effort + volume say you're running hot, IronLog suggests a DELOAD: a lighter week (~0.7× load) so you recover and come back stronger. It's a recommendation, not a penalty — accept it or carry on.",
+    where: "Active session → DELOAD SUGGESTED banner",
+  },
+  {
+    id: "recap-and-pbs",
+    icon: "🏆",
+    title: "Weekly recap & personal bests",
+    body: "Hit a new best on any lift and a gold PERSONAL BEST celebration pops — tap to dismiss. Every Sunday a Weekly Recap sums up your sessions, volume and top exercise so you can see the week at a glance.",
+    where: "Anywhere (PBs) · Sundays (recap)",
+  },
+  {
+    id: "themes-display",
+    icon: "🎨",
+    title: "Make it yours — themes",
+    body: "Settings has three looks: IRON (warm premium dark, default), VIVID (neon aurora) and MONO (clean brutalist). There's also a brighter-text option for readability. Pick whatever feels best — it's purely cosmetic.",
+    where: "Settings → APP PREFERENCES",
+  },
+  {
+    id: "trainer-tools",
+    icon: "🧑‍🏫",
+    title: "For trainers",
+    body: "Coaching? Your Clients hub holds your roster and per-client stats/history, you can build custom exercises in MY EXERCISES on Home, propose weight/body-fat updates to clients, and you climb your own trainer tier (Spotter → Hall of Fame) as your clients progress.",
+    where: "Home → Clients · Home → MY EXERCISES",
   },
 ];
