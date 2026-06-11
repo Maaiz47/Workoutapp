@@ -1869,7 +1869,7 @@ function FriendsCard({
             };
             const isFriendSelected = selectedFriends.has(f.friend.id);
             return (
-              <div key={f.id} onClick={() => { if (selectMode) setSelectedFriends(prev => { const next = new Set(prev); if (next.has(f.friend.id)) next.delete(f.friend.id); else next.add(f.friend.id); return next; }); }} style={{ padding: "10px 12px", background: isFriendSelected ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.02)", border: `1px solid ${isFriendSelected ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, marginBottom: 6, display: "flex", alignItems: "center", gap: 8, cursor: selectMode ? "pointer" : "default" }}>
+              <div key={f.id} onClick={() => { if (selectMode) setSelectedFriends(prev => { const next = new Set(prev); if (next.has(f.friend.id)) next.delete(f.friend.id); else next.add(f.friend.id); return next; }); }} style={{ padding: "10px 12px", background: isFriendSelected ? "rgba(78,205,196,0.08)" : "rgba(255,255,255,0.02)", border: `1px solid ${isFriendSelected ? "rgba(78,205,196,0.4)" : "rgba(255,255,255,0.06)"}`, borderRadius: 10, marginBottom: 6, display: "flex", alignItems: "center", gap: 8, cursor: selectMode ? "pointer" : "default", boxShadow: "0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 14px -9px rgba(0,0,0,0.6)" }}>
                 {selectMode && (
                   <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isFriendSelected ? "#4ECDC4" : "rgba(255,255,255,0.2)"}`, background: isFriendSelected ? "#4ECDC4" : "transparent", color: "#000", fontSize: 11, fontWeight: 800, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>{isFriendSelected ? "✓" : ""}</div>
                 )}
@@ -10453,7 +10453,7 @@ function HomePage() {
               return (
               <SortableExerciseItem key={ex.id ?? i} id={exKey} disabled={customMultiMode}>
               {({ isDragging, dragListeners, dragAttributes, dragHandleStyle }) => (
-              <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${isDragging ? "rgba(255,209,102,0.6)" : isSel ? "rgba(255,107,107,0.4)" : inGroup ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 8, position: "relative" }}>
+              <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${isDragging ? "rgba(255,209,102,0.6)" : isSel ? "rgba(255,107,107,0.4)" : inGroup ? "rgba(255,230,109,0.3)" : "rgba(255,255,255,0.06)"}`, borderRadius: 12, padding: "14px 16px", marginBottom: 8, position: "relative", boxShadow: isDragging ? "0 10px 26px -8px rgba(0,0,0,0.7)" : "0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 14px -10px rgba(0,0,0,0.6)" }}>
                 {/* Drag handle — touch-action:none on this element only
                     so scroll on the rest of the card still works on
                     iOS. (qa: workout-exercise-reorder) */}
