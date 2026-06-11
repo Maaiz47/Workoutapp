@@ -46,9 +46,13 @@ done before any deploy. Progress log below; the workstream detail follows.
   customise-exercise rows (`28c1056`), DM empty-state card (`13de730`). The
   depth language is now applied across the audit's flagged flat surfaces.
   Further empty states / minor rows can keep adopting `.card-3d` incrementally.
-- ⏳ **WS7 — icon wire-up**: ready, gated on external art (Batch 16 spec'd).
-- ⏳ **Phase 3 follow-up** (cosmetic): trainer-badge backport (needs trainer
-  tier in 2 routes), teal mode buttons, MyLB header row.
+- ✅ **Phase 3 follow-up — trainer badge** (`1ad52aa`): trainer-tier crest now
+  on group + my-leaderboard rows (closes the leaderboard part of the open
+  `trainer-badge-everywhere` ask). Teal mode buttons intentionally left (each
+  surface's accent is deliberate); MyLB rows already self-label via inline
+  sublabels.
+- ⏳ **WS7 — icon wire-up**: the ONLY blocked item — gated on external art
+  (Batch 16 spec'd; ~20-line wire-up when PNGs land).
 - ⏳ **WS7 — icon wire-up**: ready (Batch 16 spec'd; `TierGlyph` pattern
   exists) but gated on external art generation — no dead code added.
 - ⏳ **Phase 3 follow-up**: trainer-badge backport (needs trainer tier in 2
