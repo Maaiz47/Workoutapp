@@ -38,10 +38,18 @@ done before any deploy. Progress log below; the workstream detail follows.
   `npm run tutorial:scan` (scripts/tutorial-scan.ts) flags any recent `## Feat`
   PATCHLOG section that never mentions the tutorial — the automatic
   keep-it-updated guard. Documented in feature-forcing-rules.md.
-- ⏳ **Phase 6** visual/3D depth · **WS6** test-user splits · **WS7** icon
-  wire-up (the `<IconGlyph>` wrapper; actual PNGs are external art).
-- ⏳ **Phase 3 follow-up**: trainer-badge backport, teal mode buttons, MyLB
-  header row.
+- ✅ **WS6 — test-user splits** (`1fe0283`): synthetic users follow a real
+  split (full-body / upper-lower / PPL) keyed to daysPerWeek; only test users
+  affected.
+- 🚧 **Phase 6 — visual/3D**: foundation done (`096c401`) — depth tokens +
+  view-slide in globals.css, MONO-flattened. **Remaining: apply the tokens to
+  surfaces** (chat bubbles → DMs/groups, inputs `.focus-ring`, exercise
+  browser, friends/clients rows, empty states). This is the large, iterative,
+  subjective slice — best eyeballed on a deploy.
+- ⏳ **WS7 — icon wire-up**: ready (Batch 16 spec'd; `TierGlyph` pattern
+  exists) but gated on external art generation — no dead code added.
+- ⏳ **Phase 3 follow-up**: trainer-badge backport (needs trainer tier in 2
+  routes), teal mode buttons, MyLB header row.
 
 ---
 
