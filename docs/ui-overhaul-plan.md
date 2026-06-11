@@ -184,16 +184,34 @@ consistent empty states.
 | 4 | A2-2 exercise browser + A2-4 friends/clients | M |
 | 5 | A2-6..9 empty states, wellness, onboarding, micro-polish | S-M |
 
-## Open questions for @maaiz (answer before Phase 1)
+## Decisions (from @maaiz, 2026-06-10)
 
-1. **Leaderboard primary metric:** OK to rank everything by headline score
-   (consistent), or keep groups on raw sessions (simpler to grok)?
-2. **30-day lens on leaderboards:** want it? (Biggest competitiveness win.)
-3. **3D intensity:** subtle-premium (current IDENTITY-card direction) or
-   heavier neon/glassmorphism? VIVID theme already covers "loud" — recommend
-   subtle for IRON.
-4. **Swipe visual feedback:** add the sliding-page animation, or keep instant
-   navigation?
-5. **Modal edge-swipe = close:** confirm you want edge-swipe to dismiss
-   full-screen modals (profile preview, pickers) — matches iOS but changes
-   current behaviour.
+1. **Leaderboard metric:** default = **tier ranking** (not raw sessions — raw
+   sessions = "oldest wins", which @maaiz explicitly wants to avoid). Newcomer
+   catch-up handled by the 30-day lens (#2), not by changing the default.
+2. **30-day lens:** YES. Rolling-30-day activity board so a strong newcomer
+   tops it immediately regardless of tenure. Proposed: **30-day default in
+   GROUPS** (current activity), **tier/all-time default on GLOBAL ranks**
+   (prestige). ✅ CONFIRMED by @maaiz 2026-06-10.
+3. **3D intensity:** YES to 3D. Subtle-premium for IRON (IDENTITY-card
+   direction); VIVID stays the loud option.
+4. **Swipe visual feedback:** YES — add the sliding/dimming page animation.
+5. **Modal edge-swipe = close:** YES — edge-swipe dismisses full-screen modals,
+   **but keep the × button too** (both affordances).
+
+**Chat styling:** keep GROUP chats visibly more premium than DMs, but lift DMs
+too (don't leave them flat).
+
+## Scope expansion (2026-06-10) — full audit, not just swipe-back
+
+@maaiz widened this to a full functional audit. Five more parallel audits
+launched; findings fold into this doc + a bug backlog:
+- **Plan builder** working as best as possible (generation + customise).
+- **Tutorial** must cover ALL functions and explain them clearly.
+- **Emoji → premium icons** migration + append needed icons (and any other
+  images) to `image-prompts-v2.md` for future generation.
+- **Test-user auto-activity:** verify test users keep getting fresh random
+  sessions over time per their behavioral pattern + split (not stale/uniform).
+- **Leaderboard defaults** everywhere start from a logical default (tier),
+  with the 30-day catch-up lens.
+- **Broad bug sweep:** any/all broken functions across the app.
