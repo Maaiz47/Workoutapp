@@ -2,6 +2,20 @@
 
 ---
 
+## Fix · 2026-06-10 — Phase 2 swipe-back coverage + basic-function hardening (qa: swipe-back-coverage, group-chat-back-nav)
+
+Second slice of the full-audit backlog. Makes the iOS-style edge-swipe behave everywhere a user expects.
+
+- **Scroller-hijack fixed.** `useSwipeBack` no longer arms when a horizontally-scrollable element (equipment-tag rows, substitute carousels) sits under the touch near the left edge — `hasHorizontalScrollAncestor` walks up from `e.target`. Previously a sideways scroll there navigated the user home.
+- **`customise` (plan editor) now swipes back** — added to `swipeBackViews` with a `customisePrevView` memory so it returns to the active workout when opened mid-session, else home.
+- **Full-screen modals now dismiss on edge-swipe.** A single overlay-dismiss stack registers ~20 full-screen overlays (profile preview, tier modal, day-card expand, daily quest, weekly recap, plateau, substitution, note, history, and the in-workout exercise/session/add-day pickers); edge-swipe closes the topmost open one before falling through to the view back-chain. Per @maaiz the × / backdrop buttons all stay as a second affordance.
+- **Group-chat origin survives reload** — `groupChatPrevView` persists to `sessionStorage`, so backing out after a mid-chat refresh returns to Messages (or Groups) instead of resetting to the default.
+- Swipe navigations now route through `goTo(v, "back")` so the back-slide transition (added in the visual phase) applies automatically.
+
+`npx tsc --noEmit` clean. Tutorial `substitute-exercise`/`reorder-exercises` steps already describe swipe affordances; the new behaviour is additive (no surface added), so no `TUTORIAL_STEPS` change this slice.
+
+---
+
 ## Fix · 2026-06-10 — Phase 1 data-integrity: NaN guards + test-user UTC tick (qa: numeric-nan-guards, test-user-generator)
 
 First slice of the full-audit backlog (`docs/ui-overhaul-plan.md`) — the data-integrity bugs the bug-sweep surfaced, which were quietly corrupting scoring.

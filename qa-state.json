@@ -1411,7 +1411,23 @@
         "Open the Groups view. Tap a group's OPEN CHAT button.",
         "Swipe back. Verify you return to GROUPS, NOT Messages."
       ],
-      "notes": "[2026-05-23] Fixed: was hard-coded `setView('groupsHub')` on swipe-back from group chat regardless of entry path. New groupChatPrevView state ('messages' | 'groupsHub' | 'home') is set when the chat is opened; back-nav reads it. Per @maaiz: 'swiping out of group chat goes to groups page instead of home'."
+      "notes": "[2026-06-10] Hardened: groupChatPrevView now persists to sessionStorage, so a mid-chat reload still backs out to the right origin instead of resetting to the 'groupsHub' default. (qa: swipe-back-coverage)\n\n[2026-05-23] Fixed: was hard-coded `setView('groupsHub')` on swipe-back from group chat regardless of entry path. New groupChatPrevView state ('messages' | 'groupsHub' | 'home') is set when the chat is opened; back-nav reads it. Per @maaiz: 'swiping out of group chat goes to groups page instead of home'."
+    },
+    {
+      "id": "swipe-back-coverage",
+      "title": "Swipe-back coverage — scroller-hijack guard, customise view, full-screen modal dismiss",
+      "area": "Navigation",
+      "introduced": "2026-06-10",
+      "introducedBy": "Phase 2 swipe & basic-function pass",
+      "lastTested": "2026-06-10",
+      "status": "regression-retest",
+      "steps": [
+        "In an active workout, find a horizontally-scrollable row (equipment tags / substitute carousel) near the left edge. Swipe it sideways — it SCROLLS, it does NOT navigate back (was hijacking the gesture).",
+        "Open Customise (plan editor) from home, swipe from the left edge — returns to home. Open it from inside an active workout, swipe back — returns to the workout (not home).",
+        "Open a full-screen overlay (profile preview, tier modal, day-card expand, daily quest, weekly recap, an exercise/session picker). Swipe from the left edge — the overlay closes (the × button still works too). Swiping again then navigates the view beneath.",
+        "Open a group chat from Messages, reload the page mid-chat, swipe back — returns to Messages (not the groupsHub default)."
+      ],
+      "notes": "[2026-06-10] Phase 2. (1) useSwipeBack arms only when no horizontally-scrollable ancestor sits under the touch (hasHorizontalScrollAncestor) — fixes left-edge carousel hijack. (2) 'customise' added to swipeBackViews with a customisePrevView memory (workout vs home). (3) Overlay-dismiss stack: edge-swipe closes the topmost of ~20 registered full-screen overlays before falling through to the view back-chain; every × / backdrop affordance kept. (4) Swipe now routes through goTo(v,'back') so the back-slide transition (Phase 6) will apply. (5) groupChatPrevView persisted to sessionStorage. tsc clean."
     },
     {
       "id": "group-chat-leaderboard-fetch",

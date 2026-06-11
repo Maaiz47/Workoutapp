@@ -684,6 +684,23 @@ function useTimer() {
   return { elapsed, startT, resumeT, stopT, fmt };
 }
 
+// Walk up from the touch target looking for a horizontally-scrollable
+// ancestor (equipment-tag rows, substitute carousels, etc.). If one
+// exists near the left edge the user means to scroll it, NOT trigger
+// the back gesture — arming swipe-back there hijacks the scroll.
+// (qa: swipe-scroller-hijack)
+function hasHorizontalScrollAncestor(el: Element | null): boolean {
+  let node: Element | null = el;
+  for (let i = 0; node && i < 12; i++) {
+    if (node.scrollWidth > node.clientWidth + 4) {
+      const ox = getComputedStyle(node).overflowX;
+      if (ox === "auto" || ox === "scroll") return true;
+    }
+    node = node.parentElement;
+  }
+  return false;
+}
+
 function useSwipeBack(onBack: () => void, enabled: boolean) {
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
@@ -697,7 +714,7 @@ function useSwipeBack(onBack: () => void, enabled: boolean) {
     const onTouchStart = (e: TouchEvent) => {
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
-      active = startX < 60;
+      active = startX < 60 && !hasHorizontalScrollAncestor(e.target as Element | null);
     };
 
     const onTouchEnd = (e: TouchEvent) => {
@@ -6816,9 +6833,19 @@ function HomePage() {
   const [activeGroupChatName, setActiveGroupChatName] = useState<string>("");
   // Where to navigate when the user backs out of the group chat. When
   // opened from the Messages inbox, go back to "messages"; from the
-  // Groups view, back to "groupsHub". Defaults to "groupsHub" for
-  // safety. (qa: group-chat-back-nav)
-  const [groupChatPrevView, setGroupChatPrevView] = useState<"messages" | "groupsHub" | "home">("groupsHub");
+  // Groups view, back to "groupsHub". Persisted to sessionStorage so a
+  // mid-chat reload still backs out to the right origin instead of
+  // resetting to the default. (qa: group-chat-back-nav)
+  const [groupChatPrevView, setGroupChatPrevViewState] = useState<"messages" | "groupsHub" | "home">(() => {
+    try { return (sessionStorage.getItem("ironlog-groupchat-prev") as any) || "groupsHub"; } catch { return "groupsHub"; }
+  });
+  const setGroupChatPrevView = useCallback((v: "messages" | "groupsHub" | "home") => {
+    setGroupChatPrevViewState(v);
+    try { sessionStorage.setItem("ironlog-groupchat-prev", v); } catch {}
+  }, []);
+  // Where to return when backing out of the customise (plan editor)
+  // view — workout if opened mid-session, else home. (qa: customise-swipe-back)
+  const [customisePrevView, setCustomisePrevView] = useState<"home" | "workout">("home");
   const [groupChatMessages, setGroupChatMessages] = useState<Array<{ id: string; fromId: string | null; fromUsername: string | null; fromAvatarId: string | null; body: string; type: string; createdAt: string; deleted?: boolean }>>([]);
   // Active long-press target in group chat — drives the delete
   // affordance overlay for sender-owned bubbles only.
@@ -7174,22 +7201,55 @@ function HomePage() {
   const changeTheme = (t: "iron"|"mono"|"vivid") => { setAppTheme(t); localStorage.setItem("ironlog-theme", t); };
   const changeAccent = (c: string) => { setAccentColor(c); localStorage.setItem("ironlog-accent", c); };
 
-  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "globalLeaderboard", "groupsHub", "groupChat", "clientsHub", "friendsHub", "avatarPicker", "systemNotifs"]);
+  const swipeBackViews = new Set(["conversation", "messages", "clientDetail", "progress", "settings", "profile", "workout", "globalLeaderboard", "groupsHub", "groupChat", "clientsHub", "friendsHub", "avatarPicker", "systemNotifs", "customise"]);
+  // Full-screen dismissible overlays, in close-priority order (topmost
+  // first). Edge-swipe closes the top open overlay BEFORE navigating the
+  // view beneath it; the × / backdrop affordances all stay too, per
+  // @maaiz ("keep the x to close button too"). (qa: swipe-modal-dismiss)
+  const overlayDismissers: { open: boolean; close: () => void }[] = [
+    { open: !!pendingLuckyDrop, close: () => setPendingLuckyDrop(null) },
+    { open: !!questInfo, close: () => setQuestInfo(null) },
+    { open: !!recapShown, close: () => setRecapShown(null) },
+    { open: !!milestoneInfo, close: () => setMilestoneInfo(null) },
+    { open: !!previewUserId, close: () => setPreviewUserId(null) },
+    { open: tierModalOpen, close: () => setTierModalOpen(false) },
+    { open: tipModalOpen, close: () => setTipModalOpen(false) },
+    { open: !!expandingDay, close: () => setExpandingDay(null) },
+    { open: !!plateauModal, close: () => setPlateauModal(null) },
+    { open: !!subModal, close: () => setSubModal(null) },
+    { open: !!noteModal, close: () => setNoteModal(null) },
+    { open: !!openHist, close: () => setOpenHist(null) },
+    { open: showFinishPrompt, close: () => setShowFinishPrompt(false) },
+    { open: showAddInWorkout, close: () => setShowAddInWorkout(false) },
+    { open: showSessionExBrowser, close: () => setShowSessionExBrowser(false) },
+    { open: showAddDayPicker, close: () => setShowAddDayPicker(false) },
+    { open: showExBrowser, close: () => setShowExBrowser(false) },
+    { open: showExCreator, close: () => { setShowExCreator(false); resetExCreator(); } },
+    { open: showTipsLibrary, close: () => setShowTipsLibrary(false) },
+    { open: showAchievements, close: () => setShowAchievements(false) },
+  ];
+  const anyOverlayOpen = overlayDismissers.some(o => o.open);
   useSwipeBack(() => {
-    if (view === "conversation") { setView("messages"); setActiveConversation(null); }
-    else if (view === "messages") setView("home");
-    else if (view === "clientDetail") { setView("clientsHub"); setEditingPlan(false); setEditedPlanDays(null); }
-    else if (view === "progress") { setView("home"); }
-    else if (view === "settings" || view === "profile") setView("home");
-    else if (view === "globalLeaderboard") setView("home");
-    else if (view === "groupsHub") setView("home");
-    else if (view === "clientsHub") setView("home");
-    else if (view === "friendsHub") setView("home");
-    else if (view === "groupChat") setView(groupChatPrevView);
-    else if (view === "workout" && started) setView("home"); // leave but keep session alive
-    else if (view === "avatarPicker") setView("profile"); // avatar picker → back to Settings → Profile
-    else if (view === "systemNotifs") setView("messages"); // system feed lives under Messages
-  }, swipeBackViews.has(view));
+    // 1. Close the topmost open overlay first, if any.
+    const top = overlayDismissers.find(o => o.open);
+    if (top) { top.close(); return; }
+    // 2. Otherwise walk the view back-chain (routes through goTo so the
+    //    back-slide transition plays).
+    if (view === "conversation") { goTo("messages", "back"); setActiveConversation(null); }
+    else if (view === "messages") goTo("home", "back");
+    else if (view === "clientDetail") { goTo("clientsHub", "back"); setEditingPlan(false); setEditedPlanDays(null); }
+    else if (view === "progress") goTo("home", "back");
+    else if (view === "settings" || view === "profile") goTo("home", "back");
+    else if (view === "globalLeaderboard") goTo("home", "back");
+    else if (view === "groupsHub") goTo("home", "back");
+    else if (view === "clientsHub") goTo("home", "back");
+    else if (view === "friendsHub") goTo("home", "back");
+    else if (view === "groupChat") goTo(groupChatPrevView, "back");
+    else if (view === "workout" && started) goTo("home", "back"); // leave but keep session alive
+    else if (view === "avatarPicker") goTo("profile", "back"); // avatar picker → back to Settings → Profile
+    else if (view === "systemNotifs") goTo("messages", "back"); // system feed lives under Messages
+    else if (view === "customise") goTo(customisePrevView, "back"); // plan editor → workout or home
+  }, swipeBackViews.has(view) || anyOverlayOpen);
 
   // On mount: check browser permission; if already granted, re-register subscription
   useEffect(() => {
@@ -8394,6 +8454,7 @@ function HomePage() {
 
   const openCustomise = async () => {
     setEditingDay(null);
+    setCustomisePrevView(view === "workout" ? "workout" : "home");
     if (!customPlan) {
       const res = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "init" }) });
       const data = await res.json();
