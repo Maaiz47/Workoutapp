@@ -46,6 +46,12 @@ export async function GET(req: NextRequest) {
   //   'with-trainer'  — only athletes who have an adopted trainer
   // Trainer board ignores this. (qa: global-leaderboard-coached-filter)
   const coached = (req.nextUrl.searchParams.get("coached") || "all") as "all" | "solo" | "with-trainer";
+  // Ranking window:
+  //   'all'  — tier headline score, all-time (default; prestige board)
+  //   '30d'  — rolling 30-day activity (distinct days → volume), so a
+  //            strong newcomer can climb regardless of tenure.
+  // (qa: leaderboard-30d-lens)
+  const window = (req.nextUrl.searchParams.get("window") || "all") as "all" | "30d";
   const defaultLimits: Record<typeof lens, number> = { top: 100, band: 50, around: 11 } as any;
   const limit = Math.max(1, Math.min(200, parseInt(req.nextUrl.searchParams.get("limit") || "") || defaultLimits[lens]));
 
@@ -53,14 +59,14 @@ export async function GET(req: NextRequest) {
     if (kind === "trainer") {
       return await trainerBoard(uid, lens, limit);
     }
-    return await athleteBoard(uid, lens, limit, coached);
+    return await athleteBoard(uid, lens, limit, coached, window);
   } catch (e: any) {
     console.error("global leaderboard error:", e);
     return json({ error: e?.message ?? "Failed" }, 500);
   }
 }
 
-async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", limit: number, coached: "all" | "solo" | "with-trainer") {
+async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", limit: number, coached: "all" | "solo" | "with-trainer", window: "all" | "30d" = "all") {
   // Pull every user who has logged at least MIN_SESSIONS sessions.
   // Counting via _count keeps this cheap — no joins into the sets
   // JSON payloads.
@@ -158,7 +164,7 @@ async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", 
     });
   }
 
-  type Row = { rank: number; userId: string; username: string; avatarId: string | null; anonymous: boolean; tierNum: number; tierIconPath?: string; tierEmoji?: string; score: number; totalSessions: number; streak: number; prCount: number; trainerTier: { tierNum: number; label: string; icon: string; iconPath?: string; color: string } | null; hasTrainer: boolean; };
+  type Row = { rank: number; userId: string; username: string; avatarId: string | null; anonymous: boolean; tierNum: number; tierIconPath?: string; tierEmoji?: string; score: number; totalSessions: number; streak: number; prCount: number; sessions30d: number; volume30d: number; trainerTier: { tierNum: number; label: string; icon: string; iconPath?: string; color: string } | null; hasTrainer: boolean; };
 
   const allRows: Row[] = candidates
     .filter((c: any) => qualifiedIds.includes(c.id))
@@ -180,6 +186,8 @@ async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", 
         totalSessions: s?.totalSessions ?? 0,
         streak: s?.streak ?? 0,
         prCount: s?.prCount ?? 0,
+        sessions30d: s?.sessions30d ?? 0,
+        volume30d: s?.volume30d ?? 0,
         trainerTier: trainerTierByUser.get(c.id) ?? null,
         hasTrainer: coachedClientIds.has(c.id),
       };
@@ -189,7 +197,13 @@ async function athleteBoard(viewerUid: string, lens: "top" | "band" | "around", 
       if (coached === "with-trainer") return r.hasTrainer;
       return true;
     })
-    .sort((a, b) => b.score - a.score || b.totalSessions - a.totalSessions);
+    // Window-aware ranking with a deterministic final tie-break (userId)
+    // so equal scores never reorder between requests. (qa: leaderboard-30d-lens)
+    .sort((a, b) =>
+      window === "30d"
+        ? (b.sessions30d - a.sessions30d || b.volume30d - a.volume30d || b.score - a.score || a.userId.localeCompare(b.userId))
+        : (b.score - a.score || b.totalSessions - a.totalSessions || a.userId.localeCompare(b.userId))
+    );
   allRows.forEach((r, i) => { r.rank = i + 1; });
 
   const viewer = allRows.find(r => r.userId === viewerUid) ?? null;
@@ -294,7 +308,7 @@ async function trainerBoard(viewerUid: string, lens: "top" | "band" | "around", 
       clientsWithRecentPR,
       selfAthleteScore,
     };
-  }).sort((a, b) => b.score - a.score || b.rosterCount - a.rosterCount);
+  }).sort((a, b) => b.score - a.score || b.rosterCount - a.rosterCount || a.userId.localeCompare(b.userId));
   allRows.forEach((r, i) => { r.rank = i + 1; });
 
   const viewer = allRows.find(r => r.userId === viewerUid) ?? null;
