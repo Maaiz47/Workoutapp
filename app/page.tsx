@@ -3886,7 +3886,7 @@ function TestUserGeneratorPanel() {
             ))}
           </div>
           <div style={{ marginTop: 10, fontSize: 9, color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>
-            Daily cron auto-ticks each user at 9am UTC. Use ADVANCE to fast-forward N days. Wipe deletes every test user + cascades their data (workouts, body metrics, trainer-client links).
+            Daily cron auto-ticks each user at 23:00 UTC — one day of activity per run, so they log throughout the week like real members. Use ADVANCE to fast-forward N days. Wipe deletes every test user + cascades their data (workouts, body metrics, trainer-client links).
           </div>
         </>
       )}
@@ -8172,17 +8172,23 @@ function HomePage() {
         if (goalWeight && data.metric.weightKg != null) {
           const target = parseFloat(goalWeight);
           const val = data.metric.weightKg;
-          const prevAtGoal = bodyMetrics.some(m => m.weightKg != null && Math.abs(m.weightKg - target) <= 1.0);
-          if (!prevAtGoal && Math.abs(val - target) <= 1.0) {
-            celebrations.push({ type: 'weight', target, value: val });
+          // Guard NaN — a non-finite target makes every comparison false,
+          // so the celebration would silently never fire. (qa: numeric-nan-guards)
+          if (Number.isFinite(target)) {
+            const prevAtGoal = bodyMetrics.some(m => m.weightKg != null && Math.abs(m.weightKg - target) <= 1.0);
+            if (!prevAtGoal && Math.abs(val - target) <= 1.0) {
+              celebrations.push({ type: 'weight', target, value: val });
+            }
           }
         }
         if (goalBf && data.metric.bodyFatPct != null) {
           const target = parseFloat(goalBf);
           const val = data.metric.bodyFatPct;
-          const prevAtGoal = bodyMetrics.some(m => m.bodyFatPct != null && Math.abs(m.bodyFatPct - target) <= 1.0);
-          if (!prevAtGoal && Math.abs(val - target) <= 1.0) {
-            celebrations.push({ type: 'bf', target, value: val });
+          if (Number.isFinite(target)) {
+            const prevAtGoal = bodyMetrics.some(m => m.bodyFatPct != null && Math.abs(m.bodyFatPct - target) <= 1.0);
+            if (!prevAtGoal && Math.abs(val - target) <= 1.0) {
+              celebrations.push({ type: 'bf', target, value: val });
+            }
           }
         }
         if (celebrations.length > 0) {

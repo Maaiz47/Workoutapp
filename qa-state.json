@@ -2864,7 +2864,7 @@
       "area": "Dev tools",
       "introduced": "2026-05-23",
       "introducedBy": "QA pass test-user-generator",
-      "lastTested": "2026-05-23",
+      "lastTested": "2026-06-10",
       "status": "regression-retest",
       "steps": [
         "Set `CRON_SECRET` env var in Vercel (any random string). Without this the daily cron's auth header won't be recognised by /api/admin/test-users/cron-tick.",
@@ -2878,7 +2878,24 @@
         "Tap \ud83d\uddd1\ufe0f WIPE ALL \u2192 confirm. Verify all 15 test users disappear, their workouts/body metrics/trainer-client links cascade-delete.",
         "Cron verification: after a day has passed with the cron enabled, verify each non-quitter test user has one more workout log (if their dice roll said train today) or no change (if it said skip)."
       ],
-      "notes": "[2026-05-23 <sha7>] Shipped: full system. lib/testUsers.ts owns the archetype catalogue + seed roster + day-roll logic. /api/admin/test-users handles seed/wipe/advance/tick/set-visibility via action-discriminated POST. /api/admin/test-users/cron-tick is the Vercel cron entry point (daily at 09:00 UTC). Settings \u2192 DEV TOOLS panel surfaces controls + the shared password. Leaderboards (/api/leaderboard/global) filter test users unless AppConfig.showTestUsersInLeaderboards is on. Schema: User.isTestUser + User.testArchetype + new AppConfig key/value table."
+      "notes": "[2026-06-10] Logic review (no behaviour change to the control plane — it was already sound: SEED creates 15, WIPE deletes only isTestUser=true + cascades, ADVANCE/TICK synthesise activity, visibility defaults OFF so real users are never affected). Two consistency fixes: (1) the cron actually runs at 23:00 UTC (vercel.json '0 23 * * *'), but the panel footer AND this note previously said 09:00 UTC — corrected the panel text. (2) tickAllTestUsers now buckets the simulated day at setUTCHours(0,0,0,0) instead of server-local midnight, matching the UTC isoDay convention streaks read (was a latent off-by-one on any non-UTC host). (qa: numeric-nan-guards)\n\n[2026-05-23 <sha7>] Shipped: full system. lib/testUsers.ts owns the archetype catalogue + seed roster + day-roll logic. /api/admin/test-users handles seed/wipe/advance/tick/set-visibility via action-discriminated POST. /api/admin/test-users/cron-tick is the Vercel cron entry point (daily at 09:00 UTC). Settings \u2192 DEV TOOLS panel surfaces controls + the shared password. Leaderboards (/api/leaderboard/global) filter test users unless AppConfig.showTestUsersInLeaderboards is on. Schema: User.isTestUser + User.testArchetype + new AppConfig key/value table."
+    },
+    {
+      "id": "numeric-nan-guards",
+      "title": "Numeric inputs are NaN-guarded \u2014 no NaN reaches the DB; goal celebrations fire",
+      "area": "Data integrity",
+      "introduced": "2026-06-10",
+      "introducedBy": "Phase 1 data-integrity pass",
+      "lastTested": "2026-06-10",
+      "status": "regression-retest",
+      "steps": [
+        "Log a body metric with a non-numeric weight (e.g. paste 'abc' if the field allows it, or via API): POST /api/metrics returns 400 'Weight must be a number' instead of storing NaN.",
+        "Set a goal weight, then log a real metric within 1kg of it: the GOAL REACHED celebration fires (previously a NaN-stored target made the comparison silently false).",
+        "Onboarding / edit profile with a valid height + weight saves normally; a non-numeric height/weight returns 400 rather than corrupting the profile.",
+        "Upload a progress photo with a junk weight snapshot: the photo still saves, weight stored as null not NaN.",
+        "Set a target weight/body fat to blank: the goal clears (null) rather than storing NaN."
+      ],
+      "notes": "[2026-06-10] Phase 1 fix. New lib/num.ts safeFloat()/safeInt() (finite-or-null). Applied at every user-numeric parse site: /api/metrics (POST 400 on junk), /api/profile (PATCH targets + POST body stats, required ones validated), /api/photos (weight snapshot). Client: goal-reached detection in app/page.tsx now guards Number.isFinite(target) so a NaN target can't silently suppress the celebration. Root cause: parseFloat('abc') = NaN slips past `if (x)` and poisons tier scoring / body-comp trends / goal compares. tsc clean."
     },
     {
       "id": "tier-themes",

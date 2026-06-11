@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { safeFloat } from "../../../lib/num";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
@@ -28,8 +29,12 @@ export async function POST(req: NextRequest) {
     const { weightKg, bodyFatPct, date, timeOfDay } = await req.json();
     if (!weightKg && !bodyFatPct) return json({ error: "Provide at least one value" }, 400);
 
-    const parsedWeight = weightKg ? parseFloat(weightKg) : null;
-    const parsedBf = bodyFatPct ? parseFloat(bodyFatPct) : null;
+    // Guard against NaN poisoning the DB — a provided-but-unparseable
+    // value is a 400, not a silent null/NaN write. (qa: numeric-nan-guards)
+    const parsedWeight = safeFloat(weightKg);
+    const parsedBf = safeFloat(bodyFatPct);
+    if (weightKg && parsedWeight === null) return json({ error: "Weight must be a number" }, 400);
+    if (bodyFatPct && parsedBf === null) return json({ error: "Body fat must be a number" }, 400);
     // Whitelist timeOfDay so junk values can't end up in the DB.
     // (qa: body-metric-timeofday)
     const parsedTod = timeOfDay === "morning" || timeOfDay === "evening" ? timeOfDay : null;

@@ -507,7 +507,10 @@ export async function wipeTestUsers(): Promise<{ deleted: number }> {
 export async function tickAllTestUsers(forDateMs?: number): Promise<{ processed: number; trained: number; skipped: number }> {
   const targetMs = forDateMs ?? Date.now();
   const dayStart = new Date(targetMs);
-  dayStart.setHours(0, 0, 0, 0);
+  // UTC midnight, not server-local — streaks/isoDay read UTC ISO dates
+  // everywhere, so bucketing the simulated day at local midnight would
+  // off-by-one streaks on any non-UTC host. (qa: numeric-nan-guards / tz)
+  dayStart.setUTCHours(0, 0, 0, 0);
   const dayStartMs = +dayStart;
   const dayEndMs = dayStartMs + 86400000;
   const users = await prisma.user.findMany({

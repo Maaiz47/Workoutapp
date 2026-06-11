@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { prisma } from "../../../lib/prisma";
+import { safeFloat } from "../../../lib/num";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
@@ -38,7 +39,8 @@ export async function POST(req: NextRequest) {
 
     const weightStr = form.get("weightKg");
     const notesStr = form.get("notes");
-    const weightKg = weightStr ? parseFloat(String(weightStr)) : null;
+    // NaN-guard: a junk weight snapshot becomes null, not NaN. (qa: numeric-nan-guards)
+    const weightKg = safeFloat(weightStr);
     const notes = notesStr ? String(notesStr).slice(0, 240) : null;
 
     // Per-user pathing keeps blobs separated. Random suffix so URL is

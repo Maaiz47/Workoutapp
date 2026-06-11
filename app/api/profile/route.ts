@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { safeFloat } from "../../../lib/num";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
@@ -23,8 +24,10 @@ export async function PATCH(req: NextRequest) {
     const profile = await prisma.userProfile.update({
       where: { userId: uid },
       data: {
-        targetWeightKg:   targetWeightKg   !== undefined ? (targetWeightKg   ? parseFloat(targetWeightKg)   : null) : undefined,
-        targetBodyFatPct: targetBodyFatPct !== undefined ? (targetBodyFatPct ? parseFloat(targetBodyFatPct) : null) : undefined,
+        // safeFloat → invalid input clears the goal (null) instead of
+        // storing NaN, which would break goal-reached detection. (qa: numeric-nan-guards)
+        targetWeightKg:   targetWeightKg   !== undefined ? safeFloat(targetWeightKg)   : undefined,
+        targetBodyFatPct: targetBodyFatPct !== undefined ? safeFloat(targetBodyFatPct) : undefined,
         hiitPreference:   hiitPreference   !== undefined ? hiitPreference   : undefined,
         hiitIntensity:    hiitIntensity    !== undefined ? hiitIntensity    : undefined,
         cardioPreference: cardioPreference !== undefined ? cardioPreference : undefined,
@@ -56,8 +59,14 @@ export async function POST(req: NextRequest) {
     if (!dob || !gender || !heightCm || !weightKg || goalsArr.length === 0 || !fitnessLevel || !location || !daysPerWeek)
       return json({ error: "Missing required fields" }, 400);
 
-    const newWeightKg = parseFloat(weightKg);
-    const newBodyFatPct = bodyFatPct ? parseFloat(bodyFatPct) : null;
+    // NaN-guard all numeric body stats — required ones must parse to a
+    // finite number, optional body fat clears to null. (qa: numeric-nan-guards)
+    const newHeightCm = safeFloat(heightCm);
+    const newWeightKg = safeFloat(weightKg);
+    const newBodyFatPct = safeFloat(bodyFatPct);
+    const newDaysPerWeek = parseInt(daysPerWeek);
+    if (newHeightCm === null || newWeightKg === null || !Number.isFinite(newDaysPerWeek))
+      return json({ error: "Height, weight and days/week must be numbers" }, 400);
 
     // Check existing values to detect body stat changes
     const existing = await prisma.userProfile.findUnique({ where: { userId: uid } });
@@ -77,7 +86,7 @@ export async function POST(req: NextRequest) {
         userId: uid,
         dob: new Date(dob),
         gender,
-        heightCm: parseFloat(heightCm),
+        heightCm: newHeightCm,
         weightKg: newWeightKg,
         bodyFatPct: newBodyFatPct,
         goal: primaryGoal,
@@ -87,7 +96,7 @@ export async function POST(req: NextRequest) {
         equipment: equipment || [],
         ...(equipmentHome !== undefined && { equipmentHome: equipmentHome || [] } as any),
         ...(equipmentGym !== undefined && { equipmentGym: equipmentGym || [] } as any),
-        daysPerWeek: parseInt(daysPerWeek),
+        daysPerWeek: newDaysPerWeek,
         targetArea: targetArea || "none",
         ...((targetAreas !== undefined) && { targetAreas: targetAreas || [] } as any),
         ...((modalities !== undefined) && { modalities: Array.isArray(modalities) ? modalities : [] } as any),
@@ -95,7 +104,7 @@ export async function POST(req: NextRequest) {
         ...((cardioPreference !== undefined) && { cardioPreference: cardioPreference || null } as any),
       },
       update: {
-        heightCm: parseFloat(heightCm),
+        heightCm: newHeightCm,
         weightKg: newWeightKg,
         bodyFatPct: newBodyFatPct,
         goal: primaryGoal,
@@ -105,7 +114,7 @@ export async function POST(req: NextRequest) {
         equipment: equipment || [],
         ...(equipmentHome !== undefined && { equipmentHome: equipmentHome || [] } as any),
         ...(equipmentGym !== undefined && { equipmentGym: equipmentGym || [] } as any),
-        daysPerWeek: parseInt(daysPerWeek),
+        daysPerWeek: newDaysPerWeek,
         targetArea: targetArea || "none",
         ...((targetAreas !== undefined) && { targetAreas: targetAreas || [] } as any),
         ...((modalities !== undefined) && { modalities: Array.isArray(modalities) ? modalities : [] } as any),

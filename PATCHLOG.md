@@ -2,6 +2,18 @@
 
 ---
 
+## Fix · 2026-06-10 — Phase 1 data-integrity: NaN guards + test-user UTC tick (qa: numeric-nan-guards, test-user-generator)
+
+First slice of the full-audit backlog (`docs/ui-overhaul-plan.md`) — the data-integrity bugs the bug-sweep surfaced, which were quietly corrupting scoring.
+
+**NaN guards.** `parseFloat("abc")` returns `NaN`, which is truthy enough to slip past `if (x)` checks and then poison everything downstream — tier scoring, body-comp trends, goal-reached detection. New `lib/num.ts` (`safeFloat`/`safeInt` → finite-or-null) is now used at every user-supplied numeric parse site: `app/api/metrics/route.ts` (POST now 400s on a junk weight/body-fat instead of writing NaN), `app/api/profile/route.ts` (PATCH goal targets + POST body stats — required height/weight/days validated, optional body-fat clears to null), `app/api/photos/route.ts` (weight snapshot → null not NaN). Client-side, the **goal-reached celebration** (`app/page.tsx`) now guards `Number.isFinite(target)` — a NaN target previously made every comparison false, so the celebration silently never fired.
+
+**Test-user system.** Logic review confirmed the admin control plane is sound (SEED creates the 15-user roster, WIPE deletes only `isTestUser` rows + cascades, ADVANCE/TICK synthesise activity, leaderboard visibility defaults OFF so real users are never affected). Two consistency fixes: `tickAllTestUsers` now buckets the simulated day at `setUTCHours(0,0,0,0)` (was server-local midnight — a latent off-by-one against the UTC `isoDay` convention streaks read on any non-UTC host); and the Settings → DEV TOOLS panel footer now states the real cron time (23:00 UTC, per `vercel.json`) instead of a stale "9am UTC".
+
+`npx tsc --noEmit` clean. No UI surface added (bug fixes + one corrected label), so no `TUTORIAL_STEPS` change.
+
+---
+
 ## Fix · 2026-06-09 — Open & edit an existing custom exercise (was DELETE-only) (qa: trainer-custom-exercises)
 
 @maaiz: *"Can't open my existing custom exercise, only shows a delete button."* The home **MY EXERCISES** list rendered each saved custom exercise with a single **DEL** button — there was no way to open one and change a field. Adding it via the **+ NEW** creator and then spotting a typo meant deleting and re-creating from scratch.
