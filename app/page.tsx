@@ -15056,9 +15056,10 @@ function HomePage() {
       })()}
       <div ref={messagesContainerRef} onClick={() => setReactingToMsgId(null)} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {conversationMessages.length === 0 && (
-          <div style={{ textAlign: "center", marginTop: 40 }}>
-            <img src="/ai/empty-messages.jpg" alt="" style={{ width: 140, height: 140, opacity: 0.5, borderRadius: 14, marginBottom: 12 }} />
-            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No messages yet</div>
+          <div style={{ textAlign: "center", marginTop: 36, marginLeft: "auto", marginRight: "auto", maxWidth: 280, padding: "24px 20px", background: "linear-gradient(135deg, rgba(78,205,196,0.06), rgba(255,255,255,0.02))", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, boxShadow: "0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 28px -12px rgba(0,0,0,0.6)" }}>
+            <img src="/ai/empty-messages.jpg" alt="" style={{ width: 120, height: 120, opacity: 0.55, borderRadius: 14, marginBottom: 12 }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Say hello 👋</div>
+            <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, lineHeight: 1.5 }}>No messages yet — type below to start the conversation.</div>
           </div>
         )}
         {conversationMessages.map(msg => {
