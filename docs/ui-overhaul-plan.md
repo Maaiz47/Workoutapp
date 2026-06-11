@@ -25,8 +25,16 @@ done before any deploy. Progress log below; the workstream detail follows.
   tier ranking. **Follow-up slice still pending:** trainer-badge backport to
   group/my-leaderboards/trainer-client rows (needs trainer tier in those
   routes), teal mode buttons, explicit My-Leaderboards header row.
-- ⏳ **Phase 4** plan builder · **Phase 5** tutorial catch-up + auto-update ·
-  **Phase 6** visual/3D · **WS6** test-user splits · **WS7** icon wire-up.
+- ✅ **Phase 4 — plan builder** (`d7cce84`, `8046806`): **fixed the warm-up
+  equipment bug Mashir reported** (no-equipment primer + strict equipment
+  matching — was prescribing a Stationary Bike to everyone); steady-cardio
+  scales to the session window; ≥3-exercise-per-day guard; overhead-press
+  home eligibility. Remaining (verification, not code): manually retest
+  routines-save / supersets / dropsets; quality extras (volume balance,
+  progression notes) are non-blocking. Known follow-up: Band Pull-Apart band
+  check.
+- ⏳ **Phase 5** tutorial catch-up + auto-update · **Phase 6** visual/3D ·
+  **WS6** test-user splits · **WS7** icon wire-up.
 
 ---
 
