@@ -13713,6 +13713,13 @@ function HomePage() {
                     borderRadius: 14,
                     color: msg.deleted ? "rgba(255,255,255,0.45)" : "#fff",
                     fontSize: 13.5, lineHeight: 1.45, wordBreak: "break-word",
+                    // Group bubbles keep the richer gradient (more premium than
+                    // DMs) + a matching directional shadow. (qa: chat-bubble-depth)
+                    boxShadow: msg.deleted
+                      ? "none"
+                      : isMine
+                        ? "0 3px 12px -3px rgba(255,107,107,0.40), 0 1px 0 rgba(255,255,255,0.10) inset"
+                        : "0 2px 8px -3px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.04) inset",
                     fontStyle: msg.deleted ? "italic" : undefined,
                   }}
                 >
@@ -15299,6 +15306,15 @@ function HomePage() {
                   borderStyle: msg.deleted ? "dashed" : "solid",
                   borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
                   padding: "10px 14px",
+                  // Subtle directional depth (Phase 6) — outgoing bubbles get a
+                  // soft teal-tinted lift, incoming a neutral drop. Groups keep
+                  // their richer gradient so they still read more premium than
+                  // DMs. MONO flattens inline shadows automatically. (qa: chat-bubble-depth)
+                  boxShadow: msg.deleted
+                    ? "none"
+                    : isMine
+                      ? "0 2px 10px -3px rgba(78,205,196,0.30), 0 1px 0 rgba(255,255,255,0.05) inset"
+                      : "0 2px 8px -3px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.04) inset",
                   willChange: "transform",
                   fontStyle: msg.deleted ? "italic" : undefined,
                 }}

@@ -2,6 +2,12 @@
 
 ---
 
+## Polish · 2026-06-10 — Phase 6 surface: chat bubbles get directional depth (qa: visual-depth-foundation)
+
+First surface to adopt the Phase 6 depth language. Chat was the audit's flattest core surface. DM bubbles now get a subtle directional shadow — outgoing a soft teal-tinted lift, incoming a neutral drop, both with a faint inset top highlight. Group bubbles keep their richer `#FF6B6B→#ee5a24` gradient (so groups still read more premium than DMs, per @maaiz) plus a matching shadow. Deleted-message placeholders stay flat. MONO flattens the inline shadows automatically, so the brutalist theme is unaffected. `npx tsc --noEmit` clean; visual-only, no `TUTORIAL_STEPS` change.
+
+---
+
 ## Feat · 2026-06-10 — Phase 6 foundation: shared 3D depth tokens + view-slide (qa: visual-depth-foundation)
 
 Start of the visual/3D pass. Lays the reusable depth vocabulary the rest of Phase 6 will apply to the flat surfaces, rather than redesigning anything — extends the existing IDENTITY-card / nav-button language @maaiz approved ("yes, subtle-premium for IRON").
