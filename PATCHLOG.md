@@ -2,6 +2,12 @@
 
 ---
 
+## Fix · 2026-06-10 — Phase 3 follow-up: trainer-tier crest on group + my-leaderboard rows (qa: trainer-badge-everywhere)
+
+Closes the open `trainer-badge-everywhere` ask for the leaderboard surfaces. The global board already showed a dual-role user's trainer crest; the GROUP rankings and Progress → **My Leaderboards** didn't. Both `/api/leaderboard/groups` and `/api/leaderboard/mine` now compute a per-member `trainerTier` (via `trainerTierFromClientCount`) for any member whose `role`/`extraRoles` includes `trainer`, and the rows render a second `TierGlyph` crest beside the athlete tier with the trainer rung name in the subtitle. So a coach who's also lifting shows both their athlete tier and their Spotter→Hall-of-Fame trainer rung wherever they appear on a board. The trainer-client block is exempt (its rows are the clients/athletes). `npx tsc --noEmit` clean; no new surface, so no `TUTORIAL_STEPS` change.
+
+---
+
 ## Polish · 2026-06-10 — Phase 6 surface: chat bubbles get directional depth (qa: visual-depth-foundation)
 
 First surface to adopt the Phase 6 depth language. Chat was the audit's flattest core surface. DM bubbles now get a subtle directional shadow — outgoing a soft teal-tinted lift, incoming a neutral drop, both with a faint inset top highlight. Group bubbles keep their richer `#FF6B6B→#ee5a24` gradient (so groups still read more premium than DMs, per @maaiz) plus a matching shadow. Deleted-message placeholders stay flat. MONO flattens the inline shadows automatically, so the brutalist theme is unaffected. `npx tsc --noEmit` clean; visual-only, no `TUTORIAL_STEPS` change.

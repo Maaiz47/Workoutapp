@@ -43,6 +43,28 @@ export async function GET(req: NextRequest) {
     const allUserIds = Array.from(new Set(groups.flatMap(g => g.members.map(m => m.userId))));
     const statsByUser = await computeStatsForUsers(allUserIds);
 
+    // Trainer badge for ANY member who's a trainer (not just the group
+    // creator) so the trainer-tier crest shows wherever an athlete avatar
+    // does — group rankings included. (qa: trainer-badge-everywhere)
+    const memberRoleRows = await prisma.user.findMany({
+      where: { id: { in: allUserIds } },
+      select: { id: true, role: true, extraRoles: true },
+    });
+    const trainerMemberIds = memberRoleRows
+      .filter(u => u.role === "trainer" || (u.extraRoles ?? []).includes("trainer"))
+      .map(u => u.id);
+    const memberTrainerTierById: Record<string, { label: string; icon: string; iconPath?: string; tierNum: number } | null> = {};
+    if (trainerMemberIds.length > 0) {
+      const counts = await prisma.trainerClient.groupBy({
+        by: ["trainerId"],
+        where: { trainerId: { in: trainerMemberIds } },
+        _count: { clientId: true },
+      });
+      const countById: Record<string, number> = {};
+      for (const c of counts) countById[c.trainerId] = c._count.clientId;
+      for (const tid of trainerMemberIds) memberTrainerTierById[tid] = trainerTierFromClientCount(countById[tid] ?? 0);
+    }
+
     // Resolve each group creator's trainer tier (when they're a
     // trainer) so the client can render an X-LED chip with the actual
     // rung name instead of a generic COACH-LED chip. Client counts
@@ -76,7 +98,7 @@ export async function GET(req: NextRequest) {
 
     const result = groups.map(g => ({
       ...g,
-      members: g.members.map(m => ({ ...m, stats: statsByUser.get(m.userId) ?? null })),
+      members: g.members.map(m => ({ ...m, stats: statsByUser.get(m.userId) ?? null, trainerTier: memberTrainerTierById[m.userId] ?? null })),
       creatorTier: creatorTierById[g.createdBy] ?? null,
     }));
 

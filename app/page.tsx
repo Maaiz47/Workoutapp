@@ -14302,6 +14302,7 @@ function HomePage() {
                               username: m.user?.username ?? "unknown",
                               avatarId: m.user?.profile?.avatarId ?? null,
                               role: m.role,
+                              trainerTier: m.trainerTier ?? null,
                               totalSessions: m.stats?.totalSessions ?? 0,
                               sessions30d: m.stats?.sessions30d ?? 0,
                               volume30d: m.stats?.volume30d ?? 0,
@@ -14455,9 +14456,10 @@ function HomePage() {
                                         <button onClick={() => { if (!isMe) openProfilePreview(m.userId); }} style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, background: "none", border: "none", padding: 0, textAlign: "left", cursor: isMe ? "default" : "pointer", color: "inherit" }}>
                                           <UserAvatarChip avatarId={m.avatarId} username={m.username} size={24} role={m.role} />
                                           <TierGlyph src={tier.iconPath} emoji={tier.icon} size={24} />
+                                          {m.trainerTier && <TierGlyph src={m.trainerTier.iconPath} emoji={m.trainerTier.icon} size={18} />}
                                           <div style={{ minWidth: 0 }}>
                                             <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? "#4ECDC4" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isMe ? "YOU" : `@${m.username}`}</div>
-                                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.label}{m.role === "trainer" ? " · TRAINER" : ""}</div>
+                                            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{tier.label}{m.trainerTier ? ` · ${m.trainerTier.label}` : (m.role === "trainer" ? " · TRAINER" : "")}</div>
                                           </div>
                                         </button>
                                       </>
@@ -17116,9 +17118,10 @@ function HomePage() {
                                   <button onClick={() => { if (!isMe) openProfilePreview(entry.userId); }} style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, background: "none", border: "none", padding: 0, textAlign: "left", cursor: isMe ? "default" : "pointer", color: "inherit" }}>
                                     <UserAvatarChip avatarId={entry.avatarId} username={entry.username} size={24} role={entry.role} />
                                     <TierGlyph src={entry.tier?.iconPath} emoji={entry.tier?.icon ?? "🐱"} size={24} />
+                                    {entry.trainerTier && <TierGlyph src={entry.trainerTier.iconPath} emoji={entry.trainerTier.icon} size={18} />}
                                     <div style={{ minWidth: 0 }}>
                                       <div style={{ fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? "#FFE66D" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{entry.username}{isMe ? " (you)" : ""}</div>
-                                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier?.label ?? "—"}</div>
+                                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier?.label ?? "—"}{entry.trainerTier ? ` · ${entry.trainerTier.label}` : ""}</div>
                                     </div>
                                   </button>
                                 </>

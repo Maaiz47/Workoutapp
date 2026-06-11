@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { computeStatsForUsers } from "../../../../lib/leaderboardStats";
+import { TRAINER_TIERS } from "../../../../lib/tiers";
 
 const COOKIE = "ironlog-uid";
 function json(data: object, status = 200) { return NextResponse.json(data, { status }); }
+
+// Trainer-tier crest from raw client count — same mapping the groups
+// route + client use. (qa: trainer-badge-everywhere)
+function trainerTierFromClientCount(count: number): { label: string; icon: string; iconPath?: string; tierNum: number } {
+  let tier = TRAINER_TIERS[0];
+  for (const t of TRAINER_TIERS) if (count >= t.min) tier = t;
+  return { label: tier.label, icon: tier.icon, iconPath: tier.iconPath, tierNum: tier.tierNum };
+}
 
 // Client-facing group leaderboard. Returns each member's full stats
 // (including body metrics) so the rankings UI can render the WEIGHT /
@@ -32,6 +41,27 @@ export async function GET(req: NextRequest) {
     // Batch-compute stats for everyone across every group in one go (overall).
     const allUserIds = Array.from(new Set(groups.flatMap(g => g.members.map(m => m.userId))));
     const statsByUser = await computeStatsForUsers(allUserIds);
+
+    // Trainer-tier crest for any member who's a trainer (badge everywhere
+    // an athlete avatar shows). (qa: trainer-badge-everywhere)
+    const memberRoleRows = await prisma.user.findMany({
+      where: { id: { in: allUserIds } },
+      select: { id: true, role: true, extraRoles: true },
+    });
+    const trainerMemberIds = memberRoleRows
+      .filter(u => u.role === "trainer" || (u.extraRoles ?? []).includes("trainer"))
+      .map(u => u.id);
+    const trainerTierByMember = new Map<string, { label: string; icon: string; iconPath?: string; tierNum: number }>();
+    if (trainerMemberIds.length > 0) {
+      const counts = await prisma.trainerClient.groupBy({
+        by: ["trainerId"],
+        where: { trainerId: { in: trainerMemberIds } },
+        _count: { clientId: true },
+      });
+      const countById: Record<string, number> = {};
+      for (const c of counts) countById[c.trainerId] = c._count.clientId;
+      for (const tid of trainerMemberIds) trainerTierByMember.set(tid, trainerTierFromClientCount(countById[tid] ?? 0));
+    }
 
     // Per-group filtered stats (only logs tagged with that group's workout).
     const groupFilteredStats = new Map<string, Map<string, any>>();
@@ -72,6 +102,7 @@ export async function GET(req: NextRequest) {
             // ladder. Always present; defaults to Kitten for new
             // users.
             ...(stats ?? {}),
+            trainerTier: trainerTierByMember.get(m.userId) ?? null,
             // Filtered (only sessions tagged with this group's workout).
             groupActivated: activatedSet.has(m.userId),
             groupSessions: fStats?.totalSessions ?? 0,

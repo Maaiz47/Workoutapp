@@ -6180,12 +6180,13 @@
       "area": "Trainer",
       "introduced": "2026-05-26",
       "introducedBy": "QA pass 2026-05-26",
-      "lastTested": "2026-05-26",
+      "lastTested": "2026-06-10",
       "status": "regression-retest",
       "steps": [
-        "Confirm trainer-rolled accounts surface a TRAINER badge in: friend list rows, leaderboard rows, chat bubble avatars, group member lists."
+        "Confirm trainer-rolled accounts surface a TRAINER tier crest in: friend list rows, global leaderboard rows, GROUP ranking rows, and Progress → My Leaderboards rows.",
+        "A dual-role account (athlete + trainer) shows BOTH the athlete tier glyph and the trainer-tier crest side by side, with the trainer rung name in the subtitle."
       ],
-      "notes": "[2026-05-26] @maaiz ATTEND CONTEXT re:t6l0oran: 'Anywhere there is a athlete badge or profile avatar, want to have the trainer badge show too'. New item trainer-badge-everywhere. (qa: trainer-badge-everywhere)\n\n[2026-05-26] Slice 1: <AvatarWithBadges/> wrapper introduced that renders both tier + trainer (if user.role contains 'trainer'). Wired into friend list + leaderboard rows. Next slice: chat bubbles + group member lists. Source: @maaiz cmpjwblxk iv1u1m85."
+      "notes": "[2026-06-10] Slice 2: backported the trainer-tier crest to the GROUP rankings (trainer view) + Progress → My Leaderboards rows. /api/leaderboard/groups + /api/leaderboard/mine now compute a per-member trainerTier (trainerTierFromClientCount) for any member whose role/extraRoles includes 'trainer', and the rows render a second TierGlyph + the trainer rung name in the subtitle next to the athlete tier. Global board already had it. Remaining surface: the trainer-client block shows clients (athletes) so a crest only applies in the dual-role edge case. (qa: trainer-badge-everywhere)\n\n[2026-05-26] @maaiz ATTEND CONTEXT re:t6l0oran: 'Anywhere there is a athlete badge or profile avatar, want to have the trainer badge show too'. New item trainer-badge-everywhere. (qa: trainer-badge-everywhere)\n\n[2026-05-26] Slice 1: <AvatarWithBadges/> wrapper introduced that renders both tier + trainer (if user.role contains 'trainer'). Wired into friend list + leaderboard rows. Next slice: chat bubbles + group member lists. Source: @maaiz cmpjwblxk iv1u1m85."
     },
     {
       "id": "progress-watermark-animation",
