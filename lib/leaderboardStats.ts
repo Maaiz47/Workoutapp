@@ -65,6 +65,12 @@ export interface LeaderboardMemberStats {
   prCount: number;
   totalVolume: number;
   totalIntensityPoints: number;
+  // Rolling LAST-30-DAY activity — powers the tenure-neutral "30 days"
+  // leaderboard lens so a strong newcomer can top a board immediately
+  // regardless of lifetime totals. (qa: leaderboard-30d-lens)
+  sessions30d: number;      // distinct training days in the last 30d
+  volume30d: number;        // kg moved in the last 30d
+  intensityPoints30d: number; // IP earned in the last 30d (cap-aware)
   lastSession: string | null;
   // Inputs that feed the canonical tier — exposed so callers that
   // want to display "distinct exercises trained" or "months on app"
@@ -226,9 +232,16 @@ export function computeStatsFromLogs(
   const fourWeeksAgo = todayMs - 28 * 86400000;
   const ninetyDaysAgo = todayMs - 90 * 86400000;
   const oneEightyDaysAgo = todayMs - 180 * 86400000;
+  const thirtyDaysAgo = todayMs - 30 * 86400000;
   const sessionsLast4Weeks = new Set(
     logs
       .filter(l => l.date.getTime() >= fourWeeksAgo)
+      .map(l => l.date.toISOString().slice(0, 10))
+  ).size;
+  // Distinct training days in the last 30d — the rolling-window lens.
+  const sessions30d = new Set(
+    logs
+      .filter(l => l.date.getTime() >= thirtyDaysAgo)
       .map(l => l.date.toISOString().slice(0, 10))
   ).size;
   const sessions180d = new Set(
@@ -267,6 +280,7 @@ export function computeStatsFromLogs(
   const setsByMuscleGroup: Record<string, number> = {};
   const fourteenDaysAgo = Date.now() - 14 * 86400000;
   let totalVolume = 0;
+  let volume30d = 0;
   // Per-log RPE bonus map so we can gate the bonus through the
   // weekly cap in the post-walk pass (qa: tier-ip-fresh-legs-and-cap).
   // Each log earns its own RPE bonus; the cap zeroes it for sessions
@@ -284,6 +298,7 @@ export function computeStatsFromLogs(
       const r = v.reps ?? 0;
       const rpe = typeof v.rpe === "number" ? v.rpe : null;
       totalVolume += w * r;
+      if (ms >= thirtyDaysAgo) volume30d += w * r;
       // IP bonus: max(0, RPE - 7) per set. RPE 8 = +1, RPE 9 = +2,
       // RPE 10 = +3. Genuinely hard sets earn intensity credit.
       // (qa: tier-scoring-v2 — IP RPE expansion)
@@ -395,6 +410,7 @@ export function computeStatsFromLogs(
   const weekDaysByWeek = new Map<number, Set<string>>();
   const allTrainingDays = new Set<string>();
   let totalIntensityPoints = 0;
+  let intensityPoints30d = 0;
   for (const idx of sortedIdx) {
     const log = logs[idx];
     const day = isoDay(log.date);
@@ -418,7 +434,9 @@ export function computeStatsFromLogs(
     const stored = log.intensityPoints ?? 0;
     const rpe = rpeBonusByLog.get(idx) ?? 0;
     const fresh = isFresh ? FRESH_LEGS_BONUS : 0;
-    totalIntensityPoints += stored + rpe + fresh;
+    const earned = stored + rpe + fresh;
+    totalIntensityPoints += earned;
+    if (log.date.getTime() >= thirtyDaysAgo) intensityPoints30d += earned;
   }
   const prCount = Object.keys(prs).length;
   const distinctExercises = distinctEx.size;
@@ -457,6 +475,9 @@ export function computeStatsFromLogs(
     prCount,
     totalVolume: Math.round(totalVolume),
     totalIntensityPoints,
+    sessions30d,
+    volume30d: Math.round(volume30d),
+    intensityPoints30d,
     lastSession: logs[0]?.date.toISOString().slice(0, 10) ?? null,
     distinctExercises,
     recentDistinctExercises,
