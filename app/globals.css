@@ -245,6 +245,48 @@ input[type="number"] { -moz-appearance: textfield; }
   .card-lift:hover:not(:active) { transform: translateY(-2px); }
 }
 
+/* ── Shared 3D depth tokens (Phase 6 visual pass) ─────────────────────────
+   Reusable premium-depth recipe extending the IDENTITY-card / nav-button
+   language to flat surfaces. Subtle on purpose (IRON theme); the MONO
+   theme flattens all of this further down. (qa: visual-depth-tokens) */
+.card-3d {
+  box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 6px 22px -10px rgba(0,0,0,0.7);
+}
+.card-3d-hover { transition: transform 0.16s ease, box-shadow 0.2s ease, border-color 0.16s ease; }
+.card-3d-hover:active { transform: scale(0.985); }
+@media (hover: hover) {
+  .card-3d-hover:hover:not(:active) {
+    transform: translateY(-1px);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 10px 26px -10px rgba(0,0,0,0.78);
+  }
+}
+/* Pressable primary CTA — a soft physical-button strike on tap. */
+.press-3d { transition: transform 0.08s ease, filter 0.08s ease; }
+.press-3d:active { transform: perspective(600px) translateZ(-4px) translateY(1px); filter: brightness(1.08); }
+/* Input focus ring — a wider accent glow than the default border. */
+.focus-ring:focus, .focus-ring:focus-visible {
+  outline: none;
+  border-color: rgba(var(--accent-rgb), 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.22);
+}
+/* Ambient accent glows — opt-in per element. */
+.glow-teal  { box-shadow: 0 0 18px -2px rgba(78,205,196,0.30); }
+.glow-red   { box-shadow: 0 0 18px -2px rgba(255,107,107,0.30); }
+.glow-gold  { box-shadow: 0 0 18px -2px rgba(240,192,64,0.30); }
+.glow-purple{ box-shadow: 0 0 18px -2px rgba(162,155,254,0.30); }
+
+/* ── View transition slide (swipe-back + goTo direction) ──────────────────
+   Phase 2 routed swipe-back through goTo(v,"back"); these give the
+   forward/back navigation a gentle iOS-style slide. Kept short + subtle
+   so it never feels sluggish. (qa: view-transition-slide) */
+@keyframes viewSlideInRight { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes viewSlideInLeft  { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: translateX(0); } }
+.view-forward { animation: viewSlideInRight 0.24s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.view-back    { animation: viewSlideInLeft  0.24s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .view-forward, .view-back { animation: none; }
+}
+
 /* ══════════════════════════════════════════════════════
    THEME SYSTEM
    ══════════════════════════════════════════════════════ */
@@ -359,6 +401,21 @@ a[style*="background: #FF6644"], a[style*="background:#FF6644"] {
   box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 2px 10px rgba(0,0,0,0.5) !important;
 }
 [data-theme="mono"] [style*="textShadow"] { text-shadow: none !important; }
+
+/* Flatten the Phase 6 depth-token classes in MONO (brutalist = no
+   glow / no soft depth / no 3D press). (qa: visual-depth-tokens) */
+[data-theme="mono"] .card-3d,
+[data-theme="mono"] .glow-teal,
+[data-theme="mono"] .glow-red,
+[data-theme="mono"] .glow-gold,
+[data-theme="mono"] .glow-purple {
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 2px 10px rgba(0,0,0,0.5) !important;
+}
+[data-theme="mono"] .card-3d-hover:hover:not(:active) {
+  transform: none !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 2px 10px rgba(0,0,0,0.5) !important;
+}
+[data-theme="mono"] .press-3d:active { transform: none !important; filter: brightness(1.04) !important; }
 
 /* Desaturate everything except the accent itself */
 [data-theme="mono"] {

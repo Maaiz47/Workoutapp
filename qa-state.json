@@ -2932,6 +2932,22 @@
       "notes": "[2026-06-10] Phase 3. Server: computeStatsForUsers now returns sessions30d / volume30d / intensityPoints30d (single-pass). /api/leaderboard/global accepts window=all|30d (30d sorts by sessions30d\u2192volume30d) and both boards got a deterministic userId tie-break. Global already ranked by tier headline score. UI: group rankings (trainer view) + My Leaderboards (Progress) SESSIONS mode gained a LAST 30 DAYS / ALL-TIME toggle, defaulting to 30d per @maaiz so a strong newcomer catches up fast; tier fallback shows '\u2014' not 'Kitten'. STILL PENDING (next slice): backport the trainer-tier badge to group/my-leaderboards/trainer-client rows (needs trainer-tier computed in the groups/mine routes); unify mode-button accent to teal; explicit My-Leaderboards header row. tsc clean. (qa: leaderboard-30d-lens)"
     },
     {
+      "id": "visual-depth-foundation",
+      "title": "Shared 3D depth-token CSS + view-transition slide (Phase 6 foundation)",
+      "area": "Visual",
+      "introduced": "2026-06-10",
+      "introducedBy": "Phase 6 visual foundation",
+      "lastTested": "2026-06-10",
+      "status": "regression-retest",
+      "steps": [
+        "On the IRON theme, navigate between views (and swipe back to home) — the incoming view does a short, subtle slide-in. Reduced-motion users get no animation.",
+        "Confirm the new utility classes (.card-3d / .card-3d-hover / .press-3d / .focus-ring / .glow-*) render layered depth on IRON.",
+        "Switch to the MONO theme — the depth classes flatten (no glow, no 3D press, no hover lift), consistent with MONO's brutalist look.",
+        "Switch to VIVID — unchanged (VIVID keeps its own loud glow)."
+      ],
+      "notes": "[2026-06-10] Phase 6 foundation. Added reusable depth tokens to globals.css (.card-3d, .card-3d-hover, .press-3d, .focus-ring, .glow-{teal,red,gold,purple}) extending the IDENTITY-card/nav-button language, plus a subtle .view-forward/.view-back slide (the home view already carries these, so swipe-back-to-home animates; swipe routes through goTo(,'back') from Phase 2). MONO theme flattens all depth classes. Surfaces still to adopt the tokens (chat bubbles, inputs, exercise browser, friends/clients, empty states) are the next Phase-6 slices. (qa: visual-depth-foundation)"
+    },
+    {
       "id": "test-user-splits",
       "title": "Test users follow a real split (full-body / upper-lower / PPL) per daysPerWeek",
       "area": "Dev tools",

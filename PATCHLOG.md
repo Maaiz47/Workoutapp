@@ -2,6 +2,16 @@
 
 ---
 
+## Feat · 2026-06-10 — Phase 6 foundation: shared 3D depth tokens + view-slide (qa: visual-depth-foundation)
+
+Start of the visual/3D pass. Lays the reusable depth vocabulary the rest of Phase 6 will apply to the flat surfaces, rather than redesigning anything — extends the existing IDENTITY-card / nav-button language @maaiz approved ("yes, subtle-premium for IRON").
+
+Added to `app/globals.css`: `.card-3d` (inset top-highlight + soft drop shadow), `.card-3d-hover` (1px lift + shadow bloom, 0.985 active dip), `.press-3d` (a gentle physical-button strike on tap for primary CTAs), `.focus-ring` (wider accent glow on input focus), and `.glow-{teal,red,gold,purple}` ambient accent glows. Plus a short, subtle `.view-forward` / `.view-back` slide so navigation (and the Phase-2 swipe-back, which now routes through `goTo(v,"back")`) gets an iOS-style transition; `prefers-reduced-motion` disables it. The MONO theme flattens every depth class (no glow, no 3D, no hover lift) to keep its brutalist look; VIVID keeps its own loud glow.
+
+No new user surface (purely visual foundation), so **no `TUTORIAL_STEPS` change** — the surfaces that adopt these tokens (chat bubbles, inputs, exercise browser, friends/clients, empty states) are the next Phase-6 slices. `npx tsc --noEmit` clean.
+
+---
+
 ## Fix · 2026-06-10 — Test users follow their split (not one flat rotation) (qa: test-user-splits)
 
 WS6 of the audit backlog. @maaiz wanted the synthetic test users to behave like real members training their program. `buildSession` in `lib/testUsers.ts` cycled the same 8 lifts every session regardless of split. Now it picks from `daysPerWeek`-keyed split templates — ≤3/wk → full-body A/B/C, 4/wk → upper / lower, 5+/wk → push / pull / legs — and the split slot advances by calendar day deterministically, so a Mon/Wed/Fri user rotates through the program like a real lifter instead of repeating the same workout. Only `isTestUser` accounts are affected; real users are untouched, and existing logs stay (idempotent per day) — new daily ticks follow the split. `npx tsc --noEmit` clean; no UI surface, so no `TUTORIAL_STEPS` change.
