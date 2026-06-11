@@ -33,8 +33,15 @@ done before any deploy. Progress log below; the workstream detail follows.
   routines-save / supersets / dropsets; quality extras (volume balance,
   progression notes) are non-blocking. Known follow-up: Band Pull-Apart band
   check.
-- ⏳ **Phase 5** tutorial catch-up + auto-update · **Phase 6** visual/3D ·
-  **WS6** test-user splits · **WS7** icon wire-up.
+- ✅ **Phase 5 — tutorial catch-up + auto-update** (`7d341f4`): 9 new steps
+  for surfaces that shipped without one; TUTORIAL_VERSION v7→v8; NEW
+  `npm run tutorial:scan` (scripts/tutorial-scan.ts) flags any recent `## Feat`
+  PATCHLOG section that never mentions the tutorial — the automatic
+  keep-it-updated guard. Documented in feature-forcing-rules.md.
+- ⏳ **Phase 6** visual/3D depth · **WS6** test-user splits · **WS7** icon
+  wire-up (the `<IconGlyph>` wrapper; actual PNGs are external art).
+- ⏳ **Phase 3 follow-up**: trainer-badge backport, teal mode buttons, MyLB
+  header row.
 
 ---
 
