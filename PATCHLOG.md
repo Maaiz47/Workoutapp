@@ -2,6 +2,22 @@
 
 ---
 
+## Feat · 2026-06-10 — Phase 3 leaderboards: rolling 30-day activity lens + ranking consistency (qa: leaderboard-30d-lens)
+
+Third slice of the full-audit backlog. The competitiveness fix @maaiz asked for: a strong newcomer should be able to catch up fast instead of lifetime totals making the longest-tenured user permanently win.
+
+**30-day lens.** `computeStatsForUsers` now returns `sessions30d` / `volume30d` / `intensityPoints30d` (computed in the existing single pass). Group rankings (trainer view) and Progress → **My Leaderboards** now show a **📅 LAST 30 DAYS / ★ ALL-TIME** sub-toggle in SESSIONS mode, **defaulting to 30 days** — ranking by distinct training days in the rolling window, so tenure stops deciding the board. ALL-TIME (lifetime) is one tap away. The 30D column relabels so it's clear which window is shown.
+
+**Global board.** Already ranked by tier headline score (prestige) — kept as the default. Added `window=all|30d` support to `/api/leaderboard/global` (30d sorts by `sessions30d`→`volume30d`) and a **deterministic `userId` tie-break** on both the athlete and trainer boards so equal scores never reorder between requests.
+
+**Consistency.** Missing-tier rows now render "—" instead of a guessed "Kitten".
+
+Still pending for the next leaderboard slice (noted in `qa-state`): backporting the trainer-tier badge to the group / my-leaderboards / trainer-client rows (needs the trainer tier computed server-side in those routes), unifying the mode-button accent to teal, and an explicit My-Leaderboards header row.
+
+`npx tsc --noEmit` clean. No new user surface beyond the toggle (which extends the existing SESSIONS mode), so no `TUTORIAL_STEPS` change this slice — the rankings tutorial step will be refreshed in the Phase 5 tutorial catch-up.
+
+---
+
 ## Fix · 2026-06-10 — Phase 2 swipe-back coverage + basic-function hardening (qa: swipe-back-coverage, group-chat-back-nav)
 
 Second slice of the full-audit backlog. Makes the iOS-style edge-swipe behave everywhere a user expects.

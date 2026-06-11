@@ -2914,6 +2914,24 @@
       "notes": "[2026-06-10] Phase 1 fix. New lib/num.ts safeFloat()/safeInt() (finite-or-null). Applied at every user-numeric parse site: /api/metrics (POST 400 on junk), /api/profile (PATCH targets + POST body stats, required ones validated), /api/photos (weight snapshot). Client: goal-reached detection in app/page.tsx now guards Number.isFinite(target) so a NaN target can't silently suppress the celebration. Root cause: parseFloat('abc') = NaN slips past `if (x)` and poisons tier scoring / body-comp trends / goal compares. tsc clean."
     },
     {
+      "id": "leaderboard-30d-lens",
+      "title": "Leaderboards \u2014 rolling 30-day activity lens (groups default 30d; tenure-neutral catch-up)",
+      "area": "Leaderboards",
+      "introduced": "2026-06-10",
+      "introducedBy": "Phase 3 leaderboard pass",
+      "lastTested": "2026-06-10",
+      "status": "regression-retest",
+      "steps": [
+        "Open a group's RANKINGS (trainer view) or Progress \u2192 My Leaderboards. SESSIONS mode now shows a '\ud83d\udcc5 LAST 30 DAYS' / '\u2605 ALL-TIME' sub-toggle, defaulting to 30 DAYS.",
+        "In 30 DAYS mode, verify ranking is by distinct training days in the last 30 days (column header reads 30D), so a brand-new but very active member can rank at the top regardless of lifetime totals.",
+        "Switch to ALL-TIME \u2014 ranking reverts to lifetime sessions; the column reads SESS again.",
+        "Global Ranks (ATHLETES): confirm the board still defaults to tier ranking (prestige). The 30-day option is available via window=30d on /api/leaderboard/global.",
+        "Verify equal-score rows keep a stable order across refreshes (deterministic userId tie-break).",
+        "A member with no tier data shows '\u2014' rather than a guessed 'Kitten'."
+      ],
+      "notes": "[2026-06-10] Phase 3. Server: computeStatsForUsers now returns sessions30d / volume30d / intensityPoints30d (single-pass). /api/leaderboard/global accepts window=all|30d (30d sorts by sessions30d\u2192volume30d) and both boards got a deterministic userId tie-break. Global already ranked by tier headline score. UI: group rankings (trainer view) + My Leaderboards (Progress) SESSIONS mode gained a LAST 30 DAYS / ALL-TIME toggle, defaulting to 30d per @maaiz so a strong newcomer catches up fast; tier fallback shows '\u2014' not 'Kitten'. STILL PENDING (next slice): backport the trainer-tier badge to group/my-leaderboards/trainer-client rows (needs trainer-tier computed in the groups/mine routes); unify mode-button accent to teal; explicit My-Leaderboards header row. tsc clean. (qa: leaderboard-30d-lens)"
+    },
+    {
       "id": "tier-themes",
       "title": "Athlete tier theme system \u2014 Vivid (animals) vs Simple (medals)",
       "area": "Tiers",

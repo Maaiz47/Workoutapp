@@ -6811,6 +6811,11 @@ function HomePage() {
   // Per-group leaderboard view mode. Shared across groups for simplicity —
   // the user picks one mode and it applies to every group's rankings table.
   const [lbMode, setLbMode] = useState<"sessions" | "weight" | "bf-change" | "bf-now">("sessions");
+  // Activity-board window. Groups default to the rolling 30-DAY board so
+  // tenure doesn't decide the ranking — a strong newcomer can top it
+  // immediately. ALL-TIME is one tap away. Only affects SESSIONS mode.
+  // (qa: leaderboard-30d-lens)
+  const [lbWindow, setLbWindow] = useState<"30d" | "all">("30d");
   // For WEIGHT mode: gainers leaderboard or losers leaderboard. Flips the
   // sort direction without changing the data shown.
   const [lbWeightDir, setLbWeightDir] = useState<"loss" | "gain">("loss");
@@ -14291,6 +14296,8 @@ function HomePage() {
                               avatarId: m.user?.profile?.avatarId ?? null,
                               role: m.role,
                               totalSessions: m.stats?.totalSessions ?? 0,
+                              sessions30d: m.stats?.sessions30d ?? 0,
+                              volume30d: m.stats?.volume30d ?? 0,
                               streak: m.stats?.streak ?? 0,
                               prCount: m.stats?.prCount ?? 0,
                               totalVolume: m.stats?.totalVolume ?? 0,
@@ -14314,7 +14321,9 @@ function HomePage() {
                           // the bottom with "—" cells.
                           let ranked: any[] = base;
                           if (lbMode === "sessions") {
-                            ranked = [...base].sort((a, b) => b.totalSessions - a.totalSessions || b.totalVolume - a.totalVolume);
+                            ranked = lbWindow === "30d"
+                              ? [...base].sort((a, b) => b.sessions30d - a.sessions30d || b.volume30d - a.volume30d)
+                              : [...base].sort((a, b) => b.totalSessions - a.totalSessions || b.totalVolume - a.totalVolume);
                           } else if (lbMode === "weight") {
                             ranked = [...base].sort((a, b) => {
                               const av = a.weightChangeKg, bv = b.weightChangeKg;
@@ -14352,6 +14361,12 @@ function HomePage() {
                                 {modeChip("bf-change", "BF LOSS")}
                                 {modeChip("bf-now", "BF NOW")}
                               </div>
+                              {lbMode === "sessions" && (
+                                <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                                  <button onClick={() => setLbWindow("30d")} style={{ flex: 1, padding: "4px 0", background: lbWindow === "30d" ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWindow === "30d" ? "#4ECDC4" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWindow === "30d" ? "#4ECDC4" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>📅 LAST 30 DAYS</button>
+                                  <button onClick={() => setLbWindow("all")} style={{ flex: 1, padding: "4px 0", background: lbWindow === "all" ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWindow === "all" ? "#4ECDC4" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWindow === "all" ? "#4ECDC4" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>★ ALL-TIME</button>
+                                </div>
+                              )}
                               {lbMode === "weight" && (
                                 <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
                                   <button onClick={() => setLbWeightDir("loss")} style={{ flex: 1, padding: "4px 0", background: lbWeightDir === "loss" ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>⬇ LOSS LEADERS</button>
@@ -14367,7 +14382,7 @@ function HomePage() {
                                   {/* Header row — columns depend on mode */}
                                   {lbMode === "sessions" && (
                                     <div style={{ display: "grid", gridTemplateColumns: "26px 1fr 38px 38px 38px", gap: 6, padding: "8px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                                      {["#","NAME","SESS","STRK","PBs"].map((h, hi) => (
+                                      {["#","NAME",lbWindow === "30d" ? "30D" : "SESS","STRK","PBs"].map((h, hi) => (
                                         <div key={h} style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: hi > 1 ? "center" : "left" }}>{h}</div>
                                       ))}
                                     </div>
@@ -14444,7 +14459,7 @@ function HomePage() {
                                       return (
                                         <div key={m.userId} id={isMe ? "lb-you-row" : undefined} style={{ ...rowStyle, gridTemplateColumns: "26px 1fr 38px 38px 38px" }}>
                                           {nameCell}
-                                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: "#a29bfe" }}>{m.totalSessions}</div></div>
+                                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: "#a29bfe" }}>{lbWindow === "30d" ? m.sessions30d : m.totalSessions}</div></div>
                                           <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: m.streak >= 3 ? "#FF6B6B" : "#fff" }}>{m.streak}</div></div>
                                           <div style={{ textAlign: "center" }}><div style={{ fontSize: 13, fontWeight: 700, color: m.prCount > 0 ? "#f0c040" : "rgba(255,255,255,0.3)" }}>{m.prCount}</div></div>
                                         </div>
@@ -16986,6 +17001,12 @@ function HomePage() {
                           <button key={o.id} onClick={() => setLbMode(o.id)} style={{ flex: 1, padding: "5px 0", background: lbMode === o.id ? "rgba(255,230,109,0.14)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbMode === o.id ? "#FFE66D" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbMode === o.id ? "#FFE66D" : "rgba(255,255,255,0.5)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>{o.label}</button>
                         ))}
                       </div>
+                      {lbMode === "sessions" && (
+                        <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+                          <button onClick={() => setLbWindow("30d")} style={{ flex: 1, padding: "4px 0", background: lbWindow === "30d" ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWindow === "30d" ? "#4ECDC4" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWindow === "30d" ? "#4ECDC4" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>📅 LAST 30 DAYS</button>
+                          <button onClick={() => setLbWindow("all")} style={{ flex: 1, padding: "4px 0", background: lbWindow === "all" ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWindow === "all" ? "#4ECDC4" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWindow === "all" ? "#4ECDC4" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>★ ALL-TIME</button>
+                        </div>
+                      )}
                       {lbMode === "weight" && (
                         <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
                           <button onClick={() => setLbWeightDir("loss")} style={{ flex: 1, padding: "4px 0", background: lbWeightDir === "loss" ? "rgba(78,205,196,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.08)"}`, borderRadius: 6, color: lbWeightDir === "loss" ? "#4ECDC4" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>⬇ LOSS LEADERS</button>
@@ -17001,9 +17022,12 @@ function HomePage() {
                         let sorted = base;
                         if (lbMode === "sessions") {
                           sorted = [...base].sort((a: any, b: any) => {
-                            const av = groupOnlyForSort ? (a.groupSessions ?? 0) : (a.totalSessions ?? 0);
-                            const bv = groupOnlyForSort ? (b.groupSessions ?? 0) : (b.totalSessions ?? 0);
-                            return bv - av;
+                            // Group-only keeps the group-workout count; otherwise
+                            // the window toggle picks 30-day vs all-time activity.
+                            // (qa: leaderboard-30d-lens)
+                            if (groupOnlyForSort) return (b.groupSessions ?? 0) - (a.groupSessions ?? 0);
+                            if (lbWindow === "30d") return (b.sessions30d ?? 0) - (a.sessions30d ?? 0) || (b.volume30d ?? 0) - (a.volume30d ?? 0);
+                            return (b.totalSessions ?? 0) - (a.totalSessions ?? 0);
                           });
                         } else if (lbMode === "weight") {
                           sorted = [...base].sort((a: any, b: any) => {
@@ -17077,7 +17101,7 @@ function HomePage() {
                                     <TierGlyph src={entry.tier?.iconPath} emoji={entry.tier?.icon ?? "🐱"} size={24} />
                                     <div style={{ minWidth: 0 }}>
                                       <div style={{ fontSize: 13, fontWeight: isMe ? 700 : 500, color: isMe ? "#FFE66D" : "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>@{entry.username}{isMe ? " (you)" : ""}</div>
-                                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier?.label ?? "Kitten"}</div>
+                                      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{entry.tier?.label ?? "—"}</div>
                                     </div>
                                   </button>
                                 </>
@@ -17087,7 +17111,7 @@ function HomePage() {
                                 return (
                                   <div key={entry.userId} style={{ ...rowBase, gridTemplateColumns: "28px 1fr 48px 48px" }}>
                                     {nameBlock}
-                                    <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: groupOnly ? "#f0c040" : "#fff" }}>{groupOnly ? (entry.groupSessions ?? 0) : (entry.totalSessions ?? 0)}</div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>{groupOnly ? "🏋" : "sess"}</div></div>
+                                    <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: groupOnly ? "#f0c040" : "#fff" }}>{groupOnly ? (entry.groupSessions ?? 0) : (lbWindow === "30d" ? (entry.sessions30d ?? 0) : (entry.totalSessions ?? 0))}</div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>{groupOnly ? "🏋" : lbWindow === "30d" ? "30d" : "sess"}</div></div>
                                     <div style={{ textAlign: "center" }}><div style={{ fontSize: 14, fontWeight: 700, color: ((groupOnly ? entry.groupIntensity : entry.totalIntensityPoints) ?? 0) > 0 ? "#FFE66D" : "rgba(255,255,255,0.3)" }}>{(groupOnly ? entry.groupIntensity : entry.totalIntensityPoints) ?? 0}</div><div style={{ fontSize: 8, color: "rgba(255,255,255,0.25)", fontFamily: "'Space Mono', monospace" }}>⚡ IP</div></div>
                                   </div>
                                 );
