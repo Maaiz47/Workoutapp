@@ -18,13 +18,13 @@ done before any deploy. Progress log below; the workstream detail follows.
 - ✅ **Phase 2 — swipe & basic functions** (`7f533d3`): scroller-hijack guard,
   customise-view swipe-back, overlay-dismiss stack (~20 modals, × kept),
   groupChatPrevView persistence, swipe routes via goTo(,"back").
-- 🚧 **Phase 3 — leaderboards** (server done: `732a2dc`, `220c775`):
-  30-day stats (`sessions30d`/`volume30d`/`intensityPoints30d`) in
-  computeStatsForUsers; global `window=30d` ranking; deterministic tie-breaks.
-  Global board already ranked by tier score (good). **Remaining: page.tsx UI** —
-  group board default → 30-day activity + ALL-TIME toggle; trainer-badge
-  backport to group/my-leaderboards/trainer-client rows; My Leaderboards column
-  headers; teal mode buttons; tier fallback "—"; null-metric hint.
+- ✅ **Phase 3 — leaderboards, core** (`732a2dc`, `220c775`, `bfee969`):
+  30-day stats in computeStatsForUsers; global `window=30d` + deterministic
+  tie-breaks; **group rankings + My Leaderboards default to a 30-day activity
+  board** (LAST 30 DAYS / ALL-TIME toggle); tier fallback "—". Global keeps
+  tier ranking. **Follow-up slice still pending:** trainer-badge backport to
+  group/my-leaderboards/trainer-client rows (needs trainer tier in those
+  routes), teal mode buttons, explicit My-Leaderboards header row.
 - ⏳ **Phase 4** plan builder · **Phase 5** tutorial catch-up + auto-update ·
   **Phase 6** visual/3D · **WS6** test-user splits · **WS7** icon wire-up.
 
