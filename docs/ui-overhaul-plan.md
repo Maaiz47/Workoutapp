@@ -41,10 +41,14 @@ done before any deploy. Progress log below; the workstream detail follows.
 - ✅ **WS6 — test-user splits** (`1fe0283`): synthetic users follow a real
   split (full-body / upper-lower / PPL) keyed to daysPerWeek; only test users
   affected.
-- 🚧 **Phase 6 — visual/3D**: foundation done (`096c401`); **chat bubbles
-  adopted depth** (`c9607f9`) — DMs lifted, groups stay richer. **Remaining
-  surfaces:** inputs `.focus-ring`, exercise browser rows, friends/clients
-  rows, empty states. Iterative + subjective — best eyeballed on a deploy.
+- ✅ **Phase 6 — visual/3D**: foundation (`096c401`) + surface adoption —
+  chat bubbles (`c9607f9`), global input focus glow (`74f6960`), friend +
+  customise-exercise rows (`28c1056`), DM empty-state card (`13de730`). The
+  depth language is now applied across the audit's flagged flat surfaces.
+  Further empty states / minor rows can keep adopting `.card-3d` incrementally.
+- ⏳ **WS7 — icon wire-up**: ready, gated on external art (Batch 16 spec'd).
+- ⏳ **Phase 3 follow-up** (cosmetic): trainer-badge backport (needs trainer
+  tier in 2 routes), teal mode buttons, MyLB header row.
 - ⏳ **WS7 — icon wire-up**: ready (Batch 16 spec'd; `TierGlyph` pattern
   exists) but gated on external art generation — no dead code added.
 - ⏳ **Phase 3 follow-up**: trainer-badge backport (needs trainer tier in 2
