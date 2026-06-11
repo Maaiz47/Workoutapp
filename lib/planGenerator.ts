@@ -393,12 +393,17 @@ function buildDedicatedCardioDay(profile: UserProfileInput, style: "steady" | "i
 
   if (style === "steady") {
     const ex = EXERCISES.find(e => e.id === primary);
+    // Scale the LISS block to the user's session window instead of a
+    // hardcoded 30 min — a 30-min target shouldn't prescribe a 30-min
+    // cardio block (no room for anything else), and a 90-min athlete
+    // can handle more. Bounded 15–45 min. (qa: plan-cardio-session-time)
+    const steadyMin = Math.max(15, Math.min(45, profile.targetSessionMinutes ?? 30));
     if (ex) exs.push({
-      exerciseId: primary, name: ex.name, sets: 1, reps: "30 min",
+      exerciseId: primary, name: ex.name, sets: 1, reps: `${steadyMin} min`,
       rest: 0,
       notes: "Steady pace — conversational. Should feel ~6/10 effort the whole way through.",
     });
-    return { title: "Cardio — Steady", subtitle: "LISS · 30 min", focus: "cardio", exercises: exs };
+    return { title: "Cardio — Steady", subtitle: `LISS · ${steadyMin} min`, focus: "cardio", exercises: exs };
   }
 
   if (style === "intervals") {

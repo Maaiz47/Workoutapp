@@ -2,6 +2,18 @@
 
 ---
 
+## Fix · 2026-06-10 — Phase 4 plan builder: warm-up equipment strictness + cardio session-time (qa: plan-warmup-equipment-strict, plan-cardio-session-time)
+
+Fourth slice of the full-audit backlog, plus a verbal bug report.
+
+**Warm-up prescribed equipment the user didn't own** (@maaiz relaying Mashir: his first suggested move was a *Stationary Bike* warm-up he had no bike for). Two root causes in `lib/stretching.ts` `pickWarmups`: (1) the cardio-primer fallback hard-coded `WARMUP_CARDIO.bike`, and (2) it gated on equipment ids `"bike"`/`"rower"` that don't even exist in the app's equipment vocabulary (`treadmill`/`elliptical`/`machine`/…), so virtually every user fell through to the bike fallback. Fix: added a no-equipment **March + High Knees** primer used as the universal fallback (never a machine); made `hasEq` strict for a NON-empty equipment list (only prescribe a cardio machine the user actually selected) while keeping an empty/unknown list permissive (full-gym assumed); and accept `treadmill`/`elliptical` synonyms. Known lower-severity follow-up logged: the *Band Pull-Apart* dynamic move still doesn't check for a resistance band.
+
+**Steady cardio ignored the session window.** `buildDedicatedCardioDay`'s steady block was a fixed "30 min" regardless of `targetSessionMinutes` — a 30-min target left no room for anything else. Now scaled to the window, bounded 15–45 min. Interval/mixed styles already fit and are unchanged.
+
+`npx tsc --noEmit` clean. No new UI surface; warm-up/cardup content only, so no `TUTORIAL_STEPS` change.
+
+---
+
 ## Feat · 2026-06-10 — Phase 3 leaderboards: rolling 30-day activity lens + ranking consistency (qa: leaderboard-30d-lens)
 
 Third slice of the full-audit backlog. The competitiveness fix @maaiz asked for: a strong newcomer should be able to catch up fast instead of lifetime totals making the longest-tenured user permanently win.

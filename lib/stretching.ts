@@ -22,6 +22,9 @@ const WARMUP_CARDIO: Record<string, StretchExercise> = {
   treadmill: { id: "wu-treadmill", name: "Incline Treadmill Walk", reps: "5 min", type: "cardio", kind: "warmup", primaryMuscles: ["cardio"], cues: ["Set incline 5-8%, brisk pace.", "Breath should be slightly elevated, not laboured.", "Aim for a light sweat by minute 4."], icon: "🚶" },
   rower:     { id: "wu-rower",     name: "Rowing Machine",          reps: "5 min", type: "cardio", kind: "warmup", primaryMuscles: ["cardio", "back"], cues: ["Drive with the legs first, then pull with the arms.", "Smooth stroke rate — 22-26 spm.", "Keep core engaged, don't round the back."], icon: "🚣" },
   bike:      { id: "wu-bike",      name: "Stationary Bike",         reps: "5 min", type: "cardio", kind: "warmup", primaryMuscles: ["cardio", "quads"], cues: ["Moderate resistance, 80-90 RPM cadence.", "Sit tall, soft elbows on the bars.", "Bring HR to ~110-120 bpm before lifting."], icon: "🚴" },
+  // No-equipment primer — the universal fallback so the warm-up never
+  // prescribes a machine the user didn't select. (qa: plan-warmup-equipment-strict)
+  bodyweight: { id: "wu-march-high-knees", name: "March + High Knees", reps: "3 min", type: "cardio", kind: "warmup", primaryMuscles: ["cardio"], cues: ["30 sec easy march, then 30 sec high knees — repeat.", "Pump the arms, stay light on the feet.", "Build to a light sweat — no equipment needed."], icon: "🏃" },
 };
 
 const WARMUP_DYNAMIC: Record<string, StretchExercise> = {
@@ -75,14 +78,25 @@ export type DayContext = {
 // Returns a 3-4 item warm-up sequence: 1 cardio primer + 2-3 dynamic moves.
 export function pickWarmups(ctx: DayContext): StretchExercise[] {
   const focus = `${ctx.title ?? ""} ${ctx.focus ?? ""}`.toLowerCase();
-  const hasEq = (id: string) => !ctx.equipment || ctx.equipment.length === 0 || ctx.equipment.includes(id);
+  // Equipment vocabulary uses "treadmill"/"elliptical"; "bike"/"rower"
+  // are accepted as synonyms if ever present. An EMPTY/absent list is
+  // treated as "unknown → full gym" (permissive), but a NON-empty list
+  // is strict: we only prescribe a cardio machine the user actually
+  // selected, otherwise fall back to the no-equipment primer. This
+  // fixes the bug where everyone got a Stationary Bike warm-up even
+  // without a bike. (qa: plan-warmup-equipment-strict)
+  const unknownEq = !ctx.equipment || ctx.equipment.length === 0;
+  const hasEq = (...ids: string[]) => unknownEq || ids.some(id => ctx.equipment!.includes(id));
   const out: StretchExercise[] = [];
 
-  // 1) Cardio primer — pick by equipment availability + focus.
+  // 1) Cardio primer — pick by equipment availability + focus, always
+  //    falling back to a bodyweight primer (never a machine).
   if (focusIncludes(focus, ["chest", "shoulder", "tricep", "push", "upper"]) && hasEq("rower")) out.push(WARMUP_CARDIO.rower);
   else if (focusIncludes(focus, ["leg", "quad", "hamstring", "glute", "calf", "lower"]) && hasEq("bike")) out.push(WARMUP_CARDIO.bike);
-  else if (hasEq("treadmill")) out.push(WARMUP_CARDIO.treadmill);
-  else out.push(WARMUP_CARDIO.bike); // fallback
+  else if (hasEq("treadmill", "elliptical")) out.push(WARMUP_CARDIO.treadmill);
+  else if (hasEq("bike")) out.push(WARMUP_CARDIO.bike);
+  else if (hasEq("rower")) out.push(WARMUP_CARDIO.rower);
+  else out.push(WARMUP_CARDIO.bodyweight); // no cardio machine selected → bodyweight primer
 
   // 2-3) Dynamic stretches — keyed off focus.
   if (focusIncludes(focus, ["chest", "shoulder", "tricep", "push", "upper"])) {
@@ -152,7 +166,7 @@ export function pickCooldowns(ctx: DayContext): StretchExercise[] {
 // Used as a backwards-compat hook by the existing pickWarmupForDay() shim.
 export function pickPrimaryWarmup(ctx: DayContext): StretchExercise {
   const list = pickWarmups(ctx);
-  return list[0] ?? WARMUP_CARDIO.bike;
+  return list[0] ?? WARMUP_CARDIO.bodyweight;
 }
 
 // Full flat arrays for the customise stretch-library picker.

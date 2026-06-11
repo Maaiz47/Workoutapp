@@ -2932,6 +2932,36 @@
       "notes": "[2026-06-10] Phase 3. Server: computeStatsForUsers now returns sessions30d / volume30d / intensityPoints30d (single-pass). /api/leaderboard/global accepts window=all|30d (30d sorts by sessions30d\u2192volume30d) and both boards got a deterministic userId tie-break. Global already ranked by tier headline score. UI: group rankings (trainer view) + My Leaderboards (Progress) SESSIONS mode gained a LAST 30 DAYS / ALL-TIME toggle, defaulting to 30d per @maaiz so a strong newcomer catches up fast; tier fallback shows '\u2014' not 'Kitten'. STILL PENDING (next slice): backport the trainer-tier badge to group/my-leaderboards/trainer-client rows (needs trainer-tier computed in the groups/mine routes); unify mode-button accent to teal; explicit My-Leaderboards header row. tsc clean. (qa: leaderboard-30d-lens)"
     },
     {
+      "id": "plan-warmup-equipment-strict",
+      "title": "Generated warm-up never prescribes cardio equipment the user didn't select",
+      "area": "Plan builder",
+      "introduced": "2026-06-10",
+      "introducedBy": "Phase 4 plan-builder pass (Mashir report)",
+      "lastTested": "2026-06-10",
+      "status": "regression-retest",
+      "steps": [
+        "Onboard / build a plan selecting equipment that does NOT include a treadmill / bike / rower (e.g. dumbbell + bench only).",
+        "Open the first generated day. The warm-up's cardio primer must be the no-equipment 'March + High Knees', NOT 'Stationary Bike' / 'Treadmill' / 'Rowing Machine'.",
+        "Build a plan WITH a treadmill selected \u2192 the primer may be the treadmill walk.",
+        "Leave equipment empty/unknown (full-gym) \u2192 a machine primer is acceptable."
+      ],
+      "notes": "[2026-06-10] @maaiz relaying Mashir: 'first suggested exercise was a machine bike for warm-up which he didn't have per his equipment selection'. Root cause in lib/stretching.ts pickWarmups: the cardio-primer fallback hard-coded WARMUP_CARDIO.bike, AND it checked equipment ids 'bike'/'rower' that don't exist in the app's equipment vocabulary (which uses treadmill/elliptical/machine/...), so virtually every user fell through to the bike fallback. Fix: added a no-equipment 'March + High Knees' primer used as the universal fallback; made hasEq strict for non-empty equipment lists (only prescribe a machine actually selected) while keeping empty/unknown permissive (full-gym); accept treadmill/elliptical synonyms. KNOWN FOLLOW-UP: 'Band Pull-Apart' dynamic move is still suggested without checking for a resistance band (lower severity). tsc clean. (qa: plan-warmup-equipment-strict)"
+    },
+    {
+      "id": "plan-cardio-session-time",
+      "title": "Steady cardio day length scales to the user's target session window",
+      "area": "Plan builder",
+      "introduced": "2026-06-10",
+      "introducedBy": "Phase 4 plan-builder pass",
+      "lastTested": "2026-06-10",
+      "status": "regression-retest",
+      "steps": [
+        "Set a short target session window (30 min) with a steady-cardio preference. The generated 'Cardio \u2014 Steady' day should prescribe ~15\u201330 min, not a fixed 30 min that leaves no room for warm-up/cooldown.",
+        "Set a long window (90 min) \u2192 the steady block scales up (capped at 45 min)."
+      ],
+      "notes": "[2026-06-10] Phase 4. buildDedicatedCardioDay steady block was hard-coded '30 min' regardless of targetSessionMinutes; now scaled to the window, bounded 15\u201345 min. Intervals/mixed styles already fit most windows and are unchanged. (qa: plan-cardio-session-time)"
+    },
+    {
       "id": "tier-themes",
       "title": "Athlete tier theme system \u2014 Vivid (animals) vs Simple (medals)",
       "area": "Tiers",
