@@ -71,7 +71,7 @@ export const EXERCISES: Exercise[] = [
 
   // ── SHOULDERS ──────────────────────────────────────────────────────────
 
-  { id: "overhead-press", name: "Barbell Overhead Press", primaryMuscles: ["shoulders"], secondaryMuscles: ["triceps", "core"], equipment: ["barbell"], location: "gym", difficulty: "intermediate", type: "compound", goals: ["strength", "muscle"] },
+  { id: "overhead-press", name: "Barbell Overhead Press", primaryMuscles: ["shoulders"], secondaryMuscles: ["triceps", "core"], equipment: ["barbell"], location: "both", difficulty: "intermediate", type: "compound", goals: ["strength", "muscle"] },
   { id: "dumbbell-shoulder-press", name: "Dumbbell Shoulder Press", primaryMuscles: ["shoulders"], secondaryMuscles: ["triceps"], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "compound", goals: ["muscle", "fitness"] },
   { id: "arnold-press", name: "Arnold Press", primaryMuscles: ["shoulders"], secondaryMuscles: ["triceps"], equipment: ["dumbbell"], location: "both", difficulty: "intermediate", type: "compound", goals: ["muscle"] },
   { id: "lateral-raise", name: "Lateral Raise", primaryMuscles: ["shoulders"], secondaryMuscles: [], equipment: ["dumbbell"], location: "both", difficulty: "beginner", type: "isolation", goals: ["muscle", "fitness"] },

@@ -2,6 +2,18 @@
 
 ---
 
+## Fix · 2026-06-10 — Phase 4 plan builder: min-exercise guard + overhead-press home eligibility (qa: plan-min-exercises)
+
+Continues the Phase 4 plan-builder pass.
+
+**A day could generate near-empty.** When every option for a muscle was equipment-gated, `pickExercise` returned null and the per-day `.filter(Boolean)` silently dropped them — a bodyweight-only home user could end up with a 1–2 movement day. Added a post-processing guard: any non-cardio/recovery day with fewer than 3 exercises is topped up from a universal bodyweight pool (push-ups, pike push-ups, inverted row, bodyweight squat, lunges, glute bridge, plank, crunches) matched to the day's focus. It only ever *adds*, so the worst case is one redundant bodyweight move.
+
+**Barbell Overhead Press was gym-only** even though its only equipment requirement is a barbell — a home lifter with a barbell was wrongly excluded. Loosened `location` gym→both; the equipment filter still gates on the barbell, so it won't be suggested to anyone without one.
+
+`npx tsc --noEmit` clean. No UI surface, so no `TUTORIAL_STEPS` change.
+
+---
+
 ## Fix · 2026-06-10 — Phase 4 plan builder: warm-up equipment strictness + cardio session-time (qa: plan-warmup-equipment-strict, plan-cardio-session-time)
 
 Fourth slice of the full-audit backlog, plus a verbal bug report.

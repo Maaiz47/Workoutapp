@@ -721,6 +721,38 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
     finalDays = applyTargetArea(finalDays, profile, "none");
   }
 
+  // ── Minimum-exercise guard ──────────────────────────────────────────
+  // Equipment filtering can occasionally leave a trainable day thin
+  // (e.g. a bodyweight-only home user whose muscle had only
+  // equipment-gated options — every pickExercise returned null and the
+  // `.filter(Boolean)` dropped them). Guarantee at least 3 movements per
+  // strength day by topping up from a universal bodyweight pool matched
+  // to the day's focus, so a generated day is never near-empty.
+  // (qa: plan-min-exercises)
+  const BODYWEIGHT_TOPUP: Array<{ id: string; muscles: string[] }> = [
+    { id: "pushups",          muscles: ["chest", "push", "upper", "full"] },
+    { id: "pike-pushup",      muscles: ["shoulder", "push", "upper", "full"] },
+    { id: "inverted-row",     muscles: ["back", "pull", "upper", "full"] },
+    { id: "bodyweight-squat", muscles: ["quad", "leg", "lower", "full"] },
+    { id: "lunges",           muscles: ["quad", "glute", "leg", "lower", "full"] },
+    { id: "glute-bridge",     muscles: ["glute", "hamstring", "leg", "lower", "full"] },
+    { id: "plank",            muscles: ["core", "full", "upper", "lower"] },
+    { id: "crunches",         muscles: ["core", "full"] },
+  ];
+  const MIN_DAY_EXERCISES = 3;
+  for (const day of finalDays) {
+    const f = day.focus.toLowerCase();
+    if (f.includes("cardio") || f.includes("mobility") || f.includes("recovery")) continue;
+    if (day.exercises.length >= MIN_DAY_EXERCISES) continue;
+    const have = new Set(day.exercises.map(e => e.exerciseId));
+    for (const cand of BODYWEIGHT_TOPUP) {
+      if (day.exercises.length >= MIN_DAY_EXERCISES) break;
+      if (have.has(cand.id) || !cand.muscles.some(m => f.includes(m))) continue;
+      const made = makeEx(cand.id, profile.goals as Goal[], profile.fitnessLevel);
+      if (made) { day.exercises.push(made); have.add(cand.id); }
+    }
+  }
+
   const hiitIntensity = profile.hiitIntensity ?? "moderate";
 
   if (profile.hiitPreference === "finisher") {

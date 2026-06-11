@@ -2932,6 +2932,22 @@
       "notes": "[2026-06-10] Phase 3. Server: computeStatsForUsers now returns sessions30d / volume30d / intensityPoints30d (single-pass). /api/leaderboard/global accepts window=all|30d (30d sorts by sessions30d\u2192volume30d) and both boards got a deterministic userId tie-break. Global already ranked by tier headline score. UI: group rankings (trainer view) + My Leaderboards (Progress) SESSIONS mode gained a LAST 30 DAYS / ALL-TIME toggle, defaulting to 30d per @maaiz so a strong newcomer catches up fast; tier fallback shows '\u2014' not 'Kitten'. STILL PENDING (next slice): backport the trainer-tier badge to group/my-leaderboards/trainer-client rows (needs trainer-tier computed in the groups/mine routes); unify mode-button accent to teal; explicit My-Leaderboards header row. tsc clean. (qa: leaderboard-30d-lens)"
     },
     {
+      "id": "plan-min-exercises",
+      "title": "Every generated strength day has at least 3 movements (bodyweight top-up guard)",
+      "area": "Plan builder",
+      "introduced": "2026-06-10",
+      "introducedBy": "Phase 4 plan-builder pass",
+      "lastTested": "2026-06-10",
+      "status": "regression-retest",
+      "steps": [
+        "Build a bodyweight-only home plan (no equipment selected). Open each day — none should have fewer than 3 main exercises (was possible for equipment-gated muscles to leave a day near-empty after the null-filter).",
+        "Confirm the topped-up moves are bodyweight and match the day's focus (e.g. push day → push-ups / pike push-ups; leg day → bodyweight squat / lunges).",
+        "Cardio / recovery / mobility days are exempt and unchanged.",
+        "Build a home plan WITH a barbell → Barbell Overhead Press is now eligible (was gym-only despite needing only a barbell)."
+      ],
+      "notes": "[2026-06-10] Phase 4. Post-processing guard in generatePlan tops up any non-cardio/recovery day with < 3 exercises from a universal bodyweight pool (pushups / pike-pushup / inverted-row / bodyweight-squat / lunges / glute-bridge / plank / crunches) matched to the day's focus — never removes, only adds, so worst case is one redundant bodyweight move. Also loosened overhead-press location gym→both (equipment filter still requires a barbell). tsc clean. (qa: plan-min-exercises)"
+    },
+    {
       "id": "plan-warmup-equipment-strict",
       "title": "Generated warm-up never prescribes cardio equipment the user didn't select",
       "area": "Plan builder",
