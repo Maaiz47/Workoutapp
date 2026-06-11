@@ -1054,6 +1054,74 @@ Compress to ≤ **80 KB** PNG via pngquant (README envelope).
 
 ---
 
+## Batch 16 — Navigation hub + leaderboard medal icons (8 images) NEW
+
+Flagged 2026-06-10 by the full-app emoji audit. After the tier badges
+(Batches 2/3) and sub-rank glyphs (Batch 8) move off emoji, the two
+remaining high-visibility emoji surfaces are the **bottom navigation
+hub** (5 glyphs, on screen on every home visit) and the **leaderboard
+medal columns** (🥇🥈🥉, in every ranking row). These are the single
+biggest "premium feel" wins left. (Sub-rank icons are NOT here — they
+are already fully spec'd in Batch 8; don't duplicate.)
+
+Render size: nav glyphs ~22px, medals ~18px inline. Generate at
+256×256 PNG, compress to 96×96 / quality 85 (target <12 KB each).
+Total batch budget: ~95 KB.
+
+**Background policy:** same as Batches 2/3/8 — **fully transparent
+background, glyph only**. The tab bar + leaderboard rows carry their
+own background/active-state styling.
+
+### Style guide (paste into every Batch 16 prompt)
+
+> Generate a 256×256 PNG icon with a FULLY TRANSPARENT background
+> (alpha channel, no fill, no halo, no scene). Style: **subject-only
+> monoline / light-glyph**, premium app icon set. Single clean
+> silhouette in the icon's theme colour with subtle inner highlights.
+> NO text, NO numbers, NO bounding circle. Square 256×256, centred,
+> ~15% safe margin so it reads at 18–22px. Reference cues: Apple
+> Fitness / Nike Training / Strava tab-bar glyphs — iconic,
+> single-purpose, instantly legible at small sizes.
+
+### Navigation hub glyphs (5)
+
+| ID | Concept | Accent colour | Prompt addition |
+|---|---|---|---|
+| `nav/messages` | Speech bubble, two inner text lines | `#4ECDC4` (teal) | "a speech bubble silhouette tilted slightly right, two soft highlight lines inside suggesting text" |
+| `nav/progress` | Mini bar chart trending up | `#4ECDC4` (teal) | "three vertical bars of increasing height, one small dot floating above the tallest suggesting an upward trend" |
+| `nav/leaderboard` | Three-step podium with shine | `#FFD166` gold + `#4ECDC4` teal trim | "a stylised 3-step podium (left/centre/right of decreasing height), subtle shine on the centre platform" |
+| `nav/groups` | Cluster of overlapping nodes | `#4ECDC4` (teal) | "three or four overlapping circles in a loose cluster, one pulled slightly forward, suggesting a community" |
+| `nav/friends` | Two figures + link/plus | `#4ECDC4` (teal) | "two stylised human silhouettes facing each other with a small plus/link symbol between them ('add friend')" |
+
+### Leaderboard medals (3)
+
+Semi-filled hybrid (not pure monoline) so the metal reads at 18px.
+Circular medal face + short ribbon, no readable text on the ribbon.
+
+| ID | Concept | Accent colour | Prompt addition |
+|---|---|---|---|
+| `medals/gold` | 1st-place medal | warm gold `#FFD166` | "circular medal face, subtle hammered-gold radial texture, short ribbon draped upward, warm rim-light" |
+| `medals/silver` | 2nd-place medal | cool silver `#94a3b8` | "circular medal face, brushed-silver texture, short ribbon, white rim-light" |
+| `medals/bronze` | 3rd-place medal | bronze/copper `#a8784a` | "circular medal face, oxidised bronze patina, short ribbon, warm copper rim-light" |
+
+**Wire-up:** add a small reusable `<IconGlyph src emoji size>` wrapper
+(generalise the existing `TierGlyph` image-with-emoji-fallback pattern,
+`app/page.tsx:135`): renders `<img>` when a raster exists, falls back
+to the emoji string on load error. Point the 5 nav buttons
+(`app/page.tsx` ~12540–12587) at `/icon-set/nav/*.png` and the medal
+columns (global + group + trainer-client leaderboard rows, plus
+`app/qa/page.tsx`) at `/icon-set/medals/*.png`. ~20-line change + the
+wrapper. (qa: nav-medal-icons-raster)
+
+**Future candidates (NOT this batch):** the 10 daily-quest icons
+(`lib/gamification.ts`) and 11 achievement-category headers
+(`lib/achievements.ts`) — lower-visibility, batch later if the icon
+set lands well. Also surfaced: premium empty-state illustrations
+(no-plan / no-messages / no-friends) — worth a future illustration
+batch, not icons.
+
+---
+
 ## After all batches land
 
 Total: **63 images** (53 if Batch 9 deferred). Breakdown:
