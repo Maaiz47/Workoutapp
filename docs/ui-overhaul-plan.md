@@ -5,8 +5,28 @@ swipe-back & basic functions, leaderboards, plan builder, tutorial completeness,
 test-user simulation + scoring internals, emoji→icon inventory, and a broad
 functional bug sweep.
 
-**Status: DISCUSSION DRAFT — nothing implemented yet.** Everything below is
-sliceable into independent deploys. Held locally until @maaiz says ship.
+**Status: IN IMPLEMENTATION.** Held locally — @maaiz wants the whole backlog
+done before any deploy. Progress log below; the workstream detail follows.
+
+### Progress log
+- ✅ **Phase 1 — data integrity** (`4b09500`): `lib/num.ts` safeFloat/safeInt;
+  NaN guards in metrics/profile/photos APIs; goal-celebration finite guard;
+  test-user tick → UTC midnight; corrected stale cron-time label. tsc + qa:scan
+  clean. Also reviewed the test-user admin system (SEED/WIPE/ADVANCE/TICK,
+  15 users, visibility-OFF default) — logical & safe, only the cron-time label
+  was wrong.
+- ✅ **Phase 2 — swipe & basic functions** (`7f533d3`): scroller-hijack guard,
+  customise-view swipe-back, overlay-dismiss stack (~20 modals, × kept),
+  groupChatPrevView persistence, swipe routes via goTo(,"back").
+- 🚧 **Phase 3 — leaderboards** (server done: `732a2dc`, `220c775`):
+  30-day stats (`sessions30d`/`volume30d`/`intensityPoints30d`) in
+  computeStatsForUsers; global `window=30d` ranking; deterministic tie-breaks.
+  Global board already ranked by tier score (good). **Remaining: page.tsx UI** —
+  group board default → 30-day activity + ALL-TIME toggle; trainer-badge
+  backport to group/my-leaderboards/trainer-client rows; My Leaderboards column
+  headers; teal mode buttons; tier fallback "—"; null-metric hint.
+- ⏳ **Phase 4** plan builder · **Phase 5** tutorial catch-up + auto-update ·
+  **Phase 6** visual/3D · **WS6** test-user splits · **WS7** icon wire-up.
 
 ---
 
