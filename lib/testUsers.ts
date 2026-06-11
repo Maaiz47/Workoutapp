@@ -273,24 +273,42 @@ function rng(seed: string): () => number {
 // computed intensityPoints (supersets/dropsets bonus only — RPE is
 // stored per-set in the blob and summed at read time).
 function buildSession(arch: TestArchetype, dayDateMs: number, weeksSinceStart: number): { sets: Record<string, any>; intensityPoints: number } {
-  // Cycle through a small set of canonical exercise IDs so the
-  // Mastery filter (≥4 sets in 180d) actually engages.
-  const exerciseRotation = [
-    "barbell-back-squat",
-    "barbell-bench-press",
-    "barbell-deadlift",
-    "barbell-overhead-press",
-    "barbell-bent-row",
-    "pull-up",
-    "dumbbell-curl",
-    "dumbbell-tricep-extension",
-  ];
+  // Test users follow a real SPLIT keyed to their daysPerWeek instead of
+  // one flat rotation, so their history looks like a structured program
+  // (different muscle focus on different days) rather than the same lifts
+  // every session. The split slot advances by calendar day and is
+  // deterministic. (qa: test-user-splits)
+  const SPLITS: Record<string, string[][]> = {
+    // ≤3 d/wk — full-body A/B/C
+    fullbody: [
+      ["barbell-back-squat", "barbell-bench-press", "barbell-bent-row", "barbell-overhead-press", "dumbbell-curl"],
+      ["barbell-deadlift", "barbell-overhead-press", "pull-up", "lunges", "dumbbell-tricep-extension"],
+      ["barbell-back-squat", "barbell-bench-press", "barbell-bent-row", "pull-up", "glute-bridge"],
+    ],
+    // 4 d/wk — upper / lower / upper / lower
+    upperlower: [
+      ["barbell-bench-press", "barbell-bent-row", "barbell-overhead-press", "pull-up", "dumbbell-curl"],
+      ["barbell-back-squat", "barbell-deadlift", "lunges", "glute-bridge"],
+      ["barbell-overhead-press", "pull-up", "barbell-bench-press", "dumbbell-tricep-extension", "dumbbell-curl"],
+      ["barbell-deadlift", "barbell-back-squat", "lunges", "glute-bridge"],
+    ],
+    // 5+ d/wk — push / pull / legs / push / pull
+    ppl: [
+      ["barbell-bench-press", "barbell-overhead-press", "dumbbell-tricep-extension"],
+      ["barbell-deadlift", "barbell-bent-row", "pull-up", "dumbbell-curl"],
+      ["barbell-back-squat", "lunges", "glute-bridge"],
+      ["barbell-overhead-press", "barbell-bench-press", "dumbbell-tricep-extension"],
+      ["barbell-bent-row", "pull-up", "dumbbell-curl"],
+    ],
+  };
+  const dpw = arch.profile.daysPerWeek;
+  const split = dpw <= 3 ? SPLITS.fullbody : dpw === 4 ? SPLITS.upperlower : SPLITS.ppl;
+  // Which split day is this? Advance by calendar day so consecutive
+  // training days hit different focuses (a Mon/Wed/Fri trainer rotates
+  // through the split just like a real lifter).
+  const dayNumber = Math.floor(dayDateMs / 86400000);
+  const chosen = split[dayNumber % split.length];
   const r = rng(`${arch.id}-${dayDateMs}-sets`);
-  // 3-5 exercises per session depending on daysPerWeek (full body if
-  // 3/wk, more focused if 5/wk).
-  const exerciseCount = arch.profile.daysPerWeek <= 3 ? 5 : 4;
-  const startIdx = Math.floor(r() * exerciseRotation.length);
-  const chosen = Array.from({ length: exerciseCount }, (_, i) => exerciseRotation[(startIdx + i) % exerciseRotation.length]);
   const sets: Record<string, any> = {};
   let intensityPoints = 0;
   // Strength progression factor: starts at 1.0, grows by weeklyStrengthMult.
@@ -301,7 +319,7 @@ function buildSession(arch: TestArchetype, dayDateMs: number, weeksSinceStart: n
     // "intermediate male" baseline. Adjust by fitnessLevel.
     const levelMult = arch.profile.fitnessLevel === "beginner" ? 0.55 : arch.profile.fitnessLevel === "advanced" ? 1.25 : 1.0;
     const sexMult = arch.profile.gender === "female" ? 0.75 : 1.0;
-    const exerciseBase = eid.includes("deadlift") ? 100 : eid.includes("squat") ? 80 : eid.includes("bench") ? 60 : eid.includes("press") ? 45 : eid.includes("row") ? 55 : eid.includes("pull-up") ? 0 : 18;
+    const exerciseBase = eid.includes("deadlift") ? 100 : eid.includes("squat") ? 80 : eid.includes("bench") ? 60 : eid.includes("press") ? 45 : eid.includes("row") ? 55 : eid.includes("pull-up") ? 0 : eid.includes("lunge") ? 40 : eid.includes("glute") ? 50 : 18;
     const baseWeight = Math.round(exerciseBase * levelMult * sexMult * strengthFactor / 2.5) * 2.5;
     const setCount = 4;
     for (let i = 1; i <= setCount; i++) {

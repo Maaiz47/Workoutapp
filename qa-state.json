@@ -2932,6 +2932,21 @@
       "notes": "[2026-06-10] Phase 3. Server: computeStatsForUsers now returns sessions30d / volume30d / intensityPoints30d (single-pass). /api/leaderboard/global accepts window=all|30d (30d sorts by sessions30d\u2192volume30d) and both boards got a deterministic userId tie-break. Global already ranked by tier headline score. UI: group rankings (trainer view) + My Leaderboards (Progress) SESSIONS mode gained a LAST 30 DAYS / ALL-TIME toggle, defaulting to 30d per @maaiz so a strong newcomer catches up fast; tier fallback shows '\u2014' not 'Kitten'. STILL PENDING (next slice): backport the trainer-tier badge to group/my-leaderboards/trainer-client rows (needs trainer-tier computed in the groups/mine routes); unify mode-button accent to teal; explicit My-Leaderboards header row. tsc clean. (qa: leaderboard-30d-lens)"
     },
     {
+      "id": "test-user-splits",
+      "title": "Test users follow a real split (full-body / upper-lower / PPL) per daysPerWeek",
+      "area": "Dev tools",
+      "introduced": "2026-06-10",
+      "introducedBy": "WS6 test-user realism pass",
+      "lastTested": "2026-06-10",
+      "status": "regression-retest",
+      "steps": [
+        "Seed test users, ADVANCE ~14 days, then inspect a 5-day/week user's recent workout logs: consecutive sessions should hit different focuses (push / pull / legs …), not the same lifts every day.",
+        "A 3-day/week user cycles full-body A/B/C; a 4-day/week user cycles upper/lower.",
+        "Confirm only test users (isTestUser) are affected — real users' data is untouched."
+      ],
+      "notes": "[2026-06-10] WS6. buildSession in lib/testUsers.ts replaced the single flat 8-lift rotation with daysPerWeek-keyed split templates (≤3→full-body A/B/C, 4→upper/lower, 5+→PPL); the split slot advances by calendar day deterministically so a Mon/Wed/Fri trainer rotates through the split like a real lifter. Existing logs unchanged (idempotent per day); new ticks follow the split. (qa: test-user-splits)"
+    },
+    {
       "id": "tutorial-coverage-v8",
       "title": "Tutorial catch-up batch (v8) + automatic coverage scanner",
       "area": "Onboarding",

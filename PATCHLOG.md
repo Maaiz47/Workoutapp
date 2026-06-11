@@ -2,6 +2,12 @@
 
 ---
 
+## Fix · 2026-06-10 — Test users follow their split (not one flat rotation) (qa: test-user-splits)
+
+WS6 of the audit backlog. @maaiz wanted the synthetic test users to behave like real members training their program. `buildSession` in `lib/testUsers.ts` cycled the same 8 lifts every session regardless of split. Now it picks from `daysPerWeek`-keyed split templates — ≤3/wk → full-body A/B/C, 4/wk → upper / lower, 5+/wk → push / pull / legs — and the split slot advances by calendar day deterministically, so a Mon/Wed/Fri user rotates through the program like a real lifter instead of repeating the same workout. Only `isTestUser` accounts are affected; real users are untouched, and existing logs stay (idempotent per day) — new daily ticks follow the split. `npx tsc --noEmit` clean; no UI surface, so no `TUTORIAL_STEPS` change.
+
+---
+
 ## Feat · 2026-06-10 — Phase 5: tutorial catch-up batch (v8) + automatic coverage scanner (qa: tutorial-coverage-v8)
 
 Fifth slice of the full-audit backlog. The audit found tutorial coverage at ~55% — 10+ user-visible surfaces had shipped with no step. This closes the gap and adds a guard so it can't silently happen again.
