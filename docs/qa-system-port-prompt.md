@@ -144,3 +144,89 @@ Store them in the host's env config, never in the repo.
 6. Adapt every IronLog-specific name/route to this app's conventions; the contracts
    above (file naming, JSON shapes, idempotent fanout, two-step flow) are what must
    stay intact.
+
+────────────────────────────────────────────────────────
+## ADD-ON: version display + "update available" banner + patch-update push
+
+This is IronLog's update-notification system. Same rule: keep the behaviour and
+the SHA-based mechanism; adapt routes/stack. The ONE non-obvious bit is #10 — get
+that wrong and the banner silently never fires (you'll be told to "force-close the
+app to update"). Build all of these.
+
+### 9. Version endpoint
+- `GET /api/version` → `{ sha, shortSha, appVersion, ref, title }` where:
+  - `sha` = the server's CURRENT deployed commit SHA (from the host's git env var,
+    e.g. `VERCEL_GIT_COMMIT_SHA`),
+  - `appVersion` = a human number like `v1.2.33`,
+  - `title` = the latest PATCHLOG section heading ("what's new").
+- IronLog DERIVES the patch number at request time by counting every top-level
+  `## ` section in `PATCHLOG.md` (minus an offset). That means: **every deploy that
+  adds a PATCHLOG section bumps the visible version automatically.** Pick any
+  deterministic scheme, but make "ship a patch" → "version increments" automatic so
+  it never silently freezes.
+
+### 10. Bake the build SHA into the CLIENT bundle  ← the critical fix
+- At BUILD time, inject the commit SHA + version into the client bundle as
+  build-time constants (IronLog: `NEXT_PUBLIC_BUILD_SHA` from `VERCEL_GIT_COMMIT_SHA`
+  and `NEXT_PUBLIC_BUILD_VERSION`, set in next.config.js). Do the equivalent in your
+  bundler (define/env-replace at build).
+- The client's `runningSha` MUST come from this baked constant — i.e. the SHA of the
+  bundle ACTUALLY LOADED in the browser — NOT from `/api/version`.
+- WHY (the bug to avoid): if `runningSha` is read from `/api/version` on mount, it's
+  the SERVER's current SHA, which always equals `latestSha`, so "update available"
+  is always false and the banner never shows. A stale cached PWA then keeps running
+  old code with no prompt until a manual force-close. Baking the SHA is what makes
+  the comparison meaningful.
+
+### 11. The banner + the "updated" toast (both SHA-based)
+- On load, fetch `/api/version` → `latestSha`. Compare to the baked `runningSha`:
+  - **server ahead** (`latestSha !== runningSha`) → show a persistent
+    **"NEW VERSION AVAILABLE · REFRESH"** banner (IronLog: cyan). One tap does a
+    **cache-busted reload** (e.g. unregister/refresh the service worker, then
+    `location.reload()`), no force-close. This is the "app was open across a deploy"
+    case.
+  - **fresh bundle on cold start** (baked `runningSha` differs from the SHA you
+    stored in localStorage last run) → show a transient **"UPDATED TO v…"** toast
+    (IronLog: green) and update the stored SHA. This is the "PWA reopened and
+    already has the new bundle" case.
+- Re-poll `/api/version` periodically and on focus/visibility-change so a banner
+  appears for users who leave the app open across a deploy.
+
+### 12. Check-for-updates control
+- In Settings, a "🔄 APP VERSION  v1.2.33 · build <sha>" row + a **CHECK FOR UPDATES**
+  / **REFRESH NOW** button that re-fetches `/api/version` and, if behind, runs the
+  same cache-busted reload (also nudges the service worker to pick up the new PWA
+  assets).
+
+### 13. Patch-update PUSH notifications (announce the deploy)
+- After a deploy lands, push subscribed users a "📦 <APP> updated to v1.2.33 —
+  <PATCHLOG title>" notification. Implement as an admin/deploy-triggered fanout,
+  mirroring the QA fanout: `POST /api/admin/version-push-fanout { version }`,
+  gated by `ADMIN_SECRET`, sends ONE push per subscribed user, and is **idempotent
+  per version** (store a `pushedVersions` marker / per-subscription `lastPushedVer`
+  so re-running never double-sends). Trigger it from your deploy pipeline or run it
+  manually as the last deploy step (same discipline as the QA fanout).
+- Keep it tasteful: one push per version, not per commit. Optionally only fire for
+  user-facing versions (skip docs-only deploys).
+
+### Gotchas
+- **PWA / service-worker caching is the whole reason this exists** — browsers serve
+  the cached bundle on reopen, so you can't rely on a normal reload. SHA comparison
+  + explicit SW refresh is what guarantees the user actually gets new code.
+- **Don't let the version number freeze.** If you derive it from PATCHLOG section
+  count, don't filter by heading keyword (IronLog once did and the version silently
+  stuck for several deploys). Count ALL `## ` sections.
+- Banner only meaningfully appears when the app is open across a deploy; cold starts
+  get the toast. Both rely on the version number actually changing.
+
+### ⭐ Verify (version system)
+1. Load the app, deploy a new commit, keep the tab open → the "update available"
+   banner appears within a poll cycle; tapping it loads the new SHA (verify
+   `runningSha` changed).
+2. Close the PWA, deploy, reopen → you get the "UPDATED TO v…" toast, not the banner.
+3. Temporarily hard-code `runningSha` to equal `latestSha` → confirm the banner
+   correctly does NOT show (proves the comparison, not a constant-true).
+4. Fire the version-push fanout twice for the same version → exactly ONE push
+   (idempotency).
+5. Ship a docs-only deploy → confirm your "skip non-user-facing" rule (if you added
+   one) suppresses the push, but the version row still reflects reality.
