@@ -2,6 +2,12 @@
 
 ---
 
+## Fix · 2026-06-12 — QA: client history set display (0kg bug) reuses personal-history logic (qa: trainer-client-detail)
+
+@maaiz: *"My client Allaa's last set history looks all wrong as 0kg entries"* + the steer *"the same personal history setup in progress can be used for viewing client history."* Spot on. The trainer **clientDetail → History** tab rendered every set as `{weight}kg×{reps}`, so **bodyweight** sets showed `0kg×N` and **cardio** sets showed `0kg×` — it never handled the cases the trainer's *own* Progress history already does. Fixed by reusing that exact display logic: each set now parses `cardio / minutes / incline / speed`, and renders **cardio →** `Mmin · incline% · speed km/h`, **weight > 0 →** `Wkg×R`, **else →** `N reps`. Both the planned-exercise and logged-only render paths updated. `npx tsc --noEmit` clean; no new surface, so no `TUTORIAL_STEPS` change. Both QA comments (`r5ojq5bk` bug + `965fl1e8` context) processed.
+
+---
+
 ## Fix · 2026-06-10 — Phase 3 follow-up: trainer-tier crest on group + my-leaderboard rows (qa: trainer-badge-everywhere)
 
 Closes the open `trainer-badge-everywhere` ask for the leaderboard surfaces. The global board already showed a dual-role user's trainer crest; the GROUP rankings and Progress → **My Leaderboards** didn't. Both `/api/leaderboard/groups` and `/api/leaderboard/mine` now compute a per-member `trainerTier` (via `trainerTierFromClientCount`) for any member whose `role`/`extraRoles` includes `trainer`, and the rows render a second `TierGlyph` crest beside the athlete tier with the trainer rung name in the subtitle. So a coach who's also lifting shows both their athlete tier and their Spotter→Hall-of-Fame trainer rung wherever they appear on a board. The trainer-client block is exempt (its rows are the clients/athletes). `npx tsc --noEmit` clean; no new surface, so no `TUTORIAL_STEPS` change.

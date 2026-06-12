@@ -1,5 +1,13 @@
 {
   "processedIds": {
+    "cmqal5led000014ovr5ojq5bk": {
+      "ts": "2026-06-12T07:09:05Z",
+      "summary": "@maaiz: 'My client Allaa's last set history looks all wrong as 0kg entries'. Fixed — the trainer client-history tab now uses the same display logic as your own Progress history: cardio sets show minutes/incline/speed, bodyweight sets show 'N reps', and only weighted sets show 'Wkg×R' (was showing '0kg×N' for everything non-weighted). (qa: trainer-client-detail)"
+    },
+    "cmqal6qxt000088cj965fl1e8": {
+      "ts": "2026-06-12T07:09:59Z",
+      "summary": "@maaiz context re:r5ojq5bk: 'The same personal history setup in progress can be used for viewing client history'. Done exactly that — reused the personal Progress history's set-display logic in the client-history tab. (qa: trainer-client-detail)"
+    },
     "cmq6de8060002i81udsslj1ot": {
       "ts": "2026-06-09T08:20:46Z",
       "summary": "@maaiz: 'Can't open my existing custom exercise, only shows a delete button'. Done — saved MY EXERCISES rows are now tappable + have an EDIT button that opens the creator form pre-filled in edit mode; saves via new owner-checked PATCH /api/trainer/exercises/[id]. (qa: trainer-custom-exercises)"

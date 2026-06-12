@@ -13268,14 +13268,14 @@ function HomePage() {
               {flatHistory.map((s: any, i: number) => {
                 const sessionKey = s.id ?? `${s.dayId}-${i}`;
                 const isOpen = openClientSession === sessionKey;
-                const rawSets = (s.sets ?? {}) as Record<string, { weight: number; reps: number }>;
+                const rawSets = (s.sets ?? {}) as Record<string, { weight: number; reps: number; cardio?: boolean; minutes?: number; incline?: number; speed?: number }>;
 
                 // Group sets by exerciseId
-                const byExercise: Record<string, { name: string; sets: { setNum: string; weight: number; reps: number }[] }> = {};
+                const byExercise: Record<string, { name: string; sets: { setNum: string; weight: number; reps: number; cardio?: boolean; minutes?: number; incline?: number; speed?: number }[] }> = {};
                 for (const [k, v] of Object.entries(rawSets)) {
                   const { eid, setNum } = parseSetKey(k);
                   if (!byExercise[eid]) byExercise[eid] = { name: exNameMap[eid] ?? eid, sets: [] };
-                  byExercise[eid].sets.push({ setNum, weight: v.weight, reps: v.reps });
+                  byExercise[eid].sets.push({ setNum, weight: v.weight, reps: v.reps, cardio: (v as any).cardio, minutes: (v as any).minutes, incline: (v as any).incline, speed: (v as any).speed });
                 }
                 for (const ex of Object.values(byExercise)) ex.sets.sort((a, b) => Number(a.setNum) - Number(b.setNum));
 
@@ -13330,7 +13330,9 @@ function HomePage() {
                                 <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px", marginTop: 4 }}>
                                   {logged.sets.map(set => (
                                     <div key={set.setNum} style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>
-                                      S{set.setNum} <span style={{ color: "#fff", fontWeight: 600 }}>{set.weight}kg×{set.reps}</span>
+                                      S{set.setNum} <span style={{ color: "#fff", fontWeight: 600 }}>{set.cardio
+                                        ? `${set.minutes ?? 0}min${set.incline ? ` · ${set.incline}%` : ""}${set.speed ? ` · ${set.speed}km/h` : ""}`
+                                        : (set.weight ?? 0) > 0 ? `${set.weight}kg×${set.reps}` : `${set.reps} reps`}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -13343,7 +13345,9 @@ function HomePage() {
                             <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px" }}>
                               {ex.sets.map(set => (
                                 <div key={set.setNum} style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>
-                                  S{set.setNum} <span style={{ color: "#fff", fontWeight: 600 }}>{set.weight}kg×{set.reps}</span>
+                                  S{set.setNum} <span style={{ color: "#fff", fontWeight: 600 }}>{set.cardio
+                                    ? `${set.minutes ?? 0}min${set.incline ? ` · ${set.incline}%` : ""}${set.speed ? ` · ${set.speed}km/h` : ""}`
+                                    : (set.weight ?? 0) > 0 ? `${set.weight}kg×${set.reps}` : `${set.reps} reps`}</span>
                                 </div>
                               ))}
                             </div>

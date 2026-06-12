@@ -3607,17 +3607,17 @@
       "area": "Trainer",
       "introduced": "2026-05-20",
       "introducedBy": "4098899",
-      "lastTested": null,
-      "status": "untested",
+      "lastTested": "2026-06-12",
+      "status": "regression-retest",
       "steps": [
         "Log in as a trainer and tap a client's card",
         "The client detail view opens \u2014 verify three tabs: 'Split', 'History', 'Profile'",
         "Split tab: shows the client's current workout plan days",
-        "History tab: shows the client's recent workout log entries with date and duration",
+        "History tab: expand a session. Weighted sets read 'Wkg\u00d7R'; BODYWEIGHT sets read 'N reps' (NOT '0kg\u00d7N'); CARDIO sets read 'Mmin \u00b7 incline% \u00b7 speed km/h' \u2014 same as the trainer's own Progress history.",
         "Profile tab: shows the client's profile data (DOB, goals, equipment, etc.)",
         "Tap '\u2190 Back' to return to the home screen"
       ],
-      "notes": ""
+      "notes": "[2026-06-12] Fixed: @maaiz: 'My client Allaa's last set history looks all wrong as 0kg entries' + 'the same personal history setup in progress can be used for viewing client history'. The clientDetail History tab rendered every set as `{weight}kg\u00d7{reps}`, so bodyweight sets showed '0kg\u00d7N' and cardio sets showed '0kg\u00d7' \u2014 it never handled the cardio (minutes/incline/speed) or zero-weight (\u2192 'N reps') cases the trainer's OWN Progress history already handles. Reused that exact display logic: parse cardio/minutes/incline/speed off each set and render cardio \u2192 time/incline/speed, weight>0 \u2192 'Wkg\u00d7R', else \u2192 'N reps'. (qa: trainer-client-detail)"
     },
     {
       "id": "trainer-generate-plan",
