@@ -6640,6 +6640,10 @@ function HomePage() {
   // session-autoresume-silent)
   const [progressTab, setProgressTab] = useState<"dashboard" | "exercises" | "history" | "body">("dashboard");
   const [calDateSel, setCalDateSel] = useState<string | null>(null);
+  // Calendar selection for the trainer's CLIENT history tab — mirrors the
+  // personal Progress history calendar so a client's history reads the
+  // same. (qa: trainer-client-detail)
+  const [clientCalDateSel, setClientCalDateSel] = useState<string | null>(null);
   const [selectedExDay, setSelectedExDay] = useState<string | null>(null);
 
   // ── In-workout exercise addition ──
@@ -13264,6 +13268,29 @@ function HomePage() {
                   <img src="/ai/empty-workouts.jpg" alt="" style={{ width: 160, height: 160, opacity: 0.6, borderRadius: 14, marginBottom: 14 }} />
                   <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No workouts logged yet</div>
                 </div>
+              )}
+              {/* Same month-grid calendar + day recap as the trainer's own
+                  Progress → History tab, fed by the client's history. Per
+                  @maaiz: client history should match the personal view.
+                  (qa: trainer-client-detail) */}
+              {flatHistory.length > 0 && clientData && (
+                <>
+                  <HistoryCalendar
+                    history={clientData.history}
+                    selectedIso={clientCalDateSel}
+                    onSelect={iso => setClientCalDateSel(clientCalDateSel === iso ? null : iso)}
+                  />
+                  {clientCalDateSel && (
+                    <DaySessionRecap
+                      iso={clientCalDateSel}
+                      history={clientData.history}
+                      findExName={(eid: string) => exNameMap[eid] ?? eid}
+                      parseSetKey={parseSetKey}
+                      customPlan={(clientData.plan as any)?.days ?? null}
+                      onClose={() => setClientCalDateSel(null)}
+                    />
+                  )}
+                </>
               )}
               {flatHistory.map((s: any, i: number) => {
                 const sessionKey = s.id ?? `${s.dayId}-${i}`;

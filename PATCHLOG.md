@@ -2,6 +2,12 @@
 
 ---
 
+## Polish · 2026-06-12 — Client history tab gets the calendar (parity with personal history) (qa: trainer-client-detail)
+
+@maaiz (with screenshots): *"Allaa's history tab and my own are different, mine has a calendar and looks better."* The trainer's own Progress → History tab has a month-grid heatmap calendar (INTENSITY / PBs toggle) + a tappable day Session-Recap; the client History tab was just a flat session list. Brought it to parity by reusing the **same** components — `<HistoryCalendar history={clientData.history} …/>` plus `<DaySessionRecap/>` for the selected day — rendered above the existing session list. New `clientCalDateSel` state; exercise names resolve via the tab's existing `exNameMap`. Both components were already self-contained and take a `history` map, so no logic was duplicated. `npx tsc --noEmit` clean; enhances an existing surface, so no `TUTORIAL_STEPS` change.
+
+---
+
 ## Fix · 2026-06-12 — QA: client history set display (0kg bug) reuses personal-history logic (qa: trainer-client-detail)
 
 @maaiz: *"My client Allaa's last set history looks all wrong as 0kg entries"* + the steer *"the same personal history setup in progress can be used for viewing client history."* Spot on. The trainer **clientDetail → History** tab rendered every set as `{weight}kg×{reps}`, so **bodyweight** sets showed `0kg×N` and **cardio** sets showed `0kg×` — it never handled the cases the trainer's *own* Progress history already does. Fixed by reusing that exact display logic: each set now parses `cardio / minutes / incline / speed`, and renders **cardio →** `Mmin · incline% · speed km/h`, **weight > 0 →** `Wkg×R`, **else →** `N reps`. Both the planned-exercise and logged-only render paths updated. `npx tsc --noEmit` clean; no new surface, so no `TUTORIAL_STEPS` change. Both QA comments (`r5ojq5bk` bug + `965fl1e8` context) processed.
