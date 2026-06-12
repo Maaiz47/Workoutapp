@@ -1,0 +1,10 @@
+{
+  "id": "cmqal5led000014ovr5ojq5bk",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Trainer · view=clientDetail] My client allas last set history looks all wrong as 0kg entries",
+  "screenshotUrl": null,
+  "ts": "2026-06-12T07:09:05.558Z"
+}
