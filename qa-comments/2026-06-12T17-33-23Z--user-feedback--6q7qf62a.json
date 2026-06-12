@@ -1,0 +1,10 @@
+{
+  "id": "cmqb7gfzz000011yb6q7qf62a",
+  "itemId": "user-feedback",
+  "tester": "humaam",
+  "userId": "cmp4zleel0000zisawhcu3eb7",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=customise] Can edit main exercises but not warmup and warm down",
+  "screenshotUrl": null,
+  "ts": "2026-06-12T17:33:23.328Z"
+}
