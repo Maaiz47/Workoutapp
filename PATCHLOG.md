@@ -2,6 +2,12 @@
 
 ---
 
+## Fix · 2026-06-12 — Completed bodyweight/HIIT sets read "✓ done", not "0 reps" (qa: trainer-client-detail)
+
+Follow-on from @maaiz's screenshots: Allaa's cardio day showed Burpees / High Knees / Jump Rope as **"0 reps"**. Those are real `type: "cardio", hiit: true` bodyweight moves logged with `reps: 0` (no weight, no duration captured) — so the history rendered a misleading "0 reps". Fixed the display in all four history render paths (the shared `DaySessionRecap`, the personal Progress session list, and both client-history render paths): a set with no cardio data, `weight = 0` **and** `reps = 0` now reads **"✓ done"** (it was completed, just not numerically tracked); weighted sets still show `Wkg×R`, rep sets `N reps`, cardio `min · incline · speed`. Retroactive — fixes existing logged data everywhere without a migration. `npx tsc --noEmit` clean; display-only, no `TUTORIAL_STEPS` change.
+
+---
+
 ## Polish · 2026-06-12 — Client history tab gets the calendar (parity with personal history) (qa: trainer-client-detail)
 
 @maaiz (with screenshots): *"Allaa's history tab and my own are different, mine has a calendar and looks better."* The trainer's own Progress → History tab has a month-grid heatmap calendar (INTENSITY / PBs toggle) + a tappable day Session-Recap; the client History tab was just a flat session list. Brought it to parity by reusing the **same** components — `<HistoryCalendar history={clientData.history} …/>` plus `<DaySessionRecap/>` for the selected day — rendered above the existing session list. New `clientCalDateSel` state; exercise names resolve via the tab's existing `exNameMap`. Both components were already self-contained and take a `history` map, so no logic was duplicated. `npx tsc --noEmit` clean; enhances an existing surface, so no `TUTORIAL_STEPS` change.

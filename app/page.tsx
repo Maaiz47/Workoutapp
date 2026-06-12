@@ -3060,7 +3060,7 @@ function DaySessionRecap({
                       }}>
                         <span>{set.cardio
                           ? `${set.minutes ?? 0}min${set.incline ? ` · ${set.incline}%` : ""}${set.speed ? ` · ${set.speed}km/h` : ""}`
-                          : set.weight > 0 ? `${set.weight}kg × ${set.reps}` : `${set.reps} reps`}</span>
+                          : set.weight > 0 ? `${set.weight}kg × ${set.reps}` : set.reps > 0 ? `${set.reps} reps` : "✓ done"}</span>
                         {prev && (
                           <span style={{
                             fontSize: 9, color: deltaColor, letterSpacing: 0.5,
@@ -13359,7 +13359,7 @@ function HomePage() {
                                     <div key={set.setNum} style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>
                                       S{set.setNum} <span style={{ color: "#fff", fontWeight: 600 }}>{set.cardio
                                         ? `${set.minutes ?? 0}min${set.incline ? ` · ${set.incline}%` : ""}${set.speed ? ` · ${set.speed}km/h` : ""}`
-                                        : (set.weight ?? 0) > 0 ? `${set.weight}kg×${set.reps}` : `${set.reps} reps`}</span>
+                                        : (set.weight ?? 0) > 0 ? `${set.weight}kg×${set.reps}` : (set.reps ?? 0) > 0 ? `${set.reps} reps` : "✓ done"}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -13374,7 +13374,7 @@ function HomePage() {
                                 <div key={set.setNum} style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>
                                   S{set.setNum} <span style={{ color: "#fff", fontWeight: 600 }}>{set.cardio
                                     ? `${set.minutes ?? 0}min${set.incline ? ` · ${set.incline}%` : ""}${set.speed ? ` · ${set.speed}km/h` : ""}`
-                                    : (set.weight ?? 0) > 0 ? `${set.weight}kg×${set.reps}` : `${set.reps} reps`}</span>
+                                    : (set.weight ?? 0) > 0 ? `${set.weight}kg×${set.reps}` : (set.reps ?? 0) > 0 ? `${set.reps} reps` : "✓ done"}</span>
                                 </div>
                               ))}
                             </div>
@@ -17361,7 +17361,7 @@ function HomePage() {
                                 <div key={set.sn} style={{ fontSize: 10, color: "#fff", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, padding: "3px 7px", fontFamily: "'Space Mono', monospace" }}>
                                   {set.cardio
                                     ? `${set.minutes ?? 0}min${set.incline ? ` · ${set.incline}%` : ""}${set.speed ? ` · ${set.speed}km/h` : ""}`
-                                    : set.w > 0 ? `${set.w}kg × ${set.r}` : `${set.r} reps`}
+                                    : set.w > 0 ? `${set.w}kg × ${set.r}` : set.r > 0 ? `${set.r} reps` : "✓ done"}
                                 </div>
                               ))}
                             </div>
