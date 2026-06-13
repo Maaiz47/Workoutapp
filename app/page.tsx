@@ -10410,9 +10410,22 @@ function HomePage() {
                               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{repsLabel?.toUpperCase()} {cues.length > 0 ? "· TAP FOR CUES" : ""}</div>
                             </div>
                           </button>
-                          {showSaved && (
+                          {showSaved ? (
                             <button onClick={async () => {
                               const updated = exs.filter((x: any) => x !== wu);
+                              await saveDay(editingDay, updated);
+                            }} style={{ padding: "4px 8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 6, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>REMOVE</button>
+                          ) : (
+                            <button onClick={async () => {
+                              // Auto warm-ups aren't persisted, so removing one
+                              // MATERIALISES the rest as custom (kind="warmup")
+                              // minus this item — making auto warm-ups editable
+                              // too, not just removable when already custom.
+                              // (qa: customise-warmup-cooldown-edit)
+                              const mat = autoWus
+                                .filter((w: any) => w.id !== wu.id)
+                                .map((w: any) => ({ exerciseId: w.id, name: w.name, sets: 1, reps: w.reps, rest: 0, notes: null, groupId: null, groupType: null, dropSets: 0, dropSet: false, kind: "warmup" }));
+                              const updated = [...exs.filter((x: any) => x.kind !== "warmup"), ...mat];
                               await saveDay(editingDay, updated);
                             }} style={{ padding: "4px 8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 6, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>REMOVE</button>
                           )}
@@ -10629,9 +10642,20 @@ function HomePage() {
                               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{repsLabel?.toUpperCase()} {cues.length > 0 ? "· TAP FOR CUES" : ""}</div>
                             </div>
                           </button>
-                          {showSaved && (
+                          {showSaved ? (
                             <button onClick={async () => {
                               const updated = exs.filter((x: any) => x !== cd);
+                              await saveDay(editingDay, updated);
+                            }} style={{ padding: "4px 8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 6, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>REMOVE</button>
+                          ) : (
+                            <button onClick={async () => {
+                              // Materialise auto cool-downs as custom (kind="cooldown")
+                              // minus this one, so auto stretches are editable too.
+                              // (qa: customise-warmup-cooldown-edit)
+                              const mat = autoCds
+                                .filter((c: any) => c.id !== cd.id)
+                                .map((c: any) => ({ exerciseId: c.id, name: c.name, sets: 1, reps: c.reps, rest: 0, notes: null, groupId: null, groupType: null, dropSets: 0, dropSet: false, kind: "cooldown" }));
+                              const updated = [...exs.filter((x: any) => x.kind !== "cooldown"), ...mat];
                               await saveDay(editingDay, updated);
                             }} style={{ padding: "4px 8px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.25)", borderRadius: 6, color: "#FF6B6B", fontSize: 9, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>REMOVE</button>
                           )}

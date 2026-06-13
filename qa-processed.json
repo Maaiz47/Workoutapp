@@ -1,5 +1,9 @@
 {
   "processedIds": {
+    "cmqb7gfzz000011yb6q7qf62a": {
+      "ts": "2026-06-12T17:33:23Z",
+      "summary": "@humaam: 'Can edit main exercises but not warmup and warm down' (customise). Fixed — auto-picked warm-up/cool-down rows now have a REMOVE that materialises them as custom, so they're editable like the custom ones (add already worked). (qa: customise-warmup-cooldown-edit)"
+    },
     "cmqal5led000014ovr5ojq5bk": {
       "ts": "2026-06-12T07:09:05Z",
       "summary": "@maaiz: 'My client Allaa's last set history looks all wrong as 0kg entries'. Fixed — the trainer client-history tab now uses the same display logic as your own Progress history: cardio sets show minutes/incline/speed, bodyweight sets show 'N reps', and only weighted sets show 'Wkg×R' (was showing '0kg×N' for everything non-weighted). (qa: trainer-client-detail)"

@@ -2,6 +2,18 @@
 
 ---
 
+## Fix · 2026-06-13 — QA: editable warm-up/cool-down in Customise + admin-notify role gap (qa: customise-warmup-cooldown-edit, admin-submission-notifications)
+
+Two things from this QA pass.
+
+**@humaam: "Can edit main exercises but not warmup and warm down" (view=customise).** In the Customise editor, the warm-up/cool-down REMOVE control only rendered for already-custom (saved `kind=warmup/cooldown`) rows — AUTO-picked warm-ups/cool-downs had no edit control, so a user who hadn't customised the day couldn't change them. Fix: AUTO rows now show a REMOVE that **materialises** the auto list as custom (kind=warmup/cooldown) minus the removed item — making auto warm-ups/cool-downs editable, not just the custom ones. Both sections updated; add + cue-preview unchanged.
+
+**Why @maaiz wasn't notified of @humaam's submission (investigation + fix).** The admin submission-notify AND the in-app SYSTEM feed both target **role-admins** (`user.role==='admin'` OR `extraRoles` has `admin`). Live data showed @maaiz was `role=trainer`, `extraRoles=[]` — his admin powers come only from the `ADMIN_SECRET` env (a *secret-admin*, a separate notion). The only role-admin was **@amanii**, so she got humaam's push + feed entry, not @maaiz (the same reason her phone caught the stray push on 06-08). Fixed at runtime (no deploy) via `PATCH /api/admin set-extra-roles` → added `admin` to @maaiz's extraRoles (kept `trainer`). He'll now receive submission pushes + the SYSTEM feed; humaam's existing submission already surfaces in his feed (admin-feed returns recent submissions for role-admins).
+
+`npx tsc --noEmit` clean. Customise tutorial step already covers warm-up/cool-down editing; behaviour is now consistent with it, so no `TUTORIAL_STEPS` change.
+
+---
+
 ## Fix · 2026-06-12 — Completed bodyweight/HIIT sets read "✓ done", not "0 reps" (qa: trainer-client-detail)
 
 Follow-on from @maaiz's screenshots: Allaa's cardio day showed Burpees / High Knees / Jump Rope as **"0 reps"**. Those are real `type: "cardio", hiit: true` bodyweight moves logged with `reps: 0` (no weight, no duration captured) — so the history rendered a misleading "0 reps". Fixed the display in all four history render paths (the shared `DaySessionRecap`, the personal Progress session list, and both client-history render paths): a set with no cardio data, `weight = 0` **and** `reps = 0` now reads **"✓ done"** (it was completed, just not numerically tracked); weighted sets still show `Wkg×R`, rep sets `N reps`, cardio `min · incline · speed`. Retroactive — fixes existing logged data everywhere without a migration. `npx tsc --noEmit` clean; display-only, no `TUTORIAL_STEPS` change.
