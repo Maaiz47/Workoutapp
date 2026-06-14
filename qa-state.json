@@ -1,6 +1,23 @@
 {
   "items": [
     {
+      "id": "customise-custom-exercise-gate",
+      "title": "Non-trainers get a 'report missing exercise + upgrade' note in the exercise browser (custom exercises are trainer-only)",
+      "area": "Workout",
+      "introduced": "2026-06-14",
+      "introducedBy": "QA pass (humaam report)",
+      "lastTested": "2026-06-14",
+      "status": "regression-retest",
+      "steps": [
+        "As a NON-trainer, open Customise → + Add Exercise (the browser).",
+        "Below the results, see a note: 'Can't find your exercise?' explaining to report a missing major exercise via the 💬 feedback tab, and that building custom exercises is a Power-User (trainer) feature.",
+        "Tap '⭐ BECOME A POWER USER' → goes to Settings (the upgrade-to-trainer request flow).",
+        "If an upgrade request is already pending, the button is replaced by 'UPGRADE REQUESTED — PENDING REVIEW'.",
+        "As a TRAINER, the note does NOT appear (they have MY EXERCISES)."
+      ],
+      "notes": "[2026-06-14] @humaam: 'why do i have to select from existing ones??? i want to select my own ones which aren't listed?'. Per @maaiz: custom-exercise creation stays trainer/Power-User only; instead non-trainers get an in-browser note to report a genuinely-missing major exercise (specific name + muscle, via the 💬 feedback tab) plus a 'Become a Power User' CTA that routes to the existing Settings request-trainer upgrade flow (shows pending state when roleRequest==='trainer'). Gated on !userHasRole(user,'trainer'). (qa: customise-custom-exercise-gate)"
+    },
+    {
       "id": "customise-warmup-cooldown-edit",
       "title": "Customise editor — warm-up & cool-down items are editable (removable), incl. auto-picked",
       "area": "Workout",

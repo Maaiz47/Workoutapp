@@ -1,5 +1,9 @@
 {
   "processedIds": {
+    "cmqcp3hu5004kddoxt28fv139": {
+      "ts": "2026-06-13T18:34:58Z",
+      "summary": "@humaam: 'why do i have to select from existing ones... i want my own ones which aren't listed?'. Custom-exercise creation stays trainer/Power-User only; added an in-browser note for non-trainers to report a missing major exercise via feedback + a 'Become a Power User' upgrade CTA routing to the Settings request-trainer flow. (qa: customise-custom-exercise-gate)"
+    },
     "cmqb7gfzz000011yb6q7qf62a": {
       "ts": "2026-06-12T17:33:23Z",
       "summary": "@humaam: 'Can edit main exercises but not warmup and warm down' (customise). Fixed — auto-picked warm-up/cool-down rows now have a REMOVE that materialises them as custom, so they're editable like the custom ones (add already worked). (qa: customise-warmup-cooldown-edit)"

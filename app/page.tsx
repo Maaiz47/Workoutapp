@@ -10798,6 +10798,24 @@ function HomePage() {
                   })}
                   {filtered.length === 0 && <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, padding: "12px 0" }}>No exercises match these filters</div>}
                 </div>
+                {/* Non-trainers can't create custom exercises — that's a
+                    Power-User (trainer) feature. Instead, point them at
+                    reporting a genuinely-missing exercise + offer the
+                    upgrade. Per @maaiz on @humaam's "I want my own ones
+                    which aren't listed". (qa: customise-custom-exercise-gate) */}
+                {!userHasRole(user, "trainer") && (
+                  <div style={{ marginTop: 10, padding: "12px 14px", background: "rgba(162,155,254,0.06)", border: "1px solid rgba(162,155,254,0.22)", borderRadius: 10 }}>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", fontWeight: 600, marginBottom: 4 }}>Can't find your exercise?</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.55, marginBottom: 10 }}>
+                      If a major exercise is missing, report it via the 💬 feedback tab on the right edge — give the exact name + main muscle and we'll add it to the library. Building your own custom exercises is a Power-User (trainer) feature.
+                    </div>
+                    {user?.roleRequest === "trainer" ? (
+                      <div style={{ fontSize: 10, color: "#a29bfe", fontFamily: "'Space Mono', monospace", letterSpacing: 1, textAlign: "center", padding: "8px" }}>⭐ UPGRADE REQUESTED — PENDING REVIEW</div>
+                    ) : (
+                      <button onClick={() => { setShowExBrowser(false); goTo("settings"); }} style={{ width: "100%", padding: "10px", background: "rgba(162,155,254,0.14)", border: "1px solid rgba(162,155,254,0.4)", borderRadius: 8, color: "#a29bfe", fontSize: 11, fontWeight: 700, letterSpacing: 1, cursor: "pointer", fontFamily: "'Space Mono', monospace" }}>⭐ BECOME A POWER USER</button>
+                    )}
+                  </div>
+                )}
                 {browserSupersetMode && browserSuperSel.length >= 2 && (
                   <button onClick={async () => {
                     const gid = Math.random().toString(36).slice(2);
