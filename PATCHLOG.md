@@ -2,6 +2,18 @@
 
 ---
 
+## Polish · 2026-06-14 — Phase 6 surfaces: focus glow, friend-row depth, DM empty state (qa: visual-depth-foundation)
+
+Three more surfaces from the Phase 6 depth pass (same session as chat bubbles, documenting separately):
+
+- **Global input focus cue** (`app/globals.css`): `input / textarea / select :focus-visible` now emits a 3px accent glow (`rgba(var(--accent-rgb), 0.20)` + tinted border-color) app-wide — previously every field used `outline:none` with no active-field indicator. MONO theme gets a crisper 2px solid ring instead of a diffuse glow.
+- **Friend rows + Customise exercise rows** (`app/page.tsx`): both surfaces lacked any depth — added the standard inset top-highlight + drop shadow to the social Friends list rows (including selected state) and to the Customise plan exercise rows. Dragged exercise rows gain a deeper floating shadow.
+- **DM empty state** (`app/page.tsx`): replaced the plain faded image + dim "No messages yet" placeholder with a premium gradient card (teal→transparent, `border-radius:18`, inset+drop shadow), "Say hello 👋" headline, and a subtitle nudge. Image has an `onError` hide in case the placeholder photo is absent.
+
+`npx tsc --noEmit` clean; visual-only across all three, no `TUTORIAL_STEPS` change.
+
+---
+
 ## Fix · 2026-06-14 — QA: exercise browser tells non-trainers how to get a missing exercise (qa: customise-custom-exercise-gate)
 
 @humaam: *"why do i have to select from existing ones??? i want to select my own ones which aren't listed?"* Per @maaiz, custom-exercise creation stays a **trainer / Power-User** feature — so instead of opening that up, the exercise browser now shows non-trainers a clear path. Below the results, a note: *"Can't find your exercise?"* — report a genuinely-missing major exercise via the 💬 feedback tab (exact name + main muscle → we add it to the library), and a note that building your own custom exercises is a Power-User feature, with a **⭐ BECOME A POWER USER** button that routes to the existing Settings request-trainer upgrade flow (and shows *UPGRADE REQUESTED — PENDING REVIEW* when a request is already in). Gated on `!userHasRole(user,"trainer")` so trainers (who have MY EXERCISES) don't see it. `npx tsc --noEmit` clean; reuses the existing upgrade flow, so no `TUTORIAL_STEPS` change.

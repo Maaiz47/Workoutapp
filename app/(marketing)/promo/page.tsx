@@ -248,17 +248,19 @@ export default function PromoPage() {
               className="feat-grid"
             >
               {TAB_DATA[tab].items.map((f, i) => (
-                <motion.div
-                  key={f.title}
-                  className="feat-card"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.05 + i * 0.04 }}
-                >
-                  <div className="feat-icon" style={{ background: f.bg }}>{f.icon}</div>
-                  <h3>{f.title}</h3>
-                  <p>{f.desc}</p>
-                </motion.div>
+                <Tilt3D key={f.title} tilt={5} depth={12}>
+                  <motion.div
+                    className="feat-card"
+                    style={{ height: "100%" }}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.05 + i * 0.04 }}
+                  >
+                    <div className="feat-icon" style={{ background: f.bg }}>{f.icon}</div>
+                    <h3>{f.title}</h3>
+                    <p>{f.desc}</p>
+                  </motion.div>
+                </Tilt3D>
               ))}
             </motion.div>
           </AnimatePresence>
