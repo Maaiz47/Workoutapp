@@ -7542,14 +7542,27 @@ function HomePage() {
     if (last) lastMsgCreatedAtRef.current = last.createdAt;
   }, [conversationMessages]);
 
-  // Auto-scroll to bottom when new messages arrive (only if already near bottom)
+  // Auto-scroll behaviour for DMs — mirrors the group-chat effect below.
+  // Pin to the bottom on the FIRST load of a conversation, then only auto-
+  // scroll on new messages if the user is already near the bottom. Without
+  // the near-bottom guard (and with the old flex layout that let the page
+  // body scroll instead of this container) every poll yanked the view back
+  // to the bottom, so scrolling up to read old messages was impossible.
+  // (qa: conversation-scroll-respects-user)
+  const convPinnedIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (view !== "conversation") return;
+    if (view !== "conversation") { convPinnedIdRef.current = null; return; }
     const container = messagesContainerRef.current;
-    if (!container) { messagesEndRef.current?.scrollIntoView(); return; }
+    if (!container || conversationMessages.length === 0) return;
+    const cid = activeConversation?.id ?? null;
+    if (convPinnedIdRef.current !== cid) {
+      container.scrollTop = container.scrollHeight;
+      convPinnedIdRef.current = cid;
+      return;
+    }
     const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
-    if (nearBottom) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversationMessages, view]);
+    if (nearBottom) container.scrollTop = container.scrollHeight;
+  }, [conversationMessages, view, activeConversation?.id]);
 
   // Group chat: same intent as the DM scroll effect above. Pin to
   // bottom on initial load (first batch of messages), then only auto-
@@ -15116,10 +15129,16 @@ function HomePage() {
   let _viewKey: string = view;
   let _content: React.ReactNode = null;
   if (view === "conversation" && activeConversation) { _viewKey = `conv-${activeConversation.id}`; _content = (
-    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", minHeight: "100dvh", position: "relative" }}>
+    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden", position: "relative" }}>
       <PullToRefreshIndicator pullDistance={convoPtr.pullDistance} refreshing={convoPtr.refreshing} />
       {(() => {
         const isOnline = partnerLastSeen && (Date.now() - new Date(partnerLastSeen).getTime()) < 2 * 60 * 1000;
+        // Partner avatar/role — derived from any message the partner sent
+        // (same source the per-message avatars use). Falls back to the
+        // default avatar when the partner hasn't messaged yet.
+        const partnerMsg = conversationMessages.find(m => m.from?.id === activeConversation.id);
+        const partnerAvatarId = (partnerMsg?.from as any)?.profile?.avatarId ?? null;
+        const partnerRole = (partnerMsg?.from as any)?.role ?? null;
         const lastSeenText = (() => {
           if (!partnerLastSeen) return null;
           const diff = Math.floor((Date.now() - new Date(partnerLastSeen).getTime()) / 1000);
@@ -15134,6 +15153,7 @@ function HomePage() {
             {/* Partner identity — tap to open profile preview modal.
                 (qa: profile-preview-modal) */}
             <button onClick={() => openProfilePreview(activeConversation.id)} style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer", color: "inherit" }}>
+              <UserAvatarChip avatarId={partnerAvatarId} username={activeConversation.username} size={38} role={partnerRole} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", gap: 7 }}>
                   @{activeConversation.username}
@@ -15148,7 +15168,7 @@ function HomePage() {
           </div>
         );
       })()}
-      <div ref={messagesContainerRef} onClick={() => setReactingToMsgId(null)} style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div ref={messagesContainerRef} onClick={() => setReactingToMsgId(null)} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {conversationMessages.length === 0 && (
           <div style={{ textAlign: "center", marginTop: 36, marginLeft: "auto", marginRight: "auto", maxWidth: 280, padding: "24px 20px", background: "linear-gradient(135deg, rgba(78,205,196,0.06), rgba(255,255,255,0.02))", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, boxShadow: "0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 28px -12px rgba(0,0,0,0.6)" }}>
             <img src="/ai/empty-messages.jpg" alt="" style={{ width: 120, height: 120, opacity: 0.55, borderRadius: 14, marginBottom: 12 }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />

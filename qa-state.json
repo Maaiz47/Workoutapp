@@ -3239,6 +3239,22 @@
       "notes": "[2026-06-16] Fixed (reliability): @maaiz 'Don't remember getting a push notification for Humaam's last message'. Root cause — every transactional push (DM, group message, friend request/accept, trainer request/accept, plan + body-metric proposals) called sendPushToUser as fire-and-forget (no await). On Vercel the serverless function can freeze/terminate the instant the JSON response is sent, killing the un-awaited web-push HTTP request before it goes out — so pushes dropped intermittently. This is the SAME failure mode the qa/comment route already fixed by awaiting. Awaited sendPushToUser at all transactional call sites (per-send .catch preserves the 'no subscriptions / missing VAPID' graceful path so a push failure never fails the underlying action); group fan-out uses await Promise.all so it stays parallel. Note: push still requires the recipient to have granted notification permission and have a live PushSubscription — a logged-out / permission-revoked device legitimately gets nothing. Re-test by sending a DM to a backgrounded device. (qa: dm-incoming-push)"
     },
     {
+      "id": "conversation-scroll-respects-user",
+      "title": "DM conversation — header avatar, fixed header, scroll respects user",
+      "area": "Messaging",
+      "introduced": "2026-06-16",
+      "status": "regression-retest",
+      "steps": [
+        "Open a DM thread that has more messages than fit on one screen",
+        "Confirm the top bar shows the partner's profile avatar to the LEFT of their @username (default avatar if they have none set)",
+        "Scroll up to read older messages — confirm the top bar (avatar + username + online/last-seen) stays FIXED at the top and does not scroll away",
+        "While scrolled up, wait through a poll cycle / receive nothing — confirm the view does NOT jump back to the bottom on its own",
+        "Scroll back down to within ~150px of the bottom; send or receive a new message — confirm it DOES auto-scroll to the newest message",
+        "Re-open the conversation — confirm it opens pinned to the most recent message"
+      ],
+      "notes": "[2026-06-16] @maaiz: 'top bar with username should show profile avatar too and should be fixed at the top while scrolling … also might be doing an automatic return to bottom which is annoying if I'm trying to look at old chats'. Three fixes, two sharing one root cause: (1) added a UserAvatarChip (size 38) to the conversation header, with the partner's avatarId/role derived from their messages (added role to the /api/messages/[userId] from-select); (2)+(3) the conversation container used minHeight:100dvh and the messages flex child lacked minHeight:0 — the classic flexbox trap where the child won't shrink below content, so the PAGE body scrolled instead of the inner div. That made the header scroll away AND broke the near-bottom check (container.scrollTop stayed ~0 so nearBottom was always true → scrollIntoView yanked to bottom every poll). Fixed: outer → height:100dvh + overflow:hidden, messages → minHeight:0, so the inner div is the real scroller (header/composer stay put). Rewrote the DM auto-scroll effect to mirror the group-chat one: pin to bottom on first load of a conversation (tracked via convPinnedIdRef keyed on partner id), then only auto-scroll on updates when already within 150px of the bottom. Existing surface — no TUTORIAL_STEPS change. (qa: conversation-scroll-respects-user)"
+    },
+    {
       "id": "auth-login",
       "title": "User login \u2014 existing athlete",
       "area": "Auth",

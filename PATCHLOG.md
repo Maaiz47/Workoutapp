@@ -2,6 +2,18 @@
 
 ---
 
+## Fix · 2026-06-16 — DM conversation: header avatar, fixed header, scroll respects user (qa: conversation-scroll-respects-user)
+
+@maaiz: *"top bar with username should show profile avatar too and should be fixed at the top while scrolling … also might be doing an automatic return to bottom which is annoying if I'm trying to look at old chats."* Three fixes — two of which shared one root cause.
+
+- **Header avatar**: added a `UserAvatarChip` (size 38) to the left of the partner's `@username` in the conversation header. The partner's `avatarId`/`role` is derived from their messages (added `role` to the `/api/messages/[userId]` `from`-select; `avatarId` was already pulled through `profile`). Falls back to the default avatar if they haven't messaged yet.
+- **Fixed header + no spurious auto-scroll (same root cause)**: the conversation container used `minHeight:100dvh` and the messages `flex:1` child was missing `minHeight:0` — the classic flexbox trap where a flex item won't shrink below its content, so the **page body** scrolled instead of the inner messages div. That made the header scroll away *and* broke the near-bottom check (`container.scrollTop` stayed ~0, so `nearBottom` was always true → `scrollIntoView` yanked the view to the bottom on every poll). Fixed by making the inner div the real scroller: outer → `height:100dvh` + `overflow:hidden`, messages → `minHeight:0`. Header and composer now stay put.
+- **Scroll behaviour**: rewrote the DM auto-scroll effect to mirror the group-chat one — pin to the bottom on the **first** load of a conversation (tracked via `convPinnedIdRef` keyed on partner id), then only auto-scroll on new messages when the user is already within ~150px of the bottom. Scrolling up to read old messages is no longer interrupted.
+
+Existing surface — no `TUTORIAL_STEPS` change. `npx tsc --noEmit` clean.
+
+---
+
 ## QA pass · 2026-06-16 — Awaited transactional pushes so Vercel stops dropping them (qa: dm-incoming-push)
 
 ### Addressed
