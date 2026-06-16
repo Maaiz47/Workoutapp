@@ -3224,6 +3224,21 @@
       "notes": "[2026-06-16] Added /api/admin/push — a one-off ad-hoc push endpoint that targets users by username (case-insensitive), gated on x-admin-key === ADMIN_SECRET. Built to announce shipped fixes to specific beta testers. Admin-only, no UI surface → no TUTORIAL_STEPS entry. (qa: admin-ad-hoc-push)"
     },
     {
+      "id": "dm-incoming-push",
+      "title": "Push notification on incoming DM / message / request",
+      "area": "Messaging",
+      "introduced": "2026-06-16",
+      "status": "regression-retest",
+      "steps": [
+        "On device B (recipient), log in and grant notification permission, then background or lock the app",
+        "From device A, send a DM to the recipient",
+        "Confirm device B receives an OS push within a few seconds titled '@<sender>' with the message preview",
+        "Repeat for: a group-chat message (all other members get pushed), a friend request, a friend-request acceptance, a trainer request + acceptance, and a plan / body-metric proposal",
+        "Confirm the message still sends successfully even when the recipient has no push subscription (no error returned to the sender)"
+      ],
+      "notes": "[2026-06-16] Fixed (reliability): @maaiz 'Don't remember getting a push notification for Humaam's last message'. Root cause — every transactional push (DM, group message, friend request/accept, trainer request/accept, plan + body-metric proposals) called sendPushToUser as fire-and-forget (no await). On Vercel the serverless function can freeze/terminate the instant the JSON response is sent, killing the un-awaited web-push HTTP request before it goes out — so pushes dropped intermittently. This is the SAME failure mode the qa/comment route already fixed by awaiting. Awaited sendPushToUser at all transactional call sites (per-send .catch preserves the 'no subscriptions / missing VAPID' graceful path so a push failure never fails the underlying action); group fan-out uses await Promise.all so it stays parallel. Note: push still requires the recipient to have granted notification permission and have a live PushSubscription — a logged-out / permission-revoked device legitimately gets nothing. Re-test by sending a DM to a backgrounded device. (qa: dm-incoming-push)"
+    },
+    {
       "id": "auth-login",
       "title": "User login \u2014 existing athlete",
       "area": "Auth",

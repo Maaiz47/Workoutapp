@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: { clientId: s
       },
     });
 
-    sendPushToUser(params.clientId, {
+    await sendPushToUser(params.clientId, {
       title: `@${trainer?.username}`,
       body: `Proposed a new ${dayCount}-day workout plan`,
       url: "/",

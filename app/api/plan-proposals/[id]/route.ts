@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       });
 
       const client = await prisma.user.findUnique({ where: { id: uid }, select: { username: true } });
-      sendPushToUser(proposal.trainerId, {
+      await sendPushToUser(proposal.trainerId, {
         title: `@${client?.username}`,
         body: "Accepted your workout plan proposal",
         url: "/",
@@ -60,7 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       await prisma.planProposal.update({ where: { id: params.id }, data: { status: "declined" } });
 
       const client = await prisma.user.findUnique({ where: { id: uid }, select: { username: true } });
-      sendPushToUser(proposal.trainerId, {
+      await sendPushToUser(proposal.trainerId, {
         title: `@${client?.username}`,
         body: "Declined your workout plan proposal",
         url: "/",

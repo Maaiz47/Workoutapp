@@ -71,7 +71,7 @@ export async function POST(req: NextRequest, { params }: { params: { clientId: s
       },
     });
 
-    sendPushToUser(params.clientId, {
+    await sendPushToUser(params.clientId, {
       title: `@${me.username} sent a body-metric proposal`,
       body: [
         proposal.weightKg != null ? `weight ${proposal.weightKg} kg` : null,

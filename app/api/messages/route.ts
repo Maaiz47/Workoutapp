@@ -149,12 +149,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Send push notification to recipient (non-blocking)
+    // Send push notification to recipient. AWAITED (not fire-and-forget):
+    // on Vercel the serverless function can be frozen/terminated the moment
+    // the response is sent, killing an un-awaited push before web-push's HTTP
+    // request actually goes out — the intermittent "didn't get a DM push" bug.
+    // Same fix the qa/comment route adopted. The .catch keeps a push failure
+    // (e.g. no subscriptions) from failing the message send. (qa: dm-incoming-push)
     const notifBody = type === "adoption_request"
       ? `@${message.from.username} wants to add you as their client`
       : body.trim().substring(0, 100);
 
-    sendPushToUser(toId, {
+    await sendPushToUser(toId, {
       title: `@${message.from.username}`,
       body: notifBody,
       url: "/",

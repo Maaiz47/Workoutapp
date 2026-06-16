@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
             requestId: updated.id,
           },
         }).catch(() => {});
-        sendPushToUser(target.id, {
+        await sendPushToUser(target.id, {
           title: "New friend request",
           body: `${me.username} wants to be friends`,
           url: "/?friends=1",
@@ -182,9 +182,10 @@ export async function POST(req: NextRequest) {
       },
     }).catch(() => {}); // non-fatal — friendship is the source of truth
 
-    // Push notification — fire-and-forget so a missing VAPID env or
-    // no-subs case doesn't block the API response.
-    sendPushToUser(target.id, {
+    // Push notification — AWAITED so Vercel doesn't freeze the function
+    // before web-push fires; .catch keeps a missing VAPID env / no-subs case
+    // from blocking the API response.
+    await sendPushToUser(target.id, {
       title: "New friend request",
       body: `${me.username} wants to be friends`,
       url: "/?friends=1",
@@ -224,7 +225,7 @@ export async function PATCH(req: NextRequest) {
       // Notify the original sender (userA) that their request was accepted.
       const me = await prisma.user.findUnique({ where: { id: uid }, select: { username: true } });
       if (me) {
-        sendPushToUser(f.userAId, {
+        await sendPushToUser(f.userAId, {
           title: "Friend request accepted",
           body: `${me.username} accepted your friend request`,
           url: "/?friends=1",

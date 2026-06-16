@@ -72,8 +72,9 @@ export async function POST(req: NextRequest) {
       },
     }).catch(() => {}); // non-fatal if Message table not yet created
 
-    // Push notification — fire-and-forget. (qa: push-notifications-requests)
-    sendPushToUser(targetUserId, {
+    // Push notification — AWAITED so Vercel doesn't freeze the function
+    // before web-push fires. (qa: push-notifications-requests)
+    await sendPushToUser(targetUserId, {
       title: "Trainer request",
       body: `${trainer.username} wants to add you as their client`,
       url: "/?trainer-requests=1",
@@ -152,7 +153,7 @@ export async function PATCH(req: NextRequest) {
       // Notify the trainer their request was accepted.
       const me = await prisma.user.findUnique({ where: { id: uid }, select: { username: true } });
       if (me) {
-        sendPushToUser(request.trainerId, {
+        await sendPushToUser(request.trainerId, {
           title: "Client accepted",
           body: `${me.username} accepted your coaching request`,
           url: "/?trainer-clients=1",

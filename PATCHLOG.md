@@ -2,6 +2,19 @@
 
 ---
 
+## QA pass · 2026-06-16 — Awaited transactional pushes so Vercel stops dropping them (qa: dm-incoming-push)
+
+### Addressed
+- **dm-incoming-push**: @maaiz — *"Don't remember getting a push notification for Humaam's last message."* Root cause: every transactional push (DM, group message, friend request/accept, trainer request/accept, plan + body-metric proposals) called `sendPushToUser` **fire-and-forget** (no `await`). On Vercel the function can freeze/terminate the instant the response is sent — killing the un-awaited `web-push` request before it leaves the box, so pushes dropped intermittently. This is the exact failure mode the `qa/comment` route already fixed by awaiting. Awaited the call at all transactional sites (`messages`, `leaderboard/groups/[id]/messages`, `friends` ×3, `trainer/request` ×2, `trainer/clients/[id]/propose-metric`, `trainer/clients/[id]/proposal`, `plan-proposals/[id]` ×2). Per-send `.catch` keeps the "no subscriptions / missing VAPID" path graceful so a push failure never fails the underlying action; group fan-out uses `await Promise.all` to stay parallel.
+
+### Notes
+- Status left at **regression-retest**: this is a delivery-reliability fix that can't be runtime-verified from the session (no dev DB). @maaiz to re-test by sending a DM to a backgrounded device. Push still requires the recipient to have granted notification permission and hold a live `PushSubscription` — a logged-out / permission-revoked device legitimately receives nothing.
+- No `TUTORIAL_STEPS` change — server-side delivery fix, no new UI surface.
+
+`npx tsc --noEmit` clean.
+
+---
+
 ## Chore · 2026-06-16 — Admin ad-hoc push endpoint for tester announcements (qa: admin-ad-hoc-push)
 
 Added `POST /api/admin/push` — an admin-only endpoint (gated on `x-admin-key === ADMIN_SECRET`) that fires a one-off push to a list of users by username (case-insensitive). Body: `{ usernames: string[], title, body, url? }`. Returns a per-user breakdown (`sentTo:[{username, subscriptions}]`) plus any `notFound` usernames so you can see who actually has push enabled. Built to announce shipped fixes to specific beta testers without a DB console. Admin-only, no UI surface → no `TUTORIAL_STEPS` entry. `npx tsc --noEmit` clean.

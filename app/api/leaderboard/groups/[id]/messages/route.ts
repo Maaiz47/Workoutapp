@@ -88,16 +88,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       include: { from: { select: { id: true, username: true } } },
     });
 
-    // Fan-out push to all OTHER members. Fire-and-forget so a missing
-    // VAPID env / no subscriptions doesn't block the API response.
+    // Fan-out push to all OTHER members. AWAITED in parallel so Vercel
+    // doesn't freeze the function before the web-push requests go out (the
+    // intermittent dropped-push bug); per-send .catch keeps a missing VAPID
+    // env / no-subscriptions case from failing the API response.
     const otherMembers = group.members.filter(m => m.userId !== uid);
-    for (const m of otherMembers) {
+    await Promise.all(otherMembers.map(m =>
       sendPushToUser(m.userId, {
         title: `${group.name} · ${sender.username}`,
         body: trimmed.slice(0, 140),
         url: `/?groupChat=${params.id}`,
-      }).catch(() => {});
-    }
+      }).catch(() => {})
+    ));
 
     return json({
       message: {
