@@ -7088,6 +7088,15 @@ function HomePage() {
   // than only via Settings post-hoc. (qa: plan-cardio-day)
   const [showCardioPrompt, setShowCardioPrompt] = useState(false);
   const [showEmailSignupPrompt, setShowEmailSignupPrompt] = useState(false);
+  // True only when the register step's email was carried over from an email
+  // typed at the username step (via the "Sign Up" prompt). Lets us show that
+  // email as a locked summary while keeping a fresh signup's email editable —
+  // otherwise the input flips to read-only on the first keystroke. (qa: signup-email-field)
+  const [emailPrefilled, setEmailPrefilled] = useState(false);
+  // Whether the value behind the "no account found" prompt is an email (vs a
+  // username). Drives whether the Sign Up CTA carries the value over as the
+  // email or keeps it as the chosen username. (qa: signup-new-username-prompt)
+  const [pendingSignupIsEmail, setPendingSignupIsEmail] = useState(false);
   const [hiitPreference, setHiitPreference] = useState("");
   const [hiitIntensity, setHiitIntensity] = useState("moderate");
   // Dedicated cardio day preference. "" / "none" = no cardio day.
@@ -7920,8 +7929,11 @@ function HomePage() {
       const data = await authPost({ action: "check", username: input });
       if (data.error) { setAuthError(data.error); return; }
       if (data.state === "new") {
-        if (data.isEmail) { setShowEmailSignupPrompt(true); return; }
-        setAuthStep("register");
+        // Always confirm before sending someone into signup — a returning
+        // user who mistyped their username should get a chance to retry
+        // rather than landing on a "create account" form. (qa: signup-new-username-prompt)
+        setPendingSignupIsEmail(!!data.isEmail);
+        setShowEmailSignupPrompt(true);
       } else {
         if (data.username) setNameInput(data.username);
         if (data.state === "needs-setup") setAuthStep("setup");
@@ -8002,7 +8014,7 @@ function HomePage() {
     } catch {}
     await fetch("/api/auth", { method: "DELETE" });
     setUser(null); setView("home"); setActiveDay(null); timer.stopT();
-    setAuthStep("username"); setPasswordInput(""); setEmailInput("");
+    setAuthStep("username"); setPasswordInput(""); setEmailInput(""); setEmailPrefilled(false);
     setCustomPlan(null); setShowOnboarding(false); setOnboardingStep(0);
   };
 
@@ -9701,15 +9713,17 @@ function HomePage() {
       const isTrainer = landingTab === "trainer";
       const accentColor = isTrainer ? "#4ECDC4" : "#FF6B6B";
       const features = isTrainer ? [
-        { title: "Full client roster", desc: "Manage all your athletes from one screen" },
-        { title: "Plan builder", desc: "Generate, customise, and propose personalised training plans" },
-        { title: "Session history", desc: "Review every set your clients have logged" },
-        { title: "Direct messaging", desc: "Built-in chat with delivery and read receipts" },
+        { icon: "👥", title: "Live client roster", desc: "Every athlete you coach on one screen — current tier, last session, and active streak at a glance" },
+        { icon: "🧠", title: "Plan builder & proposals", desc: "Generate, fine-tune, and propose personalised plans your clients accept in a single tap" },
+        { icon: "📋", title: "Full session oversight", desc: "See every set, weight, and personal best your clients log — catch a stall before they quit" },
+        { icon: "💬", title: "Coach-to-athlete messaging", desc: "Built-in chat with delivery and read receipts, plus one-tap client adoption from any profile" },
+        { icon: "🏆", title: "Trainer tier ladder", desc: "Climb from Spotter to Hall of Fame as your roster grows and your clients hit their goals" },
       ] : [
-        { title: "Personalised training plan", desc: "Built for your goals, equipment, and schedule" },
-        { title: "Set-by-set logging", desc: "Weight, reps, rest timer, and live personal best detection" },
-        { title: "Progress analytics", desc: "Strength trends, 28-day streaks, and body metric tracking" },
-        { title: "Trainer connection", desc: "Receive custom plans and message your coach in-app" },
+        { icon: "🏋️", title: "AI-built training plan", desc: "Generated around your goal, equipment, and weekly schedule — and reshaped as you get stronger" },
+        { icon: "⏱️", title: "Set-by-set logging", desc: "Track weight and reps with a built-in rest timer and automatic personal-best detection" },
+        { icon: "📈", title: "Progress analytics", desc: "Strength trends, training volume, 28-day streaks, and body-metric tracking in one dashboard" },
+        { icon: "🦁", title: "Tiers & achievements", desc: "Climb the animal-tier ladder and unlock a 55-strong achievement wall the more you train" },
+        { icon: "👑", title: "Coaching built in", desc: "Connect with a trainer to receive custom plans and message your coach without leaving the app" },
       ];
 
       return (
@@ -9746,9 +9760,12 @@ function HomePage() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {features.map((f, i) => (
-                <div key={i} className="tilt-3d-item" style={{ padding: "13px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 12, borderLeft: `2px solid ${accentColor}` }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>{f.title}</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>{f.desc}</div>
+                <div key={i} className="tilt-3d-item" style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "13px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 12, borderLeft: `2px solid ${accentColor}` }}>
+                  <div style={{ fontSize: 20, lineHeight: 1.3, flexShrink: 0 }} aria-hidden>{f.icon}</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>{f.title}</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>{f.desc}</div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -9761,10 +9778,11 @@ function HomePage() {
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             {showEmailSignupPrompt && (
               <div style={{ marginTop: 16, padding: "16px", background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", borderRadius: 12 }}>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 }}>No account found for <strong style={{ color: "#fff" }}>{nameInput}</strong>. Create one?</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>No account found for <strong style={{ color: "#fff" }}>{nameInput}</strong>.</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 12, lineHeight: 1.5 }}>Already have an account? Double-check your spelling and try again. Otherwise, create a new one.</div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => { setEmailInput(nameInput); setNameInput(""); setShowEmailSignupPrompt(false); setAuthStep("register"); }} style={{ flex: 1, padding: "11px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Up</button>
-                  <button onClick={() => { setShowEmailSignupPrompt(false); setNameInput(""); setAuthError(""); }} style={{ padding: "11px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>Back</button>
+                  <button onClick={() => { if (pendingSignupIsEmail) { setEmailInput(nameInput); setEmailPrefilled(true); setNameInput(""); } setShowEmailSignupPrompt(false); setAuthStep("register"); }} style={{ flex: 1, padding: "11px", background: "linear-gradient(135deg,#FF6B6B,#ee5a24)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Create account</button>
+                  <button onClick={() => { setShowEmailSignupPrompt(false); setNameInput(""); setAuthError(""); }} style={{ padding: "11px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer" }}>Try again</button>
                 </div>
               </div>
             )}
@@ -9791,9 +9809,10 @@ function HomePage() {
           {authStep === "register" && (<>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Create your account</div>
             <input value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Choose a username" autoFocus name="username" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} style={{ ...inputStyle, marginBottom: 8 }} />
-            {emailInput ? (
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 16px", marginBottom: 8, textAlign: "left" }}>
-                Email: <span style={{ color: "rgba(255,255,255,0.7)" }}>{emailInput}</span>
+            {emailPrefilled && emailInput ? (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "12px 16px", marginBottom: 8, textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <span>Email: <span style={{ color: "rgba(255,255,255,0.7)" }}>{emailInput}</span></span>
+                <button onClick={() => { setEmailPrefilled(false); setEmailInput(""); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", textDecoration: "underline", flexShrink: 0 }}>Edit</button>
               </div>
             ) : (
               <input value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Email" type="email" name="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="email" style={{ ...inputStyle, marginBottom: 8 }} />
@@ -9802,7 +9821,7 @@ function HomePage() {
             <PasswordInput value={confirmInput} onChange={e => setConfirmInput(e.target.value)} onKeyDown={e => e.key === "Enter" && doRegister()} placeholder="Confirm password" autoComplete="new-password" name="confirm-password" style={inputStyle} />
             {authError && <div style={{ color: "#FF6B6B", fontSize: 12, marginTop: 10 }}>{authError}</div>}
             <button onClick={doRegister} style={btnPrimary}>CREATE ACCOUNT</button>
-            <button onClick={() => { setAuthStep("username"); setAuthError(""); setEmailInput(""); }} style={btnBack}>← Back</button>
+            <button onClick={() => { setAuthStep("username"); setAuthError(""); setEmailInput(""); setEmailPrefilled(false); }} style={btnBack}>← Back</button>
           </>)}
 
           {/* ── Step: setup (existing user, no password yet) ── */}

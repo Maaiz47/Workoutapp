@@ -2,6 +2,20 @@
 
 ---
 
+## Fix · 2026-06-16 — Signup email-field lockup + new-username confirm prompt + landing copy refresh (qa: signup-email-field, signup-new-username-prompt, landing-feature-cards)
+
+Three things, all on the pre-auth landing/signup surface (no `TUTORIAL_STEPS` change — the tutorial runs post-login).
+
+**Signup email field locked after one letter (the reported bug).** On the register step the email rendered as an editable `<input>` only while `emailInput` was empty, then flipped to a read-only `Email: …` summary the instant the value became truthy. For a fresh signup that fired on the *first keystroke* — the input unmounted and the field appeared to lock. The locked summary was only ever meant for users who arrived via the username-step "Sign Up" prompt (which pre-fills the typed email). Added an `emailPrefilled` flag: the summary now shows only when the email was carried over, and it gained an **Edit** link to revert to an editable input. A fresh signup keeps a normal, fully-editable email field.
+
+**Confirm before sending anyone into signup.** Previously a non-email unknown username dropped the user straight onto the register form; only unknown *emails* got a confirmation prompt. A returning user who simply mistyped their username had no chance to notice. Now both paths show a **"No account found for <name>"** prompt with **Create account** / **Try again** buttons (and a line nudging them to check spelling). `pendingSignupIsEmail` decides whether **Create account** carries the value over as the locked email (email path) or keeps it as the chosen username (username path).
+
+**Landing marketing copy reworked for both audiences.** The athlete/trainer feature cards were generic. Rewrote both lists to brief IronLog's distinctive functions, added an emoji-icon column to each card, and expanded from four to five cards per tab — surfacing the animal-tier ladder + 55-item achievement wall (athletes) and the Spotter→Hall-of-Fame trainer tier ladder (trainers).
+
+`npx tsc --noEmit` clean.
+
+---
+
 ## Polish · 2026-06-14 — Phase 6 surfaces: focus glow, friend-row depth, DM empty state (qa: visual-depth-foundation)
 
 Three more surfaces from the Phase 6 depth pass (same session as chat bubbles, documenting separately):

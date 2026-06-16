@@ -3164,6 +3164,51 @@
       "notes": "[2026-05-21] Fixed: DOB date input (onboarding step 1) was overflowing the form column on iOS Safari \u2014 the native date picker's internal padding pushed the box past its container. Stripped WebkitAppearance + set minWidth:0 + maxWidth:100% + display:block. (qa: Amanii)\n[2026-05-21 ecd2e59] Fixed: iOS autofill on register flow. The choose-username field declares autocomplete=\"username\"; the password fields declare autocomplete=\"new-password\" with distinct names (\"new-password\" / \"confirm-password\"). After submitting a registration, iCloud Keychain should prompt to save the new credentials.\n[2026-05-21 01da6f1] Fixed: added eye toggle to reveal/hide characters on both password fields.\nEdge cases: duplicate username \u2192 expect an error message. Short password \u2192 expect validation message."
     },
     {
+      "id": "signup-email-field",
+      "title": "Sign-up email field stays editable",
+      "area": "Auth",
+      "introduced": "2026-06-16",
+      "status": "regression-retest",
+      "steps": [
+        "Open the app unauthenticated, enter a brand-new username, and tap Continue \u2192 Create account on the prompt",
+        "On the register step, tap the Email field and type a full email address",
+        "Confirm the field stays editable for every character (it must NOT lock after the first letter)",
+        "Now go Back to the landing page and instead enter a brand-new EMAIL address as the username, tap Continue, then Create account",
+        "Confirm the register step shows the email as a locked 'Email: ...' summary with an 'Edit' link, and that tapping Edit restores an editable input"
+      ],
+      "notes": "[2026-06-16] Fixed: on the register step the email rendered as an editable input only while emailInput was empty, then flipped to a read-only summary the instant the value became truthy \u2014 so a fresh signup's email field 'locked' after one keystroke. The locked summary now only shows when the email was carried over from the username-step prompt (new emailPrefilled flag), and that summary gained an Edit affordance. (qa: signup-email-field)"
+    },
+    {
+      "id": "signup-new-username-prompt",
+      "title": "New-username confirmation prompt before signup",
+      "area": "Auth",
+      "introduced": "2026-06-16",
+      "status": "regression-retest",
+      "steps": [
+        "Open the app unauthenticated and type a username that does NOT exist, then tap Continue",
+        "Confirm a 'No account found for <name>' prompt appears with 'Create account' and 'Try again' buttons \u2014 it must NOT jump straight to the signup form",
+        "Tap 'Try again' \u2014 the field should clear so a returning user can re-enter the correct username",
+        "Type the unknown username again, tap Continue, then 'Create account' \u2014 the register step should open with the username pre-filled",
+        "Repeat with an unknown EMAIL address and confirm 'Create account' carries it over as the locked email summary"
+      ],
+      "notes": "[2026-06-16] Added: previously a non-email unknown username dropped the user straight onto the register form, while only emails got a confirmation prompt. Now both paths show the 'no account found' prompt first so a mistyped login can retry. pendingSignupIsEmail decides whether the value carries over as the email (email path) or the chosen username (username path). (qa: signup-new-username-prompt)"
+    },
+    {
+      "id": "landing-feature-cards",
+      "title": "Landing page feature cards \u2014 athlete & trainer copy",
+      "area": "Marketing",
+      "introduced": "2026-06-16",
+      "status": "regression-retest",
+      "steps": [
+        "Open the app unauthenticated on the ATHLETES tab",
+        "Confirm five feature cards render under 'BUILT FOR ATHLETES', each with an emoji icon, title, and description covering: AI plan, set-by-set logging, progress analytics, tiers & achievements, built-in coaching",
+        "Tap the TRAINERS tab",
+        "Confirm five teal-accented cards render under 'BUILT FOR TRAINERS' covering: client roster, plan builder & proposals, session oversight, messaging, trainer tier ladder",
+        "Check on an iPhone that the icon + text layout wraps cleanly and nothing overflows"
+      ],
+      "notes": "[2026-06-16] Reworked the landing-page marketing copy to brief IronLog's distinctive functions for each audience and added an emoji icon column to each card; expanded from four to five cards per tab to surface the tier/achievement gamification (athletes) and the trainer tier ladder (trainers). (qa: landing-feature-cards)"
+    },
+    {
       "id": "auth-login",
       "title": "User login \u2014 existing athlete",
       "area": "Auth",
