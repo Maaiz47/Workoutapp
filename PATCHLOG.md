@@ -2,6 +2,12 @@
 
 ---
 
+## Chore · 2026-06-16 — Admin ad-hoc push endpoint for tester announcements (qa: admin-ad-hoc-push)
+
+Added `POST /api/admin/push` — an admin-only endpoint (gated on `x-admin-key === ADMIN_SECRET`) that fires a one-off push to a list of users by username (case-insensitive). Body: `{ usernames: string[], title, body, url? }`. Returns a per-user breakdown (`sentTo:[{username, subscriptions}]`) plus any `notFound` usernames so you can see who actually has push enabled. Built to announce shipped fixes to specific beta testers without a DB console. Admin-only, no UI surface → no `TUTORIAL_STEPS` entry. `npx tsc --noEmit` clean.
+
+---
+
 ## Fix · 2026-06-16 — Signup email-field lockup + new-username confirm prompt + landing copy refresh (qa: signup-email-field, signup-new-username-prompt, landing-feature-cards)
 
 Three things, all on the pre-auth landing/signup surface (no `TUTORIAL_STEPS` change — the tutorial runs post-login).

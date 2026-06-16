@@ -3209,6 +3209,21 @@
       "notes": "[2026-06-16] Reworked the landing-page marketing copy to brief IronLog's distinctive functions for each audience and added an emoji icon column to each card; expanded from four to five cards per tab to surface the tier/achievement gamification (athletes) and the trainer tier ladder (trainers). (qa: landing-feature-cards)"
     },
     {
+      "id": "admin-ad-hoc-push",
+      "title": "Admin ad-hoc push to specific users",
+      "area": "Admin",
+      "introduced": "2026-06-16",
+      "status": "regression-retest",
+      "steps": [
+        "POST /api/admin/push with header x-admin-key: $ADMIN_SECRET and body {\"usernames\":[\"munchy\",\"alla\"],\"title\":\"…\",\"body\":\"…\",\"url\":\"/\"}",
+        "Without the header (or wrong key) → expect 401 Unauthorized",
+        "With a valid key → expect { ok:true, sentTo:[{username,subscriptions}], notFound?:[...] }",
+        "Confirm each named user with push enabled receives the OS notification; users with 0 subscriptions still appear in sentTo with subscriptions:0",
+        "Confirm an unknown username is echoed back under notFound rather than erroring the whole call"
+      ],
+      "notes": "[2026-06-16] Added /api/admin/push — a one-off ad-hoc push endpoint that targets users by username (case-insensitive), gated on x-admin-key === ADMIN_SECRET. Built to announce shipped fixes to specific beta testers. Admin-only, no UI surface → no TUTORIAL_STEPS entry. (qa: admin-ad-hoc-push)"
+    },
+    {
       "id": "auth-login",
       "title": "User login \u2014 existing athlete",
       "area": "Auth",
