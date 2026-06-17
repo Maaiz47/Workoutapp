@@ -10277,6 +10277,66 @@ function HomePage() {
     );
   }
 
+  // Warm-up / cool-down swap modal — shared by the Customise editor AND the
+  // active session (the ⇄ SWAP button exists in both). Defined once here and
+  // rendered in BOTH view returns, because it previously only rendered inside
+  // the Customise view: tapping SWAP mid-session set the target but showed no
+  // sheet. Portaled to document.body so it's never trapped by a view wrapper.
+  // (qa: session-swap-warmup)
+  const swapWarmupModalNode = swapWarmupTarget ? (() => {
+    const isWu = swapWarmupTarget.kind === "warmup";
+    const library = isWu ? ALL_WARMUPS : ALL_COOLDOWNS;
+    const themeColor = isWu ? "#FFE66D" : "#4ECDC4";
+    const themeBg = isWu ? "rgba(255,230,109,0.04)" : "rgba(78,205,196,0.04)";
+    const themeBorder = isWu ? "rgba(255,230,109,0.22)" : "rgba(78,205,196,0.22)";
+    const doSwap = (s: StretchExercise) => {
+      if (s.id !== swapWarmupTarget.id) {
+        setActiveDay(d => d ? {
+          ...d,
+          sections: d.sections.map(sec => ({
+            ...sec,
+            exercises: sec.exercises.map(x => x.id === swapWarmupTarget.id ? { ...x, id: s.id, name: s.name, reps: s.reps } : x),
+          })),
+        } : d);
+        // Drop any done/skip state tied to the old row id so the new
+        // warm-up starts fresh (keys are `${id}-${setNum}`).
+        setWarmupSetState(prev => {
+          const next = { ...prev };
+          for (const k in next) if (k.startsWith(swapWarmupTarget.id + "-")) delete next[k];
+          return next;
+        });
+      }
+      setSwapWarmupTarget(null);
+    };
+    return createPortal(
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 250, display: "flex", flexDirection: "column", padding: 20, backdropFilter: "blur(16px)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>{isWu ? "SWAP WARM-UP" : "SWAP COOL-DOWN"}</div>
+            <div style={{ fontSize: 13, color: themeColor, marginTop: 4 }}>Replace <strong>{swapWarmupTarget.name}</strong> for this session</div>
+          </div>
+          <button onClick={() => setSwapWarmupTarget(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {library.map(s => {
+            const isCurrent = s.id === swapWarmupTarget.id;
+            return (
+              <button key={s.id} onClick={() => doSwap(s)} disabled={isCurrent} style={{ width: "100%", textAlign: "left", padding: "12px 14px", marginBottom: 6, background: isCurrent ? "rgba(255,255,255,0.02)" : themeBg, border: `1px solid ${isCurrent ? "rgba(255,255,255,0.08)" : themeBorder}`, borderRadius: 10, color: "#fff", display: "flex", alignItems: "center", gap: 10, cursor: isCurrent ? "default" : "pointer", opacity: isCurrent ? 0.5 : 1 }}>
+                <span style={{ fontSize: 22, width: 32, textAlign: "center" }}>{s.icon ?? (isWu ? "🔥" : "🧘")}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}{isCurrent ? "  · CURRENT" : ""}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{s.reps.toUpperCase()} · {s.primaryMuscles.slice(0,2).join(" · ").toUpperCase()}</div>
+                </div>
+                {!isCurrent && <span style={{ color: themeColor, fontSize: 16 }}>⇄</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>,
+      document.body
+    );
+  })() : null;
+
   // ─── CUSTOMISE ──────────────────────────────────────────────────────
   if (view === "customise") {
     // For users on the default WORKOUT_DATA plan (customPlan === null),
@@ -10923,63 +10983,7 @@ function HomePage() {
             so swapping a warm-up offers warm-ups, not bench-press.
             Session-scoped (just-today) — touches activeDay only, not the
             saved routine. (qa: session-swap-warmup) */}
-        {swapWarmupTarget && (() => {
-          const isWu = swapWarmupTarget.kind === "warmup";
-          const library = isWu ? ALL_WARMUPS : ALL_COOLDOWNS;
-          const themeColor = isWu ? "#FFE66D" : "#4ECDC4";
-          const themeBg = isWu ? "rgba(255,230,109,0.04)" : "rgba(78,205,196,0.04)";
-          const themeBorder = isWu ? "rgba(255,230,109,0.22)" : "rgba(78,205,196,0.22)";
-          const doSwap = (s: StretchExercise) => {
-            if (s.id !== swapWarmupTarget.id) {
-              setActiveDay(d => d ? {
-                ...d,
-                sections: d.sections.map(sec => ({
-                  ...sec,
-                  exercises: sec.exercises.map(x => x.id === swapWarmupTarget.id ? { ...x, id: s.id, name: s.name, reps: s.reps } : x),
-                })),
-              } : d);
-              // Drop any done/skip state tied to the old row id so the new
-              // warm-up starts fresh (keys are `${id}-${setNum}`).
-              setWarmupSetState(prev => {
-                const next = { ...prev };
-                for (const k in next) if (k.startsWith(swapWarmupTarget.id + "-")) delete next[k];
-                return next;
-              });
-            }
-            setSwapWarmupTarget(null);
-          };
-          // Portaled to document.body — same reason as the substitute modal:
-          // the framer-motion view wrapper's transform would otherwise be the
-          // containing block for this position:fixed overlay, pushing it
-          // off-screen. (qa: substitute-modal-offscreen)
-          return createPortal(
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 250, display: "flex", flexDirection: "column", padding: 20, backdropFilter: "blur(16px)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 3, fontFamily: "'Space Mono', monospace" }}>{isWu ? "SWAP WARM-UP" : "SWAP COOL-DOWN"}</div>
-                  <div style={{ fontSize: 13, color: themeColor, marginTop: 4 }}>Replace <strong>{swapWarmupTarget.name}</strong> for this session</div>
-                </div>
-                <button onClick={() => setSwapWarmupTarget(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
-              </div>
-              <div style={{ flex: 1, overflowY: "auto" }}>
-                {library.map(s => {
-                  const isCurrent = s.id === swapWarmupTarget.id;
-                  return (
-                    <button key={s.id} onClick={() => doSwap(s)} disabled={isCurrent} style={{ width: "100%", textAlign: "left", padding: "12px 14px", marginBottom: 6, background: isCurrent ? "rgba(255,255,255,0.02)" : themeBg, border: `1px solid ${isCurrent ? "rgba(255,255,255,0.08)" : themeBorder}`, borderRadius: 10, color: "#fff", display: "flex", alignItems: "center", gap: 10, cursor: isCurrent ? "default" : "pointer", opacity: isCurrent ? 0.5 : 1 }}>
-                      <span style={{ fontSize: 22, width: 32, textAlign: "center" }}>{s.icon ?? (isWu ? "🔥" : "🧘")}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}{isCurrent ? "  · CURRENT" : ""}</div>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2, fontFamily: "'Space Mono', monospace", letterSpacing: 1 }}>{s.reps.toUpperCase()} · {s.primaryMuscles.slice(0,2).join(" · ").toUpperCase()}</div>
-                      </div>
-                      {!isCurrent && <span style={{ color: themeColor, fontSize: 16 }}>⇄</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>,
-            document.body
-          );
-        })()}
+        {swapWarmupModalNode}
 
         {/* Form-cue modal — tapped from any warm-up / cool-down row. Shows
             the icon, name, duration, and 2-3 short technique cues. */}
@@ -17792,6 +17796,10 @@ function HomePage() {
 
     return (
       <div key="workout-session" className="view-forward" style={{ maxWidth: 480, margin: "0 auto", paddingBottom: safeBot, minHeight: "100dvh" }}>
+        {/* Warm-up/cool-down swap sheet — shared node so the in-session
+            ⇄ SWAP button actually opens it (it previously only rendered in
+            the Customise view). (qa: session-swap-warmup) */}
+        {swapWarmupModalNode}
         {/* Set-note modal — long-press a logged set badge to open this. */}
         {/* Auto-substitute modal — pick a same-muscle alternative the
             user CAN actually do with their current equipment. Tapping a

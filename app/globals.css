@@ -300,8 +300,15 @@ select:focus-visible {
    so it never feels sluggish. (qa: view-transition-slide) */
 @keyframes viewSlideInRight { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes viewSlideInLeft  { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: translateX(0); } }
-.view-forward { animation: viewSlideInRight 0.24s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.view-back    { animation: viewSlideInLeft  0.24s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* fill-mode is `backwards` (NOT `both`): `both` retains the final keyframe's
+   `transform: translateX(0)` after the animation ends, and a non-`none`
+   transform makes the element a containing block for position:fixed children —
+   which pushed centered modals (substitute/swap/note/form-cue/etc.) off-screen.
+   `backwards` keeps only the pre-animation state, so at rest there's no lingering
+   transform. The end state equals the element's natural style, so no visual flash.
+   (qa: substitute-modal-offscreen) */
+.view-forward { animation: viewSlideInRight 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.view-back    { animation: viewSlideInLeft  0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 @media (prefers-reduced-motion: reduce) {
   .view-forward, .view-back { animation: none; }
 }

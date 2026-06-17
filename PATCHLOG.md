@@ -2,6 +2,17 @@
 
 ---
 
+## Fix · 2026-06-16 — Off-screen in-session modals (root cause) + mid-session warm-up swap (qa: substitute-modal-offscreen, session-swap-warmup)
+
+Follow-up sweep after the substitute modal rendered off-screen. Found the real, app-wide root cause and fixed an adjacent swap bug.
+
+- **Root cause of off-screen modals (`.view-forward` / `.view-back`):** these classes (the root of the workout/customise/settings views) used `animation: … both`. `fill-mode: both` **retains** the final keyframe's `transform: translateX(0)` after the slide-in ends, and a non-`none` transform makes the element a containing block for `position:fixed` children. So every centered `position:fixed; inset:0` modal in those views was sized/centered against the (tall) view div instead of the viewport — landing below the fold. Changed fill-mode to `backwards` (no retained transform; the end state already equals the element's natural style, so no flash). This fixes the substitute modal **and** every other in-session modal (set-note, form-cue, plateau, cue-preview, finish prompt, edit-sets, PB/complete overlays) in one line — no need to portal each. As belt-and-suspenders, `subModal` and the warm-up swap modal also now use `createPortal(document.body)`.
+- **Mid-session warm-up swap modal never appeared:** the `swapWarmupTarget` modal was rendered only inside the Customise view, but the session `⇄ SWAP` button lives in the Workout view — so tapping it set state but showed nothing (the deeper reason last patch's tap-target fix still felt dead). Extracted it into a shared `swapWarmupModalNode` now rendered in **both** the Customise and Workout returns.
+
+`npx tsc --noEmit` clean. Existing surfaces — no `TUTORIAL_STEPS` change.
+
+---
+
 ## Fix · 2026-06-16 — Substitute / swap-exercise modal rendered off-screen (qa: substitute-modal-offscreen)
 
 @maaiz: *"UI not on screen trying to swap a normal exercise"* — the SUBSTITUTE EXERCISE modal rendered jammed at the bottom edge, mostly off-screen. Root cause: it (and the warm-up swap modal) render **inline** inside the active-session view, which sits under the framer-motion view wrapper. A `transform` on an ancestor becomes the containing block for `position:fixed` descendants, so `position:fixed; inset:0` sized/centered against the tall wrapper instead of the viewport — putting the modal at the document centre, off the bottom of the screen. Fix: both `subModal` and `swapWarmupTarget` now render via `createPortal(…, document.body)`, matching the active-session rest-timer overlay that was already portaled for exactly this reason. Other in-session modals (plateau, cue preview, form preview, set-note) use the same inline pattern and can get the same treatment if they're seen off-screen — deferred until observed. Existing surface — no `TUTORIAL_STEPS` change. `npx tsc --noEmit` clean.
