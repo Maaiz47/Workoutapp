@@ -35,6 +35,21 @@
       "notes": "[2026-06-13] @humaam: 'Can edit main exercises but not warmup and warm down' (view=customise). Cause: in the Customise editor the warm-up/cool-down REMOVE button only rendered for already-custom (saved kind=warmup/cooldown) rows — AUTO-picked warm-ups/cool-downs had no edit control at all, so a user who hadn't customised couldn't change them. Fix: AUTO rows now get a REMOVE that MATERIALISES the auto list as custom (kind=warmup/cooldown) minus the removed item, making auto warm-ups/cool-downs editable. Both sections updated; add/cues unchanged. (qa: customise-warmup-cooldown-edit)"
     },
     {
+      "id": "substitute-modal-offscreen",
+      "title": "Substitute / swap exercise modal renders centered on screen",
+      "area": "Workouts",
+      "introduced": "2026-06-16",
+      "status": "regression-retest",
+      "steps": [
+        "Start a session and scroll down a bit so you're not at the top of the page",
+        "Tap a normal exercise's '⇄ SWAP' / substitute control to open the SUBSTITUTE EXERCISE modal",
+        "Confirm the modal is centered in the viewport with the search box and SUGGESTED list fully visible — NOT jammed at the bottom edge / off-screen",
+        "Repeat the warm-up '⇄ SWAP' flow and confirm that sheet is also fully on-screen",
+        "Confirm tapping the backdrop or ✕ still closes the modal, and picking an exercise still swaps it"
+      ],
+      "notes": "[2026-06-16 <sha7>] Fixed: @maaiz 'UI not on screen trying to swap a normal exercise' (modal rendered jammed at the bottom, mostly off-screen). Root cause: the substitute modal (subModal) and the warm-up swap modal (swapWarmupTarget) are rendered INLINE inside the active-session view, which sits under the framer-motion view wrapper. That wrapper's transform becomes the containing block for position:fixed descendants, so 'position:fixed; inset:0' sized/positioned against the (tall) wrapper instead of the viewport — centering put the modal at the document centre, off the bottom of the screen. Fix: both modals now render via createPortal(..., document.body), matching the active-session rest-timer overlay which was already portaled for exactly this reason. Other in-session modals (plateau, cue preview, form preview, set-note) use the same inline pattern and may need the same treatment if they surface off-screen — deferred until observed. (qa: substitute-modal-offscreen)"
+    },
+    {
       "id": "session-swap-warmup",
       "title": "Swap a warm-up / cool-down for another mid-session (not just skip)",
       "area": "Workouts",

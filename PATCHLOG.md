@@ -2,6 +2,12 @@
 
 ---
 
+## Fix · 2026-06-16 — Substitute / swap-exercise modal rendered off-screen (qa: substitute-modal-offscreen)
+
+@maaiz: *"UI not on screen trying to swap a normal exercise"* — the SUBSTITUTE EXERCISE modal rendered jammed at the bottom edge, mostly off-screen. Root cause: it (and the warm-up swap modal) render **inline** inside the active-session view, which sits under the framer-motion view wrapper. A `transform` on an ancestor becomes the containing block for `position:fixed` descendants, so `position:fixed; inset:0` sized/centered against the tall wrapper instead of the viewport — putting the modal at the document centre, off the bottom of the screen. Fix: both `subModal` and `swapWarmupTarget` now render via `createPortal(…, document.body)`, matching the active-session rest-timer overlay that was already portaled for exactly this reason. Other in-session modals (plateau, cue preview, form preview, set-note) use the same inline pattern and can get the same treatment if they're seen off-screen — deferred until observed. Existing surface — no `TUTORIAL_STEPS` change. `npx tsc --noEmit` clean.
+
+---
+
 ## Fix · 2026-06-16 — Warm-up ⇄ SWAP button was un-tappable (qa: session-swap-warmup)
 
 @maaiz: *"Can't click or do anything with the swap button here"* (active-session warm-up panel). Two compounding causes: the `⇄ SWAP` control had `padding:0` / `fontSize:10` — a ~45×13px hit area, far below a usable tap target — **and** it didn't `stopPropagation`, so any tap (especially the frequent near-misses) bubbled up to the exercise card's expand/collapse `onClick` and just toggled the row instead of opening the swap sheet. Fixed: gave it a proper padded pill tap target (background + border, `padding:5px 9px`), added `e.stopPropagation()` (matching the set-chip buttons beside it), `type="button"`, and `position:relative; zIndex:1`. The swap sheet now opens reliably on tap. Existing surface — no `TUTORIAL_STEPS` change. `npx tsc --noEmit` clean.

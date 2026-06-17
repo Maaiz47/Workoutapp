@@ -10948,7 +10948,11 @@ function HomePage() {
             }
             setSwapWarmupTarget(null);
           };
-          return (
+          // Portaled to document.body — same reason as the substitute modal:
+          // the framer-motion view wrapper's transform would otherwise be the
+          // containing block for this position:fixed overlay, pushing it
+          // off-screen. (qa: substitute-modal-offscreen)
+          return createPortal(
             <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 250, display: "flex", flexDirection: "column", padding: 20, backdropFilter: "blur(16px)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <div>
@@ -10972,7 +10976,8 @@ function HomePage() {
                   );
                 })}
               </div>
-            </div>
+            </div>,
+            document.body
           );
         })()}
 
@@ -17896,7 +17901,12 @@ function HomePage() {
               </div>
             );
           };
-          return (
+          // Portaled to document.body so the fixed overlay is positioned
+          // against the viewport, not the framer-motion view wrapper (whose
+          // transform makes it the containing block for position:fixed —
+          // that's what pushed this modal off the bottom of the screen).
+          // Matches the rest-timer overlay pattern. (qa: substitute-modal-offscreen)
+          return createPortal(
             <div onClick={() => setSubModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 330, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(8px)" }}>
               <div onClick={e => e.stopPropagation()} style={{ maxWidth: 380, width: "100%", maxHeight: "82vh", overflowY: "auto", background: "#0a0a0a", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 16, padding: 20, position: "relative" }}>
                 <button onClick={() => setSubModal(null)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 22, cursor: "pointer", padding: 8 }}>✕</button>
@@ -17953,7 +17963,8 @@ function HomePage() {
                     : <>Swap is session-only — the saved routine isn&apos;t modified.</>}
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           );
         })()}
 
