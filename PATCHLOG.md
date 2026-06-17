@@ -2,6 +2,12 @@
 
 ---
 
+## Fix · 2026-06-16 — Warm-up ⇄ SWAP button was un-tappable (qa: session-swap-warmup)
+
+@maaiz: *"Can't click or do anything with the swap button here"* (active-session warm-up panel). Two compounding causes: the `⇄ SWAP` control had `padding:0` / `fontSize:10` — a ~45×13px hit area, far below a usable tap target — **and** it didn't `stopPropagation`, so any tap (especially the frequent near-misses) bubbled up to the exercise card's expand/collapse `onClick` and just toggled the row instead of opening the swap sheet. Fixed: gave it a proper padded pill tap target (background + border, `padding:5px 9px`), added `e.stopPropagation()` (matching the set-chip buttons beside it), `type="button"`, and `position:relative; zIndex:1`. The swap sheet now opens reliably on tap. Existing surface — no `TUTORIAL_STEPS` change. `npx tsc --noEmit` clean.
+
+---
+
 ## Fix · 2026-06-16 — DM conversation: header avatar, fixed header, scroll respects user (qa: conversation-scroll-respects-user)
 
 @maaiz: *"top bar with username should show profile avatar too and should be fixed at the top while scrolling … also might be doing an automatic return to bottom which is annoying if I'm trying to look at old chats."* Three fixes — two of which shared one root cause.

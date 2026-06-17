@@ -19179,8 +19179,11 @@ function HomePage() {
                             <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: "rgba(255,255,255,0.5)", fontFamily: "'Space Mono', monospace" }}>{wuSetsCount > 1 ? "SETS · TAP ✓ DONE OR ↷ SKIP" : "TAP ✓ DONE OR ↷ SKIP"}</span>
                             <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
                               {/* Swap out this warm-up / cooldown for another from the
-                                  same pool — not just skip it. (qa: session-swap-warmup) */}
-                              <button onClick={() => setSwapWarmupTarget({ id: ex.id, name: ex.name, kind: ex.kind === "cooldown" ? "cooldown" : "warmup" })} style={{ background: "none", border: "none", padding: 0, color: "#FFE66D", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer", whiteSpace: "nowrap" }}>⇄ SWAP</button>
+                                  same pool — not just skip it. stopPropagation so the
+                                  tap doesn't bubble to the card's expand/collapse toggle
+                                  (which was eating the click), and a padded pill so it's
+                                  an actual tappable target. (qa: session-swap-warmup) */}
+                              <button type="button" onClick={(e) => { e.stopPropagation(); setSwapWarmupTarget({ id: ex.id, name: ex.name, kind: ex.kind === "cooldown" ? "cooldown" : "warmup" }); }} style={{ background: "rgba(255,230,109,0.08)", border: "1px solid rgba(255,230,109,0.3)", borderRadius: 6, padding: "5px 9px", color: "#FFE66D", fontSize: 10, fontWeight: 700, letterSpacing: 1, fontFamily: "'Space Mono', monospace", cursor: "pointer", whiteSpace: "nowrap", position: "relative", zIndex: 1 }}>⇄ SWAP</button>
                               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'Space Mono', monospace" }}>{wuDoneCount}/{wuSetsCount} DONE{wuSkipCount > 0 ? ` · ${wuSkipCount} SKIPPED` : ""}</span>
                             </div>
                           </div>
