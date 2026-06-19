@@ -2,6 +2,21 @@
 
 ---
 
+## Fix · 2026-06-19 — Form previews no longer show equipment for no-equipment exercises (qa: form-preview-equipment-mismatch)
+
+@amanii: *"Glute bridges shows using a barbell in the form preview but I said I don't have a barbell at home."* The exercise assignment was correct (bodyweight `glute-bridge`) — the **demo image** was wrong: it mapped to the free-exercise-db `Barbell_Glute_Bridge` model.
+
+Audited every bodyweight/band-only exercise against its demo mapping and found **9** of the same pattern — a no-equipment movement pointing at a barbell/dumbbell/cable model: `glute-bridge` plus 8 resistance-band moves (chest-press, row, pulldown, lateral-raise, shoulder-press, curl, pushdown, squat).
+
+Fixes in `lib/exerciseImages.ts`:
+- `glute-bridge`: its DB id (`Barbell_Glute_Bridge`) is used by nothing else, so it's added to `BROKEN_DB_MAPPINGS` → emoji fallback.
+- The 8 band moves **share** their DB ids with the real barbell/cable exercises, so blacklisting would break those legit demos — instead their `EXERCISE_DB_MAP` entries were removed → emoji fallback.
+- `resistance-band-hip-abduction` was already correct (`Band_Hip_Adductions`) and is untouched.
+
+All 9 are queued as proper custom 2-frame local assets in `image-prompts-v2.md` **Batch 11** (`/public/stretches/<id>/{0,1}.png` + `LOCAL_STRETCH_IDS`, same mechanism as the stretch demos). An audit script confirms zero light-equipment exercises now resolve to an equipment-named demo. `npx tsc --noEmit` clean; no `TUTORIAL_STEPS` change (existing surface).
+
+---
+
 ## Fix · 2026-06-19 — "No equipment at home" plan still included equipment exercises (qa: planner-equipment-strict)
 
 @amanii: *"I selected that I didn't have any equipment at home in the plan builder but it still gave me exercises to do which required equipment."*

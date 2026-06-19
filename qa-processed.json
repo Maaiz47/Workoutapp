@@ -793,6 +793,10 @@
     "cmqkqmqp00000gl2zyi4mgenr": {
       "ts": "2026-06-19T09:53:48Z",
       "summary": "Plan builder gave equipment exercises despite no-equipment-at-home selection. Root cause: gym-only equipment hidden+un-deselectable in the home equipment step persisted in profile and leaked into generation. Fixed: client prunes equipment to location-valid items at save; server strips barbell/smith_machine for home profiles. (qa: planner-equipment-strict)"
+    },
+    "cmqkrb3hj0002f94ycahuvqw5": {
+      "ts": "2026-06-19T10:23:24Z",
+      "summary": "Glute bridge form preview showed a barbell. Audited all bodyweight/band exercises: 9 mismatches mapped to barbell/dumbbell/cable demos. glute-bridge blacklisted; 8 band moves un-mapped (shared DB ids) -> emoji fallback; all 9 queued as custom assets in image-prompts-v2 Batch 11. (qa: form-preview-equipment-mismatch)"
     }
   }
 }

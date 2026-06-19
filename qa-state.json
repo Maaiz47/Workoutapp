@@ -572,6 +572,20 @@
       "notes": "[2026-05-24] Shipped: BROKEN_DB_MAPPINGS set in lib/exerciseImages.ts (Hanging_Leg_Raise + Quad_Stretch); /qa/form-previews page; nav chip on /qa. [2026-06-03] Relabelled cryptic 'WD/CAT · id' metadata to 'WORKOUT PLAN / CATALOGUE · id <x>' so reviewers don't have to mentally expand the abbreviation."
     },
     {
+      "id": "form-preview-equipment-mismatch",
+      "title": "No-equipment exercises must not show equipment in the form preview",
+      "area": "Workouts",
+      "introduced": "2026-06-19",
+      "status": "regression-retest",
+      "steps": [
+        "Open a generated bodyweight/home plan and tap the FORM preview on Glute Bridge. Verify it does NOT show a barbell across the hips (it should show the emoji-icon fallback until the custom bodyweight demo lands).",
+        "Repeat for each resistance-band exercise (band chest press, row, pulldown, lateral raise, shoulder press, curl, pushdown, squat). Verify NONE shows a barbell / dumbbell / cable-machine demo.",
+        "Confirm the equipped versions are unaffected: Barbell Bench Press, Barbell Curl, Lat Pulldown, etc. still show their correct demos.",
+        "Confirm Resistance Band Hip Abduction still shows its correct band demo (Band_Hip_Adductions)."
+      ],
+      "notes": "[2026-06-19 <sha7>] @amanii: 'Glute bridges shows using a barbell in the form preview but I said I don't have a barbell at home.' Audited every bodyweight/band-only exercise against its free-exercise-db demo mapping and found 9 mismatches where a no-equipment movement pointed at a barbell/dumbbell/cable model: glute-bridge (→Barbell_Glute_Bridge) + 8 resistance-band moves (chest-press, row, pulldown, lateral-raise, shoulder-press, curl, pushdown, squat). Fix: glute-bridge's DB id is used by nothing else, so added it to BROKEN_DB_MAPPINGS (emoji fallback). The 8 band moves share their DB ids with real barbell/cable exercises, so their EXERCISE_DB_MAP entries were removed (emoji fallback) rather than blacklisted (which would have broken the legit equipped demos). All 9 queued as custom 2-frame local assets in image-prompts-v2.md Batch 11 (/public/stretches/<id>/{0,1}.png + LOCAL_STRETCH_IDS). Verified via audit script: zero light-equipment exercises now resolve to an equipment-named demo. (qa: form-preview-equipment-mismatch)"
+    },
+    {
       "id": "group-chat-bigger-avatars",
       "title": "Bigger author avatars on group chat bubbles",
       "area": "Messages",

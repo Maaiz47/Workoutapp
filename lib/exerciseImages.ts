@@ -86,6 +86,14 @@ const BROKEN_DB_MAPPINGS = new Set<string>([
   // rotation drill — different movement pattern entirely. Only used
   // by `clamshell`. (qa: exercise-audit-2026-05-27)
   "Thigh_Abductor",
+  // Barbell_Glute_Bridge depicts a barbell loaded across the hips. Our
+  // `glute-bridge` is the BODYWEIGHT bridge (a no-equipment home move) —
+  // showing a barbell misled a no-equipment user into thinking they needed
+  // one (@amanii 2026-06-19). Only `glute-bridge` maps here (the loaded
+  // variants use Barbell_Hip_Thrust), so blacklisting kills just that demo.
+  // A bodyweight bilateral bridge isn't in the open DB — custom asset queued
+  // in image-prompts-v2.md Batch 10. (qa: form-preview-equipment-mismatch)
+  "Barbell_Glute_Bridge",
 ]);
 
 export function getExerciseImageUrls(exerciseId: string, exerciseName?: string): [string, string] | null {
@@ -271,7 +279,9 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   "wide-pushups":                   "Push-Up_Wide",
   "decline-pushups":                "Decline_Push-Up",
   "diamond-pushups":                "Pushups_Close_and_Wide_Hand_Positions",
-  "resistance-band-chest-press":    "Barbell_Bench_Press_-_Medium_Grip",
+  // resistance-band-chest-press — emoji fallback (was Barbell_Bench_Press: a
+  //   band move should not show a barbell/bench). Custom band asset queued in
+  //   image-prompts-v2.md Batch 10. (qa: form-preview-equipment-mismatch)
 
   // ── Back ─────────────────────────────────────────────────────────────────
   "barbell-deadlift":               "Barbell_Deadlift",
@@ -289,8 +299,10 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   "dumbbell-shrugs":                "Dumbbell_Shrug",
   "inverted-row":                   "Inverted_Row",
   "hyperextension":                 "Hyperextensions_With_No_Hyperextension_Bench",
-  "resistance-band-pulldown":        "Wide-Grip_Lat_Pulldown",
-  "resistance-band-row":            "Bent_Over_Barbell_Row",
+  // resistance-band-pulldown / resistance-band-row — emoji fallback (were
+  //   Wide-Grip_Lat_Pulldown / Bent_Over_Barbell_Row: cable/barbell demos for
+  //   band moves). Custom band assets queued in image-prompts-v2.md Batch 10.
+  //   (qa: form-preview-equipment-mismatch)
 
   // ── Shoulders ────────────────────────────────────────────────────────────
   "overhead-press":                 "Barbell_Shoulder_Press",
@@ -303,8 +315,10 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   "rear-delt-fly":                  "Bent_Over_Dumbbell_Rear_Delt_Raise_With_Head_On_Bench",
   "machine-shoulder-press":         "Machine_Shoulder_Military_Press",
   "shoulder-external-rotation":     "External_Rotation",
-  "resistance-band-shoulder-press": "Barbell_Shoulder_Press",
-  "resistance-band-lateral-raise":  "Side_Lateral_Raise",
+  // resistance-band-shoulder-press / resistance-band-lateral-raise — emoji
+  //   fallback (were Barbell_Shoulder_Press / Side_Lateral_Raise: barbell/
+  //   dumbbell demos for band moves). Custom band assets queued in
+  //   image-prompts-v2.md Batch 10. (qa: form-preview-equipment-mismatch)
 
   // ── Biceps ───────────────────────────────────────────────────────────────
   "barbell-curl":                   "Barbell_Curl",
@@ -316,7 +330,8 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   "ez-bar-curl":                    "EZ-Bar_Curl",
   "cable-curl":                     "Standing_Biceps_Cable_Curl",
   "chinups":                        "Chin-Up",
-  "resistance-band-curl":           "Barbell_Curl",
+  // resistance-band-curl — emoji fallback (was Barbell_Curl). Custom band
+  //   asset queued in image-prompts-v2.md Batch 10. (qa: form-preview-equipment-mismatch)
 
   // ── Triceps ──────────────────────────────────────────────────────────────
   "close-grip-bench":               "Close-Grip_Barbell_Bench_Press",
@@ -327,7 +342,9 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   "tricep-kickback":                "Tricep_Dumbbell_Kickback",
   "tricep-dips":                    "Dips_-_Triceps_Version",
   "bench-dips":                     "Bench_Dips",
-  "resistance-band-pushdown":       "Triceps_Pushdown",
+  // resistance-band-pushdown — emoji fallback (was Triceps_Pushdown: a cable
+  //   demo). Custom band asset queued in image-prompts-v2.md Batch 10.
+  //   (qa: form-preview-equipment-mismatch)
 
   // ── Legs ─────────────────────────────────────────────────────────────────
   "barbell-squat":                  "Barbell_Squat",
@@ -346,7 +363,8 @@ const EXERCISE_DB_MAP: Record<string, string> = {
   "box-jumps":                      "Front_Box_Jump",
   "step-ups":                       "Barbell_Step_Ups",
   "nordic-curl":                    "Natural_Glute_Ham_Raise",
-  "resistance-band-squat":          "Barbell_Squat",
+  // resistance-band-squat — emoji fallback (was Barbell_Squat). Custom band
+  //   asset queued in image-prompts-v2.md Batch 10. (qa: form-preview-equipment-mismatch)
 
   // ── Glutes ───────────────────────────────────────────────────────────────
   "hip-thrust-barbell":             "Barbell_Hip_Thrust",

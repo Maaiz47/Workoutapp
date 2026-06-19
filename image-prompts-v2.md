@@ -1122,6 +1122,97 @@ batch, not icons.
 
 ---
 
+## Batch 11 — Form-preview fixes for no-equipment exercises (18 images = 9 pairs × 2 frames)
+
+These exercises are bodyweight or resistance-band only, but the open
+free-exercise-db had no matching demo, so they were mapped to a
+barbell/dumbbell/cable model — which misled a no-equipment user into
+thinking they needed gear (@amanii 2026-06-19: glute bridges showing a
+barbell). The wrong mappings were removed in `lib/exerciseImages.ts`
+(they fall back to the emoji icon for now). Generate the 2-frame demos
+below into `/public/stretches/<id>/{0,1}.png`, then add each id to
+`LOCAL_STRETCH_IDS` in `lib/exerciseImages.ts` (same mechanism as the
+stretch demos). (qa: form-preview-equipment-mismatch)
+
+**Shared style (prefix every prompt):** Single athlete, black tank +
+shorts, neutral dark gym background, photoreal, dramatic rim-light,
+square 512×512, same athlete + camera across the pair so the two
+frames animate cleanly. NO barbell, NO dumbbells, NO machines.
+
+### `glute-bridge/0.png` — Glute bridge (down)
+> Lying face-up on a mat, knees bent ~90°, feet flat, arms at sides,
+> hips resting on the floor. Side view at floor level.
+
+### `glute-bridge/1.png` — Glute bridge (up)
+> Same setup, hips driven UP so shoulders-hips-knees form a straight
+> line, glutes squeezed at the top. Side view, identical camera.
+
+### `resistance-band-chest-press/0.png` — Band chest press (stretched)
+> Standing, band anchored behind at chest height, a handle in each hand
+> at chest level, elbows back, band taut. Front-three-quarter view.
+
+### `resistance-band-chest-press/1.png` — Band chest press (pressed)
+> Same stance, arms pressed straight forward at chest height, band
+> stretched. Identical camera.
+
+### `resistance-band-row/0.png` — Band row (arms extended)
+> Standing, band anchored in front at chest height, arms extended
+> forward holding handles, slight hip hinge. Side-three-quarter view.
+
+### `resistance-band-row/1.png` — Band row (pulled)
+> Same stance, elbows driven back past the ribs, shoulder blades
+> squeezed, band stretched. Identical camera.
+
+### `resistance-band-pulldown/0.png` — Band pulldown (overhead)
+> Kneeling or standing, band anchored HIGH overhead, arms reaching up
+> holding handles, band slack. Front view.
+
+### `resistance-band-pulldown/1.png` — Band pulldown (pulled down)
+> Same position, arms pulled down to shoulder level, elbows tucked,
+> band stretched. Identical camera.
+
+### `resistance-band-lateral-raise/0.png` — Band lateral raise (down)
+> Standing on the middle of the band, a handle in each hand at the
+> sides, arms down. Front view.
+
+### `resistance-band-lateral-raise/1.png` — Band lateral raise (up)
+> Same stance, arms raised out to the sides to shoulder height (T
+> shape), band stretched. Identical camera.
+
+### `resistance-band-shoulder-press/0.png` — Band shoulder press (racked)
+> Standing on the band, handles at shoulder height, elbows bent. Front
+> view.
+
+### `resistance-band-shoulder-press/1.png` — Band shoulder press (overhead)
+> Same stance, arms pressed straight overhead, band stretched.
+> Identical camera.
+
+### `resistance-band-curl/0.png` — Band curl (extended)
+> Standing on the band, handles in hands at the thighs, arms straight,
+> palms forward. Front view.
+
+### `resistance-band-curl/1.png` — Band curl (curled)
+> Same stance, hands curled up to the shoulders, elbows pinned, band
+> stretched. Identical camera.
+
+### `resistance-band-pushdown/0.png` — Band pushdown (top)
+> Standing, band anchored HIGH overhead, elbows pinned to the sides at
+> ~90°, hands at chest. Side view.
+
+### `resistance-band-pushdown/1.png` — Band pushdown (extended)
+> Same stance, arms pushed straight down, band stretched. Identical
+> camera.
+
+### `resistance-band-squat/0.png` — Band squat (standing)
+> Standing on the middle of the band, handles at the shoulders, upright.
+> Front-three-quarter view.
+
+### `resistance-band-squat/1.png` — Band squat (bottom)
+> Same stance, squatted to thighs-parallel, chest up, band stretched.
+> Identical camera.
+
+---
+
 ## After all batches land
 
 Total: **63 images** (53 if Batch 9 deferred). Breakdown:
