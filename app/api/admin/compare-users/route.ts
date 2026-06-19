@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   try {
     const users = await prisma.user.findMany({
       where: { username: { in: usernames } },
-      select: { id: true, username: true, createdAt: true, profile: { select: { daysPerWeek: true, gender: true, weightKg: true, bodyFatPct: true, tierTheme: true } } },
+      select: { id: true, username: true, createdAt: true, profile: { select: { daysPerWeek: true, gender: true, weightKg: true, bodyFatPct: true, tierTheme: true, location: true, equipment: true, targetArea: true } } },
     });
     const userIds = users.map(u => u.id);
     if (userIds.length === 0) return json({ users: [] });
@@ -68,6 +68,9 @@ export async function GET(req: NextRequest) {
         onboardingWeightKg: u.profile?.weightKg ?? null,
         onboardingBodyFatPct: u.profile?.bodyFatPct ?? null,
         tierTheme: u.profile?.tierTheme ?? null,
+        location: (u.profile as any)?.location ?? null,
+        equipment: (u.profile as any)?.equipment ?? null,
+        targetArea: (u.profile as any)?.targetArea ?? null,
         stats: s ? {
           totalSessions: s.totalSessions,
           streak: s.streak,

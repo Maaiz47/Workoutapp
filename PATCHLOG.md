@@ -2,6 +2,20 @@
 
 ---
 
+## Fix · 2026-06-19 — "No equipment at home" plan still included equipment exercises (qa: planner-equipment-strict)
+
+@amanii: *"I selected that I didn't have any equipment at home in the plan builder but it still gave me exercises to do which required equipment."*
+
+Root cause was stale, **invisible** equipment — not the generator. `generatePlan` filters correctly (verified: `equipment: []` produces zero equipment-requiring exercises across every goal/target-area/location combo). The problem: gym-only gear (`barbell`/`cable`/`machine`/`smith_machine`, all `home:false` in `EQUIPMENT_OPTIONS`) lingers in a profile when someone set up under GYM and later switched to HOME. The home equipment step only renders `home:true` rows, so those items can't be unticked — the user sees an empty list, believes they picked "no equipment", but the hidden gear stays in their saved profile and leaks into generation.
+
+Two-layer fix:
+- **Client** (`submitOnboarding`): prune `equipment` to what's actually selectable at the chosen location via a new `equipmentValidForLocation()` (multi-gym sub-stations kept only when the station itself is selected). New saves are always coherent.
+- **Server** (`/api/plan`): strip `barbell` + `smith_machine` for `home` profiles — never home-accessible, even via a multi-gym station — so existing stale profiles and the Settings → REGENERATE path self-heal without re-onboarding.
+
+Also exposed `location`/`equipment`/`targetArea` in `/api/admin/compare-users` for diagnosis. `npx tsc --noEmit` clean. No `TUTORIAL_STEPS` change (existing surface).
+
+---
+
 ## Fix · 2026-06-16 — Off-screen in-session modals (root cause) + mid-session warm-up swap (qa: substitute-modal-offscreen, session-swap-warmup)
 
 Follow-up sweep after the substitute modal rendered off-screen. Found the real, app-wide root cause and fixed an adjacent swap bug.

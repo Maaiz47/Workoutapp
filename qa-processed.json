@@ -789,6 +789,10 @@
     "cmqgw4kk40003jcdtnfvxnbkl": {
       "ts": "2026-06-16T17:12:37Z",
       "summary": "Fixed intermittent dropped pushes: awaited sendPushToUser at all transactional sites (DM, group, friend/trainer requests, proposals) so Vercel does not kill the function before web-push fires. (qa: dm-incoming-push)"
+    },
+    "cmqkqmqp00000gl2zyi4mgenr": {
+      "ts": "2026-06-19T09:53:48Z",
+      "summary": "Plan builder gave equipment exercises despite no-equipment-at-home selection. Root cause: gym-only equipment hidden+un-deselectable in the home equipment step persisted in profile and leaked into generation. Fixed: client prunes equipment to location-valid items at save; server strips barbell/smith_machine for home profiles. (qa: planner-equipment-strict)"
     }
   }
 }

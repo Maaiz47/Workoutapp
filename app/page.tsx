@@ -38,6 +38,34 @@ import { TIPS, pickDailyTip, TipContext, ProTip } from "../lib/proTips";
 
 const VAPID_PUBLIC_KEY = "BOhlYEJGvtpt4q1HA9DkjMDIvNpj-Yh9ia8Jffoy1ETlCMDxzqUDJzXMRSE1ByqbHooHvqHRmTW47G_osz8P5p4";
 
+// Equipment-location validity — mirrors the home/gym flags in EQUIPMENT_OPTIONS
+// (the onboarding selector). A user's saved equipment must only contain items
+// SELECTABLE at their chosen location. Without this, gym-only gear
+// (barbell/cable/machine/smith_machine) that a user picked under "gym" stays in
+// their profile after they switch to "home" — but the home equipment step hides
+// those rows, so they can't be unticked. The user sees nothing selected, believes
+// they chose "no equipment", yet plan generation still has the hidden gear and
+// hands them barbell/cable work. (qa: planner-equipment-strict)
+const EQUIP_HOME_VALID_LIST = ["dumbbell", "bench", "pullup_bar", "dip_bar", "kettlebell", "resistance_band", "treadmill", "elliptical"];
+const EQUIP_GYM_VALID_LIST = ["dumbbell", "barbell", "cable", "machine", "bench", "pullup_bar", "dip_bar", "kettlebell", "smith_machine"];
+// A home "multi-gym" station legitimately adds these for HOME users.
+const EQUIP_MULTIGYM_SUBS = ["cable", "machine", "pullup_bar", "dip_bar"];
+function equipmentValidForLocation(equipment: string[], location: string): string[] {
+  const eq = (equipment ?? []).filter(e => e !== "multi_gym");
+  if (location === "gym") {
+    const gym = new Set(EQUIP_GYM_VALID_LIST);
+    return eq.filter(e => gym.has(e));
+  }
+  if (location === "home") {
+    const ok = new Set(EQUIP_HOME_VALID_LIST);
+    if ((equipment ?? []).includes("multi_gym")) for (const s of EQUIP_MULTIGYM_SUBS) ok.add(s);
+    return eq.filter(e => ok.has(e));
+  }
+  // "both" / unspecified: keep anything selectable in either location.
+  const any = new Set(EQUIP_HOME_VALID_LIST.concat(EQUIP_GYM_VALID_LIST).concat(EQUIP_MULTIGYM_SUBS));
+  return eq.filter(e => any.has(e));
+}
+
 // SHA + version baked into THIS bundle at build time (see next.config.js).
 // These describe the build that's actually loaded — unlike /api/version,
 // which reports the server's current build. Comparing the two is what lets
@@ -8554,7 +8582,7 @@ function HomePage() {
   const submitOnboarding = async () => {
     setGeneratingPlan(true);
     try {
-      const profileBody = { ...ob, targetAreas: ob.targetAreas, equipment: ob.equipment.filter(e => e !== "multi_gym") };
+      const profileBody = { ...ob, targetAreas: ob.targetAreas, equipment: equipmentValidForLocation(ob.equipment, ob.location) };
       const profileRes = await fetch("/api/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profileBody) });
       if (!profileRes.ok) { setGeneratingPlan(false); return; }
       const planRes = await fetch("/api/plan", { method: "POST" });

@@ -2600,17 +2600,18 @@
       "area": "Plan",
       "introduced": "2026-05-23",
       "introducedBy": "QA pass planner-equipment-strict",
-      "lastTested": "2026-05-23",
+      "lastTested": "2026-06-19",
       "status": "regression-retest",
       "steps": [
         "Re-onboard a fresh test user. At the location step, pick HOME. Verify the equipment list defaults to EMPTY (no pre-checked items). Check only the kit you actually own at home.",
         "Generate a plan. Verify NO exercise requires equipment you didn't check (e.g. no smith-machine moves if you didn't check smith_machine).",
-        "Re-onboard with location = BOTH. Verify equipment also starts EMPTY (was previously pre-checked with the full gym kit \u2014 caused gym-only exercises in home plans). Check only what's actually accessible per location via the equipmentHome / equipmentGym sub-pickers.",
-        "Re-onboard with location = GYM. Verify equipment is PRE-CHECKED with the full gym kit (this default still applies \u2014 sensible for most commercial gyms). User can untick anything missing.",
-        "Open Customise on any generated day. Verify the exercise browser's location filter defaults to ALL \u2014 user can pick any exercise (including gym-only ones for a travelling session) even if their primary location is home.",
-        "Toggle the location filter to GYM in customise \u2014 verify only gym-tagged exercises show. Toggle back to ALL \u2014 verify the full library is visible."
+        "REGRESSION (@amanii 2026-06-19): set up as GYM first (full kit), generate, then go back to the plan builder and switch to HOME selecting NOTHING. Generate again. Verify the plan is bodyweight-only \u2014 NO barbell/cable/machine work should survive from the earlier gym setup.",
+        "Existing-profile path: for a user already saved as HOME with stale gym equipment, tap Settings \u2192 REGENERATE (without re-running onboarding). Verify barbell/smith-machine exercises no longer appear (server strips them for home).",
+        "Re-onboard with location = BOTH. Verify equipment also starts EMPTY. Check only what's actually accessible per location via the equipmentHome / equipmentGym sub-pickers.",
+        "Re-onboard with location = GYM. Verify equipment is PRE-CHECKED with the full gym kit. User can untick anything missing.",
+        "Open Customise on any generated day. Verify the exercise browser's location filter defaults to ALL \u2014 user can pick any exercise even if their primary location is home."
       ],
-      "notes": "[2026-05-23] Fix: in the onboarding location-card click handler, the `both` branch was pre-setting `equipment` to the full gym kit (identical to gym defaults). This made the planner believe `both` users had every machine at home, so home-only plans contained gym-only exercises. Now only `gym` retains the full pre-check; `home` and `both` start empty. (Reported by @maaiz: 'building workout should only consider the equipment they have accessible either at home or gym as per their selection \u2014 but they should be able to customise with all exercises'.)"
+      "notes": "[2026-06-19 <sha7>] REGRESSION fix: @amanii 'I selected that I didn't have any equipment at home in the plan builder but it still gave me exercises that required equipment.' Root cause: gym-only equipment (barbell/cable/machine/smith_machine, all home:false in EQUIPMENT_OPTIONS) lingers in a profile when a user set up under GYM and later switched to HOME \u2014 but the home equipment step only renders home:true rows, so those items are invisible and can't be unticked. The user sees an empty list, believes they chose 'no equipment', yet generation still has the hidden gear. The location-card reset only fires on an explicit tap, so a profile loaded into the rebuild flow keeps the stale items. generatePlan itself filters equipment correctly (verified: equipment=[] yields zero equipment exercises across all goals/areas/locations) \u2014 the leak was the saved data. Two-layer fix: (1) client \u2014 submitOnboarding now prunes equipment to items actually selectable at the chosen location via equipmentValidForLocation() (multi_gym sub-stations preserved only when the station is selected); (2) server \u2014 /api/plan strips barbell + smith_machine for home profiles (never home-accessible, even via a multi-gym station) so existing stale profiles + the Settings REGENERATE path self-heal without re-onboarding. Also exposed location/equipment/targetArea in /api/admin/compare-users for diagnosis.\n[2026-05-23] Fix: in the onboarding location-card click handler, the `both` branch was pre-setting `equipment` to the full gym kit. Now only `gym` retains the full pre-check; `home` and `both` start empty. (Reported by @maaiz.)"
     },
     {
       "id": "routine-auto-naming",

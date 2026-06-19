@@ -216,12 +216,25 @@ export async function POST(req: NextRequest) {
     const dob = new Date(profile.dob);
     const ageYears = Math.floor((Date.now() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
 
+    // Defensive equipment/location coherence: barbell + smith_machine are
+    // never available to a home trainer (not even via a multi-gym station,
+    // whose stations are cable/machine/pullup/dip). They linger in a profile
+    // when a user set up under "gym" and later switched to "home" — the home
+    // equipment step hides those rows, so they can't untick them, and plan
+    // generation then hands a "no equipment" home user barbell work. Strip
+    // them here so existing profiles + the Settings regenerate path are fixed
+    // without the user re-running onboarding. (qa: planner-equipment-strict)
+    const rawEquip = (profile.equipment ?? []) as Equipment[];
+    const cleanEquip = profile.location === "home"
+      ? rawEquip.filter(e => (e as string) !== "barbell" && (e as string) !== "smith_machine")
+      : rawEquip;
+
     const input: UserProfileInput = {
       daysPerWeek: profile.daysPerWeek,
       goals: (profile.goals?.length ? profile.goals : [profile.goal]) as Goal[],
       fitnessLevel: profile.fitnessLevel as "newcomer" | "beginner" | "intermediate" | "advanced",
       location: profile.location as Location,
-      equipment: profile.equipment as Equipment[],
+      equipment: cleanEquip,
       gender: profile.gender,
       weightKg: profile.weightKg,
       heightCm: profile.heightCm,
