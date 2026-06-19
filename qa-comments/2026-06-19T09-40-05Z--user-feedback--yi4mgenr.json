@@ -1,0 +1,10 @@
+{
+  "id": "cmqkqmqp00000gl2zyi4mgenr",
+  "itemId": "user-feedback",
+  "tester": "amanii",
+  "userId": "cmp81vpxz0000fijo78navwqd",
+  "status": "failing",
+  "note": "[🐞 BUG · UI · view=home] I selected that I didn’t have any equipment at home in the plan builder but it still gave me exercises to do which required equipment",
+  "screenshotUrl": null,
+  "ts": "2026-06-19T09:40:05.411Z"
+}
