@@ -2,6 +2,12 @@
 
 ---
 
+## Fix · 2026-06-20 — Show the "new version" banner during workouts too (qa: app-update-auto-banner)
+
+@maaiz: *"the banner to refresh with a new update didn't come up — I had to use the button in settings."* He was mid-workout testing the rest-timer fix, and the auto-update banner was gated on `updateOverlayDisabled={started}`, so it was suppressed for the entire active session. Since the workout session is continuously saved to `localStorage` (`ironlog-session`) and silently restored on reload, a mid-session refresh is non-destructive — so the suppression wasn't needed. Removed the gate (`updateOverlayDisabled={false}`); the banner now appears during workouts too, and tapping REFRESH reloads with the session intact. `npx tsc --noEmit` clean. No `TUTORIAL_STEPS` change.
+
+---
+
 ## Fix · 2026-06-20 — Rest-over notification fires when backgrounded + quieter beep (qa: rest-timer-background-notification)
 
 @maaiz: *"the rest-timer alert only comes up when the app is open — I want the push to go through even if the user is on another app … also the beep is too loud, it needs to match the user's notification sound level."*

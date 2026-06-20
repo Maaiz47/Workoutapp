@@ -6563,7 +6563,7 @@ function HomePage() {
         onPBsDismiss={() => setNewPBs([])}
         tierPromoToast={tierPromoToast}
         onTierPromoDismiss={() => setTierPromoToast(null)}
-        updateOverlayDisabled={started}
+        updateOverlayDisabled={false /* show during workouts too — session is saved+restored on reload so REFRESH is non-destructive. (qa: app-update-auto-banner) */}
         previewUserId={previewUserId}
         onClosePreview={() => setPreviewUserId(null)}
         onPreviewOpenDM={(partner) => { openConversation(partner); }}
