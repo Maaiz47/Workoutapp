@@ -2,6 +2,18 @@
 
 ---
 
+## Fix · 2026-06-20 — Rest-over notification fires when backgrounded + quieter beep (qa: rest-timer-background-notification)
+
+@maaiz: *"the rest-timer alert only comes up when the app is open — I want the push to go through even if the user is on another app … also the beep is too loud, it needs to match the user's notification sound level."*
+
+**Background notification.** The rest countdown's `finish()` (which posts `REST_DONE` to the service worker) is driven by a page `setInterval`, and the OS suspends page timers the instant you switch apps — so it never ran in the background and the alert only appeared once you returned (the `visibilitychange` handler re-ran `finish()` on focus). Fix: at rest start the page hands the duration to the **service worker** (`REST_SCHEDULE {ms}`); the SW holds its own `setTimeout` and calls `showNotification` at rest-end independently of the page. It only shows the banner when **no client is focused**, so the foreground keeps its in-app overlay/chime with no double banner. `stop()` sends `REST_CANCEL` (set logged / rest skipped / session finished), and a new rest's `REST_SCHEDULE` replaces any prior timer.
+
+**Beep volume.** A Web-Audio tone plays at a fixed level regardless of device volume (we can't read the OS notification-volume from the web), so the foreground chime gain dropped `0.3 → 0.08` — a gentle confirmation, not an alarm. The **background** alert is now the OS notification itself, which the phone plays at the user's own notification-sound level.
+
+Caveat noted in the QA item: SW `setTimeout` is reliable on Android/desktop and for short app-switches on iOS, but iOS may suspend the SW if the PWA is fully evicted — 100% iOS-background reliability would need a server-scheduled Web Push (follow-up slice). `npx tsc --noEmit` clean; `sw.js` validated. No `TUTORIAL_STEPS` change.
+
+---
+
 ## Fix · 2026-06-19 — Form previews no longer show equipment for no-equipment exercises (qa: form-preview-equipment-mismatch)
 
 @amanii: *"Glute bridges shows using a barbell in the form preview but I said I don't have a barbell at home."* The exercise assignment was correct (bodyweight `glute-bridge`) — the **demo image** was wrong: it mapped to the free-exercise-db `Barbell_Glute_Bridge` model.

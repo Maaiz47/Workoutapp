@@ -797,6 +797,10 @@
     "cmqkrb3hj0002f94ycahuvqw5": {
       "ts": "2026-06-19T10:23:24Z",
       "summary": "Glute bridge form preview showed a barbell. Audited all bodyweight/band exercises: 9 mismatches mapped to barbell/dumbbell/cable demos. glute-bridge blacklisted; 8 band moves un-mapped (shared DB ids) -> emoji fallback; all 9 queued as custom assets in image-prompts-v2 Batch 11. (qa: form-preview-equipment-mismatch)"
+    },
+    "cmqm2wk200006qgjaonrwzr6n": {
+      "ts": "2026-06-20T08:18:58Z",
+      "summary": "Rest-over alert only fired with the app open + beep too loud. Fix: service worker now schedules the rest-end notification (REST_SCHEDULE/REST_CANCEL) so it fires when backgrounded; foreground beep gain dropped 0.3->0.08 and background uses the OS notification at the user level. (qa: rest-timer-background-notification)"
     }
   }
 }

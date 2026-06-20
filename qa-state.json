@@ -84,6 +84,24 @@
       "notes": "[2026-06-08] @maaiz: 'I finished a workout after entering the last set before the rest timer was finished but I still got the rest timer push which is useless'. The countdown's finish() (beep + REST_DONE push) kept firing because doSaveWorkout didn't cancel the running rest timer. Fix: call rest.stop() at the top of the workout-complete path - stop() clears the interval so finish() never runs, suppressing the push. Normal rest-end pushes (non-final sets) are unaffected. (qa: session-finish-cancels-rest-push)"
     },
     {
+      "id": "rest-timer-background-notification",
+      "title": "Rest-over notification fires when backgrounded; beep is quieter",
+      "area": "Workouts",
+      "introduced": "2026-06-20",
+      "status": "regression-retest",
+      "steps": [
+        "Grant notification permission. Start a session and trigger a rest timer (log a set with rest).",
+        "SWITCH TO ANOTHER APP (or lock the phone) before the rest ends.",
+        "When the rest hits 0, confirm an OS notification 'Rest over — time for your next set' appears EVEN though IronLog is backgrounded.",
+        "Confirm the notification sound plays at the phone's normal notification-volume level (not an extra-loud in-app tone).",
+        "Tap the notification — confirm it focuses/opens IronLog.",
+        "Foreground sanity: let a rest end with the app OPEN — confirm the in-app chime is now noticeably quieter than before and the overlay still shows.",
+        "Cancel sanity: log the LAST set then finish the workout before rest ends — confirm NO 'rest over' notification fires (REST_CANCEL).",
+        "Skip sanity: start a rest, then log the next set before it ends — confirm only ONE notification fires for the new rest (the old schedule is replaced)."
+      ],
+      "notes": "[2026-06-20 <sha7>] @maaiz: 'rest timer notification only comes up when the app is open, I want the push to go through even if the user is on another app … also the beep is too loud, it needs to match the user's notification sound level.' Root cause of the background gap: the rest countdown's finish() (which posts REST_DONE to the SW) is driven by a page setInterval, and the OS suspends page timers the moment you switch apps — so finish() never ran in the background and no notification fired until you returned (the visibilitychange handler re-ran finish() on focus). Fix: at rest start the page now hands the duration to the service worker (REST_SCHEDULE {ms}); the SW holds its own setTimeout and calls showNotification at rest-end independently of the page. It only shows the banner when no client is focused (foreground keeps the in-app overlay/chime, no double banner). stop() sends REST_CANCEL (set logged / rest skipped / session finished) and a new rest's REST_SCHEDULE replaces any prior timer. Beep: Web-Audio gain dropped 0.3 → 0.08 (can't read the OS notification-volume from web, so the foreground chime is just a gentle confirmation); the BACKGROUND alert is now the OS notification itself, which the phone plays at the user's own notification level. NOTE/caveat: SW setTimeout is reliable on Android/desktop and for short app-switches on iOS, but iOS may suspend the SW if the PWA is fully evicted from memory — 100% iOS-background reliability would need a server-scheduled Web Push (follow-up slice). (qa: rest-timer-background-notification)"
+    },
+    {
       "id": "home-messages-unread-count",
       "title": "Home Messages button badge combines DM + group + system unread",
       "area": "UI",

@@ -446,18 +446,26 @@ function useCountdown() {
   }, []);
 
   const beep = useCallback(() => {
+    // Foreground-only chime — the user is looking at the screen (rest
+    // overlay) here, so this is a gentle confirmation, not an alarm. Kept
+    // quiet because a Web-Audio tone plays at a FIXED level regardless of
+    // the device volume (we can't read the OS notification-volume setting),
+    // and @maaiz found the old 0.3-gain tone too loud. The BACKGROUND case
+    // no longer relies on this beep at all — it fires an OS notification via
+    // the service worker, which the phone plays at the user's own
+    // notification-sound level. (qa: rest-timer-background-notification)
     try {
       if (!audioCtx.current) audioCtx.current = new AudioContext();
       const ctx = audioCtx.current;
       if (ctx.state === "suspended") ctx.resume();
       const o = ctx.createOscillator(), g = ctx.createGain();
       o.connect(g); g.connect(ctx.destination);
-      o.frequency.value = 880; g.gain.value = 0.3; o.start(); o.stop(ctx.currentTime + 0.2);
+      o.frequency.value = 880; g.gain.value = 0.08; o.start(); o.stop(ctx.currentTime + 0.18);
       setTimeout(() => {
         try {
           const o2 = ctx.createOscillator(), g2 = ctx.createGain();
           o2.connect(g2); g2.connect(ctx.destination);
-          o2.frequency.value = 1100; g2.gain.value = 0.3; o2.start(); o2.stop(ctx.currentTime + 0.15);
+          o2.frequency.value = 1100; g2.gain.value = 0.08; o2.start(); o2.stop(ctx.currentTime + 0.14);
         } catch {}
       }, 250);
     } catch {}
@@ -512,6 +520,17 @@ function useCountdown() {
     setCycleId(c => c + 1);        // Rotate per-cycle content.
     setScreenDismissed(false);     // Fresh rest → re-show the overlay.
 
+    // Hand the rest duration to the service worker so the "rest over"
+    // notification fires even when the app is backgrounded — the interval
+    // below is throttled/suspended by the OS the moment you switch apps,
+    // which is why the alert previously only appeared with the app open.
+    // (qa: rest-timer-background-notification)
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready
+        .then(reg => reg.active?.postMessage({ type: "REST_SCHEDULE", ms: secs * 1000 }))
+        .catch(() => {});
+    }
+
     ref.current = setInterval(() => {
       const remaining = Math.ceil((endTimeRef.current! - Date.now()) / 1000);
       if (remaining <= 0) {
@@ -531,6 +550,14 @@ function useCountdown() {
     endTimeRef.current = null;
     startedAtRef.current = null;
     onFinishRef.current = null;
+    // Cancel the pending background notification — the set was logged /
+    // rest skipped / session finished, so "rest over" must not fire.
+    // (qa: rest-timer-background-notification, session-finish-cancels-rest-push)
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready
+        .then(reg => reg.active?.postMessage({ type: "REST_CANCEL" }))
+        .catch(() => {});
+    }
     return elapsed;
   }, []);
 
