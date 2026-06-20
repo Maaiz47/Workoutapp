@@ -1,0 +1,10 @@
+{
+  "id": "cmqm2wk200006qgjaonrwzr6n",
+  "itemId": "user-feedback",
+  "tester": "maaiz",
+  "userId": "cmp4cc2pq0000pskpopqm2u66",
+  "status": "failing",
+  "note": "[🐞 BUG · Workout · view=workout] Getting the notification for rest timer over only comes up when the app is open, I want the push notification to go through even if user is on another app so they know to get back to the workout\nAlso the notification beep about it is too loud it needs to match the users notification sound setting level",
+  "screenshotUrl": null,
+  "ts": "2026-06-20T08:11:24.937Z"
+}
