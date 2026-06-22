@@ -1,6 +1,24 @@
 {
   "items": [
     {
+      "id": "avatar-wall-tier-nan",
+      "title": "Avatar wall shows the right subtitle per source (no 'TIER NaN')",
+      "area": "Progress",
+      "introduced": "2026-06-22",
+      "introducedBy": "@maaiz report (screenshot)",
+      "lastTested": "2026-06-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open the avatar picker (Profile/Settings → avatars).",
+        "Tier avatars read 'TIER 1'…'TIER 6' (gold).",
+        "Lucky/rare avatars read 'RARE' (purple).",
+        "Forge / achievement-count avatars (Forging Spark, Smith's Hammer…) read '★ N' (orange) — NOT 'TIER NaN'.",
+        "Elite bodyweight bonus avatars (200-Push-Up Crown, 30-Pull-Up Champion…) read 'ELITE' (teal) — NOT 'TIER NaN'.",
+        "Locked tiles' tooltip shows the correct unlock condition for each source."
+      ],
+      "notes": "[2026-06-22] @maaiz screenshot: every locked avatar showed 'TIER NaN'. The subtitle rendered `TIER ${displayTierNum(av.tier)}` for ALL non-lucky avatars, but milestone-bonus / achievement / admin avatars have no `tier` field → displayTierNum(undefined) → NaN. Now renders a source-specific label (TIER n / RARE / ELITE / ★ count / ADMIN) and a matching lock-hint tooltip. (qa: avatar-wall-tier-nan)"
+    },
+    {
       "id": "achievements-detection-fresh-data",
       "title": "Achievements fire on the session you just logged (not one session late)",
       "area": "Progress",

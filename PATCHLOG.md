@@ -2,6 +2,14 @@
 
 ---
 
+## Fix · 2026-06-22 — Avatar wall no longer shows "TIER NaN" (qa: avatar-wall-tier-nan)
+
+@maaiz (screenshot): every locked avatar tile read **"TIER NaN"**. The subtitle rendered `TIER ${displayTierNum(av.tier)}` for *all* non-lucky avatars, but only `source="tier"` avatars have a `tier` field — milestone-bonus, achievement-count (the forge arc), and admin avatars don't, so `displayTierNum(undefined)` → `NaN`.
+
+Fix in the avatar picker (`app/page.tsx`): the subtitle now resolves per source — `TIER n` (gold) for tier, `RARE` (purple) for lucky, `ELITE` (teal) for the premium bodyweight bonus avatars, `★ n` (orange) for the achievement-count forge avatars, `ADMIN` for the admin one — and the locked-tile tooltip shows the matching unlock condition. `npx tsc --noEmit` clean. No `TUTORIAL_STEPS` change.
+
+---
+
 ## Feat · 2026-06-22 — Audit pass: tier/achievement correctness, exercise coverage, plan-gen fixes, premium 3D muscle diagram
 
 A multi-front audit-and-fix pass (tiers/ranking/milestones, exercises/form/muscle-mapping, the anatomy diagram, plan generation, and UI foundation).
