@@ -2,6 +2,34 @@
 
 ---
 
+## Feat · 2026-06-22 — Audit pass: tier/achievement correctness, exercise coverage, plan-gen fixes, premium 3D muscle diagram
+
+A multi-front audit-and-fix pass (tiers/ranking/milestones, exercises/form/muscle-mapping, the anatomy diagram, plan generation, and UI foundation).
+
+**Tier / achievements / challenges.**
+- Achievement detection walked the stale `history` closure (the pre-save snapshot — `setHistory` is async) instead of the freshly-fetched `data`, so every history-derived achievement (strength/volume/cardio/bodyweight benchmarks) fired exactly one session late — including the milestone you *just* earned. Now walks `data`. (qa: achievements-detection-fresh-data)
+- Strength absolute-score now assumes a 70 kg bodyweight when the user never logged one, so a strong-but-stable veteran isn't capped on Strength. Safe because the sub-rank blend is `max(rate, absolute)` — an assumed bodyweight can only *raise* a strong user and never lowers anyone. Corrected the stale comment that claimed a 0.6/0.4 blend the code never used (the deliberate `max` is the veteran-fairness rule). (qa: tier-strength-absolute-blend)
+- Monthly-challenge progress bucketed sessions by **UTC** month while `getMonthChallenges()` uses **local** month, so a session logged near a month boundary could count toward the wrong challenge or neither. Unified to local. (qa: monthly-challenges-library-rotation)
+
+**Exercises / form / muscle mapping.**
+- `barbell-deadlift` and `hyperextension` now credit glutes + hamstrings as **primary** (they drive Balance/volume bucketing, which previously under-credited the posterior chain); reconciled `jumping-jacks` / `straight-leg-raise` group tags with their sub-muscle detail.
+- `cd-glute-pretzel` was simultaneously listed as an active local frame **and** flagged as wrong (it showed a single-knee-to-chest, not a figure-four) — the known-bad frame was shipping. Removed from the active set → falls back to the stretch emoji. (qa: exercise-local-images)
+- Added sub-muscle detail for the 4 cardio machines (treadmill / bike / rower / elliptical), which had been rendering a **blank** MUSCLES diagram.
+- Added 10 standard movements with full muscle tags, sub-muscle detail and form cues: Pendlay row, stiff-leg deadlift, power clean, push press, reverse pec deck, walking lunge, reverse lunge, sit-up, reverse crunch, Pallof press.
+
+**Plan generation.**
+- The onboarding **"Maintain"** goal was never a valid `Goal`, so picking only Maintain matched zero exercises and produced a near-empty plan. Normalized at the generator boundary → fitness band. (qa: planner-maintain-goal)
+- The **Calisthenics** modality silently did nothing — its swap map referenced exercise ids that don't exist in the catalogue, so every swap was dropped. Rewired to real bodyweight ids. (qa: planner-calisthenics-swaps)
+- Every generated plan now carries a concrete **progressive-overload** instruction (it was a static list with no progression guidance). (qa: planner-progressive-overload)
+
+**3D muscle anatomy diagram — premium pass.** Radial-gradient belly shading (lit center → darker rim) so muscles read as rounded 3D forms instead of flat stickers; lifted the dim baseline so the un-targeted physique stays legible; amber secondary clearly distinct from red primary; warm spotlight behind each figure; steady non-blink highlight that honours `prefers-reduced-motion`; clearer FRONT/BACK labels + divider. (qa: muscle-diagram-premium)
+
+**UI foundation.** Added a design-token layer (radius / spacing / elevation / type / muted-text / canonical gold) to `:root` — additive vocabulary to curb the magic-number sprawl the UI audit flagged. Input focus glow now follows the chosen accent (was a hardcoded red overriding the accent-aware `:focus-visible` rule). (qa: visual-depth-foundation)
+
+`npx tsc --noEmit` clean. No `TUTORIAL_STEPS` arc change (no new top-level surface — diagram/exercise/plan changes land in existing FORM/MUSCLES/Customise flows). Deferred to a follow-up slice (needs runtime verification / new UI): deeper plan-gen restructuring (weekly-volume validation, session-time enforcement, rear-delt/calf slot guarantees, variety seed) and new onboarding data collection (injuries / avoid-movements, disliked exercises, baseline lifts).
+
+---
+
 ## Fix · 2026-06-20 — Show the "new version" banner during workouts too (qa: app-update-auto-banner)
 
 @maaiz: *"the banner to refresh with a new update didn't come up — I had to use the button in settings."* He was mid-workout testing the rest-timer fix, and the auto-update banner was gated on `updateOverlayDisabled={started}`, so it was suppressed for the entire active session. Since the workout session is continuously saved to `localStorage` (`ironlog-session`) and silently restored on reload, a mid-session refresh is non-destructive — so the suppression wasn't needed. Removed the gate (`updateOverlayDisabled={false}`); the banner now appears during workouts too, and tapping REFRESH reloads with the session intact. `npx tsc --noEmit` clean. No `TUTORIAL_STEPS` change.

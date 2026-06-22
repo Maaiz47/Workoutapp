@@ -1,6 +1,89 @@
 {
   "items": [
     {
+      "id": "achievements-detection-fresh-data",
+      "title": "Achievements fire on the session you just logged (not one session late)",
+      "area": "Progress",
+      "introduced": "2026-06-22",
+      "introducedBy": "Audit pass (tier/achievements)",
+      "lastTested": "2026-06-22",
+      "status": "regression-retest",
+      "steps": [
+        "Log a session that newly crosses a benchmark — e.g. your heaviest-ever weight on a lift, or a bodyweight rep milestone (push-ups/pull-ups), or your first cardio/HIIT session.",
+        "Finish & save the workout.",
+        "The matching achievement celebration should fire immediately on THIS save (it previously lagged and only fired on the NEXT save).",
+        "Open Progress → Achievements wall and confirm the new achievement is unlocked.",
+        "Confirm session-count and tier achievements still fire as before."
+      ],
+      "notes": "[2026-06-22] Achievement detection walked the stale `history` closure (pre-save snapshot, because setHistory is async) instead of the freshly-fetched `data`, so every history-derived achievement (strength/volume/cardio/bodyweight benchmarks) lagged exactly one session. Fixed to walk `data`. (qa: achievements-detection-fresh-data)"
+    },
+    {
+      "id": "planner-maintain-goal",
+      "title": "Selecting only the 'Maintain' goal still generates a full plan",
+      "area": "Workout",
+      "introduced": "2026-06-22",
+      "introducedBy": "Audit pass (plan generation)",
+      "lastTested": "2026-06-22",
+      "status": "regression-retest",
+      "steps": [
+        "In onboarding (or Settings → regenerate), select ONLY the 'Maintain' goal.",
+        "Generate the plan.",
+        "The plan should be fully populated (a real split with exercises per day), NOT a near-empty fallback.",
+        "Rep ranges should look like a general-fitness band (≈8–12).",
+        "Selecting Maintain alongside other goals should also work and blend sensibly."
+      ],
+      "notes": "[2026-06-22] 'Maintain' was offered in onboarding but was never a valid Goal, so primaryGoal returned 'maintain' and filterExercises matched zero exercises → near-empty plan. Normalized stored goals at the generator boundary in app/api/plan/route.ts: 'maintain' → 'fitness', invalid values dropped, defaulting to fitness. (qa: planner-maintain-goal)"
+    },
+    {
+      "id": "planner-calisthenics-swaps",
+      "title": "Calisthenics modality actually swaps weighted lifts for bodyweight equivalents",
+      "area": "Workout",
+      "introduced": "2026-06-22",
+      "introducedBy": "Audit pass (plan generation)",
+      "lastTested": "2026-06-22",
+      "status": "regression-retest",
+      "steps": [
+        "Set the Calisthenics modality (Settings → modalities) and regenerate the plan.",
+        "Weighted mains with a bodyweight equivalent should be swapped: barbell bench → Push-Ups, lat pulldown → Pull-Ups, barbell squat → Bodyweight Squat, overhead press → Pike Push-Up, etc.",
+        "The plan note should mention 'Calisthenics bias applied'.",
+        "Sets/reps/rest stay the same on swapped exercises."
+      ],
+      "notes": "[2026-06-22] The swap map keyed/targeted exercise ids that don't exist in the catalogue ('push-up', 'back-squat', 'pistol-squat', 'handstand-push-up', 'pull-up'), so the libIds guard dropped every swap and the modality was a silent no-op. Rewired to real library ids (pushups, pullups, bodyweight-squat, pike-pushup, inverted-row, decline-pushups, bulgarian-split-squat). (qa: planner-calisthenics-swaps)"
+    },
+    {
+      "id": "planner-progressive-overload",
+      "title": "Generated plans include progressive-overload guidance",
+      "area": "Workout",
+      "introduced": "2026-06-22",
+      "introducedBy": "Audit pass (plan generation)",
+      "lastTested": "2026-06-22",
+      "status": "regression-retest",
+      "steps": [
+        "Generate (or regenerate) a plan.",
+        "Read the plan note shown after generation.",
+        "It should end with a progressive-overload instruction: add the smallest load once you hit the top of the rep range at an easy effort; deload ~10% after a two-session stall."
+      ],
+      "notes": "[2026-06-22] The generated plan was a static exercise list with no progression instruction. Appended one universal, actionable progressive-overload sentence to planNote in lib/planGenerator.ts. (qa: planner-progressive-overload)"
+    },
+    {
+      "id": "muscle-diagram-premium",
+      "title": "Anatomy muscle diagram renders with 3D belly shading, depth and steady glow",
+      "area": "Progress",
+      "introduced": "2026-06-22",
+      "introducedBy": "Audit pass (anatomy diagram)",
+      "lastTested": "2026-06-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open any exercise's FORM modal or the MUSCLES tab to view the body diagram.",
+        "Highlighted muscles should look rounded/3D (lit center → darker rim), not flat single-color stickers.",
+        "Primary muscles read red; secondary read amber (clearly distinct from each other).",
+        "Un-targeted muscles are faint but legible (not invisible); a soft warm spotlight sits behind each figure.",
+        "The highlight pulses steadily without harsh blinking; FRONT/BACK labels are clear with a divider between the two figures.",
+        "Cardio machines (treadmill, bike, rower, elliptical) now highlight muscles instead of rendering blank."
+      ],
+      "notes": "[2026-06-22] Diagram read flat (single-fill muscles, outward blur glow, near-invisible dim baseline). Added radial-gradient belly shading via SVG <defs>, lifted dim baseline, amber/red hue separation, warm spotlight ellipses, a steady non-blink muscleGlow keyframe (prefers-reduced-motion aware), and clearer labels. Also added muscle-detail for the 4 cardio machines that previously rendered blank. (qa: muscle-diagram-premium)"
+    },
+    {
       "id": "customise-custom-exercise-gate",
       "title": "Non-trainers get a 'report missing exercise + upgrade' note in the exercise browser (custom exercises are trainer-only)",
       "area": "Workout",
