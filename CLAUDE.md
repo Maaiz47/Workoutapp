@@ -186,6 +186,61 @@ canonical key the update-prompt compares; the `v…` number is what the user
   sessions can call admin endpoints (e.g. the QA patch-push fanout) directly.
 - The user runs the app on iPhone — keep all UI mobile-first
 
+## Commands
+
+```bash
+npm run dev            # next dev — local dev server
+npm run build          # prisma db push && prisma generate && next build (mirrors Vercel)
+npm run db:push        # sync prisma/schema.prisma to the DB (no migration files)
+npm run qa:scan        # validate every (qa: <id>) PATCHLOG tag resolves to a qa-state.json item
+npm run tutorial:scan  # validate lib/tutorial.ts steps stay in sync with shipped surfaces
+```
+
+- **There is no test runner, ESLint, or Prettier config.** `qa:scan` and
+  `tutorial:scan` (both `tsx scripts/*.ts`) are the closest thing to CI —
+  run `qa:scan` before any push (orphan `(qa: …)` tags are hard errors,
+  per the forcing rules).
+- **Schema changes use `prisma db push`, not migrations** — there is no
+  `prisma/migrations/` dir. Editing `schema.prisma` + a deploy (or
+  `npm run db:push`) applies it directly. Always `npx prisma@5` if calling
+  prisma directly — bare `npx prisma` can resolve to v7 (breaking).
+- No `DATABASE_URL` in the session env → no runtime DB. See
+  `docs/dev-database.md` to wire a Neon dev branch for in-session testing.
+
+## Architecture
+
+- **The authed app is one file: `app/page.tsx` (~21k lines).** A single
+  `view` string state (`const [view, setView] = useState("home")`,
+  ~line 6233) switches between every screen — home, workout, progress,
+  messages, conversation, settings, customise, clientDetail, groups, etc.
+  **Always grep/search it — never read the whole file.** In-progress
+  workouts and UI state (e.g. group last-seen) persist to `localStorage`.
+- **Marketing pages are separate** under the `app/(marketing)` route group
+  (`/promo`, `/trainer`, `/client`, `/revenue`) with their own layout —
+  unrelated to the logged-in app.
+- **~70 API route handlers under `app/api/`** (App Router). There is **no
+  shared auth helper/middleware** — every route reads the session inline
+  via `req.cookies.get("ironlog-uid")?.value` (httpOnly, 1-year). Copy that
+  pattern in new routes. `ADMIN_SECRET` gates the `/api/admin*` and
+  `/api/qa/*admin*` routes.
+- **Data layer:** Prisma singleton in `lib/prisma.ts`; ~30 models in
+  `prisma/schema.prisma`. Postgres via Neon.
+- **Domain logic lives in `lib/` (~35 modules)** consumed by both the
+  client and route handlers — e.g. `planGenerator.ts` (rule-based split
+  generation), `tiers.ts` (8 sub-rank tier scoring), `achievements.ts`
+  (the engine, formerly `milestones.ts`), `challenges.ts`, `exercises.ts`
+  (exercise DB + `filterExercises`), `formCues.ts`, `muscleDetail.ts`,
+  `leaderboardStats.ts`. Prefer extending these over inlining logic in
+  `page.tsx` or routes.
+- **Version number is derived from `PATCHLOG.md`** by counting `## `
+  sections, in BOTH `app/api/version/route.ts` (server) and
+  `next.config.js` (baked into the bundle as `NEXT_PUBLIC_BUILD_VERSION`).
+  Keep `MAJOR_MINOR` / `PRE_V1_2_PATCH_OFFSET` identical across the two —
+  see the version section above.
+- **Deploy gating:** `vercel.json` `ignoreCommand` →
+  `scripts/vercel-should-skip.sh` decides whether a given push triggers a
+  Vercel build. A daily cron hits `/api/admin/test-users/cron-tick`.
+
 ## File map (the bits Claude touches most)
 
 ```
