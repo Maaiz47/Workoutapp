@@ -229,9 +229,22 @@ export async function POST(req: NextRequest) {
       ? rawEquip.filter(e => (e as string) !== "barbell" && (e as string) !== "smith_machine")
       : rawEquip;
 
+    // Normalize stored goals to the four the generator understands. The
+    // onboarding "Maintain" option was never a valid Goal, so a user who
+    // picked only "maintain" produced a near-empty plan (filterExercises
+    // matched nothing). Map it to "fitness" (general-fitness band) and drop
+    // any other unrecognized value, defaulting to fitness if nothing valid
+    // remains. (qa: planner-maintain-goal)
+    const VALID_GOALS: Goal[] = ["muscle", "strength", "fat_loss", "fitness"];
+    const rawGoals = (profile.goals?.length ? profile.goals : [profile.goal]).filter(Boolean) as string[];
+    const normalizedGoals = Array.from(new Set(
+      rawGoals.map(g => (g === "maintain" ? "fitness" : g)).filter(g => VALID_GOALS.includes(g as Goal))
+    )) as Goal[];
+    const goals: Goal[] = normalizedGoals.length ? normalizedGoals : ["fitness"];
+
     const input: UserProfileInput = {
       daysPerWeek: profile.daysPerWeek,
-      goals: (profile.goals?.length ? profile.goals : [profile.goal]) as Goal[],
+      goals,
       fitnessLevel: profile.fitnessLevel as "newcomer" | "beginner" | "intermediate" | "advanced",
       location: profile.location as Location,
       equipment: cleanEquip,

@@ -322,6 +322,23 @@ select:focus-visible {
   --secondary:     #4ECDC4;
   --secondary-rgb: 78,205,196;
   --app-bg:        #0a0a0f;
+
+  /* ── Design tokens (premium-system foundation) ──────────────────────
+     Purely additive — adopt incrementally. Establishes the shared
+     vocabulary (radius / spacing / elevation / type / muted-text /
+     canonical gold) that stops the magic-number sprawl from growing.
+     The elevation recipe matches the hand-rolled inset-highlight shadow
+     already used across the app's premium surfaces. */
+  --r-sm: 8px;  --r-md: 12px; --r-lg: 16px; --r-xl: 20px; --r-pill: 999px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px;
+  --e1: 0 1px 0 rgba(255,255,255,0.05) inset, 0 2px 8px -4px rgba(0,0,0,0.6);
+  --e2: 0 1px 0 rgba(255,255,255,0.06) inset, 0 6px 22px -8px rgba(0,0,0,0.7);
+  --e3: 0 1px 0 rgba(255,255,255,0.07) inset, 0 14px 40px -12px rgba(0,0,0,0.8);
+  --t1: rgba(255,255,255,0.92);
+  --t2: rgba(255,255,255,0.6);
+  --t3: rgba(255,255,255,0.4);
+  --gold: #FFE66D;
+  --gold-deep: #f0c040;
 }
 
 /* Smooth fade when theme/accent changes */
@@ -543,9 +560,11 @@ a[style*="background: #FF6644"], a[style*="background:#FF6644"] {
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
 
-/* Focused inputs get a subtle red glow + lift */
+/* Focused inputs get a subtle accent glow + lift. Uses the accent token
+   (was a hardcoded red that overrode the :focus-visible accent rule above,
+   so inputs glowed red regardless of the user's chosen accent). */
 input:focus, textarea:focus, select:focus {
-  box-shadow: 0 0 0 2px rgba(255,107,107,0.18);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.18);
   outline: none;
   transition: box-shadow 0.2s ease;
 }
@@ -567,9 +586,15 @@ button:active:not(:disabled) { transform: scale(0.96); }
   55%       { opacity: 1;    filter: drop-shadow(0 0 3px var(--mc)) drop-shadow(0 0 7px var(--mc)); }
   68%       { opacity: 0.82; filter: drop-shadow(0 0 2px var(--mc)) drop-shadow(0 0 4px var(--mc)); }
 }
+/* Muscle-diagram highlight — a steady, confident breathe that never dims
+   below ~0.86, plus a faint glow swell, so a lit muscle reads as "held"
+   rather than blinking on/off. */
 @keyframes muscleGlow {
-  0%, 100% { opacity: 0.6; }
-  50%       { opacity: 1; }
+  0%, 100% { opacity: 0.86; filter: saturate(1); }
+  50%       { opacity: 1;    filter: saturate(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes muscleGlow { 0%, 100% { opacity: 1; } }
 }
 .ma { fill: var(--mc); animation: muscleExplode 2.2s ease-in-out infinite; }
 .md { fill: rgba(255,255,255,0.04); }

@@ -2663,13 +2663,22 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
 
   // Whole-muscle helpers used for groups without sub-zones.
   const wSt = (m: string): "p" | "s" | "" => p.includes(m) ? "p" : s.includes(m) ? "s" : "";
-  const stFill = (st: "p" | "s" | "") => st === "p" ? "#FF4422" : st === "s" ? "#FF9900" : "rgba(255,255,255,0.06)";
-  const stStroke = (st: "p" | "s" | "") => st === "p" ? "rgba(255,100,60,0.55)" : st === "s" ? "rgba(255,160,40,0.45)" : "rgba(255,255,255,0.09)";
+  // Radial-gradient belly shading: each muscle gets a lit center + darker
+  // rim (objectBoundingBox fits the gradient to every path's bbox), so the
+  // muscle reads as a rounded 3D form instead of a flat sticker. The dim
+  // baseline is lifted (was a near-invisible flat 0.06) so the un-targeted
+  // physique stays legible. Secondary is amber — clearly distinct from the
+  // red primary at phone size.
+  const stFill = (st: "p" | "s" | "") => st === "p" ? "url(#mPrimary)" : st === "s" ? "url(#mSecondary)" : "url(#mDim)";
+  const stStroke = (st: "p" | "s" | "") => st === "p" ? "rgba(255,120,80,0.7)" : st === "s" ? "rgba(255,185,70,0.55)" : "rgba(255,255,255,0.08)";
   const stFilter = (st: "p" | "s" | "") => st === "p" ? "url(#mgp)" : st === "s" ? "url(#mgs)" : undefined;
   const stOrder = (st: "p" | "s" | "") => st === "p" ? 2 : st === "s" ? 1 : 0;
+  // Steady, confident highlight — never dims below ~0.86 so primaries don't
+  // "blink". Unified period; secondary just trails slightly. The keyframe
+  // is disabled under prefers-reduced-motion in globals.css.
   const stAnim = (st: "p" | "s" | "") =>
-    st === "p" ? { animation: "muscleGlow 1.8s ease-in-out infinite" }
-    : st === "s" ? { animation: "muscleGlow 2.2s ease-in-out infinite 0.4s" }
+    st === "p" ? { animation: "muscleGlow 2.6s ease-in-out infinite" }
+    : st === "s" ? { animation: "muscleGlow 2.6s ease-in-out infinite 0.3s" }
     : undefined;
 
   const mc = (m: string) => stFill(wSt(m));
@@ -2950,10 +2959,33 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
           <stop offset="0%" stopColor="#1f1f2c"/>
           <stop offset="100%" stopColor="#141420"/>
         </radialGradient>
+        {/* Muscle belly gradients — lit center → darker rim give a 3D read */}
+        <radialGradient id="mPrimary" cx="42%" cy="34%" r="78%">
+          <stop offset="0%" stopColor="#FF8163"/>
+          <stop offset="48%" stopColor="#F4421F"/>
+          <stop offset="100%" stopColor="#A81B0A"/>
+        </radialGradient>
+        <radialGradient id="mSecondary" cx="42%" cy="34%" r="78%">
+          <stop offset="0%" stopColor="#FFD27A"/>
+          <stop offset="55%" stopColor="#FBA417"/>
+          <stop offset="100%" stopColor="#BC6304"/>
+        </radialGradient>
+        <radialGradient id="mDim" cx="44%" cy="35%" r="80%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity={0.14}/>
+          <stop offset="100%" stopColor="#ffffff" stopOpacity={0.035}/>
+        </radialGradient>
+        {/* Soft warm spotlight behind each figure for depth */}
+        <radialGradient id="bodyGlow" cx="50%" cy="44%" r="58%">
+          <stop offset="0%" stopColor="#ff6e50" stopOpacity={0.10}/>
+          <stop offset="68%" stopColor="#ff6e50" stopOpacity={0.02}/>
+          <stop offset="100%" stopColor="#ff6e50" stopOpacity={0}/>
+        </radialGradient>
       </defs>
 
       {/* ═══ FRONT VIEW (cx=75) ═══ */}
 
+      {/* Soft spotlight behind the figure (depth) */}
+      <ellipse cx={75} cy={150} rx={82} ry={174} fill="url(#bodyGlow)"/>
       {/* Body silhouette */}
       <circle cx={75} cy={19} r={14} fill="url(#skin)" stroke="#2e2e40" strokeWidth={1}/>
       <path d="M69,32 Q75,37 81,32 L80,46 Q75,49 70,46 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
@@ -2983,10 +3015,12 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
       <FiberGroup paths={quadFibersF}     parent="quads"     k="qdF"/>
       <Group paths={calvesF}    parent="calves"    k="cvF"/>
 
-      <text x={75} y={358} textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.25)" fontFamily="monospace" letterSpacing={2}>FRONT</text>
+      <line x1={150} y1={42} x2={150} y2={332} stroke="rgba(255,255,255,0.06)" strokeWidth={0.6}/>
+      <text x={75} y={358} textAnchor="middle" fontSize={8.5} fontWeight={700} fill="rgba(255,255,255,0.42)" fontFamily="monospace" letterSpacing={3}>FRONT</text>
 
       {/* ═══ BACK VIEW (cx=225) ═══ */}
 
+      <ellipse cx={225} cy={150} rx={82} ry={174} fill="url(#bodyGlow)"/>
       <circle cx={225} cy={19} r={14} fill="url(#skin)" stroke="#2e2e40" strokeWidth={1}/>
       <path d="M219,32 Q225,37 231,32 L230,46 Q225,49 220,46 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.7}/>
       <path d="M188,50 C185,62 184,84 185,110 C186,132 190,152 197,164 C202,174 212,181 225,182 C238,181 248,174 253,164 C260,152 264,132 265,110 C266,84 265,62 262,50 C253,44 240,40 225,40 C210,40 197,44 188,50 Z" fill="url(#skin)" stroke="#2e2e40" strokeWidth={0.8}/>
@@ -3016,7 +3050,7 @@ function MuscleDiagram({ primary, secondary, exerciseId, exerciseName }: { prima
       <Group paths={calvesB}     parent="calves"     k="cvB"/>
       <FiberGroup paths={calveFibersB}    parent="calves"    k="cvB"/>
 
-      <text x={225} y={358} textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.25)" fontFamily="monospace" letterSpacing={2}>BACK</text>
+      <text x={225} y={358} textAnchor="middle" fontSize={8.5} fontWeight={700} fill="rgba(255,255,255,0.42)" fontFamily="monospace" letterSpacing={3}>BACK</text>
     </svg>
   );
 }

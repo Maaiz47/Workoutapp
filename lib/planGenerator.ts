@@ -853,15 +853,23 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
   // moves that have a direct bodyweight equivalent are swapped. Keeps
   // sets/reps/rest the same so it's a non-destructive bias.
   if (modalities.includes("calisthenics")) {
+    // Keys = real library exercise ids that appear in generated plans;
+    // values = real bodyweight library ids. The previous map used ids that
+    // don't exist in the catalogue ("push-up", "back-squat", "pistol-squat",
+    // "handstand-push-up", "pull-up"), so the libIds guard below silently
+    // dropped every swap and the modality did nothing. (qa: planner-calisthenics-swaps)
     const swapMap: Record<string, string> = {
-      // barbell movements → bodyweight equivalents
-      "barbell-bench-press": "push-up",
-      "incline-barbell-press": "decline-push-up",
+      // barbell / machine movements → bodyweight equivalents
+      "barbell-bench-press": "pushups",
+      "incline-barbell-press": "decline-pushups",
+      "dumbbell-bench-press": "pushups",
       "barbell-row": "inverted-row",
-      "back-squat": "bodyweight-squat",
-      "front-squat": "pistol-squat",
-      "overhead-press": "handstand-push-up",
-      "lat-pulldown": "pull-up",
+      "barbell-squat": "bodyweight-squat",
+      "front-squat": "bulgarian-split-squat",
+      "overhead-press": "pike-pushup",
+      "push-press": "pike-pushup",
+      "lat-pulldown": "pullups",
+      "wide-grip-lat-pulldown": "pullups",
       "seated-cable-row": "inverted-row",
     };
     const libIds = new Set((EXERCISES as any[]).map((e: any) => e.id));
@@ -899,6 +907,11 @@ export function generatePlan(profile: UserProfileInput): GeneratedPlan {
     const mains = day.exercises.map(ex => ({ ...ex, kind: ex.kind ?? ("main" as const) }));
     day.exercises = [...wus, ...mains, ...cds];
   }
+
+  // Progressive-overload guidance — the plan is otherwise a static list with
+  // no instruction on how to actually drive adaptation. One universal,
+  // actionable sentence beats silence. (qa: planner-progressive-overload)
+  planNote += " Progressive overload: once you hit the top of the rep range on every working set at an easy effort, add the smallest load next session (≈2.5 kg lower-body, 1–2.5 kg upper-body/isolation) and build back up the range. If a lift stalls two sessions in a row, drop ~10% and ramp again.";
 
   return { days: finalDays, planNote };
 }
