@@ -6136,15 +6136,74 @@ function GlobalLeaderboardView({ onBack, viewerId, tierTheme, isTrainer, onOpenP
 // intrusive on mobile and couldn't be swipe-back-dismissed. Now lives
 // as its own routed view ("avatarPicker"). Same data + selection
 // behaviour as before; just a page wrapper. (qa: profile-avatars-page)
+// Per-source avatar metadata: the short tag shown under each tile + the
+// full "how to obtain" copy shown in the detail card. Tier avatars resolve
+// the theme-correct rung name (Big Dawg / Gold …) so the label is
+// self-explanatory, not just a bare number. (qa: avatar-how-to-obtain)
+function avatarObtainInfo(av: Avatar, theme: "vivid" | "simple"): { tag: string; tagColor: string; obtain: string } {
+  switch (av.source) {
+    case "tier": {
+      const t = getAthleteTiers(theme)[(av.tier ?? 1) - 1];
+      const name = t?.label ?? `Tier ${displayTierNum(av.tier)}`;
+      return {
+        tag: `${name.toUpperCase()} · TIER ${displayTierNum(av.tier)}`,
+        tagColor: "#FFE66D",
+        obtain: `Reach ${name} (Tier ${displayTierNum(av.tier)}) on the athlete tier ladder. Your tier climbs as you train consistently, get stronger and progress across the sub-ranks — every tier avatar at or below your current tier unlocks automatically.`,
+      };
+    }
+    case "lucky":
+      return {
+        tag: "RARE",
+        tagColor: "#a855f7",
+        obtain: "A rare Lucky Drop. There's a small random chance to win one each time you finish and save a workout — the rarest (Aurora, Eclipse, Cosmic, Mythic) drop far less often. Keep training and one may appear.",
+      };
+    case "milestone-bonus": {
+      const ach = ACHIEVEMENTS.find(a => a.id === av.unlocksMilestoneId);
+      return {
+        tag: "ELITE",
+        tagColor: "#4ECDC4",
+        obtain: ach
+          ? `Unlocks the instant you earn the “${ach.label}” achievement — ${ach.requirement}`
+          : "Unlocks alongside its elite bodyweight achievement.",
+      };
+    }
+    case "achievement":
+      return {
+        tag: `★ ${av.achievementCount}`,
+        tagColor: "#FF8C42",
+        obtain: `Forge this by earning ${av.achievementCount} achievements in total (any kind). It unlocks automatically once your earned-achievement count reaches ${av.achievementCount}.`,
+      };
+    case "admin":
+      return {
+        tag: "ADMIN",
+        tagColor: "#FF6B6B",
+        obtain: "An admin-exclusive avatar. It can't be unlocked through normal play.",
+      };
+    default:
+      return { tag: "", tagColor: "rgba(255,255,255,0.4)", obtain: "" };
+  }
+}
+
 function AvatarPickerView({
-  onBack, currentAvatarId, setCurrentAvatarId, avatarInventory, setAvatarInventory,
+  onBack, currentAvatarId, setCurrentAvatarId, avatarInventory, setAvatarInventory, tierTheme,
 }: {
   onBack: () => void;
   currentAvatarId: string | null;
   setCurrentAvatarId: (id: string | null) => void;
   avatarInventory: any | null;
   setAvatarInventory: (v: any | ((prev: any) => any)) => void;
+  tierTheme: "vivid" | "simple";
 }) {
+  const [detailAvatar, setDetailAvatar] = useState<Avatar | null>(null);
+  const equipAvatar = async (id: string | null) => {
+    try {
+      const res = await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: id }) });
+      if (res.ok) {
+        setCurrentAvatarId(id);
+        setAvatarInventory((inv: any) => inv ? { ...inv, selected: id } : inv);
+      }
+    } catch {}
+  };
   useEffect(() => {
     if (avatarInventory) return;
     let cancelled = false;
@@ -6195,50 +6254,65 @@ function AvatarPickerView({
               const isUnlocked = unlockedIds.has(av.id);
               const isSelected = currentAvatarId === av.id;
               const isLucky = av.source === "lucky";
-              // Subtitle label + lock hint per avatar source. Previously every
-              // non-lucky avatar rendered `TIER ${av.tier}`, but milestone-bonus
-              // / achievement / admin avatars have no `tier`, so they showed
-              // "TIER NaN". (qa: avatar-wall-tier-nan)
-              const sub =
-                av.source === "tier"             ? { label: `TIER ${displayTierNum(av.tier)}`, color: "#FFE66D" }
-                : av.source === "lucky"            ? { label: "RARE", color: "#a855f7" }
-                : av.source === "milestone-bonus"  ? { label: "ELITE", color: "#4ECDC4" }
-                : av.source === "achievement"      ? { label: `★ ${av.achievementCount ?? ""}`.trim(), color: "#FF8C42" }
-                : av.source === "admin"            ? { label: "ADMIN", color: "#FF6B6B" }
-                : { label: "", color: "rgba(255,255,255,0.4)" };
-              const lockHint =
-                av.source === "tier"             ? `Unlocks at Tier ${displayTierNum(av.tier)}`
-                : av.source === "milestone-bonus"  ? "Unlocks with its elite achievement"
-                : av.source === "achievement"      ? `Unlocks at ${av.achievementCount} achievements earned`
-                : av.source === "admin"            ? "Admin-exclusive"
-                : "Rare drop — keep training!";
+              const info = avatarObtainInfo(av, tierTheme);
+              // Tapping any tile (locked OR unlocked) opens the detail card —
+              // unlocked ones equip from there, locked ones show how to obtain.
+              // (qa: avatar-how-to-obtain)
               return (
-                <button key={av.id} disabled={!isUnlocked} onClick={async () => {
-                  if (!isUnlocked) return;
-                  try {
-                    const res = await fetch("/api/avatars", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatarId: av.id }) });
-                    if (res.ok) {
-                      setCurrentAvatarId(av.id);
-                      setAvatarInventory((inv: any) => inv ? { ...inv, selected: av.id } : inv);
-                    }
-                  } catch {}
-                }} title={isUnlocked ? av.flavour : lockHint} style={{ background: isSelected ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.45)" : isLucky ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: isUnlocked ? "pointer" : "not-allowed", opacity: isUnlocked ? 1 : 0.6, position: "relative", color: "#fff", textAlign: "left" }}>
+                <button key={av.id} onClick={() => setDetailAvatar(av)} title={isUnlocked ? av.flavour : info.obtain} style={{ background: isSelected ? "rgba(78,205,196,0.15)" : "rgba(255,255,255,0.03)", border: `1px solid ${isSelected ? "rgba(78,205,196,0.45)" : isLucky ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 8, cursor: "pointer", opacity: isUnlocked ? 1 : 0.62, position: "relative", color: "#fff", textAlign: "left" }}>
                   {isUnlocked ? (
                     <img src={`/avatars/${av.id}.png`} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 8, marginBottom: 4 }} onError={e => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
                   ) : (
                     <div style={{ width: "100%", aspectRatio: "1", borderRadius: 8, marginBottom: 4, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🔒</div>
                   )}
                   <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isUnlocked ? "#fff" : "rgba(255,255,255,0.55)" }}>{av.name}</div>
-                  <div style={{ fontSize: 8, color: sub.color, letterSpacing: 1, marginTop: 1, fontFamily: "'Space Mono', monospace" }}>{sub.label}</div>
+                  <div style={{ fontSize: 8, color: info.tagColor, letterSpacing: 1, marginTop: 1, fontFamily: "'Space Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{info.tag}</div>
                 </button>
               );
             })}
           </div>
           <div style={{ marginTop: 18, fontSize: 10, color: "rgba(255,255,255,0.3)", lineHeight: 1.5 }}>
-            Tier-source avatars unlock automatically as you climb the ladder. Lucky-drop avatars are random rewards from finishing sessions.
+            Tap any avatar to see how to obtain it. Tier avatars unlock automatically as you climb the ladder; lucky-drop avatars are random rewards from finishing sessions.
           </div>
         </>
       )}
+
+      {detailAvatar && (() => {
+        const av = detailAvatar;
+        const owned = unlockedIds.has(av.id);
+        const equipped = currentAvatarId === av.id;
+        const info = avatarObtainInfo(av, tierTheme);
+        return (
+          <div onClick={() => setDetailAvatar(null)} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.72)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 16 }}>
+            <div onClick={e => e.stopPropagation()} className="view-forward" style={{ width: "100%", maxWidth: 420, background: "linear-gradient(180deg, #16161f, #0d0d13)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 22, padding: "22px 20px calc(22px + env(safe-area-inset-bottom))", boxShadow: "0 1px 0 rgba(255,255,255,0.07) inset, 0 -8px 40px -12px rgba(0,0,0,0.8)" }}>
+              <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 16 }}>
+                {owned ? (
+                  <img src={`/avatars/${av.id}.png`} alt="" style={{ width: 84, height: 84, borderRadius: 16, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.12)" }} onError={e => { (e.target as HTMLImageElement).src = "/ai/avatar-default.png"; }} />
+                ) : (
+                  <div style={{ width: 84, height: 84, borderRadius: 16, flexShrink: 0, background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34 }}>🔒</div>
+                )}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", fontFamily: "'DM Sans', sans-serif" }}>{av.name}</div>
+                  <div style={{ fontSize: 9, color: info.tagColor, letterSpacing: 1.5, marginTop: 3, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{info.tag}{equipped ? " · EQUIPPED" : owned ? " · OWNED" : ""}</div>
+                  {av.flavour && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 6, fontStyle: "italic", lineHeight: 1.4 }}>“{av.flavour}”</div>}
+                </div>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "12px 14px", marginBottom: 16 }}>
+                <div style={{ fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.4)", fontFamily: "'Space Mono', monospace", fontWeight: 700, marginBottom: 6 }}>{owned ? "HOW YOU GOT THIS" : "HOW TO OBTAIN"}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>{info.obtain}</div>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                {owned && (
+                  <button onClick={async () => { if (!equipped) await equipAvatar(av.id); setDetailAvatar(null); }} disabled={equipped} style={{ flex: 1, padding: "13px 0", borderRadius: 12, border: "none", cursor: equipped ? "default" : "pointer", fontWeight: 700, fontSize: 13, fontFamily: "'Space Mono', monospace", letterSpacing: 1, color: equipped ? "rgba(255,255,255,0.5)" : "#0a0a0f", background: equipped ? "rgba(255,255,255,0.07)" : "#4ECDC4" }}>
+                    {equipped ? "✓ EQUIPPED" : "EQUIP"}
+                  </button>
+                )}
+                <button onClick={() => setDetailAvatar(null)} style={{ flex: owned ? "0 0 auto" : 1, padding: "13px 18px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "'Space Mono', monospace", letterSpacing: 1, color: "rgba(255,255,255,0.7)", background: "transparent" }}>CLOSE</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -13723,7 +13797,7 @@ function HomePage() {
 
   // ─── GLOBAL TIER LEADERBOARD ────────────────────────────────────────
   if (view === "globalLeaderboard") return <GlobalLeaderboardView onBack={() => setView("home")} viewerId={user?.id ?? ""} tierTheme={tierTheme} isTrainer={userHasRole(user, "trainer")} onOpenProfile={openProfilePreview} />;
-  if (view === "avatarPicker") return <AvatarPickerView onBack={() => setView("profile")} currentAvatarId={currentAvatarId} setCurrentAvatarId={setCurrentAvatarId} avatarInventory={avatarInventory} setAvatarInventory={setAvatarInventory} />;
+  if (view === "avatarPicker") return <AvatarPickerView onBack={() => setView("profile")} currentAvatarId={currentAvatarId} setCurrentAvatarId={setCurrentAvatarId} avatarInventory={avatarInventory} setAvatarInventory={setAvatarInventory} tierTheme={tierTheme} />;
   // ─── CLIENTS HUB ──────────────────────────────────────────────────
   // Trainer's roster + actions, lifted out of the home dashboard.
   // (qa: home-hub-consolidation)

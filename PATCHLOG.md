@@ -2,6 +2,14 @@
 
 ---
 
+## Feat · 2026-06-22 — Avatar picker: tap-for-detail "how to obtain" card + theme-correct tier labels (qa: avatar-how-to-obtain)
+
+@maaiz: tier avatar names didn't make the tier obvious, and tapping a locked avatar did nothing. Now tapping **any** avatar opens a detail card — **locked** avatars show a "HOW TO OBTAIN" explanation (climb to a tier · win a lucky drop · earn N achievements · earn the linked elite achievement), **unlocked** avatars show the art, flavour, how it was earned, and an **EQUIP** button (or "✓ EQUIPPED").
+
+Tier avatar subtitles now resolve the **theme-correct rung name** — `BIG DAWG · TIER 3` on the Vivid theme, `GOLD · TIER 3` on Simple — instead of a bare number, so the tier is self-explanatory. `npx tsc --noEmit` clean. No `TUTORIAL_STEPS` change (enhancement to the existing avatar surface).
+
+---
+
 ## Fix · 2026-06-22 — Avatar wall no longer shows "TIER NaN" (qa: avatar-wall-tier-nan)
 
 @maaiz (screenshot): every locked avatar tile read **"TIER NaN"**. The subtitle rendered `TIER ${displayTierNum(av.tier)}` for *all* non-lucky avatars, but only `source="tier"` avatars have a `tier` field — milestone-bonus, achievement-count (the forge arc), and admin avatars don't, so `displayTierNum(undefined)` → `NaN`.

@@ -1,6 +1,24 @@
 {
   "items": [
     {
+      "id": "avatar-how-to-obtain",
+      "title": "Tapping any avatar opens a how-to-obtain / equip detail card; tier avatars show their theme name",
+      "area": "Progress",
+      "introduced": "2026-06-22",
+      "introducedBy": "@maaiz request",
+      "lastTested": "2026-06-22",
+      "status": "regression-retest",
+      "steps": [
+        "Open the avatar picker (Profile → avatar).",
+        "Tier avatars' subtitle reads the theme-correct rung name + number, e.g. 'BIG DAWG · TIER 3' (Vivid) or 'GOLD · TIER 3' (Simple).",
+        "Tap a LOCKED avatar → a detail card slides up with the lock, name, tag, and a 'HOW TO OBTAIN' explanation (tier ladder / lucky drop / N achievements / the linked elite achievement).",
+        "Tap an UNLOCKED avatar → the card shows the art, flavour, 'HOW YOU GOT THIS', and an EQUIP button (or '✓ EQUIPPED' if already current).",
+        "EQUIP from the card equips and closes; CLOSE dismisses; tapping the backdrop dismisses.",
+        "Toggle Settings → TIER NAMES theme and confirm the tier avatar labels + card text switch between Vivid and Simple names."
+      ],
+      "notes": "[2026-06-22] @maaiz: tier avatar names weren't self-explanatory and tapping a locked avatar did nothing. Added a per-source detail card (tap any tile) with how-to-obtain copy + an equip action, and made tier subtitles resolve the theme-correct rung name via getAthleteTiers(tierTheme) instead of a bare number. (qa: avatar-how-to-obtain)"
+    },
+    {
       "id": "avatar-wall-tier-nan",
       "title": "Avatar wall shows the right subtitle per source (no 'TIER NaN')",
       "area": "Progress",
