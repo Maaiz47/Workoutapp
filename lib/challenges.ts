@@ -133,7 +133,12 @@ export function computeChallengeProgress(
       const dateStr = session.date as string;
       let iso = dateStr;
       const parsed = new Date(dateStr);
-      if (!isNaN(+parsed)) iso = parsed.toISOString().slice(0, 7);
+      // Bucket by LOCAL month to match currentMonthIso()/getMonthChallenges,
+      // which use getFullYear()/getMonth(). Using toISOString() here (UTC)
+      // mismatched the two by up to a day at month boundaries, so a session
+      // logged on the evening of the 31st could count toward the wrong
+      // month's challenge — or neither. (qa: monthly-challenges-library-rotation)
+      if (!isNaN(+parsed)) iso = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}`;
       else iso = dateStr.slice(0, 7);
       if (iso !== monthPrefix) continue;
       sessionCount += 1;

@@ -681,6 +681,58 @@ export const FORM_CUES: Record<string, string[]> = {
     "Push DOWN through each footplate at the bottom of the stride rather than just pulling back — that's where the glute / hamstring engagement comes from.",
     "Match arm drive to leg drive — opposite hand and foot move together, just like a natural running cadence.",
   ],
+
+  // ── Newly added standard movements ─────────────────────────────────────
+  "stiff-leg-deadlift": [
+    "Keep your knees almost straight (a soft, fixed bend) — the hinge happens at the hips, not the knees.",
+    "Push your hips straight back and slide the bar down your thighs until you feel a deep hamstring stretch, usually around mid-shin.",
+    "Drive your hips forward to stand — squeeze your glutes hard at the top rather than leaning back.",
+  ],
+  "pendlay-row": [
+    "Set your back parallel to the floor and keep it there — the torso stays rigid; only the arms move.",
+    "Explode the bar from a dead stop on the floor to your lower chest, leading with the elbows.",
+    "Reset the bar fully on the floor between every rep — no bouncing — so each pull starts from zero momentum.",
+  ],
+  "power-clean": [
+    "Start with the bar over mid-foot, back flat — the first pull off the floor is smooth, like a deadlift.",
+    "Explode through the hips and shrug hard once the bar passes the knees — jump the bar up, don't curl it.",
+    "Drop fast under the bar and catch it on the front of your shoulders with elbows high in a quarter-squat.",
+  ],
+  "push-press": [
+    "Take a short, sharp dip by bending the knees a few inches — keep your torso vertical, don't lean forward.",
+    "Drive explosively through the legs and let that momentum launch the bar — the legs start it, the shoulders finish it.",
+    "Lock the bar out directly over the crown of your head, biceps by your ears.",
+  ],
+  "reverse-pec-deck": [
+    "Set the handles so your arms are at chest height — lead the movement with your pinkies, not your thumbs, to bias the rear delts.",
+    "Squeeze your shoulder blades together only slightly — think 'open the arms wide', not 'pinch the blades', to keep tension on the delts not the traps.",
+    "Control the return slowly — don't let the weight stack yank your arms forward.",
+  ],
+  "walking-lunge": [
+    "Take a long enough step that your front shin stays roughly vertical at the bottom — a short step overloads the knee.",
+    "Drop the back knee straight down toward the floor, then drive through the front heel to step through into the next lunge.",
+    "Keep your torso tall and core braced — resist the urge to lean forward over the front leg.",
+  ],
+  "reverse-lunge": [
+    "Step straight back and lower the back knee to just above the floor — stepping backward is easier on the knees than a forward lunge.",
+    "Keep ~80% of your weight on the front heel — that's what keeps the work in the glute and quad, not the back leg.",
+    "Push through the front heel to return to standing in one controlled motion.",
+  ],
+  "situp": [
+    "Anchor your feet and curl up by rounding your spine one vertebra at a time — don't just hinge stiffly at the hips.",
+    "Exhale hard on the way up and consciously crunch the abs at the top, rather than yanking with your neck.",
+    "Lower under control all the way down — the negative is where a lot of the ab work happens.",
+  ],
+  "reverse-crunch": [
+    "Lie flat and curl your knees up toward your chest by lifting your hips off the floor — the movement is your pelvis tilting, not your legs swinging.",
+    "Keep it slow and avoid using momentum — a tiny controlled lift beats a big swinging one for the lower abs.",
+    "Press your lower back into the floor throughout to keep the tension on the abs and off the hip flexors.",
+  ],
+  "pallof-press": [
+    "Stand side-on to the cable and press the handle straight out from your chest — the whole point is to RESIST the cable's pull to rotate you.",
+    "Brace your core hard and keep your hips and shoulders square to the front — don't let the cable twist you.",
+    "Hold the fully-extended position for a beat on each rep; that anti-rotation hold is where the obliques work.",
+  ],
 };
 
 // Universal fallback cues for any exercise we don't have a tailored set for —

@@ -8862,8 +8862,15 @@ function HomePage() {
             let hasUsedCooldown = false;
             let warmupSessionCount = 0;
             let cooldownSessionCount = 0;
-            for (const dayId in history) {
-              for (const session of history[dayId]) {
+            // Walk the freshly-fetched `data` (not the stale `history`
+            // closure, which is still the pre-save snapshot because
+            // setHistory is async). Reading `history` here lagged every
+            // benchmark/volume/cardio/bodyweight achievement one session
+            // behind — the set the user JUST logged (their first 100kg
+            // bench, their 200th push-up) wouldn't fire until the next
+            // save. (qa: achievements-detection-fresh-data)
+            for (const dayId in data) {
+              for (const session of data[dayId]) {
                 const sets = (session.sets ?? {}) as Record<string, any>;
                 let sessionHasHiit = false;
                 let sessionHasCardio = false;

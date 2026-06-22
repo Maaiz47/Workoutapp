@@ -201,6 +201,13 @@ export const MUSCLE_DETAIL: Record<string, { p: string[]; s: string[] }> = {
   "jumping-jacks":     { p: ["quads-outer", "glutes-med"],                              s: ["calves-gastroc", "shoulders-side"] },
   "jump-rope":         { p: ["calves-gastroc"],                                          s: ["core-abs-upper", "shoulders-front"] },
 
+  // ── Cardio machines (were rendering a blank diagram — no name fallback
+  //    rescued them, so the MUSCLES tab body was empty) ──────────────────
+  "treadmill":         { p: ["quads-rectus", "hamstrings-outer", "glutes-max"],          s: ["calves-gastroc", "calves-soleus", "core-abs-lower"] },
+  "cycling":           { p: ["quads-rectus", "quads-outer", "glutes-max"],               s: ["hamstrings-outer", "calves-gastroc"] },
+  "rowing-machine":    { p: ["back-lats", "back-traps-mid", "quads-rectus", "glutes-max"], s: ["hamstrings-outer", "biceps-short", "core-abs-upper"] },
+  "elliptical":        { p: ["quads-rectus", "glutes-max"],                              s: ["hamstrings-outer", "calves-gastroc", "calves-soleus"] },
+
   // ── New HIIT exercises ─────────────────────────────────────────────────
   "tuck-jumps":        { p: ["quads-rectus", "quads-outer"],                            s: ["core-abs-lower", "glutes-max", "calves-gastroc"] },
   "split-jumps":       { p: ["quads-rectus", "glutes-max"],                             s: ["hamstrings-outer", "calves-gastroc", "core-abs-lower"] },
@@ -213,6 +220,18 @@ export const MUSCLE_DETAIL: Record<string, { p: string[]; s: string[] }> = {
   "squat-thrust":      { p: ["quads-rectus", "core-abs-lower"],                         s: ["glutes-max", "shoulders-front"] },
   "star-jump":         { p: ["quads-outer", "glutes-med"],                              s: ["calves-gastroc", "shoulders-side"] },
   "lateral-shuffle":   { p: ["quads-outer", "glutes-med"],                              s: ["glutes-max", "calves-gastroc"] },
+
+  // ── Newly added standard movements ─────────────────────────────────────
+  "stiff-leg-deadlift": { p: ["hamstrings-outer", "hamstrings-inner", "glutes-max"], s: ["back-lower", "forearm-flexor"] },
+  "pendlay-row":        { p: ["back-lats", "back-traps-mid"], s: ["biceps-short", "shoulders-rear", "forearm-flexor"] },
+  "power-clean":        { p: ["back-traps-upper", "glutes-max", "hamstrings-outer"], s: ["shoulders-front", "quads-rectus", "back-lower", "forearm-flexor"] },
+  "push-press":         { p: ["shoulders-front", "shoulders-side"], s: ["triceps-lateral", "quads-rectus", "glutes-max", "core-abs-upper"] },
+  "reverse-pec-deck":   { p: ["shoulders-rear"], s: ["back-traps-mid"] },
+  "walking-lunge":      { p: ["quads-rectus", "quads-outer", "glutes-max"], s: ["hamstrings-outer", "calves-gastroc"] },
+  "reverse-lunge":      { p: ["quads-rectus", "glutes-max"], s: ["hamstrings-outer", "quads-outer"] },
+  "situp":              { p: ["core-abs-upper", "core-abs-lower"], s: ["core-obliques"] },
+  "reverse-crunch":     { p: ["core-abs-lower"], s: ["core-abs-upper"] },
+  "pallof-press":       { p: ["core-obliques"], s: ["core-abs-upper", "core-abs-lower"] },
 };
 
 // Normalized name → MUSCLE_DETAIL key aliases for exercises whose display names

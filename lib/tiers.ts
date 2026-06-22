@@ -324,11 +324,15 @@ function adherenceScore(sessionsLast4Weeks: number, daysPerWeek: number): number
 
 // Strength sub-rank — measures BOTH whether the user is getting
 // stronger (rate) AND whether they're objectively strong (absolute).
-// v3.5: blend is now 0.6×rate + 0.4×absolute (was max). The max
-// rule lets vets coast on absolute alone; the blend forces continued
-// effort on the rate side too. When only one signal is available
-// (no bodyweight, or no 90d history), the available signal carries
-// 100% of the score.
+// The two signals are combined with max() — the dominant one wins, so
+// beginners ride the rate-of-change signal while veterans ride the
+// absolute signal. This is deliberate veteran fairness: a strong lifter
+// whose week-to-week gains have naturally flattened does NOT regress on
+// Strength just because their rate slowed. (Per @maaiz — "veterans no
+// longer regress.") A `0.6×rate + 0.4×absolute` blend was prototyped
+// but rejected because it re-introduced exactly that vet regression.
+// When only one signal is available (no e1RM history yet, or no
+// qualified sets), the available signal carries 100% of the score.
 //
 // Rate methodology (unchanged from v2/v3):
 //   1. Filter to exercises with ≥4 sets logged in the last 180 days.
@@ -382,9 +386,20 @@ function strengthSubRank(
   let absoluteScore = 0;
   let absoluteHasData = false;
   let absoluteRatio: number | null = null;
-  if (currentBodyweightKg && currentBodyweightKg > 0 && topE1RM > 0) {
+  // Veteran fairness: a strong-but-stable lifter whose rate-of-change has
+  // flattened would otherwise be scored on rate alone (which asymptotes
+  // toward ~50) and lose all credit for being objectively strong. When
+  // they've never logged a bodyweight we assume a 70kg default (the same
+  // default performance.ts uses) so absolute strength still counts.
+  // Because the final blend is max(rate, absolute), an assumed bodyweight
+  // can only RAISE a strong user's score and never lowers anyone — so the
+  // assumption is safe. (qa: tier-strength-absolute-blend)
+  const ASSUMED_BW_KG = 70;
+  const bwAssumed = !(currentBodyweightKg && currentBodyweightKg > 0);
+  const bwForAbsolute = bwAssumed ? ASSUMED_BW_KG : (currentBodyweightKg as number);
+  if (topE1RM > 0) {
     absoluteHasData = true;
-    absoluteRatio = topE1RM / currentBodyweightKg;
+    absoluteRatio = topE1RM / bwForAbsolute;
     // Linear: 0.5× → 20, 1.0× → 40, 1.5× → 60, 2.0× → 80, 2.5× → 100
     absoluteScore = Math.min(100, Math.max(20, Math.round(20 + (absoluteRatio - 0.5) * 40)));
   }
@@ -422,15 +437,18 @@ function strengthSubRank(
   // scores.
   const finalScore = Math.max(rateScore, absoluteScore);
 
+  // When bodyweight was assumed (never logged), label the ratio "× BW est"
+  // and nudge the user to log a weigh-in for an exact absolute score.
+  const bwLabel = `× BW${bwAssumed ? " est" : ""}`;
   let detail: string;
   if (rateHasData && absoluteHasData) {
     const pctRounded = Math.round((avgPct as number) * 1000) / 10;
-    detail = `${pctRounded >= 0 ? "+" : ""}${pctRounded}% e1RM · best ${Math.round(topE1RM)}kg (${(absoluteRatio as number).toFixed(2)}× BW)`;
+    detail = `${pctRounded >= 0 ? "+" : ""}${pctRounded}% e1RM · best ${Math.round(topE1RM)}kg (${(absoluteRatio as number).toFixed(2)}${bwLabel})`;
   } else if (rateHasData) {
     const pctRounded = Math.round((avgPct as number) * 1000) / 10;
     detail = `${pctRounded >= 0 ? "+" : ""}${pctRounded}% e1RM (180d, top ${pctChanges.length})`;
   } else {
-    detail = `best e1RM ${Math.round(topE1RM)}kg (${(absoluteRatio as number).toFixed(2)}× BW) · trend pending`;
+    detail = `best e1RM ${Math.round(topE1RM)}kg (${(absoluteRatio as number).toFixed(2)}${bwLabel}) · trend pending`;
   }
   return { score: applyRamp(finalScore), hasData: true, detail: detail + rampSuffix, pctChange: avgPct, qualifiedCount: qualified.length };
 }

@@ -28,8 +28,12 @@ const LOCAL_STRETCH_IDS = new Set<string>([
   "cd-pigeon",
   "cd-hamstring-lay",
   "cd-lat-stretch",
-  "cd-glute-pretzel",
   "wu-leg-swings",
+  // NOTE: cd-glute-pretzel was previously listed here AND flagged as
+  // wrong below — the contradiction meant a known-incorrect frame
+  // (single-knee-to-chest, not the figure-four pull) was shipping live.
+  // Removed from the active set so it falls back to the stretch emoji
+  // until a correct frame lands. (qa: exercise-local-images)
   // The following ids are temporarily removed pending image
   // regeneration (qa: exercise-local-images; CLAUDE.md pending
   // reminder):
