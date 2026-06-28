@@ -2,7 +2,13 @@
 
 ---
 
-## Fix · 2026-06-22 — Weekly recap: real top-exercise name + consistent volume formatting (qa: weekly-recap-top-exercise-name, weekly-recap-volume-format)
+## Polish · 2026-06-28 — Client marketing page: Tilt3D scroll-parallax on feature cards
+
+Wrapped the ten `.feat-card` items in the `/client` marketing page's FEATURES grid with `Tilt3D` (tilt 5°, depth 12 px) — matching the same treatment already on the promo page. Cards now tilt subtly as they scroll through the viewport; `useReducedMotion` is respected. No tutorial or qa-state change (marketing page only, no in-app surface).
+
+---
+
+## Fix · 2026-06-28 — Weekly recap: real top-exercise name + consistent volume formatting (qa: weekly-recap-top-exercise-name, weekly-recap-volume-format)
 
 @maaiz screenshot: the "Last Week" recap showed TOP EXERCISE **"a1"** (a raw bundled-split slot code) and inconsistent volume units — VOLUME read **"2 k kg"** while TOP read **"680 kg×reps"** for the same quantity.
 

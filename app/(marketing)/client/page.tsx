@@ -143,11 +143,13 @@ export default function ClientPage() {
         </Reveal>
         <Stagger className="feat-grid" stagger={0.06}>
           {FEATURES.map((f, i) => (
-            <StaggerItem key={i} className="feat-card">
-              <div className="feat-icon" style={{ background: "rgba(78,205,196,0.13)" }}>{f.icon}</div>
-              <h3>{f.title}</h3>
-              <p>{f.desc}</p>
-            </StaggerItem>
+            <Tilt3D key={i} tilt={5} depth={12}>
+              <StaggerItem className="feat-card" style={{ height: "100%" }}>
+                <div className="feat-icon" style={{ background: "rgba(78,205,196,0.13)" }}>{f.icon}</div>
+                <h3>{f.title}</h3>
+                <p>{f.desc}</p>
+              </StaggerItem>
+            </Tilt3D>
           ))}
         </Stagger>
       </section>
