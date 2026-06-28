@@ -2,6 +2,17 @@
 
 ---
 
+## Fix · 2026-06-22 — Weekly recap: real top-exercise name + consistent volume formatting (qa: weekly-recap-top-exercise-name, weekly-recap-volume-format)
+
+@maaiz screenshot: the "Last Week" recap showed TOP EXERCISE **"a1"** (a raw bundled-split slot code) and inconsistent volume units — VOLUME read **"2 k kg"** while TOP read **"680 kg×reps"** for the same quantity.
+
+- **Top-exercise name** now also falls back to the global exercise catalogue, and never surfaces a raw slot code: if the highest-volume exercise can't be resolved to a real name, the recap prefers the best *named* exercise (or hides the card) instead of printing "a1". (qa: weekly-recap-top-exercise-name)
+- **Volume formatting** is now a shared `formatVolumeKg()` used by both cards under one **"kg·reps"** unit. Full numbers below 10k (e.g. "2,040"), then "k" with a decimal ("12.4k"). Fixes the **"0k kg"** a sub-1,000 kg week used to show, and the awkward "k kg" label.
+
+`npx tsc --noEmit` clean. No `TUTORIAL_STEPS` change.
+
+---
+
 ## Feat · 2026-06-22 — Avatar picker: tap-for-detail "how to obtain" card + theme-correct tier labels (qa: avatar-how-to-obtain)
 
 @maaiz: tier avatar names didn't make the tier obvious, and tapping a locked avatar did nothing. Now tapping **any** avatar opens a detail card — **locked** avatars show a "HOW TO OBTAIN" explanation (climb to a tier · win a lucky drop · earn N achievements · earn the linked elite achievement), **unlocked** avatars show the art, flavour, how it was earned, and an **EQUIP** button (or "✓ EQUIPPED").

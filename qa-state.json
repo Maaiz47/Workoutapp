@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "weekly-recap-volume-format",
+      "title": "Weekly recap volume is consistently formatted (no '0k', same unit on both cards)",
+      "area": "Progress",
+      "introduced": "2026-06-22",
+      "introducedBy": "@maaiz report (screenshot)",
+      "lastTested": "2026-06-22",
+      "status": "regression-retest",
+      "steps": [
+        "Trigger the weekly recap (Sunday+ / shouldShowWeeklyRecap).",
+        "VOLUME card and TOP EXERCISE both use the same unit ('kg·reps') and the same number format.",
+        "A light week (under 1,000 kg total) shows the real number (e.g. '680'), NOT '0k kg'.",
+        "Mid-range shows full numbers (e.g. '2,040'); large weeks abbreviate ('12.4k', '125k')."
+      ],
+      "notes": "[2026-06-22] @maaiz screenshot: VOLUME showed '2 k kg' (awkward + rounds small weeks to '0k') while TOP EXERCISE showed 'kg×reps' — two unit conventions for the same quantity. Added formatVolumeKg() (full numbers <10k, then k with a decimal) and unified both cards to 'kg·reps'. (qa: weekly-recap-volume-format)"
+    },
+    {
       "id": "avatar-how-to-obtain",
       "title": "Tapping any avatar opens a how-to-obtain / equip detail card; tier avatars show their theme name",
       "area": "Progress",

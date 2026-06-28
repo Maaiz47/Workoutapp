@@ -372,6 +372,35 @@ export function toggleOptIn(challengeId: string): boolean {
 // midnight. Stored in localStorage as the ISO of the last recap week.
 
 import { WORKOUT_DATA } from "./workouts";
+import { EXERCISES } from "./exercises";
+
+// Global exercise-id → display-name map, used as a fallback when a session
+// didn't carry its day config (so a custom-plan / real-id exercise still
+// resolves to a name instead of showing the raw id).
+const EX_NAME_BY_ID: Record<string, string> = (() => {
+  const m: Record<string, string> = {};
+  for (const ex of EXERCISES) m[ex.id] = ex.name;
+  return m;
+})();
+
+// A bundled-split slot code like "a1" / "b2" — short, single-letter prefix
+// + digits. These are internal ids that should NEVER surface to the user;
+// if one can't be resolved to a real name we hide it rather than show it.
+function isSlotCode(key: string): boolean {
+  return /^[a-z]\d+$/i.test(key);
+}
+
+// Format a volume (weight × reps) for display. Full numbers up to 10k
+// (e.g. "2,040"), then "k" with one decimal ("12.4k"), then whole "k"
+// past 100k. Never renders "0k" for a real-but-light week. (qa: weekly-recap-volume-format)
+export function formatVolumeKg(kg: number): string {
+  const v = Math.max(0, Math.round(kg));
+  if (v >= 10000) {
+    const k = v / 1000;
+    return (k >= 100 ? Math.round(k).toString() : k.toFixed(1)) + "k";
+  }
+  return v.toLocaleString();
+}
 
 const RECAP_KEY = "ironlog-recap-week-v1";
 
@@ -413,7 +442,9 @@ export function buildWeeklyRecap(history: Record<string, any[]>): WeeklyRecap {
         const exKey = k.replace(/-\d+(-d\d+)?$/, "");
         const vol = (v.weight ?? 0) * (v.reps ?? 0);
         totalVolume += vol;
-        const resolvedName = nameByExId[exKey] ?? perEx[exKey]?.name ?? exKey;
+        // Resolve a real name: session day config first, then the global
+        // exercise catalogue, then any name already found for this key.
+        const resolvedName = nameByExId[exKey] ?? EX_NAME_BY_ID[exKey] ?? perEx[exKey]?.name ?? exKey;
         if (!perEx[exKey]) perEx[exKey] = { name: resolvedName, volume: 0 };
         else if (perEx[exKey].name === exKey && resolvedName !== exKey) perEx[exKey].name = resolvedName;
         perEx[exKey].volume += vol;
@@ -423,7 +454,14 @@ export function buildWeeklyRecap(history: Record<string, any[]>): WeeklyRecap {
   // For PR count we'd need historical comparison — for the recap we
   // approximate by counting exercises that had positive volume this week.
   prCount = Object.keys(perEx).length;
-  const top = Object.entries(perEx).sort(([, a], [, b]) => b.volume - a.volume)[0];
+  // Pick the top exercise by volume — but prefer the highest-volume one
+  // with a RESOLVED name. Never surface a raw slot code ("a1"): if the
+  // top is an unresolved slot code, fall back to the best named exercise;
+  // if nothing resolves, hide the card. (qa: weekly-recap-top-exercise-name)
+  const sorted = Object.entries(perEx).sort(([, a], [, b]) => b.volume - a.volume);
+  const named = sorted.find(([key, e]) => e.name !== key && !isSlotCode(e.name));
+  const topRaw = sorted[0];
+  const top = named ?? (topRaw && topRaw[1].name !== topRaw[0] && !isSlotCode(topRaw[1].name) ? topRaw : null);
   return {
     sessions,
     totalVolumeKg: totalVolume,

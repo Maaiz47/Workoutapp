@@ -24,7 +24,7 @@ import { ACHIEVEMENTS, detectNewAchievements, ACHIEVEMENT_STORAGE_KEY, LEGACY_MI
 import { calcPlates, loadingKindFor, formatPlateLabel } from "../lib/plates";
 import { HYDRATION_TARGET, readHydrationToday, writeHydrationToday, readSleepToday, writeSleepToday, readSorenessToday, writeSorenessToday, readSorenessHistory, readSorenessLast, readInjuries, writeInjuries, addInjury, removeInjury, injuriesFor, wellnessLast14Days, syncWellnessFromServer, syncWellnessToServerOnce, Injury, SleepEntry, SorenessMap } from "../lib/wellness";
 import { SYSTEM_NOTIFICATIONS, systemNotifUnreadCount, markSystemNotifsRead, fetchPatchNotifications, markPatchNotifsRead, markRetestResponded, readRetestRespondedIds, PatchNotification, fetchAdminSubmissionNotifications, markAdminSubNotifsRead, AdminSubmissionNotification } from "../lib/systemNotifications";
-import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState, resolveMissionTarget, resolveMissionBody } from "../lib/challenges";
+import { CHALLENGES, computeChallengeProgress, isOptedIn, toggleOptIn, currentMonthIso, buildWeeklyRecap, shouldShowWeeklyRecap, markRecapShown, WeeklyRecap, formatVolumeKg, MISSIONS, isMissionOptedIn, toggleMissionOptIn, computeMissionState, resolveMissionTarget, resolveMissionBody } from "../lib/challenges";
 import { computeExerciseRecencies, recencyForExercise, recencyDotColor, ExerciseRecency } from "../lib/adaptiveRewards";
 import { findAvatar, AVATARS, Avatar } from "../lib/avatars";
 // rankedContributors / totalContributions / kindLabel / Contributor no
@@ -11717,14 +11717,14 @@ function HomePage() {
                 </div>
                 <div style={{ padding: "10px 12px", background: "rgba(46,204,113,0.06)", border: "1px solid rgba(46,204,113,0.2)", borderRadius: 8 }}>
                   <div style={{ fontSize: 9, color: "rgba(46,204,113,0.7)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>VOLUME</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: "#2ecc71", marginTop: 2 }}>{Math.round(recapShown.totalVolumeKg / 1000)}<span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 2 }}>k kg</span></div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: "#2ecc71", marginTop: 2 }}>{formatVolumeKg(recapShown.totalVolumeKg)}<span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 3 }}>kg·reps</span></div>
                 </div>
               </div>
               {recapShown.topExercise && (
                 <div style={{ padding: "10px 12px", background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.2)", borderRadius: 8, marginBottom: 14 }}>
                   <div style={{ fontSize: 9, color: "rgba(240,192,64,0.7)", letterSpacing: 1, fontFamily: "'Space Mono', monospace" }}>TOP EXERCISE</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: "#f0c040", marginTop: 2 }}>{recapShown.topExercise.name}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{Math.round(recapShown.topExercise.volume).toLocaleString()} kg×reps</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{formatVolumeKg(recapShown.topExercise.volume)} kg·reps</div>
                 </div>
               )}
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, textAlign: "center" }}>
